@@ -1,5 +1,4 @@
-<img width="1792" height="592" alt="pal2" src="https://github.com/user-attachments/assets/fc6c2f70-ada0-4242-8043-8766cfd655b6" />
-
+<img width="1856" height="576" alt="palbanner" src="https://github.com/user-attachments/assets/475b8530-cd4d-4a5b-a517-3c72b54111f7" />
 
 
 
