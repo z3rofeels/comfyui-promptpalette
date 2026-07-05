@@ -1,0 +1,109 @@
+# ====================================================================
+# Security, Tokens, and Sensitive Information
+# ====================================================================
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+config.local.json
+credentials.json
+credentials.yml
+oauth_token.json
+id_rsa
+id_rsa.pub
+*.cert
+*.crt
+*_token
+*_key
+
+# ====================================================================
+# ComfyUI Specific Directories (I/O, Temp, Models)
+# ====================================================================
+input/
+output/
+temp/
+models/
+user/
+*.safetensors
+*.pt
+*.bin
+*.pth
+*.ckpt
+*.onnx
+
+# ====================================================================
+# Wildcard Temp, Cache, and Backup Folders
+# ====================================================================
+*temp*/
+*tmp*/
+*cache*/
+__pycache__/
+*.bak
+*.tmp
+*.temp
+*.swp
+*~
+*.log
+*.log.*
+
+# ====================================================================
+# Python Backend Clutter
+# ====================================================================
+*.py[cod]
+*$py.class
+.Python
+local_settings.py
+.pytest_cache/
+.venv/
+env/
+venv/
+ENV/
+
+# ====================================================================
+# Frontend & JavaScript Clutter (UI components)
+# ====================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.eslintcache
+.stylelintcache
+dist/
+build/
+out/
+
+# ====================================================================
+# Cross-Platform OS Clutter (Mac/Windows)
+# ====================================================================
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows specific
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ====================================================================
+# IDEs and Code Editors
+# ====================================================================
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
