@@ -2,7 +2,7 @@
 
 
 
-Prompt Palette for ComfyUI! Your new best friend when it comes to prompting in ComfyUI.
+Prompt Palette, your new best friend when it comes to prompting in ComfyUI.
 
 Prompt Palette takes your boring wall of messy text and let's you quickly visualize what's in your prompt, by color. Fully customizable to your taste, wildcards or not, bright or light, use it how you want and change it depending on your mood.
 
