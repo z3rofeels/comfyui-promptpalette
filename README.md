@@ -15,6 +15,12 @@ Prompt Palette takes your boring wall of messy text and let's you quickly visual
 2. Restart ComfyUI.
 3. Drop your files into `ComfyUI/wildcards/`.
 
+   ### ⚠️ Crucial Installation Note for ZIP Users
+If you download this repository using GitHub's **"Download ZIP"** button:
+1. Extract the ZIP file into your `ComfyUI/custom_nodes/` directory.
+2. **You must rename the extracted folder** from `comfyui-promptpalette-main` to exactly `comfyui-promptpalette`. 
+3. If the folder is not renamed to `comfyui-promptpalette`, the node will fail to load in ComfyUI. Easy peasy. Done.
+
 _______________________________________________________________________________
 ## Features 🌟
 
