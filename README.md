@@ -1,5 +1,6 @@
-<img width="1856" height="576" alt="palbanner" src="https://github.com/user-attachments/assets/475b8530-cd4d-4a5b-a517-3c72b54111f7" />
 
+<img width="1856" height="576" alt="palbanner" src="https://github.com/user-attachments/assets/475b8530-cd4d-4a5b-a517-3c72b54111f7" />
+<img width="1402" height="1021" alt="palred" src="https://github.com/user-attachments/assets/7ce3c00b-3986-4135-850d-959469313df5" />
 
 
 Prompt Palette, your new best friend when it comes to prompting in ComfyUI.
