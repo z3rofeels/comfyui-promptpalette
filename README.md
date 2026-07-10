@@ -1,13 +1,26 @@
 <img width="1856" height="576" alt="palbanner" src="https://github.com/user-attachments/assets/475b8530-cd4d-4a5b-a517-3c72b54111f7" />
 
 
+``
+      
+                                           (This page looks better in dark mode for now, oops) 🤷‍♂️
+
+     recent updates: Resizeable side panel (woo)
+     Type double underscore for a mini hover menu for quick access (heck yeah)
+     clear button for recents (duh)
+     optional day/night toggle (or choose your own theme for day/night options)((heck yeahx2))
+     Cleaning up toolbar and making more options...optional (cause' why not)
+
+    *
+``
 
 
 
 
 
+##
 
-$${\color{lightblue}\text{Your }}{\color{green}\text{new}}{\color{lightblue}\text{ best friend for prompting in ComfyUI.}}$$
+$${\color{lightblue}\text{Your }}{\color{green}\text{new}}{\color{blue}\text{ best friend for prompting in ComfyUI.}}$$
 
 $${\color{blue}\text{Prompt Palette}}{\color{lavender}\text{ instantly brings your prompts to life with beautiful, }}{\color{cyan}\text{color-coded visualization.}}$$
 
@@ -15,6 +28,7 @@ $${\color{red}\text{Fully customizable: }}{\color{orange}\text{wildcards}}{\colo
 
 $${\color{red}\text{Adapt }}{\color{orange}\text{it }} {to}  {\color{blue}\text{your }}{\color{yellow}\text{workflow }}{\color{blue}\text{and }}{\color{purple}\text{change }}{\color{grey}\text{the }}{\color{lightsalmon}\text{look }}{\color{aquamarine}\text{whenever }}{\color{lime}\text{the }}{\color{lightblue}\text{mood }}{\color{lightgreen}\text{strikes.}}$$
 
+##
 
 
  $${\color{lightblue}\text{Features }}$$
