@@ -1,39 +1,40 @@
 
 <img width="1856" height="576" alt="palbanner" src="https://github.com/user-attachments/assets/475b8530-cd4d-4a5b-a517-3c72b54111f7" />
-<img width="1402" height="1021" alt="palred" src="https://github.com/user-attachments/assets/7ce3c00b-3986-4135-850d-959469313df5" />
 
 
-Prompt Palette, your new best friend when it comes to prompting in ComfyUI.
 
-Prompt Palette takes your boring wall of messy text and let's you quickly visualize what's in your prompt, by color. Fully customizable to your taste, wildcards or not, bright or light, use it how you want and change it depending on your mood.
 
-🟢***SKIP THE TEXT WALL AND SCROLL DOWN TO SEE IT FOR YOURSELF OR INSTALL RIGHT AWAY***🟢
+**Your new best friend for prompting in ComfyUI.**
 
-## Installation 🏁
 
-1. Clone this repo into `ComfyUI/custom_nodes/`. OR just drag and drop into your /custom_nodes/ folder. 
-2. Restart ComfyUI.
-3. Drop your files into `ComfyUI/wildcards/`.
 
-   ### ⚠️ Crucial Installation Note for ZIP Users
-If you download this repository using GitHub's **"Download ZIP"** button:
-1. Extract the ZIP file into your `ComfyUI/custom_nodes/` directory.
-2. **You must rename the extracted folder** from `comfyui-promptpalette-main` to exactly `comfyui-promptpalette`. 
-3. If the folder is not renamed to `comfyui-promptpalette`, the node will fail to load in ComfyUI. Easy peasy. Done.
 
+Tired of staring at a massive wall of messy prompt text? 
+
+Prompt Palette instantly brings your prompts to life with beautiful, color-coded visualization.
+Fully customizable: wildcards or plain text, vibrant or subtle themes, light or dark modes. Adapt it to your workflow and change the look whenever the mood strikes.
 _______________________________________________________________________________
+
 ## Features 🌟
 
 🟢 Editor
 * **Color-coded text box:** Wildcards and choice syntax are auto-highlighted.
 * **Double-click:** Edit wildcards directly in the panel.
 
+  <img width="1535" height="1037" alt="ppalv2" src="https://github.com/user-attachments/assets/8e3f589c-cbf1-4ef7-a20a-c893ceb68b92" />
+
+
 🟢Library Management
 
 **Smart Organization: Use star-to-pin, recents lists, and collapsible categories to keep your workflow tidy.**  
 **Slide-out panel:** Browse, organize, and drag-and-drop categories for easy organizing.
 **Search:** Search across your whole collection.
+__________________________________________________________________________________________________________________________________________________________
+**Optional Light/Dark mode** 
 
+<img width="1273" height="835" alt="ppalv2b" src="https://github.com/user-attachments/assets/230339a0-30f1-4f38-ab6f-545914f0c4f2" />
+
+_____________________________________________________________________________________________________________________________________________________________________________
 **Auto Hue Shifting**: Dynamically change the look of your text prompt.
 
 **Brightness & Font Controls: Fine-tune the UI with a brightness slider, font picker, and font size slider.** 
@@ -45,13 +46,10 @@ _______________________________________________________________________________
 
 **Custom Themes: Fully themeable UI with support for easy JSON-based (Derulo/Statham/Bateman) configuration.**  
 
-***Check it out!*** 
 
 
 
-<img width="699" height="634" alt="simplepal" src="https://github.com/user-attachments/assets/2f690660-bbfc-40bc-96ae-f3014f794dd8" />
 
-<img width="1393" height="982" alt="minicramped" src="https://github.com/user-attachments/assets/ea178738-94e2-4930-a433-bd07e58bc3cc" />
 
 
 ______________________________________________________________________________
@@ -62,33 +60,39 @@ ______________________________________________________________________________
 
 
 
-
-
-
-
-https://github.com/user-attachments/assets/697563cb-6c08-4cbf-9d69-e4b63088d194
-
-
-
 🟡**Color shift hues and make it brighter or lighter!** 
 
 
-https://github.com/user-attachments/assets/79d8b65a-ad6b-4798-915e-aa239d2ba749
-
 
 🔵🟢🟠🟣**Themeable! Custom themes and a font selector, as well.**
+_________________________________________________________________________________________________________________________________________________________
 
 
-https://github.com/user-attachments/assets/dba89115-9bff-431a-ba3e-beafe92c3c23
+
+***UPDATING SECTION WITH DEMOS SOON***
 
 
-<img width="559" height="1109" alt="fontpickerfirefox" src="https://github.com/user-attachments/assets/8b992766-4c71-42d9-b2f6-e106494d5b54" />
 
 
-<img width="372" height="530" alt="fontselectorchrome" src="https://github.com/user-attachments/assets/c69f1557-689d-41cb-9feb-3cfdf52e16e7" />
+_____________________________________________________________________________
+
+Installation 🏁
+
+Clone this repo into your ComfyUI/custom_nodes/ folder
+OR simply drag and drop the folder into /custom_nodes/.
+Restart ComfyUI.
+(Optional but recommended) Drop your wildcard files into ComfyUI/wildcards/.
+
+⚠️ Important Note for ZIP Users
+If you downloaded the repository using GitHub’s “Download ZIP” button:
+
+Extract the ZIP file into your ComfyUI/custom_nodes/ directory.
+Rename the extracted folder from comfyui-promptpalette-main to exactly comfyui-promptpalette.
+If the folder isn’t renamed correctly, the node will fail to load.
+
+_____________________________________________________________________________
 
 
-<img width="254" height="868" alt="themes" src="https://github.com/user-attachments/assets/fc0d1338-970a-42a7-98fa-1b48f53b8ae4" />
 
 
 
