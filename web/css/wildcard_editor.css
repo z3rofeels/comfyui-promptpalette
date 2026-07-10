@@ -24,23 +24,29 @@
 .wg-node-frame { width: 100%; height: 100%; box-sizing: border-box; padding: 10px; pointer-events: none; }
 .wg-node-frame > .wg-node { pointer-events: auto; }
 
-.wg-node { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--wg-bg, #1d1c1a); font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); border-radius: 6px; overflow: hidden; }
+.wg-node { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--wg-bg, #1d1c1a); font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); border-radius: 8px; overflow: hidden; border: 1px solid var(--wg-border, #2c2820); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
 
-.wg-toolbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; padding: 4px 6px; flex: none; border-bottom: 1px solid var(--wg-border, #2c2820); }
+.wg-toolbar { display: grid; grid-template-columns: 1fr auto 1fr; grid-auto-rows: auto; align-items: center; gap: 6px; padding: 4px 6px; flex: none; border-bottom: 1px solid var(--wg-border, #2c2820); }
 .wg-toolbar-group { display: flex; gap: 6px; align-items: center; }
 .wg-toolbar-group.left { justify-self: start; }
 .wg-toolbar-group.right { justify-self: end; }
 .wg-toolbar .wg-count { font-size: 10px; color: var(--wg-text-faint, #6f6a5c); }
 
-.wg-seedbar { display: flex; gap: 6px; align-items: center; padding: 4px 6px; flex: none; border-bottom: 1px solid var(--wg-border, #2c2820); background: var(--wg-surface, #131211); }
+/* Optional seed/increment/line-by-line/randomize cluster (see theme.showSeedControls).
+   Off by default to keep the toolbar compact. When switched on in Settings it
+   spans the full width as a second row of the SAME .wg-toolbar grid — not a
+   separate bordered/backgrounded strip — so it reads as part of one toolbar
+   alongside Show resolved / refresh rather than a bolted-on section. */
+.wg-toolbar-extra { display: none; grid-column: 1 / -1; flex-wrap: wrap; gap: 6px; align-items: center; padding-top: 4px; margin-top: 2px; border-top: 1px solid var(--wg-border, #2c2820); }
+.wg-toolbar-extra.on { display: flex; }
 .wg-seed-label { font-size: 10px; color: var(--wg-text-dim, #b8b1a1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
-.wg-seed-input { width: 130px; flex: none; background: var(--wg-bg, #1d1c1a); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 4px 6px; border-radius: 6px; outline: none; font-variant-numeric: tabular-nums; }
-.wg-seed-input:focus { border-color: var(--wg-accent, #d9a441); }
-.wg-seed-mode { flex: 1; min-width: 0; background: var(--wg-bg, #1d1c1a); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 4px 6px; border-radius: 6px; outline: none; }
-.wg-seed-mode:focus { border-color: var(--wg-accent, #d9a441); }
+.wg-seed-input { width: 100px; flex: none; background: var(--wg-bg, #1d1c1a); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 4px 6px; border-radius: 6px; outline: none; font-variant-numeric: tabular-nums; transition: border-color 120ms ease, box-shadow 120ms ease; }
+.wg-seed-input:focus { border-color: var(--wg-accent, #d9a441); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wg-accent, #d9a441) 25%, transparent); }
+.wg-seed-mode { flex: 1 1 120px; min-width: 0; background: var(--wg-bg, #1d1c1a); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 4px 6px; border-radius: 6px; outline: none; transition: border-color 120ms ease, box-shadow 120ms ease; }
+.wg-seed-mode:focus { border-color: var(--wg-accent, #d9a441); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wg-accent, #d9a441) 25%, transparent); }
 
 .wg-icon-btn { background: transparent; border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #b3ab99); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease; }
-.wg-icon-btn:hover { background: color-mix(in srgb, var(--wg-surface, #131211), white 8%); color: var(--wg-text, #fff); border-color: color-mix(in srgb, var(--wg-border-strong, #38352f), white 20%); }
+.wg-icon-btn:hover { background: color-mix(in srgb, var(--wg-surface, #131211), white 8%); color: var(--wg-text, #fff); border-color: color-mix(in srgb, var(--wg-border-strong, #38352f), white 20%); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
 .wg-icon-btn:active { transform: scale(0.92); }
 .wg-icon-btn.active { background: color-mix(in srgb, var(--wg-accent, #d9a441) 22%, var(--wg-bg, #1d1c1a)); color: color-mix(in srgb, var(--wg-accent, #d9a441), white 25%); border-color: var(--wg-accent, #d9a441); }
 .wg-icon-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
@@ -48,8 +54,9 @@
 @keyframes wg-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .wg-icon-btn[data-act="copy"].active { color: var(--wg-success, #7fae7a); border-color: var(--wg-success, #7fae7a); background: color-mix(in srgb, var(--wg-success, #7fae7a) 18%, var(--wg-bg, #1d1c1a)); }
 
-.wg-pill { background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #b3ab99); font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
-.wg-pill:hover { border-color: var(--wg-accent, #d9a441); color: var(--wg-text, #fff); }
+.wg-pill { background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #b3ab99); font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: border-color 120ms ease, color 120ms ease, background 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
+.wg-pill:hover { border-color: var(--wg-accent, #d9a441); color: var(--wg-text, #fff); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.28); }
+.wg-pill:active { transform: translateY(0) scale(0.97); box-shadow: none; }
 .wg-pill.on { background: color-mix(in srgb, var(--wg-success, #7fae7a) 18%, var(--wg-bg, #1d1c1a)); border-color: var(--wg-success, #7fae7a); color: color-mix(in srgb, var(--wg-success, #7fae7a), white 25%); }
 .wg-pill-resolve { justify-self: center; font-size: 11px; font-weight: 700; padding: 6px 20px; border-width: 1.5px; letter-spacing: 0.01em; }
 
@@ -82,17 +89,40 @@
 .wg-hint { font-size: 9px; color: var(--wg-text-faint, #5c5748); }
 
 .wg-drawer { width: 0; overflow: hidden; transition: width 160ms ease; background: var(--wg-panel-bg, #171511); display: flex; flex-direction: column; flex: none; }
-.wg-drawer.left { border-right: 1px solid var(--wg-border, #2c2820); order: -1; }
+.wg-drawer.left { position: relative; border-right: 1px solid var(--wg-border, #2c2820); order: -1; }
 .wg-drawer.right { border-left: 1px solid var(--wg-border, #2c2820); }
 .wg-drawer.open { width: 220px; }
+/* A resized width is applied inline (see wildcard_editor.js), which always
+   wins over the fixed 220px above without needing !important. While the drag
+   is actually in progress the eased transition is switched off so the panel
+   edge tracks the cursor 1:1 instead of visibly lagging behind it. */
+.wg-drawer.left.resizing { transition: none; }
 .wg-drawer-inner { width: 220px; height: 100%; display: flex; flex-direction: column; padding: 8px; min-height: 0; }
+/* The picker (left) drawer is resizable between 220–640px (see JS), so its
+   inner content should track the drawer's actual current width rather than
+   stay pinned at the original fixed 220px used by the non-resizable (right)
+   edit drawer above. */
+.wg-drawer.left .wg-drawer-inner { width: 100%; }
 .wg-drawer-inner h4 { margin: 2px 0 6px; font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim, #b8b1a1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
 
+/* Drag handle for resizing the picker sidebar. Sits flush with the drawer's
+   own right edge (not offset outside it) so it stays within the drawer's
+   overflow:hidden bounds instead of getting clipped. Appended directly to
+   .wg-drawer.left (a sibling of .wg-drawer-inner) by JS, and only shown
+   while that drawer is open. */
+.wg-drawer-resize-handle { display: none; position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 6; background: transparent; touch-action: none; }
+.wg-drawer.left.open .wg-drawer-resize-handle { display: block; }
+.wg-drawer-resize-handle:hover, .wg-drawer.left.resizing .wg-drawer-resize-handle { background: color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent); }
+
 .wg-search { flex: none; margin-bottom: 6px; }
-.wg-search input { width: 100%; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: calc(11px * var(--wg-ui-font-scale, 1)); padding: 6px 8px; border-radius: 6px; outline: none; }
-.wg-search input:focus { border-color: var(--wg-accent, #d9a441); }
+.wg-search input { width: 100%; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: calc(11px * var(--wg-ui-font-scale, 1)); padding: 6px 8px; border-radius: 6px; outline: none; transition: border-color 120ms ease, box-shadow 120ms ease; }
+.wg-search input:focus { border-color: var(--wg-accent, #d9a441); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wg-accent, #d9a441) 25%, transparent); }
 .wg-list { flex: 1; overflow-y: auto; min-height: 0; }
 .wg-section-label { font-size: calc(9px * var(--wg-ui-font-scale, 1)); text-transform: uppercase; letter-spacing: 0.05em; color: var(--wg-text-faint, #8a836f); padding: 6px 4px 3px; }
+.wg-section-label-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.wg-clear-recent { flex: none; background: transparent; border: none; color: var(--wg-text-faint, #6f6a5c); font-size: calc(8.5px * var(--wg-ui-font-scale, 1)); text-transform: none; letter-spacing: 0; padding: 1px 5px; border-radius: 4px; cursor: pointer; transition: color 120ms ease, background 120ms ease; }
+.wg-clear-recent:hover { color: var(--wg-danger, #e0605f); background: color-mix(in srgb, var(--wg-danger, #e0605f) 14%, transparent); }
+.wg-clear-recent:active { transform: scale(0.94); }
 
 .wg-folder { font-size: calc(9px * var(--wg-ui-font-scale, 1)); text-transform: uppercase; letter-spacing: 0.04em; color: var(--wg-text-faint, #756f5e); padding: 6px 4px 2px; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; border-radius: 4px; }
 .wg-folder:hover { color: var(--wg-text-dim, #b8b1a1); background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 6%); }
@@ -104,26 +134,28 @@
 .wg-folder.dragging { opacity: 0.45; }
 .wg-folder.drag-over { box-shadow: inset 0 2px 0 var(--wg-accent, #d9a441); }
 
-.wg-item { display: flex; align-items: center; gap: 6px; padding: 5px 5px; border-radius: 5px; cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim, #d4cdbc); }
-.wg-item:hover { background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 8%); }
+.wg-item { display: flex; align-items: center; gap: 6px; padding: 5px 5px; border-radius: 5px; cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim, #d4cdbc); transition: background 120ms ease, transform 120ms ease; }
+.wg-item:hover { background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 8%); transform: translateX(1px); }
 .wg-item .wg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wg-item .wg-badge { font-size: calc(8px * var(--wg-ui-font-scale, 1)); padding: 1px 4px; border-radius: 4px; background: var(--wg-border, #2c2820); color: var(--wg-text-dim, #a89f88); font-weight: 600; }
-.wg-pin { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-faint, #56503f); cursor: pointer; flex: none; padding: 1px; }
-.wg-pin:hover { color: var(--wg-accent, #d9a441); }
+.wg-pin { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-faint, #56503f); cursor: pointer; flex: none; padding: 1px; transition: color 120ms ease, transform 120ms ease; }
+.wg-pin:hover { color: var(--wg-accent, #d9a441); transform: scale(1.15); }
 .wg-pin.pinned { color: var(--wg-accent, #d9a441); }
 
 .wg-drawer-inner input[type=text] { width: 100%; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 5px 7px; border-radius: 6px; margin-bottom: 6px; outline: none; flex: none; }
 .wg-drawer-inner label { font-size: 9px; color: var(--wg-text-faint, #8a836f); display: block; margin-bottom: 3px; flex: none; }
 .wg-drawer-inner textarea { flex: 1; width: 100%; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 6px; border-radius: 6px; resize: none; outline: none; font-family: "SF Mono", Consolas, monospace; margin-bottom: 6px; min-height: 0; }
 .wg-drawer-btns { display: flex; gap: 5px; flex: none; }
-.wg-drawer-btns button { flex: 1; font-size: 10px; padding: 6px; border-radius: 6px; cursor: pointer; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #c9c2b1); }
+.wg-drawer-btns button { flex: 1; font-size: 10px; padding: 6px; border-radius: 6px; cursor: pointer; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #c9c2b1); transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease, background 120ms ease; }
 .wg-drawer-btns button.primary { background: var(--wg-accent, #d9a441); border-color: var(--wg-accent, #d9a441); color: var(--wg-accent-text, #1d1c1a); font-weight: 600; }
-.wg-drawer-btns button:hover { border-color: var(--wg-accent, #d9a441); }
+.wg-drawer-btns button:hover { border-color: var(--wg-accent, #d9a441); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
+.wg-drawer-btns button:active { transform: translateY(0) scale(0.97); box-shadow: none; }
 .wg-status { font-size: 9px; color: var(--wg-success, #7fae7a); min-height: 12px; flex: none; }
 .wg-status.err { color: var(--wg-danger, #e0605f); }
 
-.wg-settings-popup { position: absolute; top: 32px; right: 6px; width: 240px; background: var(--wg-panel-bg, #201e1a); border: 1px solid var(--wg-border-strong, #3a362c); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); z-index: 50; display: none; max-height: 100%; overflow-y: auto; }
-.wg-settings-popup.open { display: block; }
+.wg-settings-popup { position: absolute; top: 32px; right: 6px; width: 240px; background: var(--wg-panel-bg, #201e1a); border: 1px solid var(--wg-border-strong, #3a362c); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); z-index: 50; display: none; max-height: 100%; overflow-y: auto; transform-origin: top right; }
+.wg-settings-popup.open { display: block; animation: wg-pop-in 140ms ease; }
+@keyframes wg-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .wg-settings-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--wg-border, #2c2820); background: var(--wg-panel-bg, #201e1a); z-index: 2; }
 .wg-settings-head span { font-size: 11px; color: var(--wg-text, #ece5d6); font-weight: 600; }
 .wg-close-btn { background: transparent; border: none; color: var(--wg-text-dim, #b3ab99); font-size: 14px; cursor: pointer; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
@@ -134,7 +166,9 @@
 .wg-srow { margin-bottom: 10px; }
 .wg-srow label { display: block; font-size: 10px; color: var(--wg-text-dim, #c9c2b1); margin-bottom: 5px; }
 .wg-rowline { display: flex; justify-content: space-between; font-size: 9px; color: var(--wg-text-faint, #8a836f); }
-.wg-toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--wg-text-dim, #c9c2b1); padding: 3px 0; }
+.wg-toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--wg-text-dim, #c9c2b1); padding: 4px 5px; border-radius: 5px; margin: 0 -5px; transition: background 120ms ease; }
+.wg-toggle-row:hover { background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 7%); }
+.wg-toggle-row input[type=checkbox] { accent-color: var(--wg-accent, #d9a441); cursor: pointer; width: 14px; height: 14px; flex: none; }
 .wg-catpin-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; font-size: 10px; color: var(--wg-text-dim, #c9c2b1); }
 .wg-catpin-row input[type=color] { width: 20px; height: 20px; border: none; background: none; padding: 0; cursor: pointer; }
 .wg-theme-export textarea { width: 100%; height: 50px; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #a89f88); font-size: 9px; font-family: monospace; border-radius: 6px; padding: 5px; resize: none; }
@@ -150,3 +184,34 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d9a441
 .wg-tip { position: fixed; z-index: 999; background: var(--wg-panel-bg, #26221a); border: 1px solid var(--wg-border-strong, #3a362c); border-radius: 8px; padding: 7px 9px; font-size: 10px; color: var(--wg-text-dim, #d4cdbc); box-shadow: 0 8px 24px rgba(0,0,0,0.5); max-width: 220px; pointer-events: none; display: none; }
 .wg-tip .wg-tip-title { font-size: 9px; color: var(--wg-accent, #d9a441); font-weight: 600; margin-bottom: 3px; }
 .wg-tip .wg-tip-line { color: var(--wg-text-faint, #a89f88); line-height: 1.5; }
+
+/* "__" wildcard autocomplete dropdown (see findWildcardFragment/openOrUpdateAcMenu
+   in wildcard_editor.js). Positioned via JS with a caret mirror-div, so only
+   appearance lives here. */
+.wg-ac-menu { position: fixed; z-index: 10000; display: none; min-width: 160px; max-width: 320px; max-height: 190px; overflow-y: auto; background: var(--wg-panel-bg, #171511); border: 1px solid var(--wg-border-strong, #38352f); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.35); font-family: var(--wg-font-family, "SF Mono", "Cascadia Code", Consolas, monospace); font-size: 12px; }
+.wg-ac-item { padding: 5px 10px; color: var(--wg-text, #e8e2d4); cursor: pointer; white-space: nowrap; }
+.wg-ac-item.active, .wg-ac-item:hover { background: var(--wg-accent, #d9a441); color: var(--wg-accent-text, #1d1c1a); }
+.wg-ac-empty { padding: 5px 10px; color: var(--wg-text-faint, #6f6a5c); font-style: italic; }
+.wg-ac-menu::-webkit-scrollbar { width: 8px; }
+.wg-ac-menu::-webkit-scrollbar-thumb { background: var(--wg-border-strong, #38352f); border-radius: 8px; }
+.wg-ac-menu { scrollbar-width: thin; scrollbar-color: var(--wg-border-strong, #38352f) transparent; }
+
+/* Thin, themed scrollbars for the main scrollable panels, so scroll areas
+   read as part of the panel rather than a default OS-styled bar. Firefox
+   uses scrollbar-color/-width; WebKit/Blink use the pseudo-elements. */
+.wg-list, .wg-editor-layer, .wg-resolved, .wg-settings-popup, .wg-drawer-inner textarea {
+  scrollbar-width: thin;
+  scrollbar-color: var(--wg-border-strong, #38352f) transparent;
+}
+.wg-list::-webkit-scrollbar, .wg-editor-layer::-webkit-scrollbar, .wg-resolved::-webkit-scrollbar,
+.wg-settings-popup::-webkit-scrollbar, .wg-drawer-inner textarea::-webkit-scrollbar { width: 8px; height: 8px; }
+.wg-list::-webkit-scrollbar-track, .wg-editor-layer::-webkit-scrollbar-track, .wg-resolved::-webkit-scrollbar-track,
+.wg-settings-popup::-webkit-scrollbar-track, .wg-drawer-inner textarea::-webkit-scrollbar-track { background: transparent; }
+.wg-list::-webkit-scrollbar-thumb, .wg-editor-layer::-webkit-scrollbar-thumb, .wg-resolved::-webkit-scrollbar-thumb,
+.wg-settings-popup::-webkit-scrollbar-thumb, .wg-drawer-inner textarea::-webkit-scrollbar-thumb {
+  background: var(--wg-border-strong, #38352f); border-radius: 8px;
+}
+.wg-list::-webkit-scrollbar-thumb:hover, .wg-editor-layer::-webkit-scrollbar-thumb:hover, .wg-resolved::-webkit-scrollbar-thumb:hover,
+.wg-settings-popup::-webkit-scrollbar-thumb:hover, .wg-drawer-inner textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--wg-accent, #d9a441);
+}

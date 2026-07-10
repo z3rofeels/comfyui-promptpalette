@@ -34,18 +34,25 @@ class PromptPaletteEditor:
                 "enhancer_override": ("STRING", {"forceInput": True, "default": ""}),
                 "external_seed": ("INT", {"forceInput": True}),
                 "negative_text": ("STRING", {"multiline": True, "forceInput": True, "default": ""}),
+                # Mirror the positive side's prefix/suffix wiring for the negative
+                # prompt, so users get the same "pipe in a shared style-preset
+                # node" freedom on both sides instead of just the positive one.
+                "negative_prefix": ("STRING", {"forceInput": True, "default": ""}),
+                "negative_suffix": ("STRING", {"forceInput": True, "default": ""}),
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "INT", "STRING")
-    RETURN_NAMES = ("prompt", "negative_prompt", "seed_out", "wildcards_used")
+    RETURN_TYPES = ("STRING", "STRING", "INT", "STRING", "STRING", "INT", "BOOLEAN")
+    RETURN_NAMES = ("prompt", "negative_prompt", "seed_out", "wildcards_used",
+                     "raw_text", "wildcards_used_count", "used_enhancer")
     FUNCTION = "process"
     CATEGORY = "PromptPalette"
     OUTPUT_NODE = False
 
     def process(self, text, seed, processing_mode,
                 prompt_prefix="", prompt_suffix="", enhancer_override="",
-                external_seed=None, negative_text=""):
+                external_seed=None, negative_text="",
+                negative_prefix="", negative_suffix=""):
         resolver = WildcardResolver(get_index())
         effective_seed = external_seed if external_seed is not None else seed
 
@@ -63,14 +70,29 @@ class PromptPaletteEditor:
         # If an LLM/enhancer node is wired into enhancer_override and produced
         # something, it fully replaces the wildcard-resolved text rather than
         # being merged with it — the enhancer is assumed to already have taken
-        # the resolved prompt as its own input upstream.
-        if enhancer_override and enhancer_override.strip():
+        # the resolved prompt as its own input upstream. Captured as its own
+        # flag (used_enhancer) before overwriting `resolved`, so a downstream
+        # node can branch on whether the override actually kicked in this run.
+        used_enhancer = bool(enhancer_override and enhancer_override.strip())
+        if used_enhancer:
             resolved = enhancer_override
 
-        resolved_negative = resolve_block(negative_text, 1000)  # distinct seed space from the positive prompt
-        wildcards_used = json.dumps(sorted(set(resolver.used_names)))
+        # Negative prompt gets the same prefix/body/suffix wrapping as the
+        # positive prompt, just in its own seed offsets (1000/1001/1002) so a
+        # shared prefix/suffix wildcard never draws the same random pick as
+        # the positive side's prefix/suffix.
+        neg_parts = [p for p in (
+            resolve_block(negative_prefix, 1001),
+            resolve_block(negative_text, 1000),
+            resolve_block(negative_suffix, 1002),
+        ) if p]
+        resolved_negative = "\n".join(neg_parts) if processing_mode == "line by line" else " ".join(neg_parts)
 
-        return (resolved, resolved_negative, effective_seed, wildcards_used)
+        used_names = sorted(set(resolver.used_names))
+        wildcards_used = json.dumps(used_names)
+
+        return (resolved, resolved_negative, effective_seed, wildcards_used,
+                text, len(used_names), used_enhancer)
 
 
 # NOTE: this mapping key is the node's permanent type id — it's what gets saved

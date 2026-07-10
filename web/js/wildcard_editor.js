@@ -72,6 +72,13 @@ function defaultTheme() {
     editorFontSize: 12.5,        // px, main prompt textarea + resolved-preview
     uiFontScale: 1,              // multiplier, sidebar/folder/legend text
     promptTextColor: "#e8e2d4",  // plain (non-token) prompt text + caret
+    // Toolbar declutter: the seed/increment/line-by-line/randomize cluster and
+    // the day/night quick-toggle button are both optional, off/on by these
+    // defaults, and switchable from Settings without digging through menus.
+    showSeedControls: false,
+    showDayNightBtn: true,
+    dayTheme: "Daylight",
+    nightTheme: "Amber",
   };
 }
 function saveTheme(theme) {
@@ -207,6 +214,154 @@ function hslToHex(h, s, l) {
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
 
+// ---------------------------------------------------------------------
+// "__" wildcard autocomplete
+// ---------------------------------------------------------------------
+// The actual match lookup (getAcMatches) is defined per node instance,
+// down in buildWildcardWidget, because it reads that node's own `knownSet` —
+// the live wildcard list already maintained elsewhere in this file (hydrated
+// on load by refreshLibrary(), and re-hydrated whenever the user hits the
+// refresh button, via node.updateWildcardSidePanels). Keeping the lookup
+// per-instance (rather than one shared/global list) is what makes this
+// correct if more than one of these nodes is ever on the same canvas.
+
+// Finds an in-progress, unclosed "__query" fragment ending exactly at
+// `caret`, or returns null if the caret isn't inside one. A "__" only
+// counts as an *opener* if an even number of "__" pairs precede it —
+// that's what stops this from re-triggering on the closing "__" of a
+// token the user already finished typing (e.g. right after "__style__"
+// with no separator yet before the next word).
+function findWildcardFragment(text, caret) {
+  const before = text.slice(0, caret);
+  const m = before.match(/__([A-Za-z0-9_\-\/]*)$/);
+  if (!m) return null;
+  const start = m.index;
+  const priorPairs = (before.slice(0, start).match(/__/g) || []).length;
+  if (priorPairs % 2 !== 0) return null;
+  return { query: m[1], start, end: caret };
+}
+
+// Mirror-div technique: clones the textarea's text-affecting computed
+// styles onto an offscreen div, fills it with the text up to `index`, and
+// reads back the position of a marker span. This tracks the real caret
+// pixel-for-pixel even when the user changes font family/size in the
+// editor's own Settings panel, unlike a fixed monospace char-width guess.
+const AC_MIRROR_PROPS = [
+  "boxSizing", "width", "fontFamily", "fontSize", "fontWeight", "fontStyle",
+  "letterSpacing", "lineHeight", "paddingTop", "paddingRight", "paddingBottom",
+  "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth",
+  "borderLeftWidth", "textIndent", "textTransform",
+];
+let acMirrorDiv = null;
+function getCaretCoords(textarea, index) {
+  if (!acMirrorDiv) {
+    acMirrorDiv = document.createElement("div");
+    acMirrorDiv.style.position = "absolute";
+    acMirrorDiv.style.visibility = "hidden";
+    acMirrorDiv.style.whiteSpace = "pre-wrap";
+    acMirrorDiv.style.wordWrap = "break-word";
+    acMirrorDiv.style.top = "0px";
+    acMirrorDiv.style.left = "-9999px";
+    document.body.appendChild(acMirrorDiv);
+  }
+  const computed = getComputedStyle(textarea);
+  AC_MIRROR_PROPS.forEach(p => { acMirrorDiv.style[p] = computed[p]; });
+  acMirrorDiv.style.width = computed.width;
+
+  acMirrorDiv.textContent = textarea.value.slice(0, index);
+  const marker = document.createElement("span");
+  marker.textContent = textarea.value.slice(index) || ".";
+  acMirrorDiv.appendChild(marker);
+
+  const rect = textarea.getBoundingClientRect();
+  const top = rect.top + marker.offsetTop + parseFloat(computed.borderTopWidth || "0") - textarea.scrollTop;
+  const left = rect.left + marker.offsetLeft + parseFloat(computed.borderLeftWidth || "0") - textarea.scrollLeft;
+  const lineHeight = parseFloat(computed.lineHeight) || 18;
+
+  acMirrorDiv.removeChild(marker);
+  acMirrorDiv.textContent = "";
+
+  return { top, left, lineHeight };
+}
+
+// One shared floating menu, reused across every node instance — only one
+// textarea can be focused and typing at a time, so there's no need for a
+// separate DOM element (or a separate outside-click listener) per node.
+let acMenu = null;
+let acState = null; // { textarea, items, activeIndex, start, end, onCommit }
+
+function ensureAcMenu() {
+  if (acMenu) return acMenu;
+  acMenu = document.createElement("div");
+  acMenu.className = "wg-ac-menu";
+  document.body.appendChild(acMenu);
+  // mousedown (not click) so this fires before the textarea blurs.
+  acMenu.addEventListener("mousedown", (e) => {
+    const row = e.target.closest("[data-ac-index]");
+    if (!row) return;
+    e.preventDefault();
+    commitAcSelection(Number(row.dataset.acIndex));
+  });
+  document.addEventListener("mousedown", (e) => {
+    if (acState && !acMenu.contains(e.target) && e.target !== acState.textarea) closeAcMenu();
+  });
+  return acMenu;
+}
+
+function closeAcMenu() {
+  if (!acMenu) return;
+  acMenu.style.display = "none";
+  acState = null;
+}
+
+function renderAcMenu() {
+  if (!acState) return;
+  const menu = ensureAcMenu();
+  menu.innerHTML = "";
+  if (!acState.items.length) {
+    const empty = document.createElement("div");
+    empty.className = "wg-ac-empty";
+    empty.textContent = "no matching wildcards";
+    menu.appendChild(empty);
+  } else {
+    acState.items.forEach((item, i) => {
+      const row = document.createElement("div");
+      row.className = "wg-ac-item" + (i === acState.activeIndex ? " active" : "");
+      row.dataset.acIndex = String(i);
+      row.textContent = item;
+      menu.appendChild(row);
+    });
+  }
+  const coords = getCaretCoords(acState.textarea, acState.end);
+  menu.style.left = coords.left + "px";
+  menu.style.top = (coords.top + coords.lineHeight + 4) + "px";
+  menu.style.display = "block";
+}
+
+async function openOrUpdateAcMenu(textarea, fragment, getMatches, onCommit) {
+  const items = await getMatches(fragment.query);
+  // The user may have kept typing (or the fragment may have closed/moved)
+  // while this lookup was in flight — recheck before showing stale results.
+  const stillValid = findWildcardFragment(textarea.value, textarea.selectionStart);
+  if (!stillValid || stillValid.start !== fragment.start) return;
+  acState = { textarea, items, activeIndex: 0, start: fragment.start, end: fragment.end, onCommit };
+  renderAcMenu();
+}
+
+function commitAcSelection(index) {
+  if (!acState) return;
+  const { textarea, start, end, items, onCommit } = acState;
+  const item = items[index];
+  if (item == null) return closeAcMenu();
+  const tag = `__${item}__`;
+  textarea.value = textarea.value.slice(0, start) + tag + textarea.value.slice(end);
+  const caret = start + tag.length;
+  textarea.selectionStart = textarea.selectionEnd = caret;
+  closeAcMenu();
+  textarea.focus();
+  if (onCommit) onCommit(item);
+}
+
 function buildWildcardWidget(node, hiddenWidget) {
   const theme = loadTheme();
   const pinned = loadPinned();
@@ -221,7 +376,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   const root = document.createElement("div");
   root.className = "wg-node";
   root.innerHTML = `
-    <div class="wg-toolbar">
+    <div class="wg-toolbar" data-el="toolbar">
       <div class="wg-toolbar-group left">
         <button class="wg-icon-btn" data-act="picker" title="Browse wildcards">&#128193;</button>
         <button class="wg-icon-btn" data-act="edit" title="Edit / create wildcard">&#9998;</button>
@@ -231,18 +386,24 @@ function buildWildcardWidget(node, hiddenWidget) {
       <div class="wg-toolbar-group right">
         <button class="wg-icon-btn" data-act="copy" title="Copy prompt to clipboard">&#128203;</button>
         <button class="wg-icon-btn" data-act="clear" title="Clear prompt">&#128465;</button>
+        <button class="wg-icon-btn" data-el="dayNightBtn" data-act="dayNightToggle" title="Toggle day/night theme">&#127769;</button>
         <button class="wg-icon-btn" data-act="settings" title="Settings">&#9881;</button>
       </div>
-    </div>
-    <div class="wg-seedbar" data-el="seedbar">
-      <span class="wg-seed-label">Seed</span>
-      <input type="number" class="wg-seed-input" data-el="seedInput" min="0" step="1" title="Prompt seed">
-      <button class="wg-icon-btn" data-act="seedRandomizeNow" title="Roll a new random seed now">&#127922;</button>
-      <select class="wg-seed-mode" data-el="seedModeSelect" title="What happens to the seed after each run"></select>
-      <select class="wg-seed-mode" data-el="processingModeSelect" title="How multi-line prompts are resolved" style="flex: 0 0 148px;">
-        <option value="entire text as one">Entire text as one</option>
-        <option value="line by line">Line by line</option>
-      </select>
+      <!-- Seed / increment / line-by-line / randomize cluster. Hidden by
+           default (see theme.showSeedControls) to keep the toolbar compact;
+           when switched on in Settings it lives right here in the same
+           toolbar as Show resolved / refresh rather than as a separate
+           always-on strip. -->
+      <div class="wg-toolbar-extra" data-el="seedbar">
+        <span class="wg-seed-label">Seed</span>
+        <input type="number" class="wg-seed-input" data-el="seedInput" min="0" step="1" title="Prompt seed">
+        <button class="wg-icon-btn" data-act="seedRandomizeNow" title="Roll a new random seed now">&#127922;</button>
+        <select class="wg-seed-mode" data-el="seedModeSelect" title="What happens to the seed after each run"></select>
+        <select class="wg-seed-mode" data-el="processingModeSelect" title="How multi-line prompts are resolved" style="flex: 0 0 148px;">
+          <option value="entire text as one">Entire text as one</option>
+          <option value="line by line">Line by line</option>
+        </select>
+      </div>
     </div>
     <div class="wg-main">
       <div class="wg-drawer left" data-drawer="picker">
@@ -290,6 +451,24 @@ function buildWildcardWidget(node, hiddenWidget) {
         <button class="wg-close-btn" data-act="closeSettings">&#10005;</button>
       </div>
       <div class="wg-settings-body">
+        <h5>Toolbar</h5>
+        <div class="wg-toggle-row" title="Seed value, seed mode (fixed/increment/decrement/randomize), the randomize-now dice button, and the entire-text/line-by-line select \u2014 shown together in the main toolbar when on.">
+          <label style="margin:0;">Show seed &amp; line-by-line controls</label>
+          <input type="checkbox" data-el="toggleSeedControls">
+        </div>
+        <div class="wg-toggle-row" title="A quick toolbar button that flips between your chosen day and night interface themes.">
+          <label style="margin:0;">Show day/night toggle button</label>
+          <input type="checkbox" data-el="toggleDayNightBtn">
+        </div>
+        <div class="wg-srow" style="margin-top:8px;">
+          <label>Day theme</label>
+          <select class="wg-theme-select" data-el="dayThemeSelect"></select>
+        </div>
+        <div class="wg-srow">
+          <label>Night theme</label>
+          <select class="wg-theme-select" data-el="nightThemeSelect"></select>
+        </div>
+
         <h5>Accessibility</h5>
         <div class="wg-srow">
           <label>Font family</label>
@@ -479,11 +658,16 @@ function buildWildcardWidget(node, hiddenWidget) {
     { key: "enhancer_override", type: "STRING", label: "LLM / enhancer override", desc: "If connected and non-empty, this completely replaces the resolved prompt output \u2014 wire in an LLM prompt-enhancer node here." },
     { key: "external_seed", type: "INT", label: "External seed", desc: "Drive wildcard resolution from another node's seed instead of this node's own Seed control above." },
     { key: "negative_text", type: "STRING", label: "Negative prompt (text)", desc: "A second wildcard-aware text block, resolved independently and returned as its own negative_prompt output." },
+    { key: "negative_prefix", type: "STRING", label: "Negative prefix", desc: "Prepend externally-supplied text (resolved for wildcards too) before the negative prompt \u2014 mirrors Prompt prefix but for the negative side." },
+    { key: "negative_suffix", type: "STRING", label: "Negative suffix", desc: "Append externally-supplied text (resolved for wildcards too) after the negative prompt \u2014 mirrors Prompt suffix but for the negative side." },
   ];
   const IO_OUTPUT_DEFS = [
     { key: "negative_prompt", type: "STRING", label: "Negative prompt", desc: "Resolved text from the Negative prompt input above." },
     { key: "seed_out", type: "INT", label: "Seed used", desc: "The seed actually used to resolve this run \u2014 feed straight into a sampler's seed input." },
     { key: "wildcards_used", type: "STRING", label: "Wildcards used (JSON)", desc: "A JSON list of every wildcard file name that got picked this run, for logging/debugging." },
+    { key: "raw_text", type: "STRING", label: "Raw text (unresolved)", desc: "Passthrough of exactly what's typed into this node, before any wildcard resolution \u2014 handy for logging or diffing against the resolved prompt." },
+    { key: "wildcards_used_count", type: "INT", label: "Wildcards used (count)", desc: "How many distinct wildcard files were picked this run \u2014 wire straight into a counter/logic node instead of parsing the JSON list." },
+    { key: "used_enhancer", type: "BOOLEAN", label: "Used enhancer override", desc: "True if the LLM / enhancer override input was connected and non-empty this run, so it replaced the wildcard-resolved prompt." },
   ];
 
   node.properties = node.properties || {};
@@ -762,6 +946,108 @@ function buildWildcardWidget(node, hiddenWidget) {
     renderPickerList(searchInput.value);
   }
 
+  // ---- "__" wildcard autocomplete ----
+  // Reads this node's own live `knownSet` — the same set hydrated by
+  // refreshLibrary() on load and re-hydrated whenever the user hits the
+  // refresh button (via node.updateWildcardSidePanels below). There's no
+  // separate list to keep in sync: whatever the picker drawer/legend
+  // already know about is exactly what this dropdown offers.
+  function getAcMatches(query) {
+    const q = query.toLowerCase();
+    const matches = Array.from(knownSet).filter(p => p.toLowerCase().includes(q));
+    // Prefer paths where the query matches at a path/leaf boundary (e.g. "sty"
+    // matching "style/cyberpunk" beats it matching mid-word), then alphabetical.
+    const rank = p => {
+      const leaf = p.split("/").pop().toLowerCase();
+      if (leaf.startsWith(q)) return 0;
+      if (p.toLowerCase().startsWith(q)) return 1;
+      return 2;
+    };
+    matches.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+    return matches.slice(0, 20); // cap so the dropdown can't grow into a full-list scroll
+  }
+
+  function commitAcItem(path) {
+    recentList = [path, ...recentList.filter(p => p !== path)].slice(0, 8);
+    render();
+    renderPickerList(searchInput.value);
+  }
+
+  textarea.addEventListener("input", () => {
+    const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
+    if (!fragment) return closeAcMenu();
+    openOrUpdateAcMenu(textarea, fragment, getAcMatches, commitAcItem);
+  });
+
+  textarea.addEventListener("keydown", (e) => {
+    if (!acState || acState.textarea !== textarea) return;
+    const count = acState.items.length;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      acState.activeIndex = count ? (acState.activeIndex + 1) % count : 0;
+      renderAcMenu();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      acState.activeIndex = count ? (acState.activeIndex - 1 + count) % count : 0;
+      renderAcMenu();
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      if (!count) return; // nothing to complete — let the key behave normally
+      e.preventDefault();
+      e.stopPropagation();
+      commitAcSelection(acState.activeIndex);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeAcMenu();
+    }
+  });
+
+  // Arrow/click can move the caret out of the fragment being completed
+  // without firing "input" — recheck and close the menu when that happens.
+  function recheckAcOnCaretMove() {
+    if (!acState || acState.textarea !== textarea) return;
+    const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
+    if (!fragment || fragment.start !== acState.start) closeAcMenu();
+  }
+  textarea.addEventListener("keyup", (e) => {
+    if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) recheckAcOnCaretMove();
+  });
+  textarea.addEventListener("click", recheckAcOnCaretMove);
+
+  // ---- Ctrl+1/2/3 formatting shortcuts ----
+  // Placeholder wrap syntax — swap the open/close strings for whatever your
+  // UI actually uses (e.g. weight/emphasis tags, [color1][/color1]-style
+  // spans, etc). e.code (not e.key) is used so this keys off physical
+  // "1"/"2"/"3" regardless of keyboard layout (AZERTY, etc).
+  const WRAP_SYNTAX = {
+    Digit1: { open: "[color1]", close: "[/color1]" }, // Syntax A
+    Digit2: { open: "[color2]", close: "[/color2]" }, // Syntax B
+    Digit3: { open: "[color3]", close: "[/color3]" }, // Syntax C
+  };
+  // Listening on `textarea` itself (rather than document/window) is what
+  // scopes this to just this node's widget — the handler physically can't
+  // fire unless this textarea has focus, so it never competes with other
+  // nodes' widgets or with LiteGraph's own canvas-level shortcuts. The
+  // stopPropagation() below is just belt-and-suspenders on top of that.
+  textarea.addEventListener("keydown", (e) => {
+    if (!e.ctrlKey || e.altKey) return; // Ctrl-only, as specified — extend to e.metaKey too if you want it to also work as Cmd+1/2/3 on macOS
+    const pair = WRAP_SYNTAX[e.code];
+    if (!pair) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    if (start === end) return; // nothing selected — let the key fall through untouched
+    e.preventDefault();
+    e.stopPropagation();
+    const selected = textarea.value.slice(start, end);
+    textarea.value = textarea.value.slice(0, start) + pair.open + selected + pair.close + textarea.value.slice(end);
+    // Re-select just the original text (not the new tags), matching the
+    // usual "wrap selection" UX so another shortcut can be stacked right away.
+    textarea.selectionStart = start + pair.open.length;
+    textarea.selectionEnd = start + pair.open.length + selected.length;
+    textarea.focus();
+    render(); // keep highlight/hidden-widget/legend in sync, same as any other programmatic edit in this file
+  });
+
   function pickerRow(item) {
     const cat = categoryOf(item.path);
     const color = theme.categoryPins[cat] || `hsl(${(hashStr(cat) % 360 + theme.hueRotate) % 360}, ${theme.saturation}%, 66%)`;
@@ -785,6 +1071,10 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   async function renderPickerList(filter = "") {
+    // Preserve scroll position across re-renders: toggling a folder open/
+    // closed or typing in the search box rebuilds this list's innerHTML from
+    // scratch, which would otherwise always snap the scroll back to the top.
+    const prevScrollTop = pickerList.scrollTop;
     pickerList.innerHTML = `<div class="wg-hint" style="padding:6px;">loading...</div>`;
     const items = filter ? await API.search(filter) : libraryCache;
     pickerList.innerHTML = "";
@@ -797,7 +1087,14 @@ function buildWildcardWidget(node, hiddenWidget) {
       }
       const recentItems = recentList.filter(p => !pinned.has(p)).map(p => libraryCache.find(l => l.path === p)).filter(Boolean);
       if (recentItems.length) {
-        const lbl = document.createElement("div"); lbl.className = "wg-section-label"; lbl.textContent = "Recent";
+        const lbl = document.createElement("div");
+        lbl.className = "wg-section-label wg-section-label-row";
+        lbl.innerHTML = `<span>Recent</span><button type="button" class="wg-clear-recent" data-act="clearRecent" title="Clear recent list">Clear</button>`;
+        lbl.querySelector('[data-act="clearRecent"]').addEventListener("click", (e) => {
+          e.stopPropagation();
+          recentList = [];
+          renderPickerList(searchInput.value);
+        });
         pickerList.appendChild(lbl);
         recentItems.forEach(item => pickerList.appendChild(pickerRow(item)));
       }
@@ -878,6 +1175,10 @@ function buildWildcardWidget(node, hiddenWidget) {
       if (isExpanded) grouped[cat].forEach(item => pickerList.appendChild(pickerRow(item)));
     });
     if (!items.length) pickerList.innerHTML = `<div class="wg-hint" style="padding:6px;">no matches</div>`;
+    // Restore the scroll position captured before the rebuild. If the new
+    // content is shorter (e.g. a folder was just collapsed), the browser
+    // clamps this to the new max scrollTop on its own.
+    pickerList.scrollTop = prevScrollTop;
   }
 
   let searchDebounce = null;
@@ -913,7 +1214,10 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
   }
 
-  root.querySelector('[data-act="save"]').addEventListener("click", async () => {
+  // Named (not just an inline click handler) so the Ctrl/Cmd+S keyboard
+  // shortcut below can trigger the exact same save path as clicking the
+  // button.
+  async function saveEditDrawer() {
     const name = editName.value.trim();
     if (!name) { editStatus.textContent = "enter a name/path first"; editStatus.className = "wg-status err"; return; }
     const res = await API.save(name, editContent.value);
@@ -927,6 +1231,20 @@ function buildWildcardWidget(node, hiddenWidget) {
       editStatus.textContent = res.error || "save failed";
       editStatus.className = "wg-status err";
     }
+  }
+  root.querySelector('[data-act="save"]').addEventListener("click", saveEditDrawer);
+  // Enter in the filename field "confirms" whatever path was typed: load its
+  // existing content into the editor if the wildcard already exists (same
+  // outcome as double-clicking that token), or reset to the blank "new
+  // wildcard" state if it doesn't. Scoped to this one input (rather than the
+  // whole drawer) so Enter still behaves normally — inserting nothing, since
+  // it's a single-line input — and doesn't clash with newlines in the
+  // multi-line content textarea below it.
+  editName.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const name = editName.value.trim();
+    if (name) loadIntoEditDrawer(name);
   });
   root.querySelector('[data-act="delete"]').addEventListener("click", async () => {
     const name = editName.value.trim();
@@ -945,12 +1263,78 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
   });
 
-  // ---- toolbar actions ----
-  root.querySelector('[data-act="picker"]').addEventListener("click", (e) => {
-    pickerDrawer.classList.toggle("open");
-    e.currentTarget.classList.toggle("active");
-    if (pickerDrawer.classList.contains("open")) renderPickerList(searchInput.value);
+  // ---- resizable picker sidebar (drag right edge, 220–640px) ----
+  const PICKER_MIN_WIDTH = 220;
+  const PICKER_MAX_WIDTH = 640;
+  function loadPickerWidth() {
+    try {
+      const w = parseInt(localStorage.getItem("pp_picker_width"), 10);
+      if (Number.isFinite(w)) return Math.min(PICKER_MAX_WIDTH, Math.max(PICKER_MIN_WIDTH, w));
+    } catch (e) {}
+    return PICKER_MIN_WIDTH;
+  }
+  function savePickerWidth(w) {
+    try { localStorage.setItem("pp_picker_width", String(w)); } catch (e) {}
+  }
+  let pickerWidth = loadPickerWidth();
+
+  // The drawer's default/closed width (0, or a fixed 220px while open) lives
+  // in the stylesheet; a resized width is applied as an inline style, which
+  // wins over those rules automatically without needing !important. It's set
+  // only while the drawer is open (see openPickerDrawer/closePickerDrawer
+  // below) — leaving it set while closed would also override the "closed"
+  // width:0 rule and break the collapse animation.
+  const pickerResizeHandle = document.createElement("div");
+  pickerResizeHandle.className = "wg-drawer-resize-handle";
+  pickerResizeHandle.title = "Drag to resize";
+  pickerDrawer.appendChild(pickerResizeHandle);
+
+  let resizingPicker = false;
+  let resizeStartX = 0;
+  let resizeStartWidth = 0;
+  pickerResizeHandle.addEventListener("mousedown", (e) => {
+    if (!pickerDrawer.classList.contains("open")) return;
+    resizingPicker = true;
+    resizeStartX = e.clientX;
+    resizeStartWidth = pickerDrawer.getBoundingClientRect().width;
+    pickerDrawer.classList.add("resizing");
+    document.body.style.userSelect = "none";
+    e.preventDefault();
   });
+  const handlePickerResizeMove = (e) => {
+    if (!resizingPicker) return;
+    pickerWidth = Math.min(PICKER_MAX_WIDTH, Math.max(PICKER_MIN_WIDTH, resizeStartWidth + (e.clientX - resizeStartX)));
+    pickerDrawer.style.width = pickerWidth + "px";
+  };
+  const handlePickerResizeUp = () => {
+    if (!resizingPicker) return;
+    resizingPicker = false;
+    pickerDrawer.classList.remove("resizing");
+    document.body.style.userSelect = "";
+    savePickerWidth(pickerWidth);
+  };
+  document.addEventListener("mousemove", handlePickerResizeMove);
+  document.addEventListener("mouseup", handlePickerResizeUp);
+
+  // ---- toolbar actions ----
+  function openPickerDrawer() {
+    pickerDrawer.classList.add("open");
+    root.querySelector('[data-act="picker"]').classList.add("active");
+    pickerDrawer.style.width = pickerWidth + "px";
+    renderPickerList(searchInput.value);
+  }
+  function closePickerDrawer() {
+    pickerDrawer.classList.remove("open");
+    root.querySelector('[data-act="picker"]').classList.remove("active");
+    pickerDrawer.style.width = "";
+  }
+  root.querySelector('[data-act="picker"]').addEventListener("click", () => {
+    if (pickerDrawer.classList.contains("open")) closePickerDrawer(); else openPickerDrawer();
+  });
+  function closeEditDrawer() {
+    editDrawer.classList.remove("open");
+    root.querySelector('[data-act="edit"]').classList.remove("active");
+  }
   root.querySelector('[data-act="edit"]').addEventListener("click", (e) => {
     editDrawer.classList.toggle("open");
     e.currentTarget.classList.toggle("active");
@@ -958,9 +1342,14 @@ function buildWildcardWidget(node, hiddenWidget) {
   // Explicit close button inside the edit drawer itself — same effect as
   // clicking the pencil icon in the toolbar, just discoverable from inside
   // the panel so users aren't left hunting for how to dismiss it.
-  root.querySelector('[data-act="closeEditDrawer"]').addEventListener("click", () => {
-    editDrawer.classList.remove("open");
-    root.querySelector('[data-act="edit"]').classList.remove("active");
+  root.querySelector('[data-act="closeEditDrawer"]').addEventListener("click", closeEditDrawer);
+  // Ctrl/Cmd+S anywhere inside the edit drawer (filename field or content
+  // textarea) saves, instead of triggering the browser's "save page" dialog.
+  editDrawer.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      saveEditDrawer();
+    }
   });
   root.querySelector('[data-act="resolve"]').addEventListener("click", async (e) => {
     const on = resolvedView.classList.toggle("on");
@@ -1024,11 +1413,26 @@ function buildWildcardWidget(node, hiddenWidget) {
     render(); // re-highlight the editor text against the refreshed known-wildcard set
   };
 
-  // double-click a token in the editor to jump straight to editing it
+  // double-click a token in the editor to jump straight to editing it.
+  // charIndexFromEvent() above is an approximate monospace hit-test, kept
+  // ONLY for the hover tooltip (which can tolerate being a little off). It
+  // falls apart on variable-width fonts, so it isn't precise enough to
+  // decide what gets opened for editing here. Instead, read the browser's
+  // own native double-click word selection directly off the textarea and
+  // resolve THAT to the enclosing __folder/name__ token range. Browsers
+  // disagree on whether "_" and "/" count as word-boundary characters, so
+  // the native selection might only grab "folder" or "name__" or similar —
+  // any overlap between it and a known token range is enough to resolve to
+  // the FULL token, regardless of which slice the browser actually selected.
   textarea.addEventListener("dblclick", (e) => {
-    const idx = charIndexFromEvent(e);
-    const tok = tokenRanges.find(t => idx >= t.start && idx < t.end);
+    const nativeStart = textarea.selectionStart;
+    const nativeEnd = textarea.selectionEnd;
+    const tok = tokenRanges.find(t => t.start <= nativeEnd && t.end >= nativeStart);
     if (tok) {
+      // Widen the (possibly partial) native selection to the full token so
+      // what's visibly highlighted matches what's being opened for editing.
+      textarea.selectionStart = tok.start;
+      textarea.selectionEnd = tok.end;
       editDrawer.classList.add("open");
       root.querySelector('[data-act="edit"]').classList.add("active");
       loadIntoEditDrawer(tok.name);
@@ -1052,7 +1456,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
   };
   const handleEscapeKey = (e) => {
-    if (e.key === "Escape") closeSettings();
+    if (e.key !== "Escape") return;
+    // Closest-opened-thing-first: the settings popup floats above everything
+    // else, so it takes priority; otherwise close whichever side drawer is
+    // open.
+    if (settingsPopup.classList.contains("open")) closeSettings();
+    else if (editDrawer.classList.contains("open")) closeEditDrawer();
+    else if (pickerDrawer.classList.contains("open")) closePickerDrawer();
   };
   
   document.addEventListener("click", handleOutsideClick);
@@ -1231,6 +1641,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     node.bgcolor = t.bg;
     node.color = t.accent;
     node.graph?.setDirtyCanvas(true, true);
+    if (typeof updateDayNightIcon === "function") updateDayNightIcon();
   }
   function setUiThemeStatus(msg, isErr) {
     uiThemeStatus.textContent = msg || "";
@@ -1272,7 +1683,81 @@ function buildWildcardWidget(node, hiddenWidget) {
     });
     setUiThemeStatus(locked ? "built-in theme \u2014 hit \u201cNew\u201d to make an editable copy" : "");
   }
-  function refreshUiThemeUI() { renderUiThemeSelect(); renderUiThemeSwatches(); }
+  function refreshUiThemeUI() { renderUiThemeSelect(); renderUiThemeSwatches(); refreshDayNightSelects(); }
+
+  // ---- Toolbar declutter: optional seed/mode cluster + day/night toggle ----
+  // Both live in theme (global, shared across every Prompt Palette node),
+  // same storage pattern as font/interface-theme prefs above. The seed/mode
+  // cluster itself (.wg-toolbar-extra) is the same markup that used to be
+  // an always-visible bar; it's now nested inside .wg-toolbar and simply
+  // shown/hidden with a class, so switching it on adds it to the same bar
+  // as Show resolved / refresh instead of a separate strip.
+  const toolbarSeedExtra = el("seedbar");
+  const dayNightBtn = el("dayNightBtn");
+  const toggleSeedControlsCb = el("toggleSeedControls");
+  const toggleDayNightBtnCb = el("toggleDayNightBtn");
+  const dayThemeSelect = el("dayThemeSelect");
+  const nightThemeSelect = el("nightThemeSelect");
+
+  function applyToolbarSettings() {
+    toolbarSeedExtra.classList.toggle("on", !!theme.showSeedControls);
+    dayNightBtn.style.display = theme.showDayNightBtn ? "" : "none";
+  }
+  function refreshToolbarSettingsUI() {
+    toggleSeedControlsCb.checked = !!theme.showSeedControls;
+    toggleDayNightBtnCb.checked = !!theme.showDayNightBtn;
+  }
+  function refreshDayNightSelects() {
+    const themes = allUiThemes();
+    const names = Object.keys(themes).sort();
+    // Self-heal if the theme a user picked for day/night got renamed or
+    // deleted since (same fallback pattern as activeUiThemeName above).
+    if (!themes[theme.dayTheme]) theme.dayTheme = names.includes("Daylight") ? "Daylight" : names[0];
+    if (!themes[theme.nightTheme]) theme.nightTheme = names.includes("Amber") ? "Amber" : names[0];
+    saveTheme(theme);
+    [[dayThemeSelect, "dayTheme"], [nightThemeSelect, "nightTheme"]].forEach(([sel, key]) => {
+      sel.innerHTML = names.map(n =>
+        `<option value="${escapeHtml(n)}" ${n === theme[key] ? "selected" : ""}>${escapeHtml(n)}</option>`
+      ).join("");
+    });
+  }
+  // Icon reflects the ACTION (what clicking will do), matching the common
+  // sun/moon toggle convention: show the moon while in the day theme (click
+  // to go dark), show the sun once night theme is active (click for day).
+  function updateDayNightIcon() {
+    const inNight = theme.nightTheme && activeUiThemeName === theme.nightTheme;
+    dayNightBtn.innerHTML = inNight ? "&#9728;" : "&#127769;";
+    dayNightBtn.title = inNight ? "Switch to day theme" : "Switch to night theme";
+  }
+
+  toggleSeedControlsCb.addEventListener("change", () => {
+    theme.showSeedControls = toggleSeedControlsCb.checked;
+    saveTheme(theme);
+    applyToolbarSettings();
+  });
+  toggleDayNightBtnCb.addEventListener("change", () => {
+    theme.showDayNightBtn = toggleDayNightBtnCb.checked;
+    saveTheme(theme);
+    applyToolbarSettings();
+  });
+  dayThemeSelect.addEventListener("change", () => {
+    theme.dayTheme = dayThemeSelect.value;
+    saveTheme(theme);
+    updateDayNightIcon();
+  });
+  nightThemeSelect.addEventListener("change", () => {
+    theme.nightTheme = nightThemeSelect.value;
+    saveTheme(theme);
+    updateDayNightIcon();
+  });
+  dayNightBtn.addEventListener("click", () => {
+    const target = activeUiThemeName === theme.nightTheme ? theme.dayTheme : theme.nightTheme;
+    if (!target || !allUiThemes()[target]) return; // configured theme got renamed/deleted — nothing to switch to
+    activeUiThemeName = target;
+    saveActiveUiThemeName(activeUiThemeName);
+    applyUiTheme();
+    refreshUiThemeUI();
+  });
 
   uiThemeSelect.addEventListener("change", () => {
     activeUiThemeName = uiThemeSelect.value;
@@ -1348,6 +1833,8 @@ function buildWildcardWidget(node, hiddenWidget) {
   applyUiTheme();
   refreshUiThemeUI();
   applyFontSettings();
+  applyToolbarSettings();
+  refreshToolbarSettingsUI();
 
   // initial load
   textarea.value = (node.properties && node.properties.wg_text) || hiddenWidget.value || "";
@@ -1368,8 +1855,11 @@ function buildWildcardWidget(node, hiddenWidget) {
     root: frame, 
     refreshFromHidden,
     cleanup: () => {
+      document.removeEventListener("mousemove", handlePickerResizeMove);
+      document.removeEventListener("mouseup", handlePickerResizeUp);
       document.removeEventListener("click", handleOutsideClick);
       document.removeEventListener("keydown", handleEscapeKey);
+      if (acState && acState.textarea === textarea) closeAcMenu();
     }
   };
 }
