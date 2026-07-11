@@ -539,7 +539,7 @@ function buildWildcardWidget(node, hiddenWidget) {
         <button class="wg-pill" data-act="resetTheme">Reset</button>
 
         <h5>Inputs &amp; outputs</h5>
-        <div style="font-size:9px; color:var(--wg-text-faint,#8a836f); line-height:1.5; margin-bottom:6px;">Turn on any socket you want to wire up \u2014 e.g. pipe in an LLM prompt-enhancer, a shared seed, or a separate negative prompt. Nothing here is required; the node works the same with everything off.</div>
+        <div style="font-size:9px; color:var(--wg-text-faint,#8a836f); line-height:1.5; margin-bottom:6px;">Turn on any socket you want to wire up. Connect CLIP to turn this into a live encoder that outputs CONDITIONING directly instead of just text; add MODEL alongside it and any &lt;lora:name:weight&gt; tags in the prompt (typed directly or hidden in a wildcard file) get loaded, applied, and stripped out automatically. Everything else here \u2014 prefixes, negative prompt, enhancer override, etc. \u2014 is just extra wiring flexibility. Nothing is required; the node works the same with everything off.</div>
         <div class="wg-rowline" style="margin:2px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Optional inputs</label></div>
         <div data-el="ioInputToggles"></div>
         <div class="wg-rowline" style="margin:10px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Optional outputs</label></div>
@@ -653,6 +653,8 @@ function buildWildcardWidget(node, hiddenWidget) {
   // the theme/font settings, since which sockets you want wired up is a
   // per-node-instance choice.
   const IO_INPUT_DEFS = [
+    { key: "clip", type: "CLIP", label: "CLIP", desc: "Connect to turn this node into a live encoder \u2014 the resolved prompt and negative prompt get encoded into CONDITIONING via this CLIP instead of only being returned as text." },
+    { key: "model", type: "MODEL", label: "Model", desc: "Connect alongside CLIP to enable <lora:name:weight> tags, typed directly or hidden inside a wildcard file's entry. Any found are loaded, applied to the model/clip, and stripped out of the text before it's encoded. Without a MODEL connected, LoRA tags are left as literal text." },
     { key: "prompt_prefix", type: "STRING", label: "Prompt prefix", desc: "Prepend externally-supplied text (resolved for wildcards too) before this node's own prompt \u2014 e.g. a shared style-preset text node." },
     { key: "prompt_suffix", type: "STRING", label: "Prompt suffix", desc: "Append externally-supplied text (resolved for wildcards too) after this node's own prompt." },
     { key: "enhancer_override", type: "STRING", label: "LLM / enhancer override", desc: "If connected and non-empty, this completely replaces the resolved prompt output \u2014 wire in an LLM prompt-enhancer node here." },
@@ -662,6 +664,10 @@ function buildWildcardWidget(node, hiddenWidget) {
     { key: "negative_suffix", type: "STRING", label: "Negative suffix", desc: "Append externally-supplied text (resolved for wildcards too) after the negative prompt \u2014 mirrors Prompt suffix but for the negative side." },
   ];
   const IO_OUTPUT_DEFS = [
+    { key: "model", type: "MODEL", label: "Model (passthrough)", desc: "The connected Model, passed through \u2014 patched with any LoRAs pulled from <lora:...> tags this run if CLIP was also connected, otherwise unchanged. None if no Model is connected." },
+    { key: "clip", type: "CLIP", label: "CLIP (passthrough)", desc: "The connected CLIP, passed through \u2014 patched alongside Model above if LoRAs were applied, otherwise unchanged. None if no CLIP is connected." },
+    { key: "conditioning", type: "CONDITIONING", label: "Conditioning", desc: "The resolved prompt encoded via the connected CLIP. None unless a CLIP input is connected." },
+    { key: "negative_conditioning", type: "CONDITIONING", label: "Negative conditioning", desc: "The resolved negative prompt encoded via the connected CLIP. None unless a CLIP input is connected." },
     { key: "negative_prompt", type: "STRING", label: "Negative prompt", desc: "Resolved text from the Negative prompt input above." },
     { key: "seed_out", type: "INT", label: "Seed used", desc: "The seed actually used to resolve this run \u2014 feed straight into a sampler's seed input." },
     { key: "wildcards_used", type: "STRING", label: "Wildcards used (JSON)", desc: "A JSON list of every wildcard file name that got picked this run, for logging/debugging." },
@@ -1864,8 +1870,89 @@ function buildWildcardWidget(node, hiddenWidget) {
   };
 }
 
+// --- Output-slot remap for PromptPaletteEditor's toggleable sockets -------
+// IO_OUTPUT_DEFS (above, inside buildWildcardWidget) lets the user flip
+// optional outputs on/off per node instance. Turning one on calls
+// node.addOutput(), which LiteGraph always appends to the END of the live
+// node.outputs array — so the *visible* socket order ends up being "whatever
+// order the user happened to click the checkboxes in," not the Python node's
+// fixed RETURN_TYPES/RETURN_NAMES tuple order.
+//
+// app.graphToPrompt() serializes a downstream link as [node_id, slot_index],
+// where slot_index is the source socket's position in that live (visible)
+// node.outputs array. The backend executor has no concept of "visible order"
+// though — it only ever reads a node's Nth returned value, N = position in
+// RETURN_NAMES. So the moment visible order and RETURN_NAMES order diverge,
+// a link recorded with the visible index silently pulls whatever value
+// happens to sit at that position in the backend tuple instead of the one
+// the user actually wired up.
+//
+// Fix: after the frontend serializes the prompt, walk every link that
+// originates from a PromptPaletteEditor node and rewrite its slot index from
+// "position in the live node.outputs array" to "position in RETURN_NAMES."
+// This only has to touch links; widget values serialize fine as-is.
+
+// MUST exactly match the PromptPaletteEditor Python node's RETURN_NAMES
+// tuple, in order — index here = the backend's real, fixed output position.
+// If RETURN_NAMES on the Python side ever changes, update this to match.
+const OUTPUT_SLOT_ORDER = [
+  "model", "clip", "conditioning", "negative_conditioning", "prompt",
+  "negative_prompt", "seed_out", "wildcards_used", "raw_text",
+  "wildcards_used_count", "used_enhancer",
+];
+
+function remapPromptPaletteOutputs(promptResult) {
+  const output = promptResult && promptResult.output;
+  if (!output) return;
+
+  for (const nodeId in output) {
+    const inputs = output[nodeId] && output[nodeId].inputs;
+    if (!inputs) continue;
+
+    for (const inputName in inputs) {
+      const val = inputs[inputName];
+      // Links are always exactly [upstream_node_id, upstream_slot_index];
+      // anything else (string/number/bool/array-shaped widget value) is a
+      // literal, so the typeof check on val[1] is what tells them apart.
+      if (!Array.isArray(val) || val.length !== 2 || typeof val[1] !== "number") continue;
+
+      const [sourceId, visibleSlot] = val;
+      const sourceNode = output[sourceId];
+      if (!sourceNode || sourceNode.class_type !== "PromptPaletteEditor") continue;
+
+      // prompt.output carries no frontend socket metadata, so cross-reference
+      // the live graph node to find which output NAME actually sits at the
+      // visible slot index the frontend recorded for this link.
+      const liveNode = app.graph.getNodeById(sourceId) || app.graph.getNodeById(Number(sourceId));
+      const liveOutputs = liveNode && liveNode.outputs;
+      if (!liveOutputs || !liveOutputs[visibleSlot]) continue;
+
+      const fixedSlot = OUTPUT_SLOT_ORDER.indexOf(liveOutputs[visibleSlot].name);
+      if (fixedSlot === -1 || fixedSlot === visibleSlot) continue;
+
+      inputs[inputName] = [sourceId, fixedSlot];
+    }
+  }
+}
+
 app.registerExtension({
   name: "comfyui.promptpalette.editor",
+  // One-time, app-level patch — not tied to any single node's lifecycle, so
+  // it belongs in setup() (fired once after ComfyUI's app finishes
+  // initializing) rather than beforeRegisterNodeDef (fired per node type).
+  // Guarded on `app` itself in case this extension script is ever loaded
+  // more than once, so app.graphToPrompt only ever gets wrapped a single time.
+  async setup() {
+    if (app.__promptPaletteGraphToPromptPatched) return;
+    app.__promptPaletteGraphToPromptPatched = true;
+
+    const origGraphToPrompt = app.graphToPrompt.bind(app);
+    app.graphToPrompt = async function (...args) {
+      const promptResult = await origGraphToPrompt(...args);
+      remapPromptPaletteOutputs(promptResult);
+      return promptResult;
+    };
+  },
   async beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== "PromptPaletteEditor") return;
 
