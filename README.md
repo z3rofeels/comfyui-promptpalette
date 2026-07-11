@@ -2,16 +2,17 @@
 
 
 ``
-      
-                                           (This page looks better in dark mode for now, oops) 🤷‍♂️
+     
+     (This page looks better in dark mode for now, oops) 🤷‍♂️
 
-     recent updates: Resizeable side panel (woo)
+     recent completed updates: 
+     Redid routing and fixed all inputs and outputs so they actually work, and added them to be switchable in the settings (gee, I should have done that first)
+     Resizeable side panel (woo)
      Type double underscore for a mini hover menu for quick access (heck yeah)
      clear button for recents (duh)
      optional day/night toggle (or choose your own theme for day/night options)((heck yeahx2))
      Cleaning up toolbar and making more options...optional (cause' why not)
 
-    *
 ``
 
 
@@ -20,18 +21,26 @@
 
 ##
 
-$${\color{lightblue}\text{Your }}{\color{green}\text{new}}{\color{blue}\text{ best friend for prompting in ComfyUI.}}$$
+<p align="center">
+  <b>Your</b> <span style="color: #28a745;">new best friend</span> for prompting in <b>ComfyUI</b>.
+</p>
 
-$${\color{blue}\text{Prompt Palette}}{\color{lavender}\text{ instantly brings your prompts to life with beautiful, }}{\color{cyan}\text{color-coded visualization.}}$$
+<p align="center">
+  <b>Prompt Palette</b> instantly brings your prompts to life with beautiful, <span style="color: #0366d6;">color-coded visualization</span>.
+</p>
 
-$${\color{red}\text{Fully customizable: }}{\color{orange}\text{wildcards}}{\color{lavender}\text{ or plain text, vibrant or subtle themes, }}{\color{white}\text{light}}{\color{lavender}\text{ or }}{\color{darkgray}\text{dark}}{\color{lavender}\text{ modes.}}$$
+<p align="center">
+  <b>Fully customizable:</b> wildcards or plain text, vibrant or subtle themes, light or dark modes.
+</p>
 
-$${\color{red}\text{Adapt }}{\color{orange}\text{it }} {to}  {\color{blue}\text{your }}{\color{yellow}\text{workflow }}{\color{blue}\text{and }}{\color{purple}\text{change }}{\color{grey}\text{the }}{\color{lightsalmon}\text{look }}{\color{aquamarine}\text{whenever }}{\color{lime}\text{the }}{\color{lightblue}\text{mood }}{\color{lightgreen}\text{strikes.}}$$
+<p align="center">
+  Adapt it to your workflow and change the look whenever the mood strikes.
+
 
 ##
 
 
- $${\color{lightblue}\text{Features }}$$
+ ${\color{lightblue}\text{Features }}$
 
 <img width="1583" height="1017" alt="showresolved" src="https://github.com/user-attachments/assets/e7d0cd39-de4c-4fe0-8c20-bcf02837b8d7" />
 
@@ -97,6 +106,24 @@ $${\large\bf\color{white}\text{Brightness and Font Controls: }}{\large\color{gra
 
 
 <img width="1208" height="763" alt="hue shiftv1" src="https://github.com/user-attachments/assets/a0a696a1-fbfc-450b-bbf2-74394294c1fb" />
+
+
+</p><img width="1379" height="928" alt="Screenshot 2026-07-10 191042" src="https://github.com/user-attachments/assets/8f89847b-281f-40b4-8a7f-5511a20ae250" />
+
+**Optional inputs and outputs**
+
+<img width="357" height="1079" alt="Screenshot 2026-07-10 191159" src="https://github.com/user-attachments/assets/c8c34604-e5b7-4459-9164-218a4c76d1df" />
+
+
+**Clear button if things gets cluttered**
+
+
+<img width="402" height="443" alt="Screenshot 2026-07-10 191457" src="https://github.com/user-attachments/assets/fc94067e-d869-4fa6-8c2e-c87d9ab7e342" />
+
+
+**Editor settings (future cleanup planned to make it easier and less cramped)**
+
+<img width="358" height="967" alt="Screenshot 2026-07-10 191625" src="https://github.com/user-attachments/assets/fd252e0a-57e1-4a27-8bfc-66f17b518fd8" />
 
 
 
