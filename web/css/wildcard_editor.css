@@ -45,19 +45,19 @@
 .wg-seed-mode { flex: 1 1 120px; min-width: 0; background: var(--wg-bg, #1d1c1a); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 4px 6px; border-radius: 6px; outline: none; transition: border-color 120ms ease, box-shadow 120ms ease; }
 .wg-seed-mode:focus { border-color: var(--wg-accent, #d9a441); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wg-accent, #d9a441) 25%, transparent); }
 
-.wg-icon-btn { background: transparent; border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #b3ab99); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease; }
-.wg-icon-btn:hover { background: color-mix(in srgb, var(--wg-surface, #131211), white 8%); color: var(--wg-text, #fff); border-color: color-mix(in srgb, var(--wg-border-strong, #38352f), white 20%); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
-.wg-icon-btn:active { transform: scale(0.92); }
-.wg-icon-btn.active { background: color-mix(in srgb, var(--wg-accent, #d9a441) 22%, var(--wg-bg, #1d1c1a)); color: color-mix(in srgb, var(--wg-accent, #d9a441), white 25%); border-color: var(--wg-accent, #d9a441); }
-.wg-icon-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+.wg-icon-btn { background: transparent; border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #b3ab99); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.18); transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
+.wg-icon-btn:hover { background: color-mix(in srgb, var(--wg-surface, #131211), white 8%); color: var(--wg-text, #fff); border-color: var(--wg-accent, #d9a441); box-shadow: 0 3px 8px rgba(0,0,0,0.28), 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent), 0 0 10px color-mix(in srgb, var(--wg-accent, #d9a441) 40%, transparent); }
+.wg-icon-btn:active { transform: scale(0.92); box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.wg-icon-btn.active { background: color-mix(in srgb, var(--wg-accent, #d9a441) 22%, var(--wg-bg, #1d1c1a)); color: color-mix(in srgb, var(--wg-accent, #d9a441), white 25%); border-color: var(--wg-accent, #d9a441); box-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent); }
+.wg-icon-btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
 .wg-icon-btn[data-act="refresh"].active { animation: wg-spin 650ms linear infinite; }
 @keyframes wg-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .wg-icon-btn[data-act="copy"].active { color: var(--wg-success, #7fae7a); border-color: var(--wg-success, #7fae7a); background: color-mix(in srgb, var(--wg-success, #7fae7a) 18%, var(--wg-bg, #1d1c1a)); }
 
-.wg-pill { background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #b3ab99); font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: border-color 120ms ease, color 120ms ease, background 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
-.wg-pill:hover { border-color: var(--wg-accent, #d9a441); color: var(--wg-text, #fff); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.28); }
-.wg-pill:active { transform: translateY(0) scale(0.97); box-shadow: none; }
-.wg-pill.on { background: color-mix(in srgb, var(--wg-success, #7fae7a) 18%, var(--wg-bg, #1d1c1a)); border-color: var(--wg-success, #7fae7a); color: color-mix(in srgb, var(--wg-success, #7fae7a), white 25%); }
+.wg-pill { background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #b3ab99); font-size: 10px; padding: 4px 8px; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: border-color 120ms ease, color 120ms ease, background 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
+.wg-pill:hover { border-color: var(--wg-accent, #d9a441); color: var(--wg-text, #fff); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.3), 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent), 0 0 12px color-mix(in srgb, var(--wg-accent, #d9a441) 35%, transparent); }
+.wg-pill:active { transform: translateY(0) scale(0.97); box-shadow: inset 0 1px 3px rgba(0,0,0,0.35); }
+.wg-pill.on { background: color-mix(in srgb, var(--wg-success, #7fae7a) 18%, var(--wg-bg, #1d1c1a)); border-color: var(--wg-success, #7fae7a); color: color-mix(in srgb, var(--wg-success, #7fae7a), white 25%); box-shadow: 0 0 8px color-mix(in srgb, currentColor 40%, transparent); }
 .wg-pill-resolve { justify-self: center; font-size: 11px; font-weight: 700; padding: 6px 20px; border-width: 1.5px; letter-spacing: 0.01em; }
 
 .wg-main { flex: 1; display: flex; min-height: 0; }
@@ -87,6 +87,12 @@
 
 .wg-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; flex: none; }
 .wg-hint { font-size: 9px; color: var(--wg-text-faint, #5c5748); }
+/* Applied only while there's at least one unresolved wildcard to jump to
+   (see render()/jumpToNextMissing() in wildcard_editor.js) — the dotted
+   underline is the only hint this text is interactive, so it stays out of
+   the way the rest of the time. */
+.wg-hint-clickable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; transition: color 120ms ease; }
+.wg-hint-clickable:hover { color: var(--wg-danger, #e0605f); }
 
 .wg-drawer { width: 0; overflow: hidden; transition: width 160ms ease; background: var(--wg-panel-bg, #171511); display: flex; flex-direction: column; flex: none; }
 .wg-drawer.left { position: relative; border-right: 1px solid var(--wg-border, #2c2820); order: -1; }
@@ -120,12 +126,12 @@
 .wg-list { flex: 1; overflow-y: auto; min-height: 0; }
 .wg-section-label { font-size: calc(9px * var(--wg-ui-font-scale, 1)); text-transform: uppercase; letter-spacing: 0.05em; color: var(--wg-text-faint, #8a836f); padding: 6px 4px 3px; }
 .wg-section-label-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.wg-clear-recent { flex: none; background: transparent; border: none; color: var(--wg-text-faint, #6f6a5c); font-size: calc(8.5px * var(--wg-ui-font-scale, 1)); text-transform: none; letter-spacing: 0; padding: 1px 5px; border-radius: 4px; cursor: pointer; transition: color 120ms ease, background 120ms ease; }
-.wg-clear-recent:hover { color: var(--wg-danger, #e0605f); background: color-mix(in srgb, var(--wg-danger, #e0605f) 14%, transparent); }
+.wg-clear-recent { flex: none; background: transparent; border: none; color: var(--wg-text-faint, #6f6a5c); font-size: calc(8.5px * var(--wg-ui-font-scale, 1)); text-transform: none; letter-spacing: 0; padding: 1px 5px; border-radius: 4px; cursor: pointer; transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease; }
+.wg-clear-recent:hover { color: var(--wg-danger, #e0605f); background: color-mix(in srgb, var(--wg-danger, #e0605f) 14%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--wg-danger, #e0605f) 35%, transparent); }
 .wg-clear-recent:active { transform: scale(0.94); }
 
-.wg-folder { font-size: calc(9px * var(--wg-ui-font-scale, 1)); text-transform: uppercase; letter-spacing: 0.04em; color: var(--wg-text-faint, #756f5e); padding: 6px 4px 2px; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; border-radius: 4px; }
-.wg-folder:hover { color: var(--wg-text-dim, #b8b1a1); background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 6%); }
+.wg-folder { font-size: calc(9px * var(--wg-ui-font-scale, 1)); text-transform: uppercase; letter-spacing: 0.04em; color: var(--wg-text-faint, #756f5e); padding: 6px 4px 2px; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; border-radius: 4px; transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease; }
+.wg-folder:hover { color: var(--wg-text-dim, #b8b1a1); background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 6%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d9a441) 30%, transparent), 0 0 8px color-mix(in srgb, var(--wg-accent, #d9a441) 20%, transparent); }
 .wg-folder .wg-folder-caret { font-size: calc(8px * var(--wg-ui-font-scale, 1)); width: 8px; flex: none; display: inline-block; text-align: center; }
 .wg-folder .wg-folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wg-folder .wg-folder-count { font-size: calc(8px * var(--wg-ui-font-scale, 1)); opacity: 0.7; flex: none; }
@@ -134,10 +140,69 @@
 .wg-folder.dragging { opacity: 0.45; }
 .wg-folder.drag-over { box-shadow: inset 0 2px 0 var(--wg-accent, #d9a441); }
 
+/* Syntax Injector trigger (⚡) and Copy-path trigger (📋): both a subtle icon
+   that only reveals itself on hover (or keyboard focus) of the item row, so
+   browsing stays visually quiet until the user wants one of them. Sit
+   between the item name and its pin control, in the spot the type badge
+   used to occupy (see wildcard_editor.js). Kept fully transparent rather
+   than display:none while idle so the reveal is a smooth fade in-place
+   instead of the row width jumping around. */
+.wg-inject-trigger, .wg-copy-trigger {
+  opacity: 0;
+  flex: none;
+  width: 17px; height: 17px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; line-height: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--wg-text-faint, #756f5e);
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 120ms ease, color 120ms ease, background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.wg-item:hover .wg-inject-trigger, .wg-item:hover .wg-copy-trigger,
+.wg-item:focus-within .wg-inject-trigger, .wg-item:focus-within .wg-copy-trigger,
+.wg-inject-trigger.open, .wg-copy-trigger.copied,
+.wg-inject-trigger:focus-visible, .wg-copy-trigger:focus-visible {
+  opacity: 1;
+}
+.wg-inject-trigger:hover, .wg-inject-trigger.open {
+  color: var(--wg-accent-text, #1d1c1a);
+  background: var(--wg-accent, #d9a441);
+  border-color: var(--wg-accent, #d9a441);
+}
+.wg-inject-trigger:active, .wg-copy-trigger:active { transform: scale(0.88); }
+.wg-copy-trigger:hover {
+  color: var(--wg-accent-text, #1d1c1a);
+  background: var(--wg-accent, #d9a441);
+  border-color: var(--wg-accent, #d9a441);
+}
+/* Confirms a successful clipboard write — same success-green language as the
+   toolbar's own copy button (.wg-icon-btn[data-act="copy"].active). */
+.wg-copy-trigger.copied {
+  color: var(--wg-success, #7fae7a);
+  border-color: var(--wg-success, #7fae7a);
+  background: color-mix(in srgb, var(--wg-success, #7fae7a) 18%, transparent);
+}
+
 .wg-item { display: flex; align-items: center; gap: 6px; padding: 5px 5px; border-radius: 5px; cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim, #d4cdbc); transition: background 120ms ease, transform 120ms ease; }
 .wg-item:hover { background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 8%); transform: translateX(1px); }
-.wg-item .wg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wg-item .wg-badge { font-size: calc(8px * var(--wg-ui-font-scale, 1)); padding: 1px 4px; border-radius: 4px; background: var(--wg-border, #2c2820); color: var(--wg-text-dim, #a89f88); font-weight: 600; }
+/* Keyboard-nav highlight (Up/Down from the search box — see searchInput's
+   keydown listener in wildcard_editor.js). Same accent treatment as the "__"
+   autocomplete's .wg-ac-item.active for a consistent feel across both. */
+.wg-item.wg-kb-active { background: var(--wg-accent, #d9a441); color: var(--wg-accent-text, #1d1c1a); }
+.wg-item.wg-kb-active .wg-pin { color: var(--wg-accent-text, #1d1c1a); opacity: 0.75; }
+/* Search-match highlight inside a picker row's name (see highlightMatch() in
+   wildcard_editor.js). Deliberately keeps using currentColor for text so it
+   stays legible against both the normal row and the .wg-kb-active fill. */
+.wg-match { background: color-mix(in srgb, var(--wg-accent, #d9a441) 40%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+/* Wraps instead of eliding: with the badge gone, the trigger sits directly
+   against the name, so a long filename in a narrow (resized-down) sidebar
+   should break onto a second line rather than collide with or get clipped
+   under the trigger/pin controls. .wg-item has no fixed height, so the row
+   grows to fit — this never touches .wg-sw's category color-coding. */
+.wg-item .wg-name { flex: 1; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
 .wg-pin { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-faint, #56503f); cursor: pointer; flex: none; padding: 1px; transition: color 120ms ease, transform 120ms ease; }
 .wg-pin:hover { color: var(--wg-accent, #d9a441); transform: scale(1.15); }
 .wg-pin.pinned { color: var(--wg-accent, #d9a441); }
@@ -146,23 +211,42 @@
 .wg-drawer-inner label { font-size: 9px; color: var(--wg-text-faint, #8a836f); display: block; margin-bottom: 3px; flex: none; }
 .wg-drawer-inner textarea { flex: 1; width: 100%; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 6px; border-radius: 6px; resize: none; outline: none; font-family: "SF Mono", Consolas, monospace; margin-bottom: 6px; min-height: 0; }
 .wg-drawer-btns { display: flex; gap: 5px; flex: none; }
-.wg-drawer-btns button { flex: 1; font-size: 10px; padding: 6px; border-radius: 6px; cursor: pointer; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #c9c2b1); transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease, background 120ms ease; }
-.wg-drawer-btns button.primary { background: var(--wg-accent, #d9a441); border-color: var(--wg-accent, #d9a441); color: var(--wg-accent-text, #1d1c1a); font-weight: 600; }
-.wg-drawer-btns button:hover { border-color: var(--wg-accent, #d9a441); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
-.wg-drawer-btns button:active { transform: translateY(0) scale(0.97); box-shadow: none; }
+.wg-drawer-btns button { flex: 1; font-size: 10px; padding: 6px; border-radius: 6px; cursor: pointer; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #c9c2b1); box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease, background 120ms ease; }
+.wg-drawer-btns button.primary { background: var(--wg-accent, #d9a441); border-color: var(--wg-accent, #d9a441); color: var(--wg-accent-text, #1d1c1a); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.15), 0 0 8px color-mix(in srgb, var(--wg-accent, #d9a441) 25%, transparent); }
+.wg-drawer-btns button:hover { border-color: var(--wg-accent, #d9a441); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.3), 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent), 0 0 12px color-mix(in srgb, var(--wg-accent, #d9a441) 40%, transparent); }
+.wg-drawer-btns button:active { transform: translateY(0) scale(0.97); box-shadow: inset 0 1px 3px rgba(0,0,0,0.35); }
 .wg-status { font-size: 9px; color: var(--wg-success, #7fae7a); min-height: 12px; flex: none; }
 .wg-status.err { color: var(--wg-danger, #e0605f); }
 
-.wg-settings-popup { position: absolute; top: 32px; right: 6px; width: 240px; background: var(--wg-panel-bg, #201e1a); border: 1px solid var(--wg-border-strong, #3a362c); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); z-index: 50; display: none; max-height: 100%; overflow-y: auto; transform-origin: top right; }
-.wg-settings-popup.open { display: block; animation: wg-pop-in 140ms ease; }
-@keyframes wg-pop-in { from { opacity: 0; transform: scale(0.97) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-.wg-settings-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--wg-border, #2c2820); background: var(--wg-panel-bg, #201e1a); z-index: 2; }
+.wg-settings-popup { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; max-width: 90%; background: var(--wg-panel-bg, #201e1a); border-left: 1px solid var(--wg-border-strong, #3a362c); box-shadow: -10px 0 28px rgba(0,0,0,0.45); z-index: 50; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 200ms ease; pointer-events: none; }
+.wg-settings-popup.open { transform: translateX(0); pointer-events: auto; }
+.wg-settings-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--wg-border, #2c2820); background: var(--wg-panel-bg, #201e1a); }
 .wg-settings-head span { font-size: 11px; color: var(--wg-text, #ece5d6); font-weight: 600; }
-.wg-close-btn { background: transparent; border: none; color: var(--wg-text-dim, #b3ab99); font-size: 14px; cursor: pointer; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
-.wg-close-btn:hover { background: var(--wg-border, #2c2820); color: var(--wg-text, #fff); }
-.wg-settings-body { padding: 10px; }
-.wg-settings-body h5 { margin: 10px 0 8px; font-size: 10px; color: var(--wg-text-dim, #a89f88); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-.wg-settings-body h5:first-child { margin-top: 0; }
+.wg-close-btn { background: transparent; border: none; color: var(--wg-text-dim, #b3ab99); font-size: 14px; cursor: pointer; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease; }
+.wg-close-btn:hover { background: var(--wg-border, #2c2820); color: var(--wg-text, #fff); box-shadow: 0 0 8px color-mix(in srgb, var(--wg-accent, #d9a441) 30%, transparent); }
+.wg-settings-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 10px; }
+
+/* Collapsible settings sections — plain <details>/<summary>, no JS needed.
+   Frequently-touched sections default open (see the `open` attribute in the
+   markup); denser/rarer ones (theme JSON, category colors, IO sockets)
+   default collapsed, so the panel reads as a short list of headings first
+   rather than one long uninterrupted scroll. */
+.wg-settings-section { border-bottom: 1px solid var(--wg-border, #2c2820); padding: 8px 0; }
+.wg-settings-section:last-of-type { border-bottom: none; }
+.wg-settings-section > summary { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; list-style: none; font-size: 10px; color: var(--wg-text-dim, #a89f88); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; transition: color 120ms ease; }
+.wg-settings-section > summary::-webkit-details-marker { display: none; }
+.wg-settings-section > summary::before { content: "\25B8"; display: inline-block; font-size: 9px; color: var(--wg-text-faint, #6f6a5c); transition: transform 150ms ease; }
+.wg-settings-section[open] > summary::before { transform: rotate(90deg); }
+.wg-settings-section > summary:hover { color: var(--wg-text, #ece5d6); }
+.wg-settings-section > summary:hover::before { color: var(--wg-accent, #d9a441); }
+.wg-settings-section-body { padding: 10px 2px 2px; }
+
+.wg-settings-footer { flex: none; display: flex; justify-content: center; padding: 6px; border-top: 1px solid var(--wg-border, #2c2820); }
+.wg-credit-link { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 6px; font-size: 9px; color: var(--wg-text-faint, #6f6a5c); text-decoration: none; transition: color 120ms ease, background 120ms ease; }
+.wg-credit-link:hover { color: var(--wg-accent, #d9a441); background: color-mix(in srgb, var(--wg-surface, #131211), white 6%); }
+.wg-credit-link svg { flex: none; opacity: 0.7; transition: opacity 120ms ease; }
+.wg-credit-link:hover svg { opacity: 1; }
+
 .wg-srow { margin-bottom: 10px; }
 .wg-srow label { display: block; font-size: 10px; color: var(--wg-text-dim, #c9c2b1); margin-bottom: 5px; }
 .wg-rowline { display: flex; justify-content: space-between; font-size: 9px; color: var(--wg-text-faint, #8a836f); }
@@ -196,22 +280,107 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d9a441
 .wg-ac-menu::-webkit-scrollbar-thumb { background: var(--wg-border-strong, #38352f); border-radius: 8px; }
 .wg-ac-menu { scrollbar-width: thin; scrollbar-color: var(--wg-border-strong, #38352f) transparent; }
 
+/* Syntax Injector flyout (see openInjectMenu/renderInjectMenu in
+   wildcard_editor.js). Positioned via JS against the hovered/clicked ⚡
+   trigger; only appearance lives here. Deliberately has no open/close
+   transition (unlike .wg-settings-popup.open's slide) — this opens and
+   closes far more often, on hover, so snappy beats fancy here, matching
+   .wg-ac-menu right above. */
+.wg-inject-menu {
+  position: fixed;
+  z-index: 9500;
+  display: none;
+  min-width: 232px;
+  max-width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--wg-panel-bg, #171511);
+  border: 1px solid var(--wg-border-strong, #38352f);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+  padding: 4px;
+  font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+.wg-inject-head {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--wg-accent, #d9a441);
+  padding: 6px 8px 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wg-inject-section-label {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--wg-text-faint, #6f6a5c);
+  padding: 7px 8px 3px;
+}
+.wg-inject-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--wg-text, #e8e2d4);
+  transition: background 100ms ease;
+}
+.wg-inject-item-label { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-inject-item-code {
+  flex: none; font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 10px; color: var(--wg-text-faint, #8a836f); opacity: 0.85;
+}
+.wg-inject-item:hover { background: var(--wg-accent, #d9a441); }
+.wg-inject-item:hover .wg-inject-item-label,
+.wg-inject-item:hover .wg-inject-item-code { color: var(--wg-accent-text, #1d1c1a); opacity: 1; }
+
+/* Row right-click context menu (copy path / pin / jump to category — see
+   openCtxMenu in wildcard_editor.js). Same fixed-position, clamp-to-viewport,
+   no-animation approach as .wg-inject-menu, just narrower since its rows are
+   label-only rather than label+code. */
+.wg-ctx-menu {
+  position: fixed;
+  z-index: 9500;
+  display: none;
+  min-width: 150px;
+  background: var(--wg-panel-bg, #171511);
+  border: 1px solid var(--wg-border-strong, #38352f);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+  padding: 4px;
+  font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+.wg-ctx-item {
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--wg-text, #e8e2d4);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: background 100ms ease;
+}
+.wg-ctx-item:hover { background: var(--wg-accent, #d9a441); color: var(--wg-accent-text, #1d1c1a); }
+
+/* Brief highlight pulse on the folder header that "Jump to category" lands
+   on, so it's obvious which one just got scrolled to. Reuses the accent
+   color so it stays theme-synced like everything else in the picker. */
+.wg-jump-flash { animation: wg-jump-pulse 900ms ease; }
+@keyframes wg-jump-pulse {
+  0%, 100% { box-shadow: none; background: transparent; }
+  25% { box-shadow: inset 0 0 0 1px var(--wg-accent, #d9a441), 0 0 10px color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent); background: color-mix(in srgb, var(--wg-accent, #d9a441) 16%, transparent); }
+}
+
 /* Thin, themed scrollbars for the main scrollable panels, so scroll areas
    read as part of the panel rather than a default OS-styled bar. Firefox
    uses scrollbar-color/-width; WebKit/Blink use the pseudo-elements. */
-.wg-list, .wg-editor-layer, .wg-resolved, .wg-settings-popup, .wg-drawer-inner textarea {
+.wg-list, .wg-editor-layer, .wg-resolved, .wg-settings-body, .wg-drawer-inner textarea, .wg-inject-menu {
   scrollbar-width: thin;
   scrollbar-color: var(--wg-border-strong, #38352f) transparent;
 }
 .wg-list::-webkit-scrollbar, .wg-editor-layer::-webkit-scrollbar, .wg-resolved::-webkit-scrollbar,
-.wg-settings-popup::-webkit-scrollbar, .wg-drawer-inner textarea::-webkit-scrollbar { width: 8px; height: 8px; }
+.wg-settings-body::-webkit-scrollbar, .wg-drawer-inner textarea::-webkit-scrollbar, .wg-inject-menu::-webkit-scrollbar { width: 8px; height: 8px; }
 .wg-list::-webkit-scrollbar-track, .wg-editor-layer::-webkit-scrollbar-track, .wg-resolved::-webkit-scrollbar-track,
-.wg-settings-popup::-webkit-scrollbar-track, .wg-drawer-inner textarea::-webkit-scrollbar-track { background: transparent; }
+.wg-settings-body::-webkit-scrollbar-track, .wg-drawer-inner textarea::-webkit-scrollbar-track, .wg-inject-menu::-webkit-scrollbar-track { background: transparent; }
 .wg-list::-webkit-scrollbar-thumb, .wg-editor-layer::-webkit-scrollbar-thumb, .wg-resolved::-webkit-scrollbar-thumb,
-.wg-settings-popup::-webkit-scrollbar-thumb, .wg-drawer-inner textarea::-webkit-scrollbar-thumb {
+.wg-settings-body::-webkit-scrollbar-thumb, .wg-drawer-inner textarea::-webkit-scrollbar-thumb, .wg-inject-menu::-webkit-scrollbar-thumb {
   background: var(--wg-border-strong, #38352f); border-radius: 8px;
 }
 .wg-list::-webkit-scrollbar-thumb:hover, .wg-editor-layer::-webkit-scrollbar-thumb:hover, .wg-resolved::-webkit-scrollbar-thumb:hover,
-.wg-settings-popup::-webkit-scrollbar-thumb:hover, .wg-drawer-inner textarea::-webkit-scrollbar-thumb:hover {
+.wg-settings-body::-webkit-scrollbar-thumb:hover, .wg-drawer-inner textarea::-webkit-scrollbar-thumb:hover, .wg-inject-menu::-webkit-scrollbar-thumb:hover {
   background: var(--wg-accent, #d9a441);
 }

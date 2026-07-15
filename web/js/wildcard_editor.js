@@ -79,6 +79,11 @@ function defaultTheme() {
     showDayNightBtn: true,
     dayTheme: "Daylight",
     nightTheme: "Amber",
+    // "Zen" toggle: the per-item Syntax Injector flyout (hover ⚡ icon in the
+    // picker drawer, next to each wildcard row). On by default; minimalist
+    // users can switch it off in Settings for a fully click-only browsing
+    // experience.
+    syntaxInjectorEnabled: true,
   };
 }
 function saveTheme(theme) {
@@ -199,6 +204,19 @@ function categoryOf(p) {
   return parts.length > 1 ? parts.slice(0, -1).join("/") : "misc";
 }
 function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+// Wraps the first case-insensitive occurrence of `filter` inside `text` in a
+// <mark class="wg-match"> span, for highlighting picker search matches (see
+// pickerRow). Falls back to plain escaped text when there's no filter or no
+// match in this particular string (e.g. the match was in a parent folder
+// segment rather than the leaf name shown on the row).
+function highlightMatch(text, filter) {
+  if (!filter) return escapeHtml(text);
+  const idx = text.toLowerCase().indexOf(filter.toLowerCase());
+  if (idx === -1) return escapeHtml(text);
+  return escapeHtml(text.slice(0, idx)) +
+    `<mark class="wg-match">${escapeHtml(text.slice(idx, idx + filter.length))}</mark>` +
+    escapeHtml(text.slice(idx + filter.length));
+}
 // Used for any color value that might originate from imported/pasted theme
 // JSON rather than a native <input type="color"> (which the browser already
 // guarantees is a clean hex string). Anything that isn't a real #rrggbb
@@ -362,6 +380,242 @@ function commitAcSelection(index) {
   if (onCommit) onCommit(item);
 }
 
+// ---------------------------------------------------------------------
+// "Syntax Injector" hover/click flyout on picker item rows
+// ---------------------------------------------------------------------
+// Lets a user insert advanced wildcard syntax for a specific item without
+// memorizing it, straight from the picker drawer's row. Split into two
+// kinds, per the backend engine's own split between "a name that resolves
+// on its own" and "a structural template you fill in":
+//
+//  - Modifiers: single-click, fully-formed inserts bound to the hovered
+//    item's full path (__path__, __*path__, __+path__, __-path__). Nothing
+//    left to fill in, so the caret just lands after the tag, same as
+//    clicking a picker row.
+//  - Templates: structural {…} snippets. These aren't "about" the hovered
+//    item (a|b|c are placeholder options, not real wildcard names) EXCEPT
+//    for "repeat this wildcard", which is inherently path-bound since
+//    it wraps __path__ directly. Each template is inserted as
+//    prefix+editable+suffix, and only the `editable` span is selected
+//    afterward — this keeps syntax-critical characters (the leading *find/+/-
+//    modifier, the closing __path__}) out of the selection so a careless
+//    retype can't clobber them, while still landing the user's cursor right
+//    on the part they actually need to customize.
+const INJECT_MODIFIERS = [
+  { label: "Random", desc: "Seeded \u2014 one pick per resolve, stable for a given seed.", build: cat => `__${cat}__` },
+  { label: "Random \u2014 unseeded", desc: "Ignores the seed \u2014 varies on every single run.", build: cat => `__*${cat}__` },
+  { label: "Sequential \u2014 next", desc: "Walks forward one line each time this is called.", build: cat => `__+${cat}__` },
+  { label: "Sequential \u2014 previous", desc: "Walks backward one line each time this is called.", build: cat => `__-${cat}__` },
+];
+const INJECT_TEMPLATES = [
+  { label: "Random choice", desc: "Seeded random pick from an inline list.", build: () => ({ prefix: "{", editable: "a|b|c", suffix: "}" }) },
+  { label: "Random choice \u2014 unseeded", desc: "Inline pick that varies every run.", build: () => ({ prefix: "{*", editable: "a|b|c", suffix: "}" }) },
+  { label: "Sequential choice \u2014 next", desc: "Inline list, walks forward each call.", build: () => ({ prefix: "{+", editable: "a|b|c", suffix: "}" }) },
+  { label: "Sequential choice \u2014 previous", desc: "Inline list, walks backward each call.", build: () => ({ prefix: "{-", editable: "a|b|c", suffix: "}" }) },
+  { label: "Weighted choice", desc: "Higher numbers are picked more often.", build: () => ({ prefix: "{", editable: "1::a|1::b|c", suffix: "}" }) },
+  { label: "Joined selection", desc: "Pick an exact number of options, joined by a separator.", build: () => ({ prefix: "{", editable: "2$$, $$a|b|c", suffix: "}" }) },
+  { label: "Joined selection \u2014 range", desc: "Pick between N and M options, joined by a separator.", build: () => ({ prefix: "{", editable: "1-2$$, $$a|b|c", suffix: "}" }) },
+  { label: "Repeat this wildcard \u00d7N", desc: "Expands the wildcard N times before any multi-select.", build: cat => ({ prefix: "{", editable: "3", suffix: `#__${cat}__}` }) },
+];
+
+// One shared floating menu, reused across every node instance on the canvas
+// (same reasoning as the "__" autocomplete menu above: only one row can be
+// hovered/focused at a time, so a single DOM element is all this ever needs).
+let injectMenu = null;
+let injectState = null; // { trigger, cat, textarea, render, replaceRange }
+let injectCloseTimer = null;
+
+function ensureInjectMenu() {
+  if (injectMenu) return injectMenu;
+  injectMenu = document.createElement("div");
+  injectMenu.className = "wg-inject-menu";
+  document.body.appendChild(injectMenu);
+  // mousedown (not click) so this fires before the picker row/textarea blurs.
+  injectMenu.addEventListener("mousedown", (e) => {
+    const row = e.target.closest(".wg-inject-item");
+    if (!row || !injectState) return;
+    e.preventDefault();
+    const idx = Number(row.dataset.index);
+    if (row.dataset.kind === "mod") commitInjectModifier(INJECT_MODIFIERS[idx]);
+    else commitInjectTemplate(INJECT_TEMPLATES[idx]);
+  });
+  injectMenu.addEventListener("mouseenter", () => clearTimeout(injectCloseTimer));
+  injectMenu.addEventListener("mouseleave", scheduleCloseInjectMenu);
+  document.addEventListener("mousedown", (e) => {
+    if (injectState && !injectMenu.contains(e.target) && e.target !== injectState.trigger) closeInjectMenu();
+  });
+  return injectMenu;
+}
+
+// replaceRange (optional) — { start, end } into textarea.value. When given,
+// the commit overwrites that exact slice instead of inserting at whatever
+// the caret currently happens to be at. Used by the right-click-on-a-token
+// path below, so choosing e.g. "Sequential — next" on an already-inserted
+// __name__ rewrites that same occurrence into __+name__ in place rather
+// than dropping a second copy in wherever the caret last was.
+function insertInjectorText(textarea, renderFn, text, selStart, selEnd, replaceRange) {
+  const start = replaceRange ? replaceRange.start : (textarea.selectionStart ?? textarea.value.length);
+  const end = replaceRange ? replaceRange.end : start;
+  textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(end);
+  if (selStart == null) {
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+  } else {
+    textarea.selectionStart = start + selStart;
+    textarea.selectionEnd = start + selEnd;
+  }
+  textarea.focus();
+  renderFn();
+}
+
+function commitInjectModifier(mod) {
+  if (!injectState) return;
+  const { textarea, render, cat, replaceRange } = injectState;
+  insertInjectorText(textarea, render, mod.build(cat), null, null, replaceRange);
+  closeInjectMenu();
+}
+function commitInjectTemplate(tpl) {
+  if (!injectState) return;
+  const { textarea, render, cat, replaceRange } = injectState;
+  const { prefix, editable, suffix } = tpl.build(cat);
+  insertInjectorText(textarea, render, prefix + editable + suffix, prefix.length, prefix.length + editable.length, replaceRange);
+  closeInjectMenu();
+}
+
+function renderInjectMenu(cat) {
+  const menu = ensureInjectMenu();
+  const modRows = INJECT_MODIFIERS.map((m, i) => `
+      <div class="wg-inject-item" data-kind="mod" data-index="${i}" title="${escapeHtml(m.desc)}">
+        <span class="wg-inject-item-label">${escapeHtml(m.label)}</span>
+        <span class="wg-inject-item-code">${escapeHtml(m.build(cat))}</span>
+      </div>`).join("");
+  const tplRows = INJECT_TEMPLATES.map((t, i) => {
+    const { prefix, editable, suffix } = t.build(cat);
+    return `
+      <div class="wg-inject-item" data-kind="tpl" data-index="${i}" title="${escapeHtml(t.desc)}">
+        <span class="wg-inject-item-label">${escapeHtml(t.label)}</span>
+        <span class="wg-inject-item-code">${escapeHtml(prefix + editable + suffix)}</span>
+      </div>`;
+  }).join("");
+  menu.innerHTML =
+    `<div class="wg-inject-head">${escapeHtml(cat)}</div>` +
+    `<div class="wg-inject-section-label">Wildcard</div>` + modRows +
+    `<div class="wg-inject-section-label">Template</div>` + tplRows;
+}
+
+function positionInjectMenu(trigger) {
+  const menu = ensureInjectMenu();
+  const rect = trigger.getBoundingClientRect();
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let left = Math.max(8, Math.min(rect.left, vw - mw - 8));
+  let top = rect.bottom + 4;
+  if (top + mh > vh - 8) top = Math.max(8, rect.top - mh - 4);
+  menu.style.left = left + "px";
+  menu.style.top = top + "px";
+}
+
+// Same clamped-to-viewport placement as positionInjectMenu above, just
+// anchored to a raw screen point (the right-click position) instead of a
+// hover-able DOM element's bounding box — mirrors how openCtxMenu positions
+// the row right-click menu elsewhere in this file.
+function positionInjectMenuAt(x, y) {
+  const menu = ensureInjectMenu();
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  menu.style.left = Math.max(8, Math.min(x, vw - mw - 8)) + "px";
+  menu.style.top = Math.max(8, Math.min(y, vh - mh - 8)) + "px";
+}
+
+function openInjectMenu(trigger, cat, textarea, render, replaceRange = null) {
+  clearTimeout(injectCloseTimer);
+  const menu = ensureInjectMenu();
+  if (injectState && injectState.trigger && injectState.trigger !== trigger) injectState.trigger.classList.remove("open");
+  injectState = { trigger, cat, textarea, render, replaceRange };
+  renderInjectMenu(cat);
+  menu.style.display = "block";
+  positionInjectMenu(trigger);
+  trigger.classList.add("open");
+}
+
+// Right-click-on-a-token entry point (see the textarea "contextmenu"
+// listener below). Reuses every bit of the menu/state/commit plumbing above
+// — there's just no persistent trigger element to anchor to or to
+// highlight with the "open" class, since the click can land on any of
+// possibly many token occurrences in the prompt text rather than a fixed
+// picker row.
+function openInjectMenuAtPoint(x, y, cat, textarea, render, replaceRange) {
+  clearTimeout(injectCloseTimer);
+  const menu = ensureInjectMenu();
+  if (injectState && injectState.trigger) injectState.trigger.classList.remove("open");
+  injectState = { trigger: null, cat, textarea, render, replaceRange };
+  renderInjectMenu(cat);
+  menu.style.display = "block";
+  positionInjectMenuAt(x, y);
+}
+
+function closeInjectMenu() {
+  if (!injectMenu) return;
+  injectMenu.style.display = "none";
+  if (injectState && injectState.trigger) injectState.trigger.classList.remove("open");
+  injectState = null;
+}
+
+function scheduleCloseInjectMenu() {
+  clearTimeout(injectCloseTimer);
+  injectCloseTimer = setTimeout(closeInjectMenu, 220);
+}
+
+// ---------------------------------------------------------------------
+// Row right-click context menu (copy path / pin / jump to category)
+// ---------------------------------------------------------------------
+// Same one-shared-floating-element reasoning as the inject menu above: only
+// one row can be right-clicked at a time across every node on the canvas.
+// Deliberately generic — it just renders whatever { label, onSelect } list
+// it's given, so pickerRow (which knows about pinning/copying/categories)
+// builds the action list rather than this module needing to know about any
+// of that itself.
+let ctxMenu = null;
+let ctxMenuOpen = false;
+
+function ensureCtxMenu() {
+  if (ctxMenu) return ctxMenu;
+  ctxMenu = document.createElement("div");
+  ctxMenu.className = "wg-ctx-menu";
+  document.body.appendChild(ctxMenu);
+  // mousedown-outside closes it, same pattern as the inject menu — but a
+  // mousedown *inside* is left alone so the item's own click handler (added
+  // fresh per openCtxMenu call) gets a chance to run first.
+  document.addEventListener("mousedown", (e) => {
+    if (ctxMenuOpen && !ctxMenu.contains(e.target)) closeCtxMenu();
+  });
+  return ctxMenu;
+}
+
+function openCtxMenu(x, y, actions) {
+  const menu = ensureCtxMenu();
+  menu.innerHTML = actions.map((a, i) =>
+    `<div class="wg-ctx-item" data-index="${i}">${escapeHtml(a.label)}</div>`).join("");
+  Array.from(menu.children).forEach((row, i) => {
+    row.addEventListener("click", () => {
+      closeCtxMenu();
+      actions[i].onSelect();
+    });
+  });
+  menu.style.display = "block";
+  ctxMenuOpen = true;
+  // Clamp to viewport, same corner-flip approach as positionInjectMenu.
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  menu.style.left = Math.max(8, Math.min(x, vw - mw - 8)) + "px";
+  menu.style.top = Math.max(8, Math.min(y, vh - mh - 8)) + "px";
+}
+
+function closeCtxMenu() {
+  if (!ctxMenu) return;
+  ctxMenu.style.display = "none";
+  ctxMenuOpen = false;
+}
+
 function buildWildcardWidget(node, hiddenWidget) {
   const theme = loadTheme();
   const pinned = loadPinned();
@@ -381,6 +635,8 @@ function buildWildcardWidget(node, hiddenWidget) {
         <button class="wg-icon-btn" data-act="picker" title="Browse wildcards">&#128193;</button>
         <button class="wg-icon-btn" data-act="edit" title="Edit / create wildcard">&#9998;</button>
         <button class="wg-icon-btn" data-act="refresh" title="Re-scan wildcards directory">&#8635;</button>
+        <button class="wg-icon-btn" data-act="undo" title="Undo (Ctrl+Z)">&#8617;</button>
+        <button class="wg-icon-btn" data-act="redo" title="Redo (Ctrl+Shift+Z)">&#8618;</button>
       </div>
       <button class="wg-pill wg-pill-resolve" data-act="resolve">Show resolved</button>
       <div class="wg-toolbar-group right">
@@ -424,6 +680,7 @@ function buildWildcardWidget(node, hiddenWidget) {
         <div class="wg-legend" data-el="legend"></div>
         <div class="wg-footer">
           <span class="wg-hint" data-el="hintLeft">colored by folder</span>
+          <span class="wg-hint" data-el="charCount"></span>
           <span class="wg-hint" data-el="hintRight"></span>
         </div>
       </div>
@@ -451,100 +708,139 @@ function buildWildcardWidget(node, hiddenWidget) {
         <button class="wg-close-btn" data-act="closeSettings">&#10005;</button>
       </div>
       <div class="wg-settings-body">
-        <h5>Toolbar</h5>
-        <div class="wg-toggle-row" title="Seed value, seed mode (fixed/increment/decrement/randomize), the randomize-now dice button, and the entire-text/line-by-line select \u2014 shown together in the main toolbar when on.">
-          <label style="margin:0;">Show seed &amp; line-by-line controls</label>
-          <input type="checkbox" data-el="toggleSeedControls">
-        </div>
-        <div class="wg-toggle-row" title="A quick toolbar button that flips between your chosen day and night interface themes.">
-          <label style="margin:0;">Show day/night toggle button</label>
-          <input type="checkbox" data-el="toggleDayNightBtn">
-        </div>
-        <div class="wg-srow" style="margin-top:8px;">
-          <label>Day theme</label>
-          <select class="wg-theme-select" data-el="dayThemeSelect"></select>
-        </div>
-        <div class="wg-srow">
-          <label>Night theme</label>
-          <select class="wg-theme-select" data-el="nightThemeSelect"></select>
-        </div>
-
-        <h5>Accessibility</h5>
-        <div class="wg-srow">
-          <label>Font family</label>
-          <input type="text" class="wg-theme-select" data-el="fontFamilyInput" list="wg-font-suggestions"
-                 placeholder="Leave blank for default (monospace editor / system UI font)">
-          <datalist id="wg-font-suggestions">
-            <option value="Atkinson Hyperlegible">
-            <option value="OpenDyslexic">
-            <option value="Arial">
-            <option value="Verdana">
-            <option value="Tahoma">
-            <option value="Segoe UI">
-            <option value="Georgia">
-            <option value="Consolas">
-            <option value="Cascadia Code">
-            <option value="Courier New">
-          </datalist>
-          <div class="wg-drawer-btns" style="margin-top:6px;">
-            <button data-act="fontBrowseLocal" title="Pick from fonts actually installed on your system (Chrome/Edge only)">Browse installed fonts&#8230;</button>
-            <button data-act="fontClear" title="Clear override, use built-in default fonts">Use default</button>
+        <details class="wg-settings-section" open>
+          <summary>Toolbar</summary>
+          <div class="wg-settings-section-body">
+            <div class="wg-toggle-row" title="Seed value, seed mode (fixed/increment/decrement/randomize), the randomize-now dice button, and the entire-text/line-by-line select \u2014 shown together in the main toolbar when on.">
+              <label style="margin:0;">Show seed &amp; line-by-line controls</label>
+              <input type="checkbox" data-el="toggleSeedControls">
+            </div>
+            <div class="wg-toggle-row" title="A quick toolbar button that flips between your chosen day and night interface themes.">
+              <label style="margin:0;">Show day/night toggle button</label>
+              <input type="checkbox" data-el="toggleDayNightBtn">
+            </div>
+            <div class="wg-toggle-row" title="The small ⚡ flyout that appears when hovering a category in the wildcard browser (and when right-clicking a wildcard already in the prompt), for quick-inserting __+/__*/{...} syntax without memorizing it. Turn off for a fully minimal, click-only browsing experience.">
+              <label style="margin:0;">Show syntax injector on hover</label>
+              <input type="checkbox" data-el="toggleSyntaxInjector">
+            </div>
+            <div class="wg-srow" style="margin-top:8px;">
+              <label>Day theme</label>
+              <select class="wg-theme-select" data-el="dayThemeSelect"></select>
+            </div>
+            <div class="wg-srow">
+              <label>Night theme</label>
+              <select class="wg-theme-select" data-el="nightThemeSelect"></select>
+            </div>
           </div>
-          <div class="wg-status" data-el="fontStatus"></div>
-        </div>
-        <div class="wg-srow">
-          <div class="wg-rowline"><label style="margin:0;">Prompt text size</label><span data-el="editorFontOut">12.5px</span></div>
-          <input type="range" class="wg-range" data-el="editorFontRange" min="10" max="28" step="0.5" value="12.5">
-        </div>
-        <div class="wg-srow">
-          <div class="wg-rowline"><label style="margin:0;">Folder / sidebar text size</label><span data-el="uiFontOut">100%</span></div>
-          <input type="range" class="wg-range" data-el="uiFontRange" min="80" max="200" step="5" value="100">
-        </div>
-        <div class="wg-srow">
-          <label>Prompt text color <span style="opacity:.6;">(plain text, not wildcard tokens)</span></label>
-          <input type="color" data-el="promptTextColor" value="#e8e2d4">
-        </div>
+        </details>
 
-        <h5>Interface theme</h5>
-        <div class="wg-srow">
-          <select class="wg-theme-select" data-el="uiThemeSelect"></select>
-        </div>
-        <div class="wg-swatch-grid" data-el="uiThemeSwatches"></div>
-        <div class="wg-drawer-btns" style="margin-top:6px;">
-          <button data-act="uiThemeNew" title="Duplicate the current theme as an editable copy">New</button>
-          <button data-act="uiThemeRename" title="Rename the current custom theme">Rename</button>
-          <button data-act="uiThemeDelete" title="Delete the current custom theme">Delete</button>
-        </div>
-        <div class="wg-drawer-btns" style="margin-top:4px;">
-          <button data-act="uiThemeImport">Import JSON</button>
-          <button data-act="uiThemeExport">Export JSON</button>
-        </div>
-        <div class="wg-status" data-el="uiThemeStatus"></div>
+        <details class="wg-settings-section" open>
+          <summary>Accessibility</summary>
+          <div class="wg-settings-section-body">
+            <div class="wg-srow">
+              <label>Font family</label>
+              <input type="text" class="wg-theme-select" data-el="fontFamilyInput" list="wg-font-suggestions"
+                     placeholder="Leave blank for default (monospace editor / system UI font)">
+              <datalist id="wg-font-suggestions">
+                <option value="Atkinson Hyperlegible">
+                <option value="OpenDyslexic">
+                <option value="Arial">
+                <option value="Verdana">
+                <option value="Tahoma">
+                <option value="Segoe UI">
+                <option value="Georgia">
+                <option value="Consolas">
+                <option value="Cascadia Code">
+                <option value="Courier New">
+              </datalist>
+              <div class="wg-drawer-btns" style="margin-top:6px;">
+                <button data-act="fontBrowseLocal" title="Pick from fonts actually installed on your system (Chrome/Edge only)">Browse installed fonts&#8230;</button>
+                <button data-act="fontClear" title="Clear override, use built-in default fonts">Use default</button>
+              </div>
+              <div class="wg-status" data-el="fontStatus"></div>
+            </div>
+            <div class="wg-srow">
+              <div class="wg-rowline"><label style="margin:0;">Prompt text size</label><span data-el="editorFontOut">12.5px</span></div>
+              <input type="range" class="wg-range" data-el="editorFontRange" min="10" max="28" step="0.5" value="12.5">
+            </div>
+            <div class="wg-srow">
+              <div class="wg-rowline"><label style="margin:0;">Folder / sidebar text size</label><span data-el="uiFontOut">100%</span></div>
+              <input type="range" class="wg-range" data-el="uiFontRange" min="80" max="200" step="5" value="100">
+            </div>
+            <div class="wg-srow">
+              <label>Prompt text color <span style="opacity:.6;">(plain text, not wildcard tokens)</span></label>
+              <input type="color" data-el="promptTextColor" value="#e8e2d4">
+            </div>
+          </div>
+        </details>
 
-        <h5>Wildcard token colors</h5>
-        <div class="wg-srow">
-          <div class="wg-rowline"><label style="margin:0;">Hue rotation</label><span data-el="hueOut">0°</span></div>
-          <input type="range" class="wg-range" data-el="hueRange" min="0" max="359" value="0">
-        </div>
-        <div class="wg-srow">
-          <div class="wg-rowline"><label style="margin:0;">Color intensity</label><span data-el="satOut">65%</span></div>
-          <input type="range" class="wg-range" data-el="satRange" min="30" max="90" step="5" value="65">
-        </div>
-        <h5>Category colors</h5>
-        <div data-el="catPins"></div>
-        <h5>Import / export token theme</h5>
-        <div class="wg-theme-export"><textarea data-el="themeJson" readonly></textarea></div>
-        <button class="wg-pill" data-act="copyTheme">Copy JSON</button>
-        <button class="wg-pill" data-act="pasteTheme">Paste + apply</button>
-        <button class="wg-pill" data-act="resetTheme">Reset</button>
+        <details class="wg-settings-section" open>
+          <summary>Interface theme</summary>
+          <div class="wg-settings-section-body">
+            <div class="wg-srow">
+              <select class="wg-theme-select" data-el="uiThemeSelect"></select>
+            </div>
+            <div class="wg-swatch-grid" data-el="uiThemeSwatches"></div>
+            <div class="wg-drawer-btns" style="margin-top:6px;">
+              <button data-act="uiThemeNew" title="Duplicate the current theme as an editable copy">New</button>
+              <button data-act="uiThemeRename" title="Rename the current custom theme">Rename</button>
+              <button data-act="uiThemeDelete" title="Delete the current custom theme">Delete</button>
+            </div>
+            <div class="wg-drawer-btns" style="margin-top:4px;">
+              <button data-act="uiThemeImport">Import JSON</button>
+              <button data-act="uiThemeExport">Export JSON</button>
+            </div>
+            <div class="wg-status" data-el="uiThemeStatus"></div>
+          </div>
+        </details>
 
-        <h5>Inputs &amp; outputs</h5>
-        <div style="font-size:9px; color:var(--wg-text-faint,#8a836f); line-height:1.5; margin-bottom:6px;">Turn on any socket you want to wire up. Connect CLIP to turn this into a live encoder that outputs CONDITIONING directly instead of just text; add MODEL alongside it and any &lt;lora:name:weight&gt; tags in the prompt (typed directly or hidden in a wildcard file) get loaded, applied, and stripped out automatically. Everything else here \u2014 prefixes, negative prompt, enhancer override, etc. \u2014 is just extra wiring flexibility. Nothing is required; the node works the same with everything off.</div>
-        <div class="wg-rowline" style="margin:2px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Optional inputs</label></div>
-        <div data-el="ioInputToggles"></div>
-        <div class="wg-rowline" style="margin:10px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Optional outputs</label></div>
-        <div data-el="ioOutputToggles"></div>
+        <details class="wg-settings-section">
+          <summary>Wildcard token colors</summary>
+          <div class="wg-settings-section-body">
+            <div class="wg-srow">
+              <div class="wg-rowline"><label style="margin:0;">Hue rotation</label><span data-el="hueOut">0°</span></div>
+              <input type="range" class="wg-range" data-el="hueRange" min="0" max="359" value="0">
+            </div>
+            <div class="wg-srow">
+              <div class="wg-rowline"><label style="margin:0;">Color intensity</label><span data-el="satOut">65%</span></div>
+              <input type="range" class="wg-range" data-el="satRange" min="30" max="90" step="5" value="65">
+            </div>
+          </div>
+        </details>
 
+        <details class="wg-settings-section">
+          <summary>Category colors</summary>
+          <div class="wg-settings-section-body">
+            <div data-el="catPins"></div>
+          </div>
+        </details>
+
+        <details class="wg-settings-section">
+          <summary>Import / export token theme</summary>
+          <div class="wg-settings-section-body">
+            <div class="wg-theme-export"><textarea data-el="themeJson" readonly></textarea></div>
+            <button class="wg-pill" data-act="copyTheme">Copy JSON</button>
+            <button class="wg-pill" data-act="pasteTheme">Paste + apply</button>
+            <button class="wg-pill" data-act="resetTheme">Reset</button>
+          </div>
+        </details>
+
+        <details class="wg-settings-section">
+          <summary>Inputs &amp; outputs</summary>
+          <div class="wg-settings-section-body">
+            <div style="font-size:9px; color:var(--wg-text-faint,#8a836f); line-height:1.5; margin-bottom:6px;">Turn on any socket you want to wire up. Connect CLIP to turn this into a live encoder that outputs CONDITIONING directly instead of just text; add MODEL alongside it and any &lt;lora:name:weight&gt; tags in the prompt (typed directly or hidden in a wildcard file) get loaded, applied, and stripped out automatically. Everything else here \u2014 prefixes, negative prompt, enhancer override, etc. \u2014 is just extra wiring flexibility. Nothing is required; the node works the same with everything off.</div>
+            <div class="wg-rowline" style="margin:2px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Optional inputs</label></div>
+            <div data-el="ioInputToggles"></div>
+            <div class="wg-rowline" style="margin:10px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Optional outputs</label></div>
+            <div data-el="ioOutputToggles"></div>
+          </div>
+        </details>
+      </div>
+      <div class="wg-settings-footer">
+        <a class="wg-credit-link" href="https://github.com/z3rofeels/comfyui-promptpalette" target="_blank" rel="noopener noreferrer" title="comfyui-promptpalette on GitHub">
+          <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          <span>Made by <strong>z3rofeels</strong></span>
+        </a>
       </div>
     </div>
   `;
@@ -558,6 +854,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   const settingsPopup = el("settingsPopup");
   const editorReal = el("editorReal");
   const resolvedView = el("resolvedView");
+  const hintRight = el("hintRight");
   const seedInput = el("seedInput");
   const seedModeSelect = el("seedModeSelect");
   const processingModeSelect = el("processingModeSelect");
@@ -854,12 +1151,91 @@ function buildWildcardWidget(node, hiddenWidget) {
       "";
     if (restored !== textarea.value) {
       textarea.value = restored;
+      // Bypass the generic change-tracking below for this one — it's a
+      // workflow-level restore, not an edit the user made in this session,
+      // so it shouldn't itself become an undo step, and any undo/redo
+      // history from before the restore no longer applies to what's here.
+      lastKnownValue = restored;
+      undoStack = [];
+      redoStack = [];
+      burstStartValue = null;
+      clearTimeout(burstTimer);
       render();
     }
     syncSeedControlsFromWidgets();
   }
 
+  // ---- lightweight undo/redo ---------------------------------------------
+  // Every programmatic edit in this file (wildcard insert, Syntax Injector
+  // commit, "__" autocomplete commit, Ctrl+1/2/3 wrap, Clear) sets
+  // textarea.value directly — which, unlike typing, pasting, or
+  // document.execCommand, does NOT feed the browser's native undo stack.
+  // That silently breaks Ctrl+Z the moment any of those run, which given how
+  // central "click to insert" is here would otherwise make undo useless
+  // almost immediately. Rather than hunt down and touch every call site that
+  // mutates textarea.value, this hooks the one chokepoint they already all
+  // funnel through — render() — and diffs against the last known value
+  // there, so it catches typed edits and programmatic ones alike with no
+  // per-call-site plumbing. Scoped locally (not module-level like the
+  // shared inject/ctx menus above) since each node's prompt needs its own
+  // independent history.
+  let undoStack = [];
+  let redoStack = [];
+  let lastKnownValue = textarea.value;
+  let burstStartValue = null;   // pre-edit value for the in-progress coalesced typing burst, if any
+  let burstTimer = null;
+  const UNDO_COALESCE_MS = 600; // pause length that ends a "burst" of rapid typing as one undo step
+  const UNDO_LIMIT = 100;       // cap so a long editing session can't grow this unbounded
+
+  function flushUndoBurst() {
+    clearTimeout(burstTimer);
+    if (burstStartValue === null) return;
+    undoStack.push(burstStartValue);
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    burstStartValue = null;
+  }
+
+  function noteValueChange() {
+    const current = textarea.value;
+    if (current === lastKnownValue) return;
+    if (burstStartValue === null) burstStartValue = lastKnownValue;
+    redoStack = []; // any new edit invalidates whatever was available to redo
+    lastKnownValue = current;
+    clearTimeout(burstTimer);
+    burstTimer = setTimeout(flushUndoBurst, UNDO_COALESCE_MS);
+  }
+
+  function updateUndoRedoButtons() {
+    if (undoBtn) undoBtn.disabled = !(undoStack.length || burstStartValue !== null);
+    if (redoBtn) redoBtn.disabled = !redoStack.length;
+  }
+
+  function performUndo() {
+    flushUndoBurst();
+    if (!undoStack.length) return;
+    redoStack.push(textarea.value);
+    const prev = undoStack.pop();
+    textarea.value = prev;
+    lastKnownValue = prev;
+    textarea.selectionStart = textarea.selectionEnd = prev.length;
+    textarea.focus();
+    render();
+  }
+
+  function performRedo() {
+    flushUndoBurst(); // a stray pending burst can't be redone over — discard it
+    if (!redoStack.length) return;
+    undoStack.push(textarea.value);
+    const next = redoStack.pop();
+    textarea.value = next;
+    lastKnownValue = next;
+    textarea.selectionStart = textarea.selectionEnd = next.length;
+    textarea.focus();
+    render();
+  }
+
   function render() {
+    noteValueChange();
     const { html, names, categoriesInUse, categoryHueMap } = highlightText(textarea.value);
     highlight.innerHTML = html + "\n";
     legend.innerHTML = "";
@@ -872,10 +1248,16 @@ function buildWildcardWidget(node, hiddenWidget) {
       legend.appendChild(chip);
     });
     const knownCount = names.filter(isKnown).length;
-    el("hintRight").textContent = `${knownCount} resolved-ready \u00b7 ${names.length - knownCount} missing`;
+    const missingCount = names.length - knownCount;
+    hintRight.textContent = `${knownCount} resolved-ready \u00b7 ${missingCount} missing`;
+    hintRight.classList.toggle("wg-hint-clickable", missingCount > 0);
+    hintRight.title = missingCount > 0 ? "Click to jump to the next missing wildcard" : "";
+    const len = textarea.value.length;
+    el("charCount").textContent = `${len.toLocaleString()} char${len === 1 ? "" : "s"}`;
     syncHiddenWidget();
     if (resolvedView.classList.contains("on")) refreshResolvedView();
     updateThemeJson();
+    updateUndoRedoButtons();
   }
 
   async function refreshResolvedView() {
@@ -892,6 +1274,18 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   textarea.addEventListener("input", render);
   textarea.addEventListener("scroll", () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });
+
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — custom undo/redo (see block above
+  // render()). preventDefault() so this fully replaces the browser's native
+  // textarea undo rather than racing it; native undo can't see the
+  // programmatic edits anyway; this one covers those and typing alike.
+  textarea.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (key === "z" && e.shiftKey) { e.preventDefault(); performRedo(); }
+    else if (key === "z") { e.preventDefault(); performUndo(); }
+    else if (key === "y") { e.preventDefault(); performRedo(); }
+  });
 
   // ---- hover preview (approximate monospace hit-test) ----
   function charIndexFromEvent(e) {
@@ -940,13 +1334,40 @@ function buildWildcardWidget(node, hiddenWidget) {
   // ---- picker drawer ----
   const searchInput = el("search");
   const pickerList = el("pickerList");
+  // Keyboard nav through the currently-rendered picker rows (Up/Down/Enter
+  // from the search box — see the searchInput keydown listener below).
+  // -1 means "nothing highlighted yet". Reset to -1 on every re-render since
+  // the row that used to be at a given index may no longer be the same item.
+  let pickerKbIndex = -1;
+  function pickerRows() { return Array.from(pickerList.querySelectorAll(".wg-item")); }
+  function movePickerKbIndex(delta) {
+    const rows = pickerRows();
+    rows.forEach(r => r.classList.remove("wg-kb-active"));
+    if (!rows.length) { pickerKbIndex = -1; return; }
+    pickerKbIndex = pickerKbIndex === -1
+      ? (delta > 0 ? 0 : rows.length - 1)
+      : (pickerKbIndex + delta + rows.length) % rows.length;
+    const row = rows[pickerKbIndex];
+    row.classList.add("wg-kb-active");
+    row.scrollIntoView({ block: "nearest" });
+  }
 
   function insertWildcard(path) {
     const tag = `__${path}__`;
     const pos = textarea.selectionStart ?? textarea.value.length;
-    textarea.value = textarea.value.slice(0, pos) + tag + textarea.value.slice(pos);
+    const before = textarea.value.slice(0, pos);
+    const after = textarea.value.slice(pos);
+    // Auto-append a ", " separator right after the inserted tag so wildcards
+    // can be clicked in one after another without the user manually typing a
+    // separator in between each time. Skipped when a comma already follows
+    // (optionally after some whitespace) — e.g. inserting mid-prompt, just
+    // before existing punctuation — so this never produces a doubled ",," or
+    // stacks a second separator next to one that's already there.
+    const alreadySeparated = /^\s*,/.test(after);
+    const insertText = alreadySeparated ? tag : tag + ", ";
+    textarea.value = before + insertText + after;
     textarea.focus();
-    textarea.selectionStart = textarea.selectionEnd = pos + tag.length;
+    textarea.selectionStart = textarea.selectionEnd = pos + insertText.length;
     recentList = [path, ...recentList.filter(p => p !== path)].slice(0, 8);
     render();
     renderPickerList(searchInput.value);
@@ -1054,14 +1475,19 @@ function buildWildcardWidget(node, hiddenWidget) {
     render(); // keep highlight/hidden-widget/legend in sync, same as any other programmatic edit in this file
   });
 
-  function pickerRow(item) {
+  function pickerRow(item, filter = "") {
     const cat = categoryOf(item.path);
     const color = theme.categoryPins[cat] || `hsl(${(hashStr(cat) % 360 + theme.hueRotate) % 360}, ${theme.saturation}%, 66%)`;
     const shape = "border-radius:50%;";
     const isPinned = pinned.has(item.path);
     const row = document.createElement("div");
     row.className = "wg-item";
-    row.innerHTML = `<span class="wg-sw" style="background:${color}; ${shape}"></span><span class="wg-name">${escapeHtml(item.path.split("/").pop())}</span><span class="wg-badge">${item.type}</span><span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span>`;
+    // Type badge removed here — the Syntax Injector trigger now lives in its
+    // place (see below), keyed off the item's full path rather than its
+    // category. Wrapping for long names is handled by .wg-item .wg-name in
+    // wildcard_editor.css. The displayed name (last path segment) gets its
+    // matched substring highlighted when a search filter is active.
+    row.innerHTML = `<span class="wg-sw" style="background:${color}; ${shape}"></span><span class="wg-name">${highlightMatch(item.path.split("/").pop(), filter)}</span><span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span>`;
     row.querySelector(".wg-name").addEventListener("click", () => insertWildcard(item.path));
     row.querySelector(".wg-sw").addEventListener("click", () => insertWildcard(item.path));
     row.querySelector(".wg-pin").addEventListener("click", (e) => {
@@ -1070,6 +1496,104 @@ function buildWildcardWidget(node, hiddenWidget) {
       savePinned(pinned);
       renderPickerList(searchInput.value);
     });
+
+    // ---- Right-click context menu: copy path / pin / jump to category ----
+    // Gives the same three actions the row's icons already offer, without
+    // needing to land a click on a specific tiny icon — handy on a narrow
+    // sidebar or when several rows are visually packed close together.
+    row.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      closeInjectMenu();
+      const nowPinned = pinned.has(item.path);
+      openCtxMenu(e.clientX, e.clientY, [
+        { label: "Copy path", onSelect: () => copyBtn.click() },
+        {
+          label: nowPinned ? "Unpin" : "Pin",
+          onSelect: () => {
+            if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
+            savePinned(pinned);
+            renderPickerList(searchInput.value);
+          },
+        },
+        { label: `Jump to "${cat}"`, onSelect: () => jumpToCategory(cat) },
+      ]);
+    });
+
+    // ---- Copy-path trigger (hover 📋) ----
+    // Copies "__path__" to the clipboard without inserting it into this
+    // textarea — for grabbing a wildcard to paste into a saved snippet,
+    // another node, or anywhere else. Always available regardless of the
+    // Zen toggle, since it's an independent feature from the injector.
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "wg-copy-trigger";
+    copyBtn.title = `Copy "__${item.path}__" to clipboard`;
+    copyBtn.innerHTML = "&#128203;"; // 📋
+    copyBtn.setAttribute("draggable", "false");
+    copyBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(`__${item.path}__`);
+        const prevHtml = copyBtn.innerHTML;
+        const prevTitle = copyBtn.title;
+        copyBtn.innerHTML = "&#10003;"; // checkmark
+        copyBtn.classList.add("copied");
+        setTimeout(() => {
+          copyBtn.innerHTML = prevHtml;
+          copyBtn.title = prevTitle;
+          copyBtn.classList.remove("copied");
+        }, 1100);
+      } catch (err) {
+        copyBtn.title = "Copy failed \u2014 clipboard permission denied";
+      }
+    });
+    row.insertBefore(copyBtn, row.querySelector(".wg-pin"));
+
+    // ---- Syntax Injector trigger (hover ⚡, see openInjectMenu et al. above) ----
+    // Moved down from the folder header to each item row, replacing the old
+    // type badge. Uses item.path (the full path) instead of the category
+    // name, so __path__ syntax it inserts is scoped to this exact wildcard
+    // rather than the whole folder. Gated on the Zen toggle at creation time
+    // (not just hidden via CSS) so switching it off keeps the DOM lighter,
+    // not just visually empty — see toggleSyntaxInjectorCb's change handler,
+    // which re-renders this list immediately so the icons appear/disappear
+    // without delay.
+    if (theme.syntaxInjectorEnabled !== false) {
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "wg-inject-trigger";
+      trigger.title = `Insert wildcard syntax for "${item.path}"`;
+      trigger.innerHTML = "&#9889;"; // ⚡
+      // Explicitly opt this control out of HTML5 drag — rows aren't
+      // draggable today, but this matches the header trigger's belt-and-
+      // suspenders opt-out in case row dragging is ever added.
+      trigger.setAttribute("draggable", "false");
+      // Stops the document-level "click outside closes the menu" listener
+      // in ensureInjectMenu() from ever seeing this mousedown, so it can't
+      // race the click handler below.
+      trigger.addEventListener("mousedown", (e) => e.stopPropagation());
+      let openDelay = null;
+      trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        clearTimeout(openDelay);
+        if (injectState && injectState.trigger === trigger) closeInjectMenu();
+        else openInjectMenu(trigger, item.path, textarea, render);
+      });
+      trigger.addEventListener("mouseenter", () => {
+        clearTimeout(injectCloseTimer);
+        clearTimeout(openDelay);
+        // Small hover delay so sweeping the cursor down the list on the way
+        // somewhere else doesn't flash a flyout per row.
+        openDelay = setTimeout(() => openInjectMenu(trigger, item.path, textarea, render), 90);
+      });
+      trigger.addEventListener("mouseleave", () => {
+        clearTimeout(openDelay);
+        scheduleCloseInjectMenu();
+      });
+      row.insertBefore(trigger, row.querySelector(".wg-pin"));
+    }
+
     row.addEventListener("mouseenter", (e) => showTipForName(e.clientX, e.clientY, item.path, true));
     row.addEventListener("mousemove", (e) => { hoverTip.style.left = (e.clientX + 14) + "px"; hoverTip.style.top = (e.clientY + 14) + "px"; });
     row.addEventListener("mouseleave", hideTip);
@@ -1077,6 +1601,13 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   async function renderPickerList(filter = "") {
+    // The picker rows (and any injector trigger button/context menu they
+    // hold) are about to be torn down and rebuilt below — close both flyouts
+    // first rather than leaving them anchored to a DOM node that's about to
+    // be discarded.
+    if (injectState && injectState.textarea === textarea) closeInjectMenu();
+    if (ctxMenuOpen) closeCtxMenu();
+    pickerKbIndex = -1;
     // Preserve scroll position across re-renders: toggling a folder open/
     // closed or typing in the search box rebuilds this list's innerHTML from
     // scratch, which would otherwise always snap the scroll back to the top.
@@ -1133,6 +1664,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       const isExpanded = !!filter || expandedCats.has(cat);
       const header = document.createElement("div");
       header.className = "wg-folder" + (isExpanded ? " expanded" : "");
+      header.dataset.cat = cat;
       header.innerHTML = `<span class="wg-folder-caret">${isExpanded ? "\u25BE" : "\u25B8"}</span><span class="wg-folder-name">${escapeHtml(cat)}</span><span class="wg-folder-count">${grouped[cat].length}</span>`;
       header.title = isExpanded ? "Click to collapse" : "Click to expand";
       header.addEventListener("click", () => {
@@ -1140,6 +1672,10 @@ function buildWildcardWidget(node, hiddenWidget) {
         saveExpandedCats(expandedCats);
         renderPickerList(searchInput.value);
       });
+
+      // Syntax Injector trigger used to live here on the folder header — it
+      // now lives on each item row instead (see pickerRow above), keyed off
+      // the item's full path rather than the category name.
 
       // ---- drag-to-reorder (idle browse view only) ----
       if (canReorder) {
@@ -1178,7 +1714,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       }
 
       pickerList.appendChild(header);
-      if (isExpanded) grouped[cat].forEach(item => pickerList.appendChild(pickerRow(item)));
+      if (isExpanded) grouped[cat].forEach(item => pickerList.appendChild(pickerRow(item, filter)));
     });
     if (!items.length) pickerList.innerHTML = `<div class="wg-hint" style="padding:6px;">no matches</div>`;
     // Restore the scroll position captured before the rebuild. If the new
@@ -1187,10 +1723,57 @@ function buildWildcardWidget(node, hiddenWidget) {
     pickerList.scrollTop = prevScrollTop;
   }
 
+  // Used by each row's right-click context menu ("Jump to category" — see
+  // pickerRow). Category folders only exist in the idle browse view, so an
+  // active search filter is cleared first to bring the folder list back.
+  function jumpToCategory(cat) {
+    searchInput.value = "";
+    if (!expandedCats.has(cat)) {
+      expandedCats.add(cat);
+      saveExpandedCats(expandedCats);
+    }
+    renderPickerList("");
+    requestAnimationFrame(() => {
+      const header = pickerList.querySelector(`.wg-folder[data-cat="${CSS.escape(cat)}"]`);
+      if (!header) return;
+      header.scrollIntoView({ block: "center" });
+      header.classList.add("wg-jump-flash");
+      setTimeout(() => header.classList.remove("wg-jump-flash"), 900);
+    });
+  }
+
   let searchDebounce = null;
   searchInput.addEventListener("input", () => {
     clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => renderPickerList(searchInput.value), 150);
+  });
+  // Arrow/Enter navigation through whatever's currently visible in the
+  // picker (pinned/recent/category rows, or search matches), so a wildcard
+  // can be inserted without ever reaching for the mouse. Mirrors the "__"
+  // autocomplete's own keydown handling above for a consistent feel.
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      if (!pickerRows().length) return;
+      e.preventDefault();
+      movePickerKbIndex(1);
+    } else if (e.key === "ArrowUp") {
+      if (!pickerRows().length) return;
+      e.preventDefault();
+      movePickerKbIndex(-1);
+    } else if (e.key === "Enter") {
+      const rows = pickerRows();
+      if (pickerKbIndex < 0 || !rows[pickerKbIndex]) return;
+      e.preventDefault();
+      rows[pickerKbIndex].querySelector(".wg-name").click();
+    } else if (e.key === "Escape" && searchInput.value) {
+      // Local-first, same philosophy as handleEscapeKey below: clearing an
+      // active filter is more immediate than whatever a second Escape would
+      // close, so it takes priority and doesn't propagate to that cascade.
+      e.preventDefault();
+      e.stopPropagation();
+      searchInput.value = "";
+      renderPickerList("");
+    }
   });
 
   async function refreshLibrary() {
@@ -1381,7 +1964,7 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   root.querySelector('[data-act="clear"]').addEventListener("click", () => {
     if (!textarea.value) return;
-    if (!confirm("Clear the entire prompt? This can't be undone.")) return;
+    if (!confirm("Clear the entire prompt? (You can Ctrl+Z to undo this.)")) return;
     textarea.value = "";
     // Manually dispatch 'input' so the existing textarea listener (which drives
     // render()/syncHiddenWidget()) fires and the canvas serialization loop
@@ -1405,6 +1988,11 @@ function buildWildcardWidget(node, hiddenWidget) {
       refreshBtn.disabled = false;
     }
   });
+
+  const undoBtn = root.querySelector('[data-act="undo"]');
+  const redoBtn = root.querySelector('[data-act="redo"]');
+  undoBtn.addEventListener("click", performUndo);
+  redoBtn.addEventListener("click", performRedo);
 
   // Hot-reloads the picker drawer / legend / known-wildcard set from a fresh
   // backend directory scan without requiring a full browser refresh. Exposed
@@ -1445,6 +2033,57 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
   });
 
+  // Right-click a wildcard token to reach the same Syntax Injector menu the
+  // picker row's hover ⚡ trigger offers (Random / Random — unseeded /
+  // Sequential — next "+" / Sequential — previous "-" / templates — see
+  // INJECT_MODIFIERS / INJECT_TEMPLATES and openInjectMenu* above) without
+  // having to remember to reach for that icon before the wildcard was
+  // inserted in the first place. Committing an item here overwrites this
+  // exact token occurrence in place (via replaceRange) instead of inserting
+  // a second copy wherever the caret last was — so picking e.g.
+  // "Sequential — next" on a plain __name__ rewrites it to __+name__ right
+  // where it sits, rather than duplicating it.
+  textarea.addEventListener("contextmenu", (e) => {
+    if (theme.syntaxInjectorEnabled === false) return; // Zen mode — Syntax Injector fully off, same as the picker's ⚡ trigger
+    // The right-button mousedown that precedes "contextmenu" has already
+    // moved the caret to the click point (same native-caret reasoning the
+    // dblclick handler above relies on) — more robust than the approximate
+    // monospace charIndexFromEvent() hit-test used for the hover tooltip,
+    // especially once a custom (non-monospace) --wg-font-family is in play.
+    const idx = textarea.selectionStart;
+    const tok = tokenRanges.find(t => t.start <= idx && t.end >= idx);
+    if (!tok) return; // not on a wildcard token — leave the browser's native menu alone
+    e.preventDefault();
+    hideTip();
+    closeCtxMenu();
+    textarea.selectionStart = tok.start;
+    textarea.selectionEnd = tok.end;
+    openInjectMenuAtPoint(e.clientX, e.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
+  });
+
+  // Jump-to-next-missing-wildcard — clicking the "N missing" hint in the
+  // footer (see render() above, which toggles .wg-hint-clickable on it)
+  // selects the next unresolved __name__ token after the caret, wrapping
+  // around to the first one past the end. Missing wildcards (path doesn't
+  // match anything the backend scanned) are easy to miss just by eye in a
+  // long prompt — this is a quick way to actually find and fix them instead
+  // of hunting through the text for the red-styled tokens one by one.
+  function jumpToNextMissing() {
+    const missing = tokenRanges.filter(t => !t.known);
+    if (!missing.length) return;
+    const caret = textarea.selectionEnd;
+    const target = missing.find(t => t.start > caret) || missing[0];
+    textarea.focus();
+    textarea.selectionStart = target.start;
+    textarea.selectionEnd = target.end;
+    // Setting selection while focused already scrolls most browsers to
+    // reveal the caret; nudge the highlight overlay to match in case that
+    // happens without a native "scroll" event firing on the textarea.
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
+  }
+  hintRight.addEventListener("click", jumpToNextMissing);
+
   // ---- settings popup (with a real close button + outside click + escape) ----
   const settingsBtn = root.querySelector('[data-act="settings"]');
   function openSettings() { settingsPopup.classList.add("open"); }
@@ -1463,10 +2102,13 @@ function buildWildcardWidget(node, hiddenWidget) {
   };
   const handleEscapeKey = (e) => {
     if (e.key !== "Escape") return;
-    // Closest-opened-thing-first: the settings popup floats above everything
-    // else, so it takes priority; otherwise close whichever side drawer is
-    // open.
-    if (settingsPopup.classList.contains("open")) closeSettings();
+    // Closest-opened-thing-first: the row context menu and injector flyout
+    // are the most ephemeral (click/hover-driven) floating elements, so they
+    // close before anything else; then the settings popup, which floats
+    // above the drawers; then whichever side drawer is open.
+    if (ctxMenuOpen) closeCtxMenu();
+    else if (injectState && injectState.textarea === textarea) closeInjectMenu();
+    else if (settingsPopup.classList.contains("open")) closeSettings();
     else if (editDrawer.classList.contains("open")) closeEditDrawer();
     else if (pickerDrawer.classList.contains("open")) closePickerDrawer();
   };
@@ -1702,6 +2344,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   const dayNightBtn = el("dayNightBtn");
   const toggleSeedControlsCb = el("toggleSeedControls");
   const toggleDayNightBtnCb = el("toggleDayNightBtn");
+  const toggleSyntaxInjectorCb = el("toggleSyntaxInjector");
   const dayThemeSelect = el("dayThemeSelect");
   const nightThemeSelect = el("nightThemeSelect");
 
@@ -1712,6 +2355,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   function refreshToolbarSettingsUI() {
     toggleSeedControlsCb.checked = !!theme.showSeedControls;
     toggleDayNightBtnCb.checked = !!theme.showDayNightBtn;
+    toggleSyntaxInjectorCb.checked = theme.syntaxInjectorEnabled !== false;
   }
   function refreshDayNightSelects() {
     const themes = allUiThemes();
@@ -1745,6 +2389,14 @@ function buildWildcardWidget(node, hiddenWidget) {
     theme.showDayNightBtn = toggleDayNightBtnCb.checked;
     saveTheme(theme);
     applyToolbarSettings();
+  });
+  toggleSyntaxInjectorCb.addEventListener("change", () => {
+    theme.syntaxInjectorEnabled = toggleSyntaxInjectorCb.checked;
+    saveTheme(theme);
+    if (!theme.syntaxInjectorEnabled && injectState && injectState.textarea === textarea) closeInjectMenu();
+    // Rebuild so the picker rows immediately gain/lose their ⚡ triggers
+    // instead of waiting for the next unrelated re-render.
+    renderPickerList(searchInput.value);
   });
   dayThemeSelect.addEventListener("change", () => {
     theme.dayTheme = dayThemeSelect.value;
@@ -1866,6 +2518,8 @@ function buildWildcardWidget(node, hiddenWidget) {
       document.removeEventListener("click", handleOutsideClick);
       document.removeEventListener("keydown", handleEscapeKey);
       if (acState && acState.textarea === textarea) closeAcMenu();
+      if (injectState && injectState.textarea === textarea) closeInjectMenu();
+      if (ctxMenuOpen) closeCtxMenu();
     }
   };
 }
