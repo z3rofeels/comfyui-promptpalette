@@ -1,108 +1,113 @@
 <img width="1856" height="576" alt="palbanner" src="https://github.com/user-attachments/assets/475b8530-cd4d-4a5b-a517-3c72b54111f7" />
 
-
-``
-     
-     (This page looks better in dark mode for now, oops) 🤷‍♂️
-
-     recent completed updates: 
-     Redid routing and fixed all inputs and outputs so they actually work, and added them to be switchable in the settings (gee, I should have done that first)
-     Resizeable side panel (woo)
-     Type double underscore for a mini hover menu for quick access (heck yeah)
-     clear button for recents (duh)
-     optional day/night toggle (or choose your own theme for day/night options)((heck yeahx2))
-     Cleaning up toolbar and making more options...optional (cause' why not)
-
-``
-
-
-
-
-
-##
-
 <p align="center">
   <b>Your</b> <span style="color: #28a745;">new best friend</span> for prompting in <b>ComfyUI</b>.
 </p>
 
 <p align="center">
-  <b>Prompt Palette</b> instantly brings your prompts to life with beautiful, <span style="color: #0366d6;">color-coded visualization</span>.
-</p>
+A category-colored, wildcard-aware text encoder node for ComfyUI. 
+     Prompt Palette turns the plain prompt textbox into a real editor: your wildcards are colored by folder, resolvable at a glance, browsable from a side drawer, editable without leaving the node, and, if you want, wired straight into CLIP/MODEL for a live encoder with automatic LoRA loading.
 
-<p align="center">
-  <b>Fully customizable:</b> wildcards or plain text, vibrant or subtle themes, light or dark modes.
-</p>
-
-<p align="center">
-  Adapt it to your workflow and change the look whenever the mood strikes.
+This node is a drop-in text encoder. Nothing is required to turn on — every advanced feature below (LoRA loading, negative prompt, seed passthrough, live CONDITIONING output, etc.) is opt-in via the **Inputs & outputs** section of Settings. Left completely alone, it behaves like a normal wildcard-resolving prompt box.
 
 
-##
+# Table of contents
 
+- [Installation](#installation)
+- [Quick tour](#quick-tour)
+- [Core features](#core-features)
+  - [Color-coded, folder-aware wildcards](#color-coded-folder-aware-wildcards)
+  - [Browsing & inserting wildcards](#browsing--inserting-wildcards)
+  - [The Syntax Injector](#the-syntax-injector)
+  - [Editing wildcards inline](#editing-wildcards-inline)
+  - [Seed & resolution controls](#seed--resolution-controls)
+  - [Optional inputs & outputs](#optional-inputs--outputs)
+  - [Theming & accessibility](#theming--accessibility)
+- [✨ Recently added](#-recently-added)
+- [Wildcard syntax cheat sheet](#wildcard-syntax-cheat-sheet)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Credits](#credits)
 
- ${\color{lightblue}\text{Features }}$
+## Quick tour
+
+- Type a prompt as normal. Anything wrapped in double underscores, like `__style/cinematic__`, is treated as a wildcard and colored by its folder.
+- Click the 📁 **Browse wildcards** icon to open the picker and click any entry to insert it — it's added with a trailing `, ` automatically so you can keep clicking to chain wildcards together.
+- Click the ✏️ **Edit** icon to create or edit a wildcard file without leaving the node.
+- Click the ⚙️ **Settings** icon for themes, fonts, accessibility, and the optional input/output sockets.
 
 <img width="1583" height="1017" alt="showresolved" src="https://github.com/user-attachments/assets/e7d0cd39-de4c-4fe0-8c20-bcf02837b8d7" />
 
+## Core features
 
-🟢 Editor
-* **Color-coded text box:** Wildcards and choice syntax are auto-highlighted.
-* **Double-click:** Edit wildcards directly in the panel.
+### Color-coded, folder-aware wildcards
 
-  <img width="1535" height="1037" alt="ppalv2" src="https://github.com/user-attachments/assets/8e3f589c-cbf1-4ef7-a20a-c893ceb68b92" />
+Every `__wildcard__` in your prompt is colored by the category (folder) it lives in, so you can tell at a glance what's a style pick, a character pick, a lighting pick, etc. A legend beneath the prompt lists every category currently in use with its color swatch.
 
-💡 Tip: Click "Show resolved" to view the expanded text.
+Wildcards that don't resolve to anything in your library (typo'd, renamed, or moved) are styled distinctly (red, dashed underline) instead of colored, and the footer keeps a running `N resolved-ready · N missing` count.
+
+### Browsing & inserting wildcards
+
+- **Picker drawer** (📁) — a searchable, folder-grouped list of every wildcard your backend has scanned. Click a row to insert it into the prompt at the cursor.
+- **Pin (⭐)** any wildcard to keep it at the top of the list regardless of search/scroll.
+- **Recent** — the last few wildcards you've used surface automatically above the folder list.
+- **Copy** — copy a wildcard's `__path__` to your clipboard straight from its row, without inserting it.
+- **Hover preview** — hover any row (or any wildcard token already in your prompt) to see a quick preview of that file's contents, or a "file missing" notice if it can't be found.
+- **`__` autocomplete** — start typing `__` directly in the prompt and a filtered dropdown of matching wildcards appears; arrow keys + Enter/Tab to commit, Escape to dismiss.
+- **Double-click** any wildcard token already in the prompt to jump straight into the Edit drawer for that file.
+
+### The Syntax Injector
+
+Every wildcard has an advanced-syntax flyout (hover the ⚡ icon on its picker row) so you never have to memorize the underlying syntax:
+
+| Modifier | What it does |
+|---|---|
+| Random | Plain `__name__` — a normal seeded random pick |
+| Random — unseeded | `__*name__` — re-rolls every run regardless of seed |
+| Sequential — next | `__+name__` — walks forward through the file's options each call |
+| Sequential — previous | `__-name__` — walks backward through the file's options each call |
+
+Plus structural templates for inline option lists: random/unseeded/sequential choice, weighted choice, joined selection (exact count or a range), and "repeat this wildcard ×N."
+
+### Editing wildcards inline
+
+The ✏️ **Edit** drawer lets you create a new wildcard file or edit an existing one — one option per line — without leaving ComfyUI or touching the filesystem directly. Save with the button or **Ctrl/Cmd+S**; delete when you no longer need a file.
+
+<img width="1535" height="1037" alt="ppalv2" src="https://github.com/user-attachments/assets/8e3f589c-cbf1-4ef7-a20a-c893ceb68b92" />
+
+
 
 <img width="1671" height="941" alt="chrome_19rgnGkG2t" src="https://github.com/user-attachments/assets/ee5c6753-5415-4271-a7dc-efc419cfcdf1" />
 
-**Wildcard prompt resolver extra functions (YOU DO NOT HAVE TO USE THESE IF YOU DON'T WANT - everything is optional!)**
+### Seed & resolution controls
 
-```text
-Supports:
-  __name__                 -> random line from wildcards/name.txt (or yaml leaf), seeded
-  __*name__                -> random line, always unseeded (varies every run)
-  __+name__                -> sequential line, increments one step per call
-  __-name__                -> sequential line, decrements one step per call
-  {a|b|c}                  -> random choice, seeded
-  {*a|b|c}                 -> random choice, unseeded
-  {+a|b|c}                 -> sequential choice, increments one step per call
-  {-a|b|c}                 -> sequential choice, decrements one step per call
-  {N::a|M::b|c}            -> weighted choice
-  {n$$sep$$a|b|c}           -> select n items joined by sep
-  {n-m$$sep$$a|b|c}         -> select between n and m items joined by sep
-  {n#__wc__}                -> repeat wildcard n times (expands before multi-select)
-  # comment                -> ignored (line-leading only)
+Turn on **Show seed & line-by-line controls** in Settings to get a compact toolbar strip with:
 
-Nesting is resolved innermost-first over several passes.
-```
+- A seed field and a 🎲 randomize-now button
+- Seed mode: **Fixed**, **Increment (+1/run)**, **Decrement (−1/run)**, or **Randomize (new seed every run)**
+- Entire-text-as-one vs. line-by-line resolution mode
 
+Click **Show resolved** any time to preview exactly what your wildcards currently resolve to, without queuing a run.
 
+### Optional inputs & outputs
 
+Nothing here is required — the node works identically with every socket off. Turn on only what you need, per-node, from Settings:
 
+**Inputs:** CLIP (turns this into a live encoder), Model (enables `<lora:name:weight>` tags — typed directly or hidden inside a wildcard file, loaded/applied/stripped automatically), Prompt prefix/suffix, LLM/enhancer override (replaces the resolved prompt entirely when connected), External seed, Negative prompt text + its own prefix/suffix.
 
+**Outputs:** Model & CLIP passthrough (patched with any LoRAs applied this run), Conditioning & Negative conditioning (only present if CLIP is connected), Negative prompt, Seed used, Wildcards used (as JSON, and as a count), Raw unresolved text, and whether the enhancer override was used.
 
+### Theming & accessibility
 
-🟢Library Management:
-$${\color{red}\text{In-Node Editing: Edit wildcards directly without leaving your graph.}}$$
+- Independent **day** and **night** UI themes with one-click toggle, or build/import/export your own via a JSON theme editor
+- Per-category color pins, plus global hue rotation and color intensity sliders for everything else
+- Custom fonts!
+- independent prompt-text and sidebar-text size sliders
+- a dedicated prompt text color (choose your own or go default)
+  
 
-$${\color{yellow}\text{Smart Organization: Use star-to-pin, recents lists, and collapsible categories to keep your workflow tidy.}}$$
-
-$${\color{orange}\text{Slide-out panel: Browse, organize, and drag-and-drop categories for easy organizing.}}$$
-
-$${\color{blue}\text{Search: Search across your whole collection.}}$$
-
-
-**Optional Light/Dark mode** 
+  
 <img width="1810" height="975" alt="optionaldaynight" src="https://github.com/user-attachments/assets/2e88cf49-00bc-4a48-a8e5-bd0953ddd999" />
 <img width="1273" height="835" alt="ppalv2b" src="https://github.com/user-attachments/assets/230339a0-30f1-4f38-ab6f-545914f0c4f2" />
-
-
-
-🟡**Color shift hues and make it brighter or lighter!** 
-
-$${\large\bf\color{red}\text{Auto }}{\large\bf\color{blue}\text{Hue }}{\large\bf\color{yellow}\text{Shifting: }}{\large\color{lightgray}\text{Dynamically change the look of your text prompt.}}$$
-
-$${\large\bf\color{white}\text{Brightness and Font Controls: }}{\large\color{gray}\text{Fine-tune the UI with a brightness slider, font picker, and font size slider.}}$$
 
 
 <img width="1208" height="763" alt="hue shiftv1" src="https://github.com/user-attachments/assets/a0a696a1-fbfc-450b-bbf2-74394294c1fb" />
@@ -110,9 +115,49 @@ $${\large\bf\color{white}\text{Brightness and Font Controls: }}{\large\color{gra
 
 </p><img width="1379" height="928" alt="Screenshot 2026-07-10 191042" src="https://github.com/user-attachments/assets/8f89847b-281f-40b4-8a7f-5511a20ae250" />
 
-**Optional inputs and outputs**
+## ✨ Recently added
 
-<img width="357" height="1079" alt="Screenshot 2026-07-10 191159" src="https://github.com/user-attachments/assets/c8c34604-e5b7-4459-9164-218a4c76d1df" />
+A few quality-of-life features on top of everything above:
+
+- **Auto-separator on insert** — inserting a wildcard from the picker now automatically appends `, ` after it, so you can click your way through a whole prompt without ever reaching for the comma key. Skipped automatically if you're inserting right before punctuation that's already there.
+- **Right-click a wildcard in the prompt** — right-clicking any wildcard already typed into your prompt opens the same Syntax Injector menu the picker's ⚡ icon offers, so you can add `+`/`-`/random/template syntax *after the fact* without needing to have remembered to click it before inserting. Choosing an option rewrites that exact occurrence in place instead of inserting a duplicate.
+- **Undo / Redo** — dedicated ↩/↪ toolbar buttons plus **Ctrl+Z** / **Ctrl+Shift+Z** (or **Ctrl+Y**) now properly undo *everything* in this editor — typing, picker inserts, Syntax Injector commits, autocomplete, and Clear — not just plain keystrokes.
+- **Jump to next missing wildcard** — the "`N missing`" counter in the footer is now clickable whenever it's non-zero. Click it to select the next unresolved wildcard token after your cursor (wrapping around), so fixing a typo'd or moved wildcard in a long prompt doesn't mean hunting for red text by eye.
+
+
+---
+
+## Wildcard syntax cheat sheet
+
+You'll never need to type most of this by hand — the Syntax Injector (⚡, or right-click a token in the prompt) inserts it for you, but here's what it all means:
+
+| Syntax | Meaning |
+|---|---|
+| `__name__` | Seeded random pick from `name`'s file |
+| `__*name__` | Unseeded random pick — re-rolls every run |
+| `__+name__` | Sequential — walks forward through the options each call |
+| `__-name__` | Sequential — walks backward through the options each call |
+| `{a\|b\|c}` | Random inline choice |
+| `{*a\|b\|c}` | Unseeded random inline choice |
+| `{+a\|b\|c}` / `{-a\|b\|c}` | Sequential forward / backward inline choice |
+| `{1::a\|1::b\|c}` | Weighted choice — higher numbers picked more often |
+| `{2$$, $$a\|b\|c}` | Pick exactly 2, joined by `, ` |
+| `{1-2$$, $$a\|b\|c}` | Pick between 1 and 2, joined by `, ` |
+| `{3#__name__}` | Expand `__name__` 3 times before any multi-select |
+| `<lora:name:weight>` | Loads a LoRA (only when a Model input is connected) |
+
+---
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Z` | Undo |
+| `Ctrl+Shift+Z` / `Ctrl+Y` | Redo |
+| `Ctrl/Cmd+S` (in the Edit drawer) | Save the wildcard file being edited |
+| `Esc` | Close whichever menu/drawer/popup is currently open |
+| Right-click a wildcard token | Open the Syntax Injector for that token |
+| Double-click a wildcard token | Open it in the Edit drawer |
 
 
 **Clear button if things gets cluttered**
@@ -121,9 +166,8 @@ $${\large\bf\color{white}\text{Brightness and Font Controls: }}{\large\color{gra
 <img width="402" height="443" alt="Screenshot 2026-07-10 191457" src="https://github.com/user-attachments/assets/fc94067e-d869-4fa6-8c2e-c87d9ab7e342" />
 
 
-**Editor settings (future cleanup planned to make it easier and less cramped)**
 
-<img width="358" height="967" alt="Screenshot 2026-07-10 191625" src="https://github.com/user-attachments/assets/fd252e0a-57e1-4a27-8bfc-66f17b518fd8" />
+
 
 
 
@@ -160,29 +204,19 @@ $${\large\bf\color{white}\text{Brightness and Font Controls: }}{\large\color{gra
 
 
 
+## Installation
+
+1. Clone or copy this repository into your `ComfyUI/custom_nodes/` folder.
+2. Restart ComfyUI.
+3. Add the **Prompt Palette** node from the node menu (or search for it) like any other node.
 
 
 
 
-🏁 Installation
 
-    Clone this repo into your ComfyUI/custom_nodes/ folder OR simply drag and drop the folder into /custom_nodes/.
+## Credits
 
-    Restart ComfyUI.
-
-    (Optional but recommended) Drop your wildcard files into ComfyUI/wildcards/.
-
-    ⚠️ Important Note for ZIP Users
-
-    If you downloaded the repository using GitHub’s “Download ZIP” button:
-
-        Extract the ZIP file into your ComfyUI/custom_nodes/ directory.
-
-        Rename the extracted folder from comfyui-promptpalette-main to exactly comfyui-promptpalette.
-
-        If the folder isn’t renamed correctly, the node will fail to load.
-
-
+Made by **z3rofeels** — [github.com/z3rofeels/comfyui-promptpalette](https://github.com/z3rofeels/)
 
 
 
