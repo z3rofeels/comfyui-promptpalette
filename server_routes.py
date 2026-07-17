@@ -1,3 +1,5 @@
+import os
+
 from aiohttp import web
 from server import PromptServer
 from .wildcard_index import get_index
@@ -87,6 +89,18 @@ async def refresh_index(request):
     return web.json_response({"ok": True, "count": len(items), "items": items})
 
 
+@routes.post("/prompt_palette/set_path")
+async def set_path(request):
+    data = await request.json()
+    path = data.get("path", "")
+    index = get_index()
+    try:
+        index.set_root(path)
+    except ValueError as e:
+        return web.json_response({"ok": False, "error": str(e)}, status=400)
+    return web.json_response({"ok": True, "root_dir": index.root_dir})
+
+
 @routes.post("/prompt_palette/resolve")
 async def resolve_prompt(request):
     data = await request.json()
@@ -100,3 +114,74 @@ async def resolve_prompt(request):
     else:
         resolved = resolver.resolve(text, seed=seed)
     return web.json_response({"resolved": resolved})
+
+
+# ---- thumbnail gallery ------------------------------------------------
+# Same-basename image lookup for wildcard .txt files (e.g. chars/anime.txt
+# <-> chars/anime.jpg), used by the picker drawer's grid view. Kept
+# independent of WildcardIndex's registry, which tracks resolvable line
+# content, not thumbnail art, so this always reflects what's on disk without
+# needing a rescan.
+THUMB_EXTS = (".jpg", ".jpeg", ".png")
+
+
+def _resolve_within_root(root_dir, rel_path):
+    """Resolve rel_path against root_dir and confirm the result actually lands
+    inside root_dir. Mirrors the traversal-safety idiom WildcardIndex.save_txt
+    already uses (realpath + commonpath) rather than a ".."-blocklist, which
+    misses things like Windows drive-letter segments ("C:/foo") or UNC paths
+    that make os.path.join silently discard root_dir. Returns the resolved
+    absolute path, or None if rel_path escapes root_dir."""
+    rel_path = (rel_path or "").strip("/")
+    if not rel_path:
+        return None
+    root = os.path.realpath(root_dir)
+    candidate = os.path.join(root, *rel_path.split("/"))
+    abs_path = os.path.realpath(candidate)
+    if os.path.commonpath([root, abs_path]) != root:
+        return None
+    return abs_path
+
+
+@routes.get("/prompt_palette/categories")
+async def get_thumbnail_map(request):
+    """Walks wildcards/ and maps each .txt wildcard's name (extension-less,
+    matching the `path` convention used by /list, /search, etc.) to a same-
+    basename image (.jpg/.jpeg/.png) sitting in the same subfolder, or null
+    when there isn't one, e.g. {"chars/anime": "chars/anime.jpg",
+    "objects": null}."""
+    index = get_index()
+    root = os.path.realpath(index.root_dir)
+    mapping = {}
+    for dirpath, _dirnames, filenames in os.walk(root):
+        rel_dir = os.path.relpath(dirpath, root)
+        rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/")
+        lower_lookup = {fname.lower(): fname for fname in filenames}
+        for fname in filenames:
+            if not fname.lower().endswith(".txt"):
+                continue
+            base = fname[:-4]
+            name_key = f"{rel_dir}/{base}" if rel_dir else base
+            thumb_rel = None
+            for ext in THUMB_EXTS:
+                match = lower_lookup.get((base + ext).lower())
+                if match:
+                    thumb_rel = f"{rel_dir}/{match}" if rel_dir else match
+                    break
+            mapping[name_key] = thumb_rel
+    return web.json_response(mapping)
+
+
+@routes.get("/prompt_palette/thumb")
+async def get_thumbnail(request):
+    """Serves a single thumbnail's raw bytes. `file` is the relative path
+    returned by /categories above; resolved and bounds-checked against the
+    wildcards root before anything touches the filesystem."""
+    rel_file = request.rel_url.query.get("file", "")
+    if not rel_file.lower().endswith(THUMB_EXTS):
+        raise web.HTTPNotFound()
+    index = get_index()
+    abs_path = _resolve_within_root(index.root_dir, rel_file)
+    if not abs_path or not os.path.isfile(abs_path):
+        raise web.HTTPNotFound()
+    return web.FileResponse(abs_path)

@@ -22,9 +22,21 @@ Performance notes (this file supports libraries with many thousands of wildcards
     registry so "does this bare name match something, and is it ambiguous" lookups
     (used for __basename__ style refs and for click-to-edit) are O(1)/O(k) instead of
     scanning every entry.
+
+Where the wildcards/ folder actually lives (see resolve_wildcard_root() below):
+  1. An extra_model_paths.yaml `wildcards:` entry, if the user added one - this is
+     ComfyUI's own native multi-drive/multi-location config mechanism, so we don't
+     parse the YAML ourselves; we just read back what ComfyUI already registered.
+  2. A `wildcards_path` in wildcards_config.json next to this file, for anyone who'd
+     rather not touch YAML.
+  3. <ComfyUI base_path>/wildcards - folder_paths.base_path is ComfyUI's own resolved
+     install root (correct regardless of which drive ComfyUI or this node happen to
+     sit on), so this stays correct even for portable/multi-drive installs.
 """
 
 import os
+import re
+import json
 import time
 import asyncio
 import threading
@@ -37,11 +49,131 @@ except ImportError:
 
 try:
     import folder_paths
-    COMFY_ROOT = os.path.dirname(os.path.abspath(folder_paths.__file__))
+    HAS_FOLDER_PATHS = True
 except Exception:
-    COMFY_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    HAS_FOLDER_PATHS = False
 
-WILDCARD_DIR = os.path.join(COMFY_ROOT, "wildcards")
+# The folder_paths "type name" this node's wildcards folder is registered under.
+# Registering it (see WildcardIndex.__init__) means:
+#   - a user can point at a custom location natively, by adding a `wildcards:`
+#     entry under any profile in their extra_model_paths.yaml, the same way they
+#     would for `checkpoints:` or `loras:` - no code changes needed on our end.
+#   - other tools/nodes that introspect folder_paths.folder_names_and_paths can
+#     discover where this node keeps its wildcards.
+FOLDER_PATHS_KEY = "wildcards"
+
+_NODE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Simple JSON override for anyone who'd rather not touch extra_model_paths.yaml.
+# Not created automatically - see _write_example_config() for the example file
+# that *is* dropped alongside it so the option is discoverable. wildcards_path
+# accepts a raw path pasted straight from File Explorer (backslashes and all) -
+# see _path_from_local_config()'s fallback for why that doesn't need escaping.
+_LOCAL_CONFIG_PATH = os.path.join(_NODE_DIR, "wildcards_config.json")
+_LOCAL_CONFIG_EXAMPLE_PATH = os.path.join(_NODE_DIR, "wildcards_config.example.json")
+
+
+def _write_example_config():
+    """Drops a wildcards_config.example.json next to this file (if not already
+    present) purely so the custom-path option is discoverable without reading
+    source code. Never overwrites/reads back from this file - only from
+    wildcards_config.json itself."""
+    if os.path.exists(_LOCAL_CONFIG_EXAMPLE_PATH):
+        return
+    try:
+        with open(_LOCAL_CONFIG_EXAMPLE_PATH, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "_comment": "Change your path here, then rename this file to "
+                                "wildcards_config.json. You can paste your folder "
+                                "path straight from File Explorer - no changes needed.",
+                    "wildcards_path": "C:/ComfyUI/my_wildcards",
+                },
+                f,
+                indent=2,
+            )
+    except OSError:
+        pass  # best-effort only; e.g. a read-only install
+
+
+def _path_from_extra_model_paths():
+    """Picks up a `wildcards:` entry from extra_model_paths.yaml. ComfyUI parses
+    that file itself at startup and calls
+    folder_paths.add_model_folder_path("wildcards", <resolved path>) for every
+    such entry, so we just read back whatever landed in the registry - no YAML
+    parsing of our own, and it keeps working if ComfyUI changes that format."""
+    if not HAS_FOLDER_PATHS:
+        return None
+    try:
+        paths = folder_paths.get_folder_paths(FOLDER_PATHS_KEY)
+    except Exception:
+        return None
+    return paths[0] if paths else None
+
+
+# Matches "wildcards_path": "<value>" even when <value> isn't valid JSON - e.g. a
+# raw Windows path pasted straight from File Explorer, whose single backslashes
+# strict JSON would otherwise reject. Used only as a fallback below, so it never
+# has to interpret backslashes as escapes at all - it just grabs the literal text
+# between the quotes.
+_RAW_PATH_RE = re.compile(r'"wildcards_path"\s*:\s*"(.+?)"\s*[,}]', re.DOTALL)
+
+
+def _path_from_local_config():
+    if not os.path.isfile(_LOCAL_CONFIG_PATH):
+        return None
+    try:
+        with open(_LOCAL_CONFIG_PATH, "r", encoding="utf-8") as f:
+            text = f.read()
+    except OSError as e:
+        print(f"[prompt-palette] warning: couldn't read {_LOCAL_CONFIG_PATH}: {e}")
+        return None
+
+    try:
+        raw = json.loads(text).get("wildcards_path")
+    except (ValueError, AttributeError):
+        # Not valid JSON - almost always a raw Windows path pasted in without
+        # doubling the backslashes JSON requires. Pull the value out directly
+        # instead of making the user think about escaping at all.
+        match = _RAW_PATH_RE.search(text)
+        raw = match.group(1) if match else None
+        if raw is None:
+            print(f"[prompt-palette] warning: couldn't read {_LOCAL_CONFIG_PATH} - "
+                  f"make sure your path is wrapped in quotes")
+            return None
+
+    if not raw:
+        return None
+    raw = os.path.expanduser(os.path.expandvars(raw))
+    if not os.path.isabs(raw):
+        raw = os.path.join(_NODE_DIR, raw)
+    return raw
+
+
+def _default_wildcards_dir():
+    """Default when nothing above was configured: <ComfyUI base_path>/wildcards.
+    folder_paths.base_path is ComfyUI's own canonical install root - it's correct
+    even with --base-directory, portable builds, or an installation that spans
+    drives, unlike deriving a root from this file's own on-disk location."""
+    base = getattr(folder_paths, "base_path", None) if HAS_FOLDER_PATHS else None
+    if base:
+        return os.path.join(base, "wildcards")
+    # Last-resort fallback if folder_paths itself is unusable (e.g. this file is
+    # being imported outside a real ComfyUI process, such as in a unit test):
+    # keep wildcards inside this custom node's own folder, which is always a
+    # valid, writable location regardless of where ComfyUI itself lives.
+    return os.path.join(_NODE_DIR, "wildcards")
+
+
+def resolve_wildcard_root():
+    """First match wins: extra_model_paths.yaml -> local config -> drive-agnostic
+    default. Never assumes a drive letter or a fixed relative nesting depth
+    between this node's folder and ComfyUI's install root."""
+    _write_example_config()
+    for candidate in (_path_from_extra_model_paths(), _path_from_local_config()):
+        if candidate:
+            return os.path.abspath(candidate)
+    return os.path.abspath(_default_wildcards_dir())
 
 
 def _clean_lines(raw_lines):
@@ -73,8 +205,19 @@ def _flatten_yaml(node, prefix=""):
 
 class WildcardIndex:
     def __init__(self, root_dir=None):
-        self.root_dir = root_dir or WILDCARD_DIR
+        self.root_dir = os.path.abspath(root_dir) if root_dir else resolve_wildcard_root()
         os.makedirs(self.root_dir, exist_ok=True)
+        # Register with ComfyUI's own folder registry so this location shows up
+        # anywhere folder_paths.folder_names_and_paths is introspected, and so a
+        # `wildcards:` entry in extra_model_paths.yaml (which only ever *adds*
+        # paths, never overrides silently) still resolves back to this same
+        # directory as its first/primary entry on the next run.
+        if HAS_FOLDER_PATHS:
+            try:
+                folder_paths.add_model_folder_path(FOLDER_PATHS_KEY, self.root_dir)
+            except Exception:
+                pass
+        print(f"[prompt-palette] wildcards folder: {self.root_dir}")
         self._registry = {}    # name -> {"lines": [...], "type": "txt"/"yaml", "abs_path": str}
         self._leaf_index = {}  # leaf (basename) -> [full names]  -- kept in sync with _registry
         self._tree = []        # nested folder structure for the picker
@@ -286,6 +429,59 @@ class WildcardIndex:
             raise ValueError("only .txt wildcards can be deleted individually; edit the source .yaml file directly")
         os.remove(entry["abs_path"])
         self._unindex_one(name)
+
+    def set_root(self, path):
+        """Point this index at a different wildcards folder - e.g. from the
+        in-app "Wildcards folder path" setting - and persist the choice to
+        wildcards_config.json, the same JSON-config tier _path_from_local_config()
+        reads on startup, so it sticks across restarts and is still just a
+        plain text file old-school users can open and edit by hand (a
+        ComfyUI restart picks up manual edits there, same as it always has).
+        Only that tier is touched: an extra_model_paths.yaml `wildcards:`
+        entry, if the user has one, still wins on the next restart per
+        resolve_wildcard_root()'s precedence order, exactly as it does today.
+
+        Raises ValueError if path is empty, or exists but isn't a directory,
+        or can't be created - callers (e.g. the /set_path route) can turn
+        that straight into a 400.
+        """
+        if not path or not path.strip():
+            raise ValueError("path is required")
+
+        raw = os.path.expanduser(os.path.expandvars(path.strip()))
+        abs_path = os.path.abspath(raw)
+
+        if abs_path == self.root_dir:
+            return  # already pointed here - nothing to validate, write, or rescan
+
+        if os.path.exists(abs_path):
+            if not os.path.isdir(abs_path):
+                raise ValueError(f"{abs_path} exists but is not a directory")
+        else:
+            try:
+                os.makedirs(abs_path, exist_ok=True)
+            except OSError as e:
+                raise ValueError(f"couldn't create {abs_path}: {e}")
+
+        try:
+            with open(_LOCAL_CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "_comment": "Managed by Prompt Palette's in-app path picker "
+                                    "(ComfyUI Settings > Prompt Palette > Wildcards "
+                                    "Library > Folder path). You can also edit "
+                                    "wildcards_path below by hand - restart ComfyUI "
+                                    "to pick up manual edits, same as always.",
+                        "wildcards_path": abs_path,
+                    },
+                    f,
+                    indent=2,
+                )
+        except OSError as e:
+            raise ValueError(f"couldn't save {_LOCAL_CONFIG_PATH}: {e}")
+
+        self.root_dir = abs_path
+        self.rescan()
 
 
 _shared_index = None

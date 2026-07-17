@@ -207,6 +207,25 @@
 .wg-pin:hover { color: var(--wg-accent, #d9a441); transform: scale(1.15); }
 .wg-pin.pinned { color: var(--wg-accent, #d9a441); }
 
+/* ---- Grid (thumbnail) view for the picker drawer -----------------------
+   Alternate rendering of the same pinned/recent/category items
+   renderPickerList already computes in wildcard_editor.js, toggled via the
+   header button next to "Browse wildcards" (pickerViewMode). Tiles reuse
+   each item's per-category hue so grid and list views read as the same
+   taxonomy. */
+.wg-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; flex: none; }
+.wg-drawer-head h4 { margin: 0; }
+.wg-thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 2px 1px 8px; }
+.wg-thumb-item { position: relative; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border, #2c2820); transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
+.wg-thumb-item:hover { border-color: var(--wg-accent, #d9a441); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.3), 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent); }
+.wg-thumb-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: var(--wg-bg, #1d1c1a); }
+.wg-thumb-fallback { width: 100%; aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; }
+.wg-thumb-fallback-glyph { font-size: 22px; opacity: 0.85; }
+.wg-thumb-name { font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim, #d4cdbc); padding: 4px 5px 5px; overflow-wrap: anywhere; word-break: break-word; line-height: 1.25; }
+.wg-thumb-pin { position: absolute; top: 3px; right: 3px; width: 17px; height: 17px; display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 50%; color: #fff; background: rgba(0,0,0,0.45); cursor: pointer; transition: color 120ms ease, background 120ms ease, transform 120ms ease; }
+.wg-thumb-pin:hover { transform: scale(1.15); }
+.wg-thumb-pin.pinned { color: var(--wg-accent, #d9a441); }
+
 .wg-drawer-inner input[type=text] { width: 100%; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 5px 7px; border-radius: 6px; margin-bottom: 6px; outline: none; flex: none; }
 .wg-drawer-inner label { font-size: 9px; color: var(--wg-text-faint, #8a836f); display: block; margin-bottom: 3px; flex: none; }
 .wg-drawer-inner textarea { flex: 1; width: 100%; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 6px; border-radius: 6px; resize: none; outline: none; font-family: "SF Mono", Consolas, monospace; margin-bottom: 6px; min-height: 0; }

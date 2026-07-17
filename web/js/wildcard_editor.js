@@ -13,6 +13,10 @@ const API = {
     const r = await fetch("/prompt_palette/list");
     return (await r.json()).items || [];
   },
+  async categories() {
+    const r = await fetch("/prompt_palette/categories");
+    return await r.json();
+  },
   async search(q) {
     const r = await fetch(`/prompt_palette/search?q=${encodeURIComponent(q)}`);
     return (await r.json()).items || [];
@@ -50,6 +54,13 @@ const API = {
   async refreshWildcards() {
     const r = await fetch("/prompt_palette/refresh", { method: "POST" });
     if (!r.ok) throw new Error(`refresh failed: ${r.status}`);
+    return await r.json();
+  },
+  async setPath(path) {
+    const r = await fetch("/prompt_palette/set_path", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
     return await r.json();
   },
 };
@@ -112,6 +123,15 @@ function loadCatOrder() {
 }
 function saveCatOrder(arr) {
   try { localStorage.setItem("pp_cat_order", JSON.stringify(arr)); } catch (e) {}
+}
+// Picker drawer view mode ("list" rows or "grid" thumbnails) — same
+// persistence pattern as the settings above, kept as its own key since it's
+// a display mode rather than part of the color/typography theme object.
+function loadPickerView() {
+  try { return localStorage.getItem("pp_picker_view") === "grid" ? "grid" : "list"; } catch (e) { return "list"; }
+}
+function savePickerView(mode) {
+  try { localStorage.setItem("pp_picker_view", mode); } catch (e) {}
 }
 
 // --- Interface theme system -------------------------------------------
@@ -624,6 +644,8 @@ function buildWildcardWidget(node, hiddenWidget) {
   let recentList = [];
   let knownSet = new Set();       // full paths known to backend, refreshed periodically
   let libraryCache = [];          // last fetched flat list
+  let thumbMap = {};               // wildcard path -> matching thumbnail image path (or null), from /categories
+  let pickerViewMode = loadPickerView(); // "list" | "grid", persisted across sessions
   let tokenRanges = [];
   const previewCache = new Map(); // name -> {found, lines}
 
@@ -664,7 +686,10 @@ function buildWildcardWidget(node, hiddenWidget) {
     <div class="wg-main">
       <div class="wg-drawer left" data-drawer="picker">
         <div class="wg-drawer-inner">
-          <h4>Browse wildcards</h4>
+          <div class="wg-drawer-head">
+            <h4>Browse wildcards</h4>
+            <button class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle grid/list view">&#9638;</button>
+          </div>
           <div class="wg-search"><input type="text" placeholder="Search wildcards..." data-el="search"></div>
           <div class="wg-list" data-el="pickerList"></div>
         </div>
@@ -1600,6 +1625,76 @@ function buildWildcardWidget(node, hiddenWidget) {
     return row;
   }
 
+  // Grid-view counterpart to pickerRow above — same click-to-insert/pin/
+  // context-menu behavior, laid out as a thumbnail tile instead of a row.
+  // Uses thumbMap (populated by refreshLibrary from /prompt_palette/categories)
+  // to find a same-basename image; falls back to a tinted tile using the
+  // item's category hue when there isn't one, per pickerRow's swatch color.
+  function pickerTile(item) {
+    const cat = categoryOf(item.path);
+    const color = theme.categoryPins[cat] || `hsl(${(hashStr(cat) % 360 + theme.hueRotate) % 360}, ${theme.saturation}%, 66%)`;
+    const isPinned = pinned.has(item.path);
+    const name = item.path.split("/").pop();
+    const thumbRel = thumbMap[item.path];
+
+    const thumbHtml = thumbRel
+      ? `<img class="wg-thumb-img" src="/prompt_palette/thumb?file=${encodeURIComponent(thumbRel)}" alt="" loading="lazy">`
+      : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #131211));"><span class="wg-thumb-fallback-glyph" style="color:${color};">&#128193;</span></div>`;
+
+    const tile = document.createElement("div");
+    tile.className = "wg-thumb-item";
+    tile.title = item.path;
+    tile.innerHTML = `${thumbHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span>`;
+
+    tile.addEventListener("click", (e) => {
+      if (e.target.closest(".wg-thumb-pin")) return;
+      insertWildcard(item.path);
+    });
+    tile.querySelector(".wg-thumb-pin").addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
+      savePinned(pinned);
+      renderPickerList(searchInput.value);
+    });
+    tile.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      closeInjectMenu();
+      const nowPinned = pinned.has(item.path);
+      openCtxMenu(e.clientX, e.clientY, [
+        { label: "Copy path", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
+        {
+          label: nowPinned ? "Unpin" : "Pin",
+          onSelect: () => {
+            if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
+            savePinned(pinned);
+            renderPickerList(searchInput.value);
+          },
+        },
+        { label: `Jump to "${cat}"`, onSelect: () => jumpToCategory(cat) },
+      ]);
+    });
+    tile.addEventListener("mouseenter", (e) => showTipForName(e.clientX, e.clientY, item.path, true));
+    tile.addEventListener("mousemove", (e) => { hoverTip.style.left = (e.clientX + 14) + "px"; hoverTip.style.top = (e.clientY + 14) + "px"; });
+    tile.addEventListener("mouseleave", hideTip);
+    return tile;
+  }
+
+  // Appends `items` into `container` as either picker rows or a thumbnail
+  // grid, depending on pickerViewMode — the single branch point shared by
+  // all three renderPickerList sections (pinned/recent/category groups) so
+  // none of their own logic (drag-reorder, collapse state, filtering) has
+  // to know which view is active.
+  function appendItems(container, items, filter = "") {
+    if (pickerViewMode === "grid") {
+      const grid = document.createElement("div");
+      grid.className = "wg-thumb-grid";
+      items.forEach(item => grid.appendChild(pickerTile(item)));
+      container.appendChild(grid);
+    } else {
+      items.forEach(item => container.appendChild(pickerRow(item, filter)));
+    }
+  }
+
   async function renderPickerList(filter = "") {
     // The picker rows (and any injector trigger button/context menu they
     // hold) are about to be torn down and rebuilt below — close both flyouts
@@ -1620,7 +1715,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       if (pinnedItems.length) {
         const lbl = document.createElement("div"); lbl.className = "wg-section-label"; lbl.textContent = "Pinned";
         pickerList.appendChild(lbl);
-        pinnedItems.forEach(item => pickerList.appendChild(pickerRow(item)));
+        appendItems(pickerList, pinnedItems);
       }
       const recentItems = recentList.filter(p => !pinned.has(p)).map(p => libraryCache.find(l => l.path === p)).filter(Boolean);
       if (recentItems.length) {
@@ -1633,7 +1728,7 @@ function buildWildcardWidget(node, hiddenWidget) {
           renderPickerList(searchInput.value);
         });
         pickerList.appendChild(lbl);
-        recentItems.forEach(item => pickerList.appendChild(pickerRow(item)));
+        appendItems(pickerList, recentItems);
       }
     }
     const grouped = {};
@@ -1714,7 +1809,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       }
 
       pickerList.appendChild(header);
-      if (isExpanded) grouped[cat].forEach(item => pickerList.appendChild(pickerRow(item, filter)));
+      if (isExpanded) appendItems(pickerList, grouped[cat], filter);
     });
     if (!items.length) pickerList.innerHTML = `<div class="wg-hint" style="padding:6px;">no matches</div>`;
     // Restore the scroll position captured before the rebuild. If the new
@@ -1779,8 +1874,15 @@ function buildWildcardWidget(node, hiddenWidget) {
   async function refreshLibrary() {
     libraryCache = await API.list();
     knownSet = new Set(libraryCache.map(l => l.path));
+    try { thumbMap = await API.categories(); } catch (e) { thumbMap = {}; }
     render();
   }
+  // Exposed on the node instance (same convention as node._wgRefreshFromHidden
+  // below) so the "Wildcards folder path" setting - which lives outside any
+  // one node's closure - can repaint this node after pointing the backend at
+  // a new folder. See livePromptPaletteNodes/refreshAllPromptPaletteNodes
+  // near the bottom of this file.
+  node._wgRefreshLibrary = refreshLibrary;
 
   // ---- edit drawer ----
   const editName = el("editName");
@@ -1919,6 +2021,19 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
   root.querySelector('[data-act="picker"]').addEventListener("click", () => {
     if (pickerDrawer.classList.contains("open")) closePickerDrawer(); else openPickerDrawer();
+  });
+  // ---- picker grid/list view toggle ----
+  const pickerViewToggleBtn = el("pickerViewToggle");
+  function syncPickerViewToggleBtn() {
+    pickerViewToggleBtn.classList.toggle("active", pickerViewMode === "grid");
+    pickerViewToggleBtn.title = pickerViewMode === "grid" ? "Switch to list view" : "Switch to grid view";
+  }
+  syncPickerViewToggleBtn();
+  pickerViewToggleBtn.addEventListener("click", () => {
+    pickerViewMode = pickerViewMode === "grid" ? "list" : "grid";
+    savePickerView(pickerViewMode);
+    syncPickerViewToggleBtn();
+    renderPickerList(searchInput.value);
   });
   function closeEditDrawer() {
     editDrawer.classList.remove("open");
@@ -2589,8 +2704,81 @@ function remapPromptPaletteOutputs(promptResult) {
   }
 }
 
+// PromptPaletteEditor node instances currently on the canvas. refreshLibrary
+// (and everything it repaints - picker/legend/thumbnails) lives per-node,
+// closed over that node's own buildWildcardWidget() call, so there's no
+// single shared list to refresh from outside. This tracks who's alive so the
+// global "Wildcards folder path" setting below can reach all of them, the
+// same way node.updateWildcardSidePanels already lets the per-node refresh
+// button reach one.
+const livePromptPaletteNodes = new Set();
+
+async function refreshAllPromptPaletteNodes() {
+  for (const node of livePromptPaletteNodes) {
+    if (node._wgRefreshLibrary) await node._wgRefreshLibrary();
+  }
+}
+
+// Thin wrapper around ComfyUI's own toast API - non-blocking, native-looking
+// feedback for the settings-panel path change below, instead of a jarring
+// browser alert(). Falls back to alert() only if that API is ever missing
+// (older frontend build), wrapped so a missing API can't throw and break
+// page load.
+function notify(severity, summary, detail) {
+  try {
+    app.extensionManager.toast.add({
+      severity,
+      summary,
+      detail,
+      life: severity === "error" ? 5000 : 3000,
+    });
+  } catch (e) {
+    if (severity === "error") alert(`${summary}: ${detail}`);
+  }
+}
+
 app.registerExtension({
   name: "comfyui.promptpalette.editor",
+  // Adds a "Wildcards folder path" entry to ComfyUI's built-in Settings
+  // dialog (native text setting, no custom DOM). Changing it repoints the
+  // backend at a new wildcards/ folder (persisted to wildcards_config.json
+  // via WildcardIndex.set_root(), which also rescans it immediately - see
+  // set_root()'s docstring for how it fits into resolve_wildcard_root()'s
+  // precedence order), then repaints every open node from that fresh scan.
+  settings: [
+    {
+      id: "PromptPalette.WildcardsPath",
+      category: ["Prompt Palette", "Wildcards Library", "Folder path"],
+      name: "Wildcards folder path",
+      type: "text",
+      defaultValue: "",
+      tooltip:
+        "Full path to the folder holding your wildcard .txt/.yaml files. " +
+        "Leave blank to use the default ComfyUI/wildcards folder, or " +
+        "whatever wildcards_config.json / extra_model_paths.yaml already " +
+        "points at. Paste a different folder path here to switch libraries " +
+        "instantly, without editing any files by hand \u2014 this writes to " +
+        "that same wildcards_config.json, so both stay in sync either way.",
+      async onChange(newValue, oldValue) {
+        // ComfyUI calls onChange on every page load with whatever was last
+        // saved here, not just on user edits - the unchanged-value check
+        // stops a normal reload from re-writing wildcards_config.json and
+        // re-scanning the folder for no reason. Blank (the default, and
+        // where every install starts) means "don't override": it leaves
+        // whatever wildcards_config.json / extra_model_paths.yaml already
+        // resolved at startup alone, so hand-editing those files keeps
+        // working exactly as before for anyone who never touches this field.
+        if (!newValue || newValue === oldValue) return;
+        const res = await API.setPath(newValue);
+        if (!res.ok) {
+          notify("error", "Wildcards folder not changed", res.error || "couldn't set wildcards folder path");
+          return;
+        }
+        await refreshAllPromptPaletteNodes();
+        notify("success", "Wildcards folder updated", res.root_dir);
+      },
+    },
+  ],
   // One-time, app-level patch — not tied to any single node's lifecycle, so
   // it belongs in setup() (fired once after ComfyUI's app finishes
   // initializing) rather than beforeRegisterNodeDef (fired per node type).
@@ -2656,8 +2844,10 @@ app.registerExtension({
         getHeight: () => node.size[1],
       });
       node._wgRefreshFromHidden = refreshFromHidden;
-      
+      livePromptPaletteNodes.add(node);
+
       node.onRemoved = function () {
+        livePromptPaletteNodes.delete(node);
         if (cleanup) cleanup();
       };
 
