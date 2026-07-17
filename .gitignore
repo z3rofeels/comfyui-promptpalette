@@ -46,6 +46,8 @@ __pycache__/
 *~
 *.log
 *.log.*
+wildcards_config.json
+wildcards_config.example.json
 
 # ====================================================================
 # Python Backend Clutter
@@ -87,6 +89,7 @@ out/
 .Spotlight-V100
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
+*.pyc
 
 # Windows specific
 Thumbs.db
