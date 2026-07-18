@@ -44,6 +44,25 @@ const API = {
     });
     return await r.json();
   },
+  // `name` is the wildcard's full path (e.g. "characters/hero"), `file` is a
+  // browser File from the "Set Thumbnail..." context menu action below. Sent
+  // as multipart (not JSON like the rest of this object) since it's binary
+  // image data — letting the browser set the multipart boundary itself is
+  // simpler and avoids a ~33% base64 size penalty on every upload.
+  async setThumbnail(name, file) {
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("file", file, file.name);
+    const r = await fetch("/prompt_palette/set_thumbnail", { method: "POST", body: fd });
+    return await r.json();
+  },
+  async removeThumbnail(name) {
+    const r = await fetch("/prompt_palette/remove_thumbnail", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    return await r.json();
+  },
   async resolve(text, seed, mode) {
     const r = await fetch("/prompt_palette/resolve", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -222,6 +241,25 @@ function hashStr(str) {
 function categoryOf(p) {
   const parts = p.split("/");
   return parts.length > 1 ? parts.slice(0, -1).join("/") : "misc";
+}
+// Turns whatever a user types into a Palette Recipe name prompt into a safe
+// wildcard path segment: lowercase, "/" preserved (so "portraits/moody" can
+// nest under recipe/ like any other folder), everything else collapsed to
+// underscores. Mirrors save_txt()'s own path-safety pass on the backend, but
+// this one just produces a clean name rather than rejecting a bad one.
+function slugifyRecipeName(raw) {
+  return (raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9/_-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[/_]+|[/_]+$/g, "");
+}
+// A wildcard is a Palette Recipe if it (or a nested folder under it) lives
+// directly under the "recipe" category folder — see promptSaveRecipe, which
+// always writes new recipes under that prefix.
+function isRecipeCategory(cat) {
+  return cat === "recipe" || cat.startsWith("recipe/");
 }
 function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 // Wraps the first case-insensitive occurrence of `filter` inside `text` in a
@@ -636,6 +674,47 @@ function closeCtxMenu() {
   ctxMenuOpen = false;
 }
 
+// ---------------------------------------------------------------------
+// Shared hidden <input type="file"> backing the "Set Thumbnail..." row/tile
+// context menu action (see setThumbnailForItem inside buildWildcardWidget).
+// One shared element, same reasoning as ctxMenu above — only one native file
+// dialog can be open at a time regardless of how many nodes are on the
+// canvas, and there's no scriptable way to open that dialog other than
+// calling .click() on a real <input>.
+// ---------------------------------------------------------------------
+let thumbFileInput = null;
+const THUMB_MAX_BYTES = 8 * 1024 * 1024; // 8MB ceiling — generous for a picker thumbnail, small enough to keep uploads instant
+
+function pickThumbnailFile() {
+  if (!thumbFileInput) {
+    thumbFileInput = document.createElement("input");
+    thumbFileInput.type = "file";
+    thumbFileInput.accept = "image/png,image/jpeg,.png,.jpg,.jpeg";
+    thumbFileInput.style.display = "none";
+    document.body.appendChild(thumbFileInput);
+  }
+  return new Promise((resolve) => {
+    // Reset first so re-picking the same filename in a row still fires "change".
+    thumbFileInput.value = "";
+    thumbFileInput.onchange = () => resolve(thumbFileInput.files && thumbFileInput.files[0] || null);
+    // Best-effort: not every browser fires "cancel" on <input type=file>, but
+    // the ones that do let a dismissed dialog resolve immediately instead of
+    // leaving the caller hanging.
+    thumbFileInput.oncancel = () => resolve(null);
+    thumbFileInput.click();
+  });
+}
+
+// Shared by both the row and tile context menus below. Returns an error
+// string, or null if the file is fine to upload.
+function thumbnailFileError(file) {
+  const isImageType = /^image\/(png|jpe?g)$/i.test(file.type);
+  const isImageExt = /\.(png|jpe?g)$/i.test(file.name || "");
+  if (!isImageType && !isImageExt) return "Only PNG or JPEG images are supported.";
+  if (file.size > THUMB_MAX_BYTES) return "Image is larger than 8MB — pick a smaller file.";
+  return null;
+}
+
 function buildWildcardWidget(node, hiddenWidget) {
   const theme = loadTheme();
   const pinned = loadPinned();
@@ -645,9 +724,30 @@ function buildWildcardWidget(node, hiddenWidget) {
   let knownSet = new Set();       // full paths known to backend, refreshed periodically
   let libraryCache = [];          // last fetched flat list
   let thumbMap = {};               // wildcard path -> matching thumbnail image path (or null), from /categories
+  let thumbBust = {};              // wildcard path -> cache-busting token, bumped by setThumbnailForItem/removeThumbnailForItem
   let pickerViewMode = loadPickerView(); // "list" | "grid", persisted across sessions
   let tokenRanges = [];
   const previewCache = new Map(); // name -> {found, lines}
+
+  // ---- Palette Recipes: multi-select state for the picker drawer ----
+  // recipeSelectMode flips picker rows/tiles from "click inserts" to "click
+  // toggles a checkbox"; recipeSelection holds the paths gathered so far
+  // (insertion order preserved, which becomes the recipe's expansion order).
+  let recipeSelectMode = false;
+  let recipeSelection = new Set();
+
+  // ---- Prompt Stash: local, per-browser drafts of the raw prompt text ----
+  // Deliberately NOT synced to the backend/library — this is scratch space
+  // for "don't lose this variation" without needing a second node, not a
+  // wildcard. Newest first, capped so it stays a shelf, not an archive.
+  const STASH_LIMIT = 20;
+  function loadStash() {
+    try { return JSON.parse(localStorage.getItem("pp_stash") || "[]"); } catch (e) { return []; }
+  }
+  function saveStash(arr) {
+    try { localStorage.setItem("pp_stash", JSON.stringify(arr)); } catch (e) {}
+  }
+  let stash = loadStash();
 
   const root = document.createElement("div");
   root.className = "wg-node";
@@ -664,6 +764,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       <div class="wg-toolbar-group right">
         <button class="wg-icon-btn" data-act="copy" title="Copy prompt to clipboard">&#128203;</button>
         <button class="wg-icon-btn" data-act="clear" title="Clear prompt">&#128465;</button>
+        <button class="wg-icon-btn" data-act="stash" title="Prompt Stash — save/load local drafts">&#128451;</button>
         <button class="wg-icon-btn" data-el="dayNightBtn" data-act="dayNightToggle" title="Toggle day/night theme">&#127769;</button>
         <button class="wg-icon-btn" data-act="settings" title="Settings">&#9881;</button>
       </div>
@@ -688,9 +789,19 @@ function buildWildcardWidget(node, hiddenWidget) {
         <div class="wg-drawer-inner">
           <div class="wg-drawer-head">
             <h4>Browse wildcards</h4>
-            <button class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle grid/list view">&#9638;</button>
+            <div class="wg-drawer-head-actions">
+              <button class="wg-icon-btn" data-act="recipeSelect" data-el="recipeSelectToggle" title="Select wildcards to combine into a Palette Recipe">&#127912;</button>
+              <button class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle grid/list view">&#9638;</button>
+            </div>
           </div>
           <div class="wg-search"><input type="text" placeholder="Search wildcards..." data-el="search"></div>
+          <div class="wg-recipe-bar" data-el="recipeBar">
+            <span data-el="recipeBarCount">0 selected</span>
+            <div class="wg-recipe-bar-btns">
+              <button type="button" class="wg-pill" data-act="recipeSave">Add to Recipes</button>
+              <button type="button" class="wg-pill" data-act="recipeCancel">Clear</button>
+            </div>
+          </div>
           <div class="wg-list" data-el="pickerList"></div>
         </div>
       </div>
@@ -725,6 +836,16 @@ function buildWildcardWidget(node, hiddenWidget) {
             <button class="primary" data-act="save">Save</button>
           </div>
         </div>
+      </div>
+    </div>
+    <div class="wg-settings-popup wg-stash-popup" data-el="stashPopup">
+      <div class="wg-settings-head">
+        <span>Prompt Stash</span>
+        <button class="wg-close-btn" data-act="closeStash" title="Close">&#10005;</button>
+      </div>
+      <div class="wg-settings-body">
+        <button type="button" class="wg-stash-save" data-act="stashSave" title="Save the current prompt text as a local draft">&#128190; Save current prompt</button>
+        <div data-el="stashList"></div>
       </div>
     </div>
     <div class="wg-settings-popup" data-el="settingsPopup">
@@ -877,6 +998,11 @@ function buildWildcardWidget(node, hiddenWidget) {
   const pickerDrawer = root.querySelector('[data-drawer="picker"]');
   const editDrawer = root.querySelector('[data-drawer="edit"]');
   const settingsPopup = el("settingsPopup");
+  const stashPopup = el("stashPopup");
+  const stashList = el("stashList");
+  const recipeSelectToggle = el("recipeSelectToggle");
+  const recipeBar = el("recipeBar");
+  const recipeBarCount = el("recipeBarCount");
   const editorReal = el("editorReal");
   const resolvedView = el("resolvedView");
   const hintRight = el("hintRight");
@@ -1500,21 +1626,55 @@ function buildWildcardWidget(node, hiddenWidget) {
     render(); // keep highlight/hidden-widget/legend in sync, same as any other programmatic edit in this file
   });
 
+  // ---- Palette Recipes: selection bookkeeping shared by pickerRow/pickerTile ----
+  function toggleRecipeSelection(path) {
+    if (recipeSelection.has(path)) recipeSelection.delete(path); else recipeSelection.add(path);
+    updateRecipeBar();
+    renderPickerList(searchInput.value);
+  }
+  function updateRecipeBar() {
+    recipeBar.classList.toggle("on", recipeSelectMode);
+    recipeBarCount.textContent = `${recipeSelection.size} selected`;
+    root.querySelector('[data-act="recipeSave"]').disabled = recipeSelection.size === 0;
+  }
+
   function pickerRow(item, filter = "") {
     const cat = categoryOf(item.path);
+    const isRecipe = isRecipeCategory(cat);
     const color = theme.categoryPins[cat] || `hsl(${(hashStr(cat) % 360 + theme.hueRotate) % 360}, ${theme.saturation}%, 66%)`;
     const shape = "border-radius:50%;";
     const isPinned = pinned.has(item.path);
+    const isSelected = recipeSelection.has(item.path);
     const row = document.createElement("div");
-    row.className = "wg-item";
+    row.className = "wg-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "");
     // Type badge removed here — the Syntax Injector trigger now lives in its
     // place (see below), keyed off the item's full path rather than its
     // category. Wrapping for long names is handled by .wg-item .wg-name in
     // wildcard_editor.css. The displayed name (last path segment) gets its
     // matched substring highlighted when a search filter is active.
-    row.innerHTML = `<span class="wg-sw" style="background:${color}; ${shape}"></span><span class="wg-name">${highlightMatch(item.path.split("/").pop(), filter)}</span><span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span>`;
-    row.querySelector(".wg-name").addEventListener("click", () => insertWildcard(item.path));
-    row.querySelector(".wg-sw").addEventListener("click", () => insertWildcard(item.path));
+    // Palette Recipes (see promptSaveRecipe) get a book glyph in place of
+    // the plain category-color dot, so a recipe is recognizable in the list
+    // at a glance, not just from its "recipe/" path once expanded.
+    const swatchHtml = isRecipe
+      ? `<span class="wg-sw wg-sw-recipe" style="background:${color};" title="Palette Recipe">&#128214;</span>`
+      : `<span class="wg-sw" style="background:${color}; ${shape}"></span>`;
+    // In recipe-select mode a checkbox stands in for the usual click-to-
+    // insert behavior — see the branch below.
+    const checkboxHtml = recipeSelectMode
+      ? `<input type="checkbox" class="wg-recipe-check" ${isSelected ? "checked" : ""} title="Add to Palette Recipe selection">`
+      : "";
+    row.innerHTML = `${checkboxHtml}${swatchHtml}<span class="wg-name">${highlightMatch(item.path.split("/").pop(), filter)}</span><span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span>`;
+
+    const nameEl = row.querySelector(".wg-name");
+    const swEl = row.querySelector(".wg-sw");
+    if (recipeSelectMode) {
+      nameEl.addEventListener("click", () => toggleRecipeSelection(item.path));
+      swEl.addEventListener("click", () => toggleRecipeSelection(item.path));
+      row.querySelector(".wg-recipe-check").addEventListener("change", () => toggleRecipeSelection(item.path));
+    } else {
+      nameEl.addEventListener("click", () => insertWildcard(item.path));
+      swEl.addEventListener("click", () => insertWildcard(item.path));
+    }
     row.querySelector(".wg-pin").addEventListener("click", (e) => {
       e.stopPropagation();
       if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
@@ -1522,15 +1682,18 @@ function buildWildcardWidget(node, hiddenWidget) {
       renderPickerList(searchInput.value);
     });
 
-    // ---- Right-click context menu: copy path / pin / jump to category ----
-    // Gives the same three actions the row's icons already offer, without
-    // needing to land a click on a specific tiny icon — handy on a narrow
-    // sidebar or when several rows are visually packed close together.
+    // ---- Right-click context menu: edit / copy path / pin / jump to category ----
+    // Gives the same actions the row's icons already offer (plus a direct
+    // route into the edit drawer), without needing to land a click on a
+    // specific tiny icon — handy on a narrow sidebar or when several rows
+    // are visually packed close together.
     row.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       closeInjectMenu();
       const nowPinned = pinned.has(item.path);
+      const hasThumb = !!thumbMap[item.path];
       openCtxMenu(e.clientX, e.clientY, [
+        { label: "Edit", onSelect: () => openEditForItem(item.path) },
         { label: "Copy path", onSelect: () => copyBtn.click() },
         {
           label: nowPinned ? "Unpin" : "Pin",
@@ -1540,6 +1703,8 @@ function buildWildcardWidget(node, hiddenWidget) {
             renderPickerList(searchInput.value);
           },
         },
+        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", onSelect: () => setThumbnailForItem(item.path) },
+        ...(hasThumb ? [{ label: "Remove Thumbnail", onSelect: () => removeThumbnailForItem(item.path) }] : []),
         { label: `Jump to "${cat}"`, onSelect: () => jumpToCategory(cat) },
       ]);
     });
@@ -1632,24 +1797,34 @@ function buildWildcardWidget(node, hiddenWidget) {
   // item's category hue when there isn't one, per pickerRow's swatch color.
   function pickerTile(item) {
     const cat = categoryOf(item.path);
+    const isRecipe = isRecipeCategory(cat);
     const color = theme.categoryPins[cat] || `hsl(${(hashStr(cat) % 360 + theme.hueRotate) % 360}, ${theme.saturation}%, 66%)`;
     const isPinned = pinned.has(item.path);
+    const isSelected = recipeSelection.has(item.path);
     const name = item.path.split("/").pop();
     const thumbRel = thumbMap[item.path];
+    const thumbBustQs = thumbBust[item.path] ? `&v=${thumbBust[item.path]}` : "";
 
     const thumbHtml = thumbRel
-      ? `<img class="wg-thumb-img" src="/prompt_palette/thumb?file=${encodeURIComponent(thumbRel)}" alt="" loading="lazy">`
-      : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #131211));"><span class="wg-thumb-fallback-glyph" style="color:${color};">&#128193;</span></div>`;
+      ? `<img class="wg-thumb-img" src="/prompt_palette/thumb?file=${encodeURIComponent(thumbRel)}${thumbBustQs}" alt="" loading="lazy">`
+      : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #131211));"><span class="wg-thumb-fallback-glyph" style="color:${color};">${isRecipe ? "&#128214;" : "&#128193;"}</span></div>`;
 
     const tile = document.createElement("div");
-    tile.className = "wg-thumb-item";
-    tile.title = item.path;
-    tile.innerHTML = `${thumbHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span>`;
+    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "");
+    tile.title = isRecipe ? `${item.path} (Palette Recipe)` : item.path;
+    const checkboxHtml = recipeSelectMode
+      ? `<input type="checkbox" class="wg-recipe-check wg-thumb-check" ${isSelected ? "checked" : ""} title="Add to Palette Recipe selection">`
+      : "";
+    tile.innerHTML = `${thumbHtml}${checkboxHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span>`;
 
     tile.addEventListener("click", (e) => {
-      if (e.target.closest(".wg-thumb-pin")) return;
+      if (e.target.closest(".wg-thumb-pin") || e.target.closest(".wg-recipe-check")) return;
+      if (recipeSelectMode) { toggleRecipeSelection(item.path); return; }
       insertWildcard(item.path);
     });
+    if (recipeSelectMode) {
+      tile.querySelector(".wg-recipe-check").addEventListener("change", () => toggleRecipeSelection(item.path));
+    }
     tile.querySelector(".wg-thumb-pin").addEventListener("click", (e) => {
       e.stopPropagation();
       if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
@@ -1660,7 +1835,9 @@ function buildWildcardWidget(node, hiddenWidget) {
       e.preventDefault();
       closeInjectMenu();
       const nowPinned = pinned.has(item.path);
+      const hasThumb = !!thumbMap[item.path];
       openCtxMenu(e.clientX, e.clientY, [
+        { label: "Edit", onSelect: () => openEditForItem(item.path) },
         { label: "Copy path", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
         {
           label: nowPinned ? "Unpin" : "Pin",
@@ -1670,6 +1847,8 @@ function buildWildcardWidget(node, hiddenWidget) {
             renderPickerList(searchInput.value);
           },
         },
+        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", onSelect: () => setThumbnailForItem(item.path) },
+        ...(hasThumb ? [{ label: "Remove Thumbnail", onSelect: () => removeThumbnailForItem(item.path) }] : []),
         { label: `Jump to "${cat}"`, onSelect: () => jumpToCategory(cat) },
       ]);
     });
@@ -1758,9 +1937,10 @@ function buildWildcardWidget(node, hiddenWidget) {
       // of collapsed state — collapsing only applies to the idle browse view.
       const isExpanded = !!filter || expandedCats.has(cat);
       const header = document.createElement("div");
-      header.className = "wg-folder" + (isExpanded ? " expanded" : "");
+      header.className = "wg-folder" + (isExpanded ? " expanded" : "") + (isRecipeCategory(cat) ? " wg-folder-recipe" : "");
       header.dataset.cat = cat;
-      header.innerHTML = `<span class="wg-folder-caret">${isExpanded ? "\u25BE" : "\u25B8"}</span><span class="wg-folder-name">${escapeHtml(cat)}</span><span class="wg-folder-count">${grouped[cat].length}</span>`;
+      const folderLabel = isRecipeCategory(cat) ? `&#128214; ${escapeHtml(cat)}` : escapeHtml(cat);
+      header.innerHTML = `<span class="wg-folder-caret">${isExpanded ? "\u25BE" : "\u25B8"}</span><span class="wg-folder-name">${folderLabel}</span><span class="wg-folder-count">${grouped[cat].length}</span>`;
       header.title = isExpanded ? "Click to collapse" : "Click to expand";
       header.addEventListener("click", () => {
         if (expandedCats.has(cat)) expandedCats.delete(cat); else expandedCats.add(cat);
@@ -1877,12 +2057,95 @@ function buildWildcardWidget(node, hiddenWidget) {
     try { thumbMap = await API.categories(); } catch (e) { thumbMap = {}; }
     render();
   }
+
+  // ---- Thumbnails: "Set Thumbnail..." / "Remove Thumbnail" context menu ----
+  // Lets a user pick a PNG/JPEG straight from disk for a wildcard instead of
+  // having to drop a same-named image file into the wildcards folder by hand
+  // in file explorer. The backend saves it next to that wildcard's .txt file
+  // under a matching basename, so it's picked up by the exact same same-
+  // basename scan (/prompt_palette/categories) that already powers thumbMap
+  // — this just automates the file placement, not the matching logic.
+  // Re-fetches just thumbMap + repaints the picker (not a full refreshLibrary)
+  // so this stays fast and doesn't disturb pinned/recent/scroll state.
+  async function refreshThumbMap() {
+    try { thumbMap = await API.categories(); } catch (e) {}
+    renderPickerList(searchInput.value);
+  }
+
+  async function setThumbnailForItem(path) {
+    const file = await pickThumbnailFile();
+    if (!file) return;
+    const err = thumbnailFileError(file);
+    if (err) { notify("error", "Thumbnail not set", err); return; }
+    try {
+      const res = await API.setThumbnail(path, file);
+      if (!res.ok) { notify("error", "Thumbnail not set", res.error || "the server rejected the upload"); return; }
+      thumbBust[path] = Date.now();
+      await refreshThumbMap();
+      notify("success", "Thumbnail updated", path.split("/").pop());
+    } catch (e) {
+      notify("error", "Thumbnail not set", "network error while uploading");
+    }
+  }
+
+  async function removeThumbnailForItem(path) {
+    try {
+      const res = await API.removeThumbnail(path);
+      if (!res.ok) { notify("error", "Thumbnail not removed", res.error || "the server rejected the request"); return; }
+      thumbBust[path] = Date.now();
+      await refreshThumbMap();
+      notify("success", "Thumbnail removed", path.split("/").pop());
+    } catch (e) {
+      notify("error", "Thumbnail not removed", "network error");
+    }
+  }
   // Exposed on the node instance (same convention as node._wgRefreshFromHidden
   // below) so the "Wildcards folder path" setting - which lives outside any
   // one node's closure - can repaint this node after pointing the backend at
   // a new folder. See livePromptPaletteNodes/refreshAllPromptPaletteNodes
   // near the bottom of this file.
   node._wgRefreshLibrary = refreshLibrary;
+
+  // ---- Palette Recipes ----
+  // A "recipe" is nothing more than an ordinary .txt wildcard saved under the
+  // recipe/ category folder, whose single line lists the wildcards it stands
+  // in for (e.g. "__lighting/dramatic__, __camera/anamorphic__, __vibe/gritty__").
+  // That's deliberate: it means recipes get full CRUD (edit/delete/preview/
+  // pin/copy/inject) completely for free through the same machinery every
+  // other wildcard already goes through — /save is reused as-is rather than
+  // adding a parallel storage path — and the resolver already expands nested
+  // __wildcard__ references pass-by-pass, so __recipe/name__ resolving to a
+  // line full of further __wildcard__ tokens just works with zero backend
+  // changes. Returns true on a successful save, false if cancelled or failed,
+  // so callers know whether to clear out the selection that produced it.
+  async function promptSaveRecipe(paths) {
+    const unique = Array.from(new Set(paths));
+    if (!unique.length) return false;
+    const raw = prompt(`Name this Palette Recipe (combines ${unique.length} wildcard${unique.length === 1 ? "" : "s"}):`, "");
+    if (raw === null) return false; // cancelled
+    const slug = slugifyRecipeName(raw);
+    if (!slug) {
+      notify("error", "Recipe not saved", "Enter a valid name (letters, numbers, - _ /).");
+      return false;
+    }
+    const fullName = `recipe/${slug}`;
+    if (knownSet.has(fullName) && !confirm(`"${fullName}" already exists \u2014 overwrite it?`)) return false;
+    const content = unique.map(p => `__${p}__`).join(", ");
+    const res = await API.save(fullName, content);
+    if (!res.ok) {
+      notify("error", "Recipe not saved", res.error || "save failed");
+      return false;
+    }
+    previewCache.delete(fullName);
+    await refreshLibrary();
+    if (!expandedCats.has("recipe")) {
+      expandedCats.add("recipe");
+      saveExpandedCats(expandedCats);
+    }
+    renderPickerList(searchInput.value);
+    notify("success", "Palette Recipe saved", `__${fullName}__ \u2192 ${unique.length} wildcard${unique.length === 1 ? "" : "s"}`);
+    return true;
+  }
 
   // ---- edit drawer ----
   const editName = el("editName");
@@ -1903,6 +2166,16 @@ function buildWildcardWidget(node, hiddenWidget) {
       editStatus.textContent = "new wildcard \u2014 write one option per line, then save.";
       editStatus.className = "wg-status";
     }
+  }
+
+  // Opens the edit drawer already loaded with `path` — the destination for
+  // the new right-click "Edit" entry in the picker's row/tile context menus,
+  // so jumping to a wildcard's source no longer requires first opening the
+  // drawer, then re-typing or double-clicking to load it.
+  function openEditForItem(path) {
+    editDrawer.classList.add("open");
+    root.querySelector('[data-act="edit"]').classList.add("active");
+    loadIntoEditDrawer(path);
   }
 
   // Named (not just an inline click handler) so the Ctrl/Cmd+S keyboard
@@ -2035,6 +2308,39 @@ function buildWildcardWidget(node, hiddenWidget) {
     syncPickerViewToggleBtn();
     renderPickerList(searchInput.value);
   });
+
+  // ---- Palette Recipes: multi-select toggle + selection bar ----
+  // Turns the picker drawer into a "gather ingredients" mode: rows/tiles show
+  // checkboxes instead of inserting on click, and the bar below the search
+  // box offers "Add to Recipes" once at least one wildcard is checked. See
+  // promptSaveRecipe() below for what actually happens on save.
+  recipeSelectToggle.addEventListener("click", () => {
+    recipeSelectMode = !recipeSelectMode;
+    recipeSelectToggle.classList.toggle("active", recipeSelectMode);
+    recipeSelectToggle.title = recipeSelectMode
+      ? "Exit Palette Recipe selection"
+      : "Select wildcards to combine into a Palette Recipe";
+    if (!recipeSelectMode) recipeSelection.clear();
+    updateRecipeBar();
+    renderPickerList(searchInput.value);
+  });
+  root.querySelector('[data-act="recipeCancel"]').addEventListener("click", () => {
+    recipeSelection.clear();
+    updateRecipeBar();
+    renderPickerList(searchInput.value);
+  });
+  root.querySelector('[data-act="recipeSave"]').addEventListener("click", async () => {
+    if (!recipeSelection.size) return;
+    const saved = await promptSaveRecipe(Array.from(recipeSelection));
+    if (!saved) return; // cancelled or failed — leave the selection intact so the user can retry
+    recipeSelection.clear();
+    recipeSelectMode = false;
+    recipeSelectToggle.classList.remove("active");
+    recipeSelectToggle.title = "Select wildcards to combine into a Palette Recipe";
+    updateRecipeBar();
+    renderPickerList(searchInput.value);
+  });
+
   function closeEditDrawer() {
     editDrawer.classList.remove("open");
     root.querySelector('[data-act="edit"]').classList.remove("active");
@@ -2159,6 +2465,29 @@ function buildWildcardWidget(node, hiddenWidget) {
   // "Sequential — next" on a plain __name__ rewrites it to __+name__ right
   // where it sits, rather than duplicating it.
   textarea.addEventListener("contextmenu", (e) => {
+    // ---- Palette Recipes from a text selection ----
+    // Right-clicking on top of an actual (non-collapsed) selection preserves
+    // that selection in every mainstream browser rather than collapsing the
+    // caret to the click point, so this can run ahead of the single-token
+    // logic below and check for one first. Any wildcard tokens fully inside
+    // the selected range become recipe ingredients — plain text the user
+    // also happened to select (separators, stray words) is just ignored
+    // rather than treated as an error, so a slightly loose selection still
+    // works exactly as expected.
+    const selStart = textarea.selectionStart, selEnd = textarea.selectionEnd;
+    if (selEnd > selStart) {
+      const selectedTokens = tokenRanges.filter(t => t.known && t.start >= selStart && t.end <= selEnd);
+      if (selectedTokens.length >= 2) {
+        e.preventDefault();
+        hideTip();
+        closeInjectMenu();
+        const names = selectedTokens.map(t => t.name);
+        openCtxMenu(e.clientX, e.clientY, [
+          { label: `Save ${names.length} wildcards as Palette Recipe`, onSelect: () => promptSaveRecipe(names) },
+        ]);
+        return;
+      }
+    }
     if (theme.syntaxInjectorEnabled === false) return; // Zen mode — Syntax Injector fully off, same as the picker's ⚡ trigger
     // The right-button mousedown that precedes "contextmenu" has already
     // moved the caret to the click point (same native-caret reasoning the
@@ -2201,29 +2530,122 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   // ---- settings popup (with a real close button + outside click + escape) ----
   const settingsBtn = root.querySelector('[data-act="settings"]');
-  function openSettings() { settingsPopup.classList.add("open"); }
+  function openSettings() { closeStash(); settingsPopup.classList.add("open"); }
   function closeSettings() { settingsPopup.classList.remove("open"); }
   settingsBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    settingsPopup.classList.toggle("open");
+    if (settingsPopup.classList.contains("open")) { closeSettings(); return; }
+    openSettings();
   });
   root.querySelector('[data-act="closeSettings"]').addEventListener("click", closeSettings);
-  
+
+  // ---- Prompt Stash popup ----
+  // One-click local drafts of the raw prompt text (see loadStash/saveStash
+  // above) — a "history shelf" for variations the user isn't ready to commit
+  // to or lose, without needing a second Prompt Palette node just to hold
+  // them. Purely client-side (localStorage), so nothing here touches the
+  // backend wildcard library.
+  const stashBtn = root.querySelector('[data-act="stash"]');
+  const stashSaveBtn = root.querySelector('[data-act="stashSave"]');
+  function openStash() { closeSettings(); stashPopup.classList.add("open"); renderStashList(); }
+  function closeStash() { stashPopup.classList.remove("open"); }
+  stashBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (stashPopup.classList.contains("open")) { closeStash(); return; }
+    openStash();
+  });
+  root.querySelector('[data-act="closeStash"]').addEventListener("click", closeStash);
+
+  function formatStashTime(ts) {
+    const diffMin = Math.round((Date.now() - ts) / 60000);
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.round(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+      " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function renderStashList() {
+    stashList.innerHTML = "";
+    if (!stash.length) {
+      stashList.innerHTML = `<div class="wg-stash-empty">No saved drafts yet \u2014 hit "Save current prompt" any time you want a checkpoint to come back to later.</div>`;
+      return;
+    }
+    stash.forEach(entry => {
+      const row = document.createElement("div");
+      row.className = "wg-stash-item";
+      const preview = entry.text.trim() || "(empty prompt)";
+      row.innerHTML = `
+        <div class="wg-stash-item-preview">${escapeHtml(preview)}</div>
+        <div class="wg-stash-item-meta">
+          <span class="wg-stash-item-time">${formatStashTime(entry.savedAt)}</span>
+          <div class="wg-stash-item-btns">
+            <button type="button" data-act="load">Load</button>
+            <button type="button" data-act="copy">Copy</button>
+            <button type="button" class="danger" data-act="del" title="Delete this draft">&#10005;</button>
+          </div>
+        </div>`;
+      row.querySelector('[data-act="load"]').addEventListener("click", () => {
+        // Same "set value, dispatch input" pattern the Clear button uses —
+        // this feeds the existing input listener (render()/syncHiddenWidget()),
+        // which also means it's picked up by the undo/redo coalescing below,
+        // so loading a stash entry is itself one Ctrl+Z away from undoing.
+        textarea.value = entry.text;
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        textarea.focus();
+        closeStash();
+      });
+      row.querySelector('[data-act="copy"]').addEventListener("click", async (e) => {
+        try {
+          await navigator.clipboard.writeText(entry.text);
+          const btn = e.currentTarget;
+          const prevText = btn.textContent;
+          btn.textContent = "Copied";
+          setTimeout(() => { btn.textContent = prevText; }, 1100);
+        } catch (err) {}
+      });
+      row.querySelector('[data-act="del"]').addEventListener("click", () => {
+        stash = stash.filter(s => s.id !== entry.id);
+        saveStash(stash);
+        renderStashList();
+      });
+      stashList.appendChild(row);
+    });
+  }
+
+  stashSaveBtn.addEventListener("click", () => {
+    const text = textarea.value;
+    if (!text.trim()) { notify("warn", "Nothing to stash", "The prompt is empty."); return; }
+    stash = [
+      { id: `s${Date.now()}${Math.random().toString(36).slice(2, 7)}`, text, savedAt: Date.now() },
+      ...stash,
+    ].slice(0, STASH_LIMIT);
+    saveStash(stash);
+    renderStashList();
+    notify("success", "Saved to stash", `${stash.length} draft${stash.length === 1 ? "" : "s"} on the shelf`);
+  });
+
   // Named functions for memory cleanup
   const handleOutsideClick = (e) => {
     if (settingsPopup.classList.contains("open") && !settingsPopup.contains(e.target) && e.target !== settingsBtn) {
       closeSettings();
+    }
+    if (stashPopup.classList.contains("open") && !stashPopup.contains(e.target) && e.target !== stashBtn) {
+      closeStash();
     }
   };
   const handleEscapeKey = (e) => {
     if (e.key !== "Escape") return;
     // Closest-opened-thing-first: the row context menu and injector flyout
     // are the most ephemeral (click/hover-driven) floating elements, so they
-    // close before anything else; then the settings popup, which floats
+    // close before anything else; then the settings/stash popups, which float
     // above the drawers; then whichever side drawer is open.
     if (ctxMenuOpen) closeCtxMenu();
     else if (injectState && injectState.textarea === textarea) closeInjectMenu();
     else if (settingsPopup.classList.contains("open")) closeSettings();
+    else if (stashPopup.classList.contains("open")) closeStash();
     else if (editDrawer.classList.contains("open")) closeEditDrawer();
     else if (pickerDrawer.classList.contains("open")) closePickerDrawer();
   };
@@ -2231,6 +2653,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   document.addEventListener("click", handleOutsideClick);
   document.addEventListener("keydown", handleEscapeKey);
   settingsPopup.addEventListener("click", (e) => e.stopPropagation());
+  stashPopup.addEventListener("click", (e) => e.stopPropagation());
 
   // ---- accessibility: font family / sizes / prompt text color ----
   // Applied to document.documentElement (same pattern as the interface theme

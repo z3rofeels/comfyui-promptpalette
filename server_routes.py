@@ -185,3 +185,90 @@ async def get_thumbnail(request):
     if not abs_path or not os.path.isfile(abs_path):
         raise web.HTTPNotFound()
     return web.FileResponse(abs_path)
+
+
+MAX_THUMB_BYTES = 8 * 1024 * 1024  # keep in sync with THUMB_MAX_BYTES in wildcard_editor.js
+
+
+@routes.post("/prompt_palette/set_thumbnail")
+async def set_thumbnail(request):
+    """Saves an uploaded image as `name`'s thumbnail: same-basename, same
+    subfolder as its .txt file, so the /categories scan above picks it up
+    on the next fetch with no change to that matching logic. Multipart
+    (not JSON like most of this file) since it carries a binary image
+    straight from a browser File — the picker drawer's "Set Thumbnail..."
+    row/tile context menu action.
+
+    `name` is the extension-less wildcard path (e.g. "chars/anime"), same
+    convention as everywhere else in this file. Left independent of
+    WildcardIndex's registry, same reasoning as the rest of this section:
+    this only ever touches image files, never the .txt content or the
+    resolvable-line registry, so no rescan is needed afterward."""
+    reader = await request.multipart()
+    name = None
+    filename = None
+    data = None
+    async for part in reader:
+        if part.name == "name":
+            name = (await part.text()).strip()
+        elif part.name == "file":
+            filename = part.filename or ""
+            data = await part.read(decode=False)
+
+    if not name or data is None:
+        return web.json_response({"ok": False, "error": "missing name or file"}, status=400)
+    if len(data) > MAX_THUMB_BYTES:
+        return web.json_response({"ok": False, "error": "file too large (max 8MB)"}, status=400)
+
+    ext = os.path.splitext(filename.lower())[1]
+    if ext not in THUMB_EXTS:
+        return web.json_response({"ok": False, "error": "only .jpg/.jpeg/.png supported"}, status=400)
+
+    index = get_index()
+    target_base = _resolve_within_root(index.root_dir, name)
+    if not target_base:
+        return web.json_response({"ok": False, "error": "invalid path"}, status=400)
+
+    try:
+        # Drop any existing thumbnail under a *different* extension first, so
+        # switching .png -> .jpg (or back) doesn't leave a stale duplicate
+        # that the /categories scan above would still pick up alongside the
+        # new one.
+        for other_ext in THUMB_EXTS:
+            stale = target_base + other_ext
+            if os.path.isfile(stale):
+                os.remove(stale)
+        os.makedirs(os.path.dirname(target_base), exist_ok=True)
+        with open(target_base + ext, "wb") as f:
+            f.write(data)
+    except OSError as e:
+        return web.json_response({"ok": False, "error": str(e)}, status=500)
+
+    return web.json_response({"ok": True})
+
+
+@routes.post("/prompt_palette/remove_thumbnail")
+async def remove_thumbnail(request):
+    """Deletes whichever thumbnail image (.jpg/.jpeg/.png) currently matches
+    `name`'s basename, if any. Leaves the .txt wildcard itself untouched."""
+    data = await request.json()
+    name = (data.get("name") or "").strip()
+    if not name:
+        return web.json_response({"ok": False, "error": "missing name"}, status=400)
+
+    index = get_index()
+    target_base = _resolve_within_root(index.root_dir, name)
+    if not target_base:
+        return web.json_response({"ok": False, "error": "invalid path"}, status=400)
+
+    removed = False
+    try:
+        for ext in THUMB_EXTS:
+            f = target_base + ext
+            if os.path.isfile(f):
+                os.remove(f)
+                removed = True
+    except OSError as e:
+        return web.json_response({"ok": False, "error": str(e)}, status=500)
+
+    return web.json_response({"ok": True, "removed": removed})

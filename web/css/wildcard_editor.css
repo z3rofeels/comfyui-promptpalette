@@ -215,6 +215,30 @@
    taxonomy. */
 .wg-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 6px; flex: none; }
 .wg-drawer-head h4 { margin: 0; }
+.wg-drawer-head-actions { display: flex; gap: 4px; flex: none; }
+
+/* ---- Palette Recipes: multi-select bar + checkboxes -------------------
+   Toggled via the 🎨 button in the picker drawer head (see wildcard_editor.js).
+   While active, picker rows/tiles show a checkbox instead of inserting on
+   click; this bar surfaces the running count and the save/clear actions. */
+.wg-recipe-bar { display: none; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 7px; margin-bottom: 6px; border-radius: 7px; flex: none; background: color-mix(in srgb, var(--wg-accent, #d9a441) 12%, var(--wg-surface, #131211)); border: 1px solid color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent); }
+.wg-recipe-bar.on { display: flex; }
+.wg-recipe-bar span { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim, #c9c2b1); flex: none; }
+.wg-recipe-bar-btns { display: flex; gap: 5px; flex: none; }
+.wg-recipe-bar-btns .wg-pill { font-size: 9.5px; padding: 4px 7px; }
+.wg-recipe-bar-btns .wg-pill:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
+.wg-recipe-check { flex: none; width: 13px; height: 13px; accent-color: var(--wg-accent, #d9a441); cursor: pointer; margin-right: 1px; }
+.wg-item.wg-selected { background: color-mix(in srgb, var(--wg-accent, #d9a441) 16%, transparent); }
+
+/* Recipe items get a book glyph instead of the plain category-color dot, and
+   a bolder name, so they read as "a combo" rather than a single wildcard —
+   both in list rows and in the folder header they sit under. */
+.wg-sw-recipe { display: flex; align-items: center; justify-content: center; font-size: 8px; border-radius: 5px !important; color: #1d1c1a; }
+.wg-item-recipe .wg-name { font-weight: 600; }
+.wg-folder-recipe .wg-folder-name { color: var(--wg-accent, #d9a441); }
+.wg-thumb-item.wg-selected { outline: 2px solid var(--wg-accent, #d9a441); outline-offset: -2px; }
+.wg-thumb-item.wg-item-recipe .wg-thumb-name { font-weight: 600; color: var(--wg-accent, #d9a441); }
+.wg-thumb-check.wg-recipe-check { position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; z-index: 2; }
 .wg-thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 2px 1px 8px; }
 .wg-thumb-item { position: relative; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border, #2c2820); transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
 .wg-thumb-item:hover { border-color: var(--wg-accent, #d9a441); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.3), 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent); }
@@ -237,8 +261,14 @@
 .wg-status { font-size: 9px; color: var(--wg-success, #7fae7a); min-height: 12px; flex: none; }
 .wg-status.err { color: var(--wg-danger, #e0605f); }
 
-.wg-settings-popup { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; max-width: 90%; background: var(--wg-panel-bg, #201e1a); border-left: 1px solid var(--wg-border-strong, #3a362c); box-shadow: -10px 0 28px rgba(0,0,0,0.45); z-index: 50; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 200ms ease; pointer-events: none; }
-.wg-settings-popup.open { transform: translateX(0); pointer-events: auto; }
+.wg-settings-popup { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; max-width: 90%; background: var(--wg-panel-bg, #201e1a); border-left: 1px solid var(--wg-border-strong, #3a362c); z-index: 50; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 200ms ease, box-shadow 200ms ease; pointer-events: none; }
+/* Shadow lives only on .open. While closed, translateX(100%) moves the panel
+   fully off-screen, but .wg-node's overflow:hidden clips to the node bounds —
+   an always-on negative-offset shadow would bleed back in past the right
+   border even with the panel itself invisible, reading as a stray depth
+   halo on the node edge. Scoping it here removes that ghost shadow and lets
+   it fade in with the slide instead of popping in. */
+.wg-settings-popup.open { transform: translateX(0); box-shadow: -10px 0 28px rgba(0,0,0,0.45); pointer-events: auto; }
 .wg-settings-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid var(--wg-border, #2c2820); background: var(--wg-panel-bg, #201e1a); }
 .wg-settings-head span { font-size: 11px; color: var(--wg-text, #ece5d6); font-weight: 600; }
 .wg-close-btn { background: transparent; border: none; color: var(--wg-text-dim, #b3ab99); font-size: 14px; cursor: pointer; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease; }
@@ -265,6 +295,22 @@
 .wg-credit-link:hover { color: var(--wg-accent, #d9a441); background: color-mix(in srgb, var(--wg-surface, #131211), white 6%); }
 .wg-credit-link svg { flex: none; opacity: 0.7; transition: opacity 120ms ease; }
 .wg-credit-link:hover svg { opacity: 1; }
+
+/* ---- Prompt Stash popup --------------------------------------------
+   Shares .wg-settings-popup's slide-in panel chrome (see wildcard_editor.js
+   markup) — only the button/list styling below is specific to this panel. */
+.wg-stash-save { width: 100%; margin-bottom: 10px; font-size: 11px; font-weight: 600; padding: 8px; border-radius: 7px; cursor: pointer; background: var(--wg-accent, #d9a441); border: 1px solid var(--wg-accent, #d9a441); color: var(--wg-accent-text, #1d1c1a); box-shadow: 0 1px 2px rgba(0,0,0,0.15), 0 0 8px color-mix(in srgb, var(--wg-accent, #d9a441) 25%, transparent); transition: transform 120ms ease, box-shadow 120ms ease; }
+.wg-stash-save:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.3), 0 0 12px color-mix(in srgb, var(--wg-accent, #d9a441) 40%, transparent); }
+.wg-stash-save:active { transform: translateY(0) scale(0.97); box-shadow: inset 0 1px 3px rgba(0,0,0,0.35); }
+.wg-stash-empty { font-size: 10px; color: var(--wg-text-faint, #6f6a5c); font-style: italic; padding: 14px 4px; text-align: center; line-height: 1.5; }
+.wg-stash-item { border: 1px solid var(--wg-border, #2c2820); border-radius: 7px; padding: 7px 8px; margin-bottom: 7px; background: var(--wg-surface, #131211); }
+.wg-stash-item-preview { font-size: 10.5px; color: var(--wg-text-dim, #d4cdbc); line-height: 1.4; max-height: 2.8em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: pre-wrap; word-break: break-word; margin-bottom: 6px; }
+.wg-stash-item-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.wg-stash-item-time { font-size: 8.5px; color: var(--wg-text-faint, #6f6a5c); flex: none; }
+.wg-stash-item-btns { display: flex; gap: 4px; flex: none; }
+.wg-stash-item-btns button { font-size: 9px; padding: 3px 7px; border-radius: 5px; cursor: pointer; background: transparent; border: 1px solid var(--wg-border-strong, #38352f); color: var(--wg-text-dim, #c9c2b1); transition: border-color 120ms ease, color 120ms ease, background 120ms ease; }
+.wg-stash-item-btns button:hover { border-color: var(--wg-accent, #d9a441); color: var(--wg-text, #fff); }
+.wg-stash-item-btns button.danger:hover { border-color: var(--wg-danger, #e0605f); color: var(--wg-danger, #e0605f); background: color-mix(in srgb, var(--wg-danger, #e0605f) 14%, transparent); }
 
 .wg-srow { margin-bottom: 10px; }
 .wg-srow label { display: block; font-size: 10px; color: var(--wg-text-dim, #c9c2b1); margin-bottom: 5px; }
