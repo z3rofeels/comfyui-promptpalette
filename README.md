@@ -16,19 +16,21 @@ This node is a drop-in text encoder. Nothing is required to turn on — every ad
 - [Installation](#installation)
 - [Quick tour](#quick-tour)
 - [Core features](#core-features)
-  - [Color-coded, folder-aware wildcards](#color-coded-folder-aware-wildcards)
+  - [🟢🟠🔵Color-coded, folder-aware wildcards](#color-coded-folder-aware-wildcards)
   - [Browsing & inserting wildcards](#browsing--inserting-wildcards)
-  - [Optional grid gallery](#new-optional-grid-gallery)
-  - [The Syntax Injector](#the-syntax-injector)
-  - [Editing wildcards inline](#editing-wildcards-inline)
+  - [ 📸 Gallery](#gallery-mode)
+  - [ 🎨 Palette Recipes](#palette-recipes)
+  - [ ⚡The Syntax Injector](#the-syntax-injector)
+  - [✏️Editing wildcards inline](#editing-wildcards-inline)
   - [Seed & resolution controls](#seed--resolution-controls)
   - [Optional inputs & outputs](#optional-inputs--outputs)
   - [Theming & accessibility](#theming--accessibility)
-- [✨ Recently added](#-recently-added)
+- [✨ QoL Stuff](#-qol-stuff)
 - [Preview as text hookups](#preview-as-text-hookups)
 - [Wildcard syntax cheat sheet](#wildcard-syntax-cheat-sheet)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Credits](#-credits--special-thanks)
+
 ## Quick tour
 
 - Type a prompt as normal. Anything wrapped in double underscores, like `__style/cinematic__`, is treated as a wildcard and colored by its folder.
@@ -45,6 +47,18 @@ This node is a drop-in text encoder. Nothing is required to turn on — every ad
 Every `__wildcard__` in your prompt is colored by the category (folder) it lives in, so you can tell at a glance what's a style pick, a character pick, a lighting pick, etc. A legend beneath the prompt lists every category currently in use with its color swatch.
 
 Wildcards that don't resolve to anything in your library (typo'd, renamed, or moved) are styled distinctly (red, dashed underline) instead of colored, and the footer keeps a running `N resolved-ready · N missing` count.
+
+- ### GALLERY MODE 
+
+- Easily toggle a grid view and right click to add your custom thumbnails. Completley optional, one button gets you back to list view if you prefer. 
+
+<img width="532" height="1059" alt="thumbnailpicker" src="https://github.com/user-attachments/assets/c71b9c45-c315-47d2-973f-d91176d94459" />
+
+
+- ### Palette Recipes
+
+- <img width="632" height="1075" alt="RECIPES" src="https://github.com/user-attachments/assets/f6792bd7-b9d2-4e9a-b2ab-01e15f31a0a5" />
+
 
 ### Browsing & inserting wildcards
 
@@ -116,7 +130,7 @@ Nothing here is required — the node works identically with every socket off. T
 
 
 
-## ✨ Recently added
+## ✨ QoL stuff
 
 A few quality-of-life features on top of everything above:
 
@@ -125,11 +139,7 @@ A few quality-of-life features on top of everything above:
 - **Undo / Redo** — dedicated ↩/↪ toolbar buttons plus **Ctrl+Z** / **Ctrl+Shift+Z** (or **Ctrl+Y**) now properly undo *everything* in this editor — typing, picker inserts, Syntax Injector commits, autocomplete, and Clear — not just plain keystrokes.
 - **Jump to next missing wildcard** — the "`N missing`" counter in the footer is now clickable whenever it's non-zero. Click it to select the next unresolved wildcard token after your cursor (wrapping around), so fixing a typo'd or moved wildcard in a long prompt doesn't mean hunting for red text by eye.
 
-- ### NEW Optional grid gallery 
 
-(add a picture with same filename for them to sync)
-
-<img width="636" height="919" alt="GALLERYGRIDVIEW" src="https://github.com/user-attachments/assets/2150870a-8b1f-4ae2-b2b4-99c92a7e12b2" />
 
 - ### Preview as text hookups
 - 
