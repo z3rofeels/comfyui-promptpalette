@@ -20,6 +20,7 @@ This node is a drop-in text encoder. Nothing is required to turn on — every ad
   - [Browsing & inserting wildcards](#browsing--inserting-wildcards)
   - [ 📸 Gallery](#gallery-mode)
   - [ 🎨 Palette Recipes](#palette-recipes)
+  - [ 📝 Prompt Stash](#prompt-stashing)
   - [ ⚡The Syntax Injector](#the-syntax-injector)
   - [✏️Editing wildcards inline](#editing-wildcards-inline)
   - [Seed & resolution controls](#seed--resolution-controls)
@@ -57,7 +58,13 @@ Wildcards that don't resolve to anything in your library (typo'd, renamed, or mo
 
 - ### Palette Recipes
 
-- <img width="632" height="1075" alt="RECIPES" src="https://github.com/user-attachments/assets/f6792bd7-b9d2-4e9a-b2ab-01e15f31a0a5" />
+  <img width="632" height="1075" alt="RECIPES" src="https://github.com/user-attachments/assets/f6792bd7-b9d2-4e9a-b2ab-01e15f31a0a5" />
+
+- ### Prompt Stashing
+
+ Sick of opening a new node or copy pasting prompts elsewhere? Stash it. (Button on the right side temporarily until I redo the panel to make them all optional ((sorry)).
+
+ <img width="1104" height="882" alt="Prompt Stash" src="https://github.com/user-attachments/assets/42de2118-e9a9-40c1-8eae-b965d679398c" />
 
 
 ### Browsing & inserting wildcards
