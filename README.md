@@ -18,16 +18,17 @@ This node is a drop-in text encoder. Nothing is required to turn on — every ad
 - [Core features](#core-features)
   - [Color-coded, folder-aware wildcards](#color-coded-folder-aware-wildcards)
   - [Browsing & inserting wildcards](#browsing--inserting-wildcards)
+  - [Optional grid gallery](#new-optional-grid-gallery)
   - [The Syntax Injector](#the-syntax-injector)
   - [Editing wildcards inline](#editing-wildcards-inline)
   - [Seed & resolution controls](#seed--resolution-controls)
   - [Optional inputs & outputs](#optional-inputs--outputs)
   - [Theming & accessibility](#theming--accessibility)
 - [✨ Recently added](#-recently-added)
+- [Preview as text hookups](#preview-as-text-hookups)
 - [Wildcard syntax cheat sheet](#wildcard-syntax-cheat-sheet)
 - [Keyboard shortcuts](#keyboard-shortcuts)
-- [Credits](#credits)
-
+- [Credits](#-credits--special-thanks)
 ## Quick tour
 
 - Type a prompt as normal. Anything wrapped in double underscores, like `__style/cinematic__`, is treated as a wildcard and colored by its folder.
@@ -105,15 +106,15 @@ Nothing here is required — the node works identically with every socket off. T
 - a dedicated prompt text color (choose your own or go default)
   
 
-  
+<img width="1208" height="763" alt="hue shiftv1" src="https://github.com/user-attachments/assets/a0a696a1-fbfc-450b-bbf2-74394294c1fb" />  
+
 <img width="1810" height="975" alt="optionaldaynight" src="https://github.com/user-attachments/assets/2e88cf49-00bc-4a48-a8e5-bd0953ddd999" />
+
+
 <img width="1273" height="835" alt="ppalv2b" src="https://github.com/user-attachments/assets/230339a0-30f1-4f38-ab6f-545914f0c4f2" />
 
 
-<img width="1208" height="763" alt="hue shiftv1" src="https://github.com/user-attachments/assets/a0a696a1-fbfc-450b-bbf2-74394294c1fb" />
 
-
-</p><img width="1379" height="928" alt="Screenshot 2026-07-10 191042" src="https://github.com/user-attachments/assets/8f89847b-281f-40b4-8a7f-5511a20ae250" />
 
 ## ✨ Recently added
 
@@ -124,6 +125,15 @@ A few quality-of-life features on top of everything above:
 - **Undo / Redo** — dedicated ↩/↪ toolbar buttons plus **Ctrl+Z** / **Ctrl+Shift+Z** (or **Ctrl+Y**) now properly undo *everything* in this editor — typing, picker inserts, Syntax Injector commits, autocomplete, and Clear — not just plain keystrokes.
 - **Jump to next missing wildcard** — the "`N missing`" counter in the footer is now clickable whenever it's non-zero. Click it to select the next unresolved wildcard token after your cursor (wrapping around), so fixing a typo'd or moved wildcard in a long prompt doesn't mean hunting for red text by eye.
 
+- ### NEW Optional grid gallery 
+
+(add a picture with same filename for them to sync)
+
+<img width="636" height="919" alt="GALLERYGRIDVIEW" src="https://github.com/user-attachments/assets/2150870a-8b1f-4ae2-b2b4-99c92a7e12b2" />
+
+- ### Preview as text hookups
+- 
+</p><img width="1379" height="928" alt="Screenshot 2026-07-10 191042" src="https://github.com/user-attachments/assets/8f89847b-281f-40b4-8a7f-5511a20ae250" />
 
 ---
 
@@ -214,7 +224,14 @@ You'll never need to type most of this by hand — the Syntax Injector (⚡, or 
 
 
 
-## Credits
+## 🙏 Credits & Special Thanks
+
+This project wouldn't be possible without the incredible work of the open-source generative AI community. A huge thank you to:
+
+* **comfyanonymous & The ComfyUI Team:** For creating and maintaining [ComfyUI](https://github.com/comfyanonymous/ComfyUI). Thank you for building such a powerful, modular, and accessible framework for developers and creators alike.
+* **Adi Eyal (@adieyal):** The creator of the [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts) extension and the `dynamicprompts` library. His work pioneered and standardized the `__wildcard__` syntax that this node (and the rest of the community) relies on. 
+* **Jtkelm2 & AUTOMATIC1111:** For the earliest implementations of text-file prompt replacement scripts that paved the way for dynamic prompting.
+* **The ComfyUI Community:** For the constant inspiration, testing, and sharing of knowledge that makes building custom nodes so rewarding.
 
 Made by **z3rofeels** — [github.com/z3rofeels/comfyui-promptpalette](https://github.com/z3rofeels/)
 
