@@ -10,6 +10,8 @@ A category-colored, wildcard-aware text encoder node for ComfyUI.
 
 This node is a drop-in text encoder. Nothing is required to turn on — every advanced feature below (LoRA loading, negative prompt, seed passthrough, live CONDITIONING output, etc.) is opt-in via the **Inputs & outputs** section of Settings. Left completely alone, it behaves like a normal wildcard-resolving prompt box.
 
+<img width="884" height="811" alt="AYO" src="https://github.com/user-attachments/assets/a332ed1b-17b3-4673-8ec7-9b7c3eca7378" />
+
 
 # Table of contents
 
@@ -23,7 +25,6 @@ This node is a drop-in text encoder. Nothing is required to turn on — every ad
   - [ 📝 Prompt Stash](#prompt-stashing)
   - [ ⚡The Syntax Injector](#the-syntax-injector)
   - [✏️Editing wildcards inline](#editing-wildcards-inline)
-  - [Seed & resolution controls](#seed--resolution-controls)
   - [Optional inputs & outputs](#optional-inputs--outputs)
   - [Theming & accessibility](#theming--accessibility)
 - [✨ QoL Stuff](#-qol-stuff)
@@ -81,14 +82,16 @@ Wildcards that don't resolve to anything in your library (typo'd, renamed, or mo
 
 Every wildcard has an advanced-syntax flyout (hover the ⚡ icon on its picker row) so you never have to memorize the underlying syntax:
 
-| Modifier | What it does |
-|---|---|
-| Random | Plain `__name__` — a normal seeded random pick |
-| Random — unseeded | `__*name__` — re-rolls every run regardless of seed |
-| Sequential — next | `__+name__` — walks forward through the file's options each call |
-| Sequential — previous | `__-name__` — walks backward through the file's options each call |
+<img width="972" height="826" alt="example2" src="https://github.com/user-attachments/assets/bda605f4-aee4-4feb-86c4-28adfc4fe1ee" />
 
-Plus structural templates for inline option lists: random/unseeded/sequential choice, weighted choice, joined selection (exact count or a range), and "repeat this wildcard ×N."
+### Click **Show resolved** any time to preview exactly what your wildcards currently resolve to, without queuing a run.
+
+<img width="1671" height="941" alt="chrome_19rgnGkG2t" src="https://github.com/user-attachments/assets/ee5c6753-5415-4271-a7dc-efc419cfcdf1" />
+
+<img width="1077" height="799" alt="example1" src="https://github.com/user-attachments/assets/fc478d92-e6ef-41da-84ab-e729891798e9" />
+
+
+
 
 ### Editing wildcards inline
 
@@ -98,21 +101,17 @@ The ✏️ **Edit** drawer lets you create a new wildcard file or edit an existi
 
 
 
-<img width="1671" height="941" alt="chrome_19rgnGkG2t" src="https://github.com/user-attachments/assets/ee5c6753-5415-4271-a7dc-efc419cfcdf1" />
-
-### Seed & resolution controls
-
-Turn on **Show seed & line-by-line controls** in Settings to get a compact toolbar strip with:
-
-- A seed field and a 🎲 randomize-now button
-- Seed mode: **Fixed**, **Increment (+1/run)**, **Decrement (−1/run)**, or **Randomize (new seed every run)**
-- Entire-text-as-one vs. line-by-line resolution mode
-
-Click **Show resolved** any time to preview exactly what your wildcards currently resolve to, without queuing a run.
 
 ### Optional inputs & outputs
 
+
 Nothing here is required — the node works identically with every socket off. Turn on only what you need, per-node, from Settings:
+
+
+
+<img width="478" height="1177" alt="Screenshot 2026-07-19 125224" src="https://github.com/user-attachments/assets/a0b6ea6d-5d32-452a-8ba9-c03e1c5db279" />
+
+
 
 **Inputs:** CLIP (turns this into a live encoder), Model (enables `<lora:name:weight>` tags — typed directly or hidden inside a wildcard file, loaded/applied/stripped automatically), Prompt prefix/suffix, LLM/enhancer override (replaces the resolved prompt entirely when connected), External seed, Negative prompt text + its own prefix/suffix.
 
