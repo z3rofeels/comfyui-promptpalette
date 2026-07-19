@@ -102,6 +102,22 @@ function defaultTheme() {
     editorFontSize: 12.5,        // px, main prompt textarea + resolved-preview
     uiFontScale: 1,              // multiplier, sidebar/folder/legend text
     promptTextColor: "#e8e2d4",  // plain (non-token) prompt text + caret
+    // Per-button toolbar visibility: every icon/pill in the main toolbar can
+    // be shown or hidden independently from Settings \u203a Toolbar, so the
+    // node can range from a single button up to every one of them at once.
+    // All default to true (today's always-on toolbar) so nothing changes for
+    // anyone who never opens Settings. "Settings" itself is deliberately NOT
+    // included here \u2014 hiding your only way back in would be a dead end.
+    showGalleryBtn: true,
+    showEditBtn: true,
+    showRecipesBtn: true,
+    showStashBtn: true,
+    showRefreshBtn: true,
+    showUndoBtn: true,
+    showRedoBtn: true,
+    showResolveBtn: true,
+    showCopyBtn: true,
+    showClearBtn: true,
     // Toolbar declutter: the seed/increment/line-by-line/randomize cluster and
     // the day/night quick-toggle button are both optional, off/on by these
     // defaults, and switchable from Settings without digging through menus.
@@ -753,18 +769,24 @@ function buildWildcardWidget(node, hiddenWidget) {
   root.className = "wg-node";
   root.innerHTML = `
     <div class="wg-toolbar" data-el="toolbar">
-      <div class="wg-toolbar-group left">
-        <button class="wg-icon-btn" data-act="picker" title="Browse wildcards">&#128193;</button>
-        <button class="wg-icon-btn" data-act="edit" title="Edit / create wildcard">&#9998;</button>
-        <button class="wg-icon-btn" data-act="refresh" title="Re-scan wildcards directory">&#8635;</button>
-        <button class="wg-icon-btn" data-act="undo" title="Undo (Ctrl+Z)">&#8617;</button>
-        <button class="wg-icon-btn" data-act="redo" title="Redo (Ctrl+Shift+Z)">&#8618;</button>
+      <!-- "Major features" cluster: the four things most users reach for
+           first (browse / edit / recipes / stash), kept together at the
+           front of the toolbar instead of scattered among lighter-weight
+           utility actions — see the "Toolbar" settings section for the
+           per-button show/hide toggles that apply to every button below. -->
+      <div class="wg-toolbar-group left" data-el="toolbarMajor">
+        <button class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="Gallery — browse &amp; insert wildcards">&#128193;</button>
+        <button class="wg-icon-btn" data-act="edit" data-el="btnEdit" title="Edit / create wildcard">&#9998;</button>
+        <button class="wg-icon-btn" data-act="recipesShortcut" data-el="btnRecipes" title="Prompt Recipes — combine wildcards into a reusable recipe">&#128214;</button>
+        <button class="wg-icon-btn" data-act="stash" data-el="btnStash" title="Prompt Stash — save/load local drafts">&#128451;</button>
       </div>
-      <button class="wg-pill wg-pill-resolve" data-act="resolve">Show resolved</button>
+      <button class="wg-pill wg-pill-resolve" data-act="resolve" data-el="btnResolve">Show resolved</button>
       <div class="wg-toolbar-group right">
-        <button class="wg-icon-btn" data-act="copy" title="Copy prompt to clipboard">&#128203;</button>
-        <button class="wg-icon-btn" data-act="clear" title="Clear prompt">&#128465;</button>
-        <button class="wg-icon-btn" data-act="stash" title="Prompt Stash — save/load local drafts">&#128451;</button>
+        <button class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Re-scan wildcards directory">&#8635;</button>
+        <button class="wg-icon-btn" data-act="undo" data-el="btnUndo" title="Undo (Ctrl+Z)">&#8617;</button>
+        <button class="wg-icon-btn" data-act="redo" data-el="btnRedo" title="Redo (Ctrl+Shift+Z)">&#8618;</button>
+        <button class="wg-icon-btn" data-act="copy" data-el="btnCopy" title="Copy prompt to clipboard">&#128203;</button>
+        <button class="wg-icon-btn" data-act="clear" data-el="btnClear" title="Clear prompt">&#128465;</button>
         <button class="wg-icon-btn" data-el="dayNightBtn" data-act="dayNightToggle" title="Toggle day/night theme">&#127769;</button>
         <button class="wg-icon-btn" data-act="settings" title="Settings">&#9881;</button>
       </div>
@@ -857,6 +879,49 @@ function buildWildcardWidget(node, hiddenWidget) {
         <details class="wg-settings-section" open>
           <summary>Toolbar</summary>
           <div class="wg-settings-section-body">
+            <div style="font-size:9px; color:var(--wg-text-faint,#8a836f); line-height:1.5; margin-bottom:6px;">Every button below is optional \u2014 hide anything you don't use, down to a completely empty toolbar (Settings always stays reachable from here).</div>
+            <div class="wg-rowline" style="margin:2px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Main features</label></div>
+            <div class="wg-toggle-row" title="Opens the wildcard browser drawer to search, preview, and insert from your whole library.">
+              <label style="margin:0;">Show Gallery button</label>
+              <input type="checkbox" data-el="toggleGalleryBtn">
+            </div>
+            <div class="wg-toggle-row" title="Opens the drawer for creating or editing a wildcard file directly.">
+              <label style="margin:0;">Show Edit button</label>
+              <input type="checkbox" data-el="toggleEditBtn">
+            </div>
+            <div class="wg-toggle-row" title="Opens the wildcard browser already in Palette Recipe multi-select mode, for combining several wildcards into one reusable recipe.">
+              <label style="margin:0;">Show Prompt Recipes button</label>
+              <input type="checkbox" data-el="toggleRecipesBtn">
+            </div>
+            <div class="wg-toggle-row" title="Opens your saved local prompt drafts.">
+              <label style="margin:0;">Show Prompt Stash button</label>
+              <input type="checkbox" data-el="toggleStashBtn">
+            </div>
+            <div class="wg-rowline" style="margin:10px 0 4px;"><label style="margin:0; color:var(--wg-text-dim,#c9c2b1); font-size:9px; text-transform:uppercase; letter-spacing:.05em;">Utility</label></div>
+            <div class="wg-toggle-row" title="Re-scans the wildcards folder on disk for new, changed, or removed files.">
+              <label style="margin:0;">Show refresh button</label>
+              <input type="checkbox" data-el="toggleRefreshBtn">
+            </div>
+            <div class="wg-toggle-row" title="Steps the prompt text back to its previous state.">
+              <label style="margin:0;">Show undo button</label>
+              <input type="checkbox" data-el="toggleUndoBtn">
+            </div>
+            <div class="wg-toggle-row" title="Steps the prompt text forward again after an undo.">
+              <label style="margin:0;">Show redo button</label>
+              <input type="checkbox" data-el="toggleRedoBtn">
+            </div>
+            <div class="wg-toggle-row" title="A pill that previews the prompt with every wildcard resolved to actual text.">
+              <label style="margin:0;">Show resolve-preview button</label>
+              <input type="checkbox" data-el="toggleResolveBtn">
+            </div>
+            <div class="wg-toggle-row" title="Copies the current prompt text to your clipboard.">
+              <label style="margin:0;">Show copy button</label>
+              <input type="checkbox" data-el="toggleCopyBtn">
+            </div>
+            <div class="wg-toggle-row" title="Clears the prompt text box.">
+              <label style="margin:0;">Show clear button</label>
+              <input type="checkbox" data-el="toggleClearBtn">
+            </div>
             <div class="wg-toggle-row" title="Seed value, seed mode (fixed/increment/decrement/randomize), the randomize-now dice button, and the entire-text/line-by-line select \u2014 shown together in the main toolbar when on.">
               <label style="margin:0;">Show seed &amp; line-by-line controls</label>
               <input type="checkbox" data-el="toggleSeedControls">
@@ -2147,6 +2212,48 @@ function buildWildcardWidget(node, hiddenWidget) {
     return true;
   }
 
+  // ---- Extract to New Wildcard ----
+  // Turns a highlighted chunk of plain prompt text into its own wildcard
+  // file in one step: name it, and the selection is both saved as the new
+  // wildcard's content AND replaced in place with __name__ pointing at it.
+  // See the textarea "contextmenu" listener below for the entry point.
+  // Deliberately reuses slugifyRecipeName (despite the name, it's just a
+  // generic "make this a safe wildcard path" pass, not recipe-specific) and
+  // the same save/overwrite-confirm/refresh sequence as promptSaveRecipe
+  // above, so a saved-over-existing-name collision behaves identically here.
+  async function promptExtractSelectionToWildcard(start, end) {
+    const selectedText = textarea.value.slice(start, end);
+    const trimmed = selectedText.trim();
+    if (!trimmed) return;
+    const raw = prompt('Save selection as new wildcard (e.g. "scenes/sunset_girl"):', "");
+    if (raw === null) return; // cancelled
+    const slug = slugifyRecipeName(raw);
+    if (!slug) {
+      notify("error", "Wildcard not saved", "Enter a valid name (letters, numbers, - _ /).");
+      return;
+    }
+    if (knownSet.has(slug) && !confirm(`"${slug}" already exists \u2014 overwrite it?`)) return;
+    const res = await API.save(slug, trimmed);
+    if (!res.ok) {
+      notify("error", "Wildcard not saved", res.error || "save failed");
+      return;
+    }
+    previewCache.delete(slug);
+    // Refresh first so knownSet already includes `slug` by the time the
+    // replacement below re-renders — otherwise the freshly-inserted token
+    // would flash "missing" (red) for a moment before the highlight catches up.
+    await refreshLibrary();
+    insertInjectorText(textarea, render, `__${slug}__`, null, null, { start, end });
+    const cat = categoryOf(slug);
+    if (!expandedCats.has(cat)) {
+      expandedCats.add(cat);
+      saveExpandedCats(expandedCats);
+    }
+    renderPickerList(searchInput.value);
+    const label = trimmed.length > 40 ? trimmed.slice(0, 40) + "\u2026" : trimmed;
+    notify("success", "Wildcard saved", `${label} \u2192 __${slug}__`);
+  }
+
   // ---- edit drawer ----
   const editName = el("editName");
   const editContent = el("editContent");
@@ -2324,6 +2431,20 @@ function buildWildcardWidget(node, hiddenWidget) {
     updateRecipeBar();
     renderPickerList(searchInput.value);
   });
+  // Main-toolbar shortcut for Palette Recipes: a first-class entry point
+  // (see the "major features" toolbar cluster above) instead of requiring
+  // users to first open the Gallery and then discover the small \u{1F3A8}
+  // multi-select toggle inside it. Opens the drawer if needed, then reuses
+  // recipeSelectToggle's own click handler as-is (via a synthetic click) to
+  // flip recipe-select mode \u2014 so the underlying behavior, including
+  // toggling back off on a second click, is exactly what that button already
+  // does; this is just a more discoverable way to reach it.
+  const recipesShortcutBtn = root.querySelector('[data-act="recipesShortcut"]');
+  recipesShortcutBtn.addEventListener("click", () => {
+    if (!pickerDrawer.classList.contains("open")) openPickerDrawer();
+    recipeSelectToggle.click();
+    recipesShortcutBtn.classList.toggle("active", recipeSelectMode);
+  });
   root.querySelector('[data-act="recipeCancel"]').addEventListener("click", () => {
     recipeSelection.clear();
     updateRecipeBar();
@@ -2465,26 +2586,33 @@ function buildWildcardWidget(node, hiddenWidget) {
   // "Sequential — next" on a plain __name__ rewrites it to __+name__ right
   // where it sits, rather than duplicating it.
   textarea.addEventListener("contextmenu", (e) => {
-    // ---- Palette Recipes from a text selection ----
+    // ---- Text-selection actions: Extract to New Wildcard / Palette Recipe ----
     // Right-clicking on top of an actual (non-collapsed) selection preserves
     // that selection in every mainstream browser rather than collapsing the
     // caret to the click point, so this can run ahead of the single-token
-    // logic below and check for one first. Any wildcard tokens fully inside
-    // the selected range become recipe ingredients — plain text the user
-    // also happened to select (separators, stray words) is just ignored
-    // rather than treated as an error, so a slightly loose selection still
-    // works exactly as expected.
+    // logic below and check for one first. Any non-empty selection can be
+    // saved as a brand new wildcard (see promptExtractSelectionToWildcard);
+    // if it also happens to fully contain 2+ known wildcard tokens, the
+    // Palette Recipe option rides alongside it — plain text the user also
+    // happened to select (separators, stray words) is just ignored rather
+    // than treated as an error, so a slightly loose selection still works
+    // exactly as expected for either action.
     const selStart = textarea.selectionStart, selEnd = textarea.selectionEnd;
     if (selEnd > selStart) {
-      const selectedTokens = tokenRanges.filter(t => t.known && t.start >= selStart && t.end <= selEnd);
-      if (selectedTokens.length >= 2) {
+      const selectedText = textarea.value.slice(selStart, selEnd);
+      if (selectedText.trim()) {
         e.preventDefault();
         hideTip();
         closeInjectMenu();
-        const names = selectedTokens.map(t => t.name);
-        openCtxMenu(e.clientX, e.clientY, [
-          { label: `Save ${names.length} wildcards as Palette Recipe`, onSelect: () => promptSaveRecipe(names) },
-        ]);
+        const actions = [
+          { label: "Save selection as new wildcard\u2026", onSelect: () => promptExtractSelectionToWildcard(selStart, selEnd) },
+        ];
+        const selectedTokens = tokenRanges.filter(t => t.known && t.start >= selStart && t.end <= selEnd);
+        if (selectedTokens.length >= 2) {
+          const names = selectedTokens.map(t => t.name);
+          actions.push({ label: `Save ${names.length} wildcards as Palette Recipe`, onSelect: () => promptSaveRecipe(names) });
+        }
+        openCtxMenu(e.clientX, e.clientY, actions);
         return;
       }
     }
@@ -2886,14 +3014,61 @@ function buildWildcardWidget(node, hiddenWidget) {
   const dayThemeSelect = el("dayThemeSelect");
   const nightThemeSelect = el("nightThemeSelect");
 
+  // ---- Per-button toolbar visibility ----
+  // Every icon/pill in the main toolbar (see the "Toolbar" settings section)
+  // can be independently shown or hidden. Same theme/localStorage pattern as
+  // the seed-controls/day-night toggles just above, just driven off one
+  // [button element, theme key, checkbox element] table instead of ten
+  // near-identical apply/refresh/listen blocks. "Settings" itself has no
+  // entry here on purpose \u2014 it's the only way back to re-enable anything
+  // that gets hidden, so it always stays visible.
+  const btnGallery = el("btnGallery");
+  const btnEdit = el("btnEdit");
+  const btnRecipes = el("btnRecipes");
+  const btnStash = el("btnStash");
+  const btnRefresh = el("btnRefresh");
+  const btnUndo = el("btnUndo");
+  const btnRedo = el("btnRedo");
+  const btnResolve = el("btnResolve");
+  const btnCopy = el("btnCopy");
+  const btnClear = el("btnClear");
+  const toggleGalleryBtnCb = el("toggleGalleryBtn");
+  const toggleEditBtnCb = el("toggleEditBtn");
+  const toggleRecipesBtnCb = el("toggleRecipesBtn");
+  const toggleStashBtnCb = el("toggleStashBtn");
+  const toggleRefreshBtnCb = el("toggleRefreshBtn");
+  const toggleUndoBtnCb = el("toggleUndoBtn");
+  const toggleRedoBtnCb = el("toggleRedoBtn");
+  const toggleResolveBtnCb = el("toggleResolveBtn");
+  const toggleCopyBtnCb = el("toggleCopyBtn");
+  const toggleClearBtnCb = el("toggleClearBtn");
+  const TOOLBAR_BTN_TOGGLES = [
+    [btnGallery, "showGalleryBtn", toggleGalleryBtnCb],
+    [btnEdit, "showEditBtn", toggleEditBtnCb],
+    [btnRecipes, "showRecipesBtn", toggleRecipesBtnCb],
+    [btnStash, "showStashBtn", toggleStashBtnCb],
+    [btnRefresh, "showRefreshBtn", toggleRefreshBtnCb],
+    [btnUndo, "showUndoBtn", toggleUndoBtnCb],
+    [btnRedo, "showRedoBtn", toggleRedoBtnCb],
+    [btnResolve, "showResolveBtn", toggleResolveBtnCb],
+    [btnCopy, "showCopyBtn", toggleCopyBtnCb],
+    [btnClear, "showClearBtn", toggleClearBtnCb],
+  ];
+
   function applyToolbarSettings() {
     toolbarSeedExtra.classList.toggle("on", !!theme.showSeedControls);
     dayNightBtn.style.display = theme.showDayNightBtn ? "" : "none";
+    TOOLBAR_BTN_TOGGLES.forEach(([btn, key]) => {
+      btn.style.display = theme[key] === false ? "none" : "";
+    });
   }
   function refreshToolbarSettingsUI() {
     toggleSeedControlsCb.checked = !!theme.showSeedControls;
     toggleDayNightBtnCb.checked = !!theme.showDayNightBtn;
     toggleSyntaxInjectorCb.checked = theme.syntaxInjectorEnabled !== false;
+    TOOLBAR_BTN_TOGGLES.forEach(([, key, cb]) => {
+      cb.checked = theme[key] !== false;
+    });
   }
   function refreshDayNightSelects() {
     const themes = allUiThemes();
@@ -2918,6 +3093,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     dayNightBtn.title = inNight ? "Switch to day theme" : "Switch to night theme";
   }
 
+  TOOLBAR_BTN_TOGGLES.forEach(([, key, cb]) => {
+    cb.addEventListener("change", () => {
+      theme[key] = cb.checked;
+      saveTheme(theme);
+      applyToolbarSettings();
+    });
+  });
   toggleSeedControlsCb.addEventListener("change", () => {
     theme.showSeedControls = toggleSeedControlsCb.checked;
     saveTheme(theme);
