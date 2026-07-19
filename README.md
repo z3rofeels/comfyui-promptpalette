@@ -51,7 +51,7 @@ Wildcards that don't resolve to anything in your library (typo'd, renamed, or mo
 
 - ### GALLERY MODE 
 
-- Easily toggle a grid view and right click to add your custom thumbnails. Completley optional, one button gets you back to list view if you prefer. 
+- Easily toggle a grid view and right click to add your custom thumbnails. Completely optional, one button gets you back to list view if you prefer. 
 
 <img width="532" height="1059" alt="thumbnailpicker" src="https://github.com/user-attachments/assets/c71b9c45-c315-47d2-973f-d91176d94459" />
 
@@ -62,7 +62,7 @@ Wildcards that don't resolve to anything in your library (typo'd, renamed, or mo
 
 - ### Prompt Stashing
 
- Sick of opening a new node or copy pasting prompts elsewhere? Stash it. (Button on the right side temporarily until I redo the panel to make them all optional ((sorry)).
+ Sick of opening a new node or copy pasting prompts elsewhere? Stash it. 
 
  <img width="1104" height="882" alt="Prompt Stash" src="https://github.com/user-attachments/assets/42de2118-e9a9-40c1-8eae-b965d679398c" />
 
