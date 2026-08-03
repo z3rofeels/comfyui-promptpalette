@@ -13,6 +13,13 @@ This node is a drop-in text encoder. Nothing is required to turn on — every ad
 <img width="884" height="811" alt="AYO" src="https://github.com/user-attachments/assets/a332ed1b-17b3-4673-8ec7-9b7c3eca7378" />
 
 
+
+**Nodes 2.x and Nodes 1.x are fully supported (as of the version below). Nodes 2 is still in beta, so if something breaks try Nodes 1 first. If everything is broken, open an issue and provide a detailed report. Thanks :)**
+
+
+
+<img width="717" height="146" alt="Screenshot 2026-08-02 232309" src="https://github.com/user-attachments/assets/52f5525f-40bf-4a7b-b52c-0acbcc8ba53f" />
+
 # Table of contents
 
 - [Installation](#installation)
@@ -49,6 +56,8 @@ This node is a drop-in text encoder. Nothing is required to turn on — every ad
 Every `__wildcard__` in your prompt is colored by the category (folder) it lives in, so you can tell at a glance what's a style pick, a character pick, a lighting pick, etc. A legend beneath the prompt lists every category currently in use with its color swatch.
 
 Wildcards that don't resolve to anything in your library (typo'd, renamed, or moved) are styled distinctly (red, dashed underline) instead of colored, and the footer keeps a running `N resolved-ready · N missing` count.
+
+
 
 - ### GALLERY MODE 
 
@@ -123,6 +132,8 @@ Nothing here is required — the node works identically with every socket off. T
 - Per-category color pins, plus global hue rotation and color intensity sliders for everything else
 - Custom fonts!
 - independent prompt-text and sidebar-text size sliders
+
+  
 - a dedicated prompt text color (choose your own or go default)
   
 
