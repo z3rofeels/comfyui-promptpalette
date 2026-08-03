@@ -1,0 +1,58 @@
+/* ------------------------------------------------------------------ */
+/* Weight Controller settings gear + popup + credit footer.            */
+/* Shares the wg- namespace and --wg-* custom properties with          */
+/* wildcard_editor.css so this node matches whatever Interface Theme   */
+/* the rest of the Prompt Palette suite is currently using -- those    */
+/* properties are set on :root at runtime by wildcard_editor.js's      */
+/* applyUiTheme() (or this file's own copy of it, see                  */
+/* weight_controller_ui.js), same shared "pp_ui_*" localStorage keys.  */
+/* The fallback values below just match BUILTIN_UI_THEMES.Amber so the */
+/* UI still looks right before either node has had a chance to apply   */
+/* anything.                                                            */
+/*                                                                       */
+/* This file only declares rules that are actually specific to this    */
+/* node (the .ppwc-* classes, plus the couple of .wg-icon-btn overrides */
+/* this node's smaller gear button needs). Everything else this popup's */
+/* markup uses -- .wg-settings-head, .wg-settings-body, .wg-settings-   */
+/* section, .wg-srow, .wg-theme-select, .wg-swatch-grid/-item,          */
+/* .wg-drawer-btns, .wg-status, .wg-credit-link, etc. -- is styled by   */
+/* wildcard_editor.css instead. weight_controller_ui.js imports from    */
+/* wildcard_editor.js, which guarantees that stylesheet is already on   */
+/* the page, so re-declaring byte-for-byte copies of its rules here     */
+/* would just be redundant (and a maintenance risk if the two ever      */
+/* drifted apart). See .ppwc-settings-popup below for the one rule that */
+/* genuinely can't be shared with wildcard_editor.js's .wg-settings-    */
+/* popup, since the two nodes anchor their popups differently.          */
+/* ------------------------------------------------------------------ */
+
+/* Small always-visible strip added to the node body via addDOMWidget,
+   holding just the settings gear -- everything else on this node stays
+   as plain native ComfyUI widgets. */
+.ppwc-settings-row { display: flex; justify-content: flex-end; align-items: center; padding: 2px 4px; box-sizing: border-box; }
+
+/* This node's gear button is a couple px smaller than wildcard_editor.css's
+   toolbar .wg-icon-btn (22px vs 24px), since it sits alone in a slim strip
+   rather than a full toolbar -- so the base rule is overridden here. The
+   :hover/:active/.active states don't depend on size and are byte-identical
+   to wildcard_editor.css's, so they're left to that stylesheet rather than
+   copied. */
+.ppwc-settings-row .wg-icon-btn { width: 22px; height: 22px; }
+
+/* Unlike wildcard_editor.css's .wg-settings-popup (which slides in inside
+   a .wg-node frame sized to the node, since that node is one big
+   addDOMWidget), this node's real UI is plain native widgets -- there's no
+   full-node frame to anchor an absolutely-positioned drawer inside. So this
+   popup gets its own class, anchored to the browser viewport's right edge
+   (position: fixed) instead of the node's own box (position: absolute) --
+   keeping it as .wg-settings-popup would collide with wildcard_editor.css's
+   conflicting rule of the same name (different position/z-index/max-width)
+   any time both nodes' stylesheets are loaded together. Same slide-in
+   drawer chrome/behavior either way; everything inside it (.wg-settings-
+   head, .wg-settings-body, etc.) reuses wildcard_editor.css's classes as
+   normal since those aren't in conflict. */
+.ppwc-settings-popup { position: fixed; top: 0; right: 0; bottom: 0; width: 300px; max-width: 90vw; background: var(--wg-panel-bg, #201e1a); border-left: 1px solid var(--wg-border-strong, #3a362c); z-index: 10000; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 200ms ease, box-shadow 200ms ease; pointer-events: none; }
+.ppwc-settings-popup.open { transform: translateX(0); box-shadow: -10px 0 28px rgba(0,0,0,0.45); pointer-events: auto; }
+
+.ppwc-help-text { font-size: 9px; color: var(--wg-text-faint, #8a836f); line-height: 1.6; margin-bottom: 6px; }
+.ppwc-help-text strong { color: var(--wg-text-dim, #c9c2b1); font-weight: 600; }
+.ppwc-help-text + .ppwc-help-text { margin-top: 8px; }

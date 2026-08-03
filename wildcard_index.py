@@ -38,6 +38,7 @@ import os
 import re
 import json
 import time
+import fnmatch
 import asyncio
 import threading
 
@@ -232,6 +233,17 @@ class WildcardIndex:
         # resetting every time a fresh WildcardResolver is constructed.
         self._seq_counters = {}
         self._seq_lock = threading.Lock()
+        # Separate persistent state for combinatorial (%) groups. Deliberately its
+        # own dict/lock, not reused from _seq_counters above: +/- counters advance
+        # once *per group, per hit* (independent round-robins), while a combinatorial
+        # counter advances once *per resolve() call* and is shared jointly across
+        # every %-group that appeared together in that call's text, so they can be
+        # decomposed into a single mixed-radix index (see WildcardResolver.
+        # _prepare_combinatorial). Keeping the stores separate means % and +/- can
+        # be used on the same wildcard file in different places without either
+        # mode's state bleeding into the other's.
+        self._combo_counters = {}
+        self._combo_lock = threading.Lock()
 
     def next_sequential_index(self, key, length, step=1):
         """Return the next index to use for a sequential selector identified by `key`
@@ -243,6 +255,25 @@ class WildcardIndex:
         with self._seq_lock:
             i = self._seq_counters.get(key, 0) % length
             self._seq_counters[key] = i + step
+        return i
+
+    def next_combinatorial_index(self, key, total):
+        """Return the next joint index (0..total-1) for a *set* of combinatorial
+        (%) groups identified by `key` — a fingerprint of every %-group that
+        appeared together in one resolve() call, in order, together with their
+        sizes (see _prepare_combinatorial). Advances by exactly 1 and wraps via
+        modulo `total` (= the product of every participating group's size), so
+        `total` consecutive resolve() calls visit each joint combination exactly
+        once before repeating. Unidirectional by design — decomposing a single
+        shared index into per-group digits (mixed-radix) only has one consistent
+        reading; there's no "step back through the whole cross-product" without
+        just walking the forward cycle from index 0. Thread-safe, and completely
+        independent of next_sequential_index's counters above."""
+        if total <= 0:
+            return 0
+        with self._combo_lock:
+            i = self._combo_counters.get(key, 0) % total
+            self._combo_counters[key] = i + 1
         return i
 
     # ---- internal registry helpers ----
@@ -272,19 +303,13 @@ class WildcardIndex:
     def _ensure_fresh(self, force=False):
         """Synchronous freshness check. Safe to call from non-async contexts
         (e.g. the node's process() method, which runs on a worker thread, not
-        the web server's event loop)."""
+        the web server's event loop). A forced check blocks for an in-flight
+        scan to finish; a due-but-not-forced check is best-effort and just
+        uses current data if a scan is already running elsewhere."""
         now = time.time()
         if not (force or (now - self._last_scan) > self._scan_interval):
             return
-        if force:
-            self.rescan()
-            return
-        # best-effort: if another rescan is already running, just use current data
-        if self._scan_lock.acquire(blocking=False):
-            try:
-                self.rescan()
-            finally:
-                self._scan_lock.release()
+        self.rescan(blocking=force)
 
     async def ensure_fresh_async(self):
         """Used by aiohttp routes. Offloads a due rescan onto a worker thread so a
@@ -293,62 +318,93 @@ class WildcardIndex:
         now = time.time()
         if (now - self._last_scan) <= self._scan_interval:
             return
-        if not self._scan_lock.acquire(blocking=False):
-            return  # a rescan is already in flight elsewhere; use current data
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: self.rescan(blocking=False))
+
+    def rescan(self, blocking=True):
+        """Full filesystem rescan, thread-safe via _scan_lock regardless of
+        caller. `blocking=False` (used by the periodic staleness check) skips
+        the scan and returns immediately if another rescan is already in
+        flight, since the caller is fine reusing whatever's currently
+        cached. Every other caller (manual refresh, set_root, get_index,
+        forced refresh) blocks until it can run, so a scan it explicitly
+        asked for actually completes before it returns."""
+        if not self._scan_lock.acquire(blocking=blocking):
+            return
         try:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, self.rescan)
+            registry = {}
+            tree_map = {}  # folder path -> list of entries
+
+            for dirpath, _dirnames, filenames in os.walk(self.root_dir):
+                rel_dir = os.path.relpath(dirpath, self.root_dir)
+                rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/")
+
+                for fname in sorted(filenames):
+                    lower = fname.lower()
+                    abs_path = os.path.join(dirpath, fname)
+
+                    if lower.endswith(".txt"):
+                        name = fname[:-4]
+                        full_name = f"{rel_dir}/{name}" if rel_dir else name
+                        try:
+                            with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                                lines = _clean_lines(f.readlines())
+                        except OSError:
+                            continue
+                        registry[full_name] = {"lines": lines, "type": "txt", "abs_path": abs_path}
+                        tree_map.setdefault(rel_dir, []).append({"path": full_name, "type": "txt"})
+
+                    elif (lower.endswith(".yaml") or lower.endswith(".yml")) and HAS_YAML:
+                        base = fname.rsplit(".", 1)[0]
+                        yaml_prefix = f"{rel_dir}/{base}" if rel_dir else base
+                        try:
+                            with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                                data = yaml.safe_load(f) or {}
+                        except Exception:
+                            continue
+                        flattened = _flatten_yaml(data, yaml_prefix)
+                        for full_name, lines in flattened.items():
+                            registry[full_name] = {
+                                "lines": _clean_lines(lines),
+                                "type": "yaml",
+                                "abs_path": abs_path,
+                            }
+                            folder = "/".join(full_name.split("/")[:-1])
+                            tree_map.setdefault(folder, []).append({"path": full_name, "type": "yaml"})
+
+                    elif lower.endswith(".json"):
+                        base = fname.rsplit(".", 1)[0]
+                        json_prefix = f"{rel_dir}/{base}" if rel_dir else base
+                        try:
+                            with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                                data = json.load(f)
+                        except Exception:
+                            continue
+                        # _flatten_yaml is format-agnostic (plain dict/list walk) --
+                        # JSON parses to the same nested dict/list shape YAML does,
+                        # so it flattens identically: {"artists": {"finnish": [...]}}
+                        # -> "artists/finnish" -> [...], same slash-path convention.
+                        flattened = _flatten_yaml(data, json_prefix)
+                        for full_name, lines in flattened.items():
+                            registry[full_name] = {
+                                "lines": _clean_lines(lines),
+                                "type": "json",
+                                "abs_path": abs_path,
+                            }
+                            folder = "/".join(full_name.split("/")[:-1])
+                            tree_map.setdefault(folder, []).append({"path": full_name, "type": "json"})
+
+            self._registry = registry
+            self._tree = tree_map
+            self._rebuild_leaf_index()
+            self._last_scan = time.time()
         finally:
             self._scan_lock.release()
 
-    def rescan(self):
-        registry = {}
-        tree_map = {}  # folder path -> list of entries
-
-        for dirpath, _dirnames, filenames in os.walk(self.root_dir):
-            rel_dir = os.path.relpath(dirpath, self.root_dir)
-            rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/")
-
-            for fname in sorted(filenames):
-                lower = fname.lower()
-                abs_path = os.path.join(dirpath, fname)
-
-                if lower.endswith(".txt"):
-                    name = fname[:-4]
-                    full_name = f"{rel_dir}/{name}" if rel_dir else name
-                    try:
-                        with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
-                            lines = _clean_lines(f.readlines())
-                    except OSError:
-                        continue
-                    registry[full_name] = {"lines": lines, "type": "txt", "abs_path": abs_path}
-                    tree_map.setdefault(rel_dir, []).append({"path": full_name, "type": "txt"})
-
-                elif (lower.endswith(".yaml") or lower.endswith(".yml")) and HAS_YAML:
-                    base = fname.rsplit(".", 1)[0]
-                    yaml_prefix = f"{rel_dir}/{base}" if rel_dir else base
-                    try:
-                        with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
-                            data = yaml.safe_load(f) or {}
-                    except Exception:
-                        continue
-                    flattened = _flatten_yaml(data, yaml_prefix)
-                    for full_name, lines in flattened.items():
-                        registry[full_name] = {
-                            "lines": _clean_lines(lines),
-                            "type": "yaml",
-                            "abs_path": abs_path,
-                        }
-                        folder = "/".join(full_name.split("/")[:-1])
-                        tree_map.setdefault(folder, []).append({"path": full_name, "type": "yaml"})
-
-        self._registry = registry
-        self._tree = tree_map
-        self._rebuild_leaf_index()
-        self._last_scan = time.time()
-
     def get_lines(self, name):
         self._ensure_fresh()
+        if "*" in name:
+            return self._get_lines_glob(name)
         entry = self._registry.get(name)
         if entry:
             return entry["lines"]
@@ -357,6 +413,29 @@ class WildcardIndex:
         if candidates and len(candidates) == 1:
             return self._registry[candidates[0]]["lines"]
         return None
+
+    def _get_lines_glob(self, pattern):
+        """__colours*__-style globbing: pools together the lines of every
+        wildcard whose name matches `pattern` into one combined list to pick
+        from, e.g. "colours*" matches both colours-cold and colours-warm.
+        "prefix/**" is the recursive form -- every wildcard anywhere under
+        prefix/, at any depth, regardless of what's after the last slash.
+        Returns None if nothing matches (same "unresolved" contract as
+        get_lines for an unknown exact name)."""
+        if pattern.endswith("/**"):
+            prefix = pattern[:-3]
+            names = [
+                n for n in self._registry
+                if n == prefix or n.startswith(prefix + "/")
+            ]
+        else:
+            names = [n for n in self._registry if fnmatch.fnmatchcase(n, pattern)]
+        if not names:
+            return None
+        pooled = []
+        for n in names:
+            pooled.extend(self._registry[n]["lines"])
+        return pooled
 
     def get_entry(self, name):
         self._ensure_fresh()
@@ -411,7 +490,12 @@ class WildcardIndex:
         candidate = os.path.join(root, *safe_name.split("/")) + ".txt"
         abs_path = os.path.realpath(candidate)
 
-        if os.path.commonpath([root, abs_path]) != root:
+        try:
+            inside_root = os.path.commonpath([root, abs_path]) == root
+        except ValueError:
+            # Different Windows drives have no common path.
+            inside_root = False
+        if not inside_root:
             raise ValueError("invalid wildcard name")
 
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)

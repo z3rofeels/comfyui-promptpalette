@@ -1,0 +1,130 @@
+/* ------------------------------------------------------------------ */
+/* Prompt Palette (Combinatorial) node styling.                        */
+/*                                                                      */
+/* Deliberately reuses the Editor node's existing --wg-* custom        */
+/* properties (background/surface/border/text/accent/success/danger,   */
+/* font family, editor font size, ui font scale) wherever this node    */
+/* shares the same visual role as the Editor -- those variables live   */
+/* on :root (see wildcard_editor.js's theme-application code) so they  */
+/* already carry whatever the user has customized in the Editor node's */
+/* Settings panel, with no duplicate theme system needed here.         */
+/*                                                                      */
+/* The one new variable, --pp-accent, is this node's own small visual  */
+/* signature (a cool blue vs. the Editor's warm --wg-accent amber) so  */
+/* a Combinatorial node reads as "same family, different job" rather   */
+/* than a re-skinned Editor. Every rule below still falls back to a    */
+/* literal default the same way wildcard_editor.css's rules do, so     */
+/* this file never depends on wildcard_editor.css having loaded first. */
+/* ------------------------------------------------------------------ */
+
+.pp-node-frame { width: 100%; height: 100%; min-width: 0; min-height: 0; box-sizing: border-box; padding: 10px; pointer-events: none; overflow: hidden; }
+.pp-node-frame > .pp-node { min-width: 0; min-height: 0; pointer-events: auto; }
+/* Same Nodes 2.0 intrinsic-size boundary as the Editor node. */
+:where([data-testid="node-widget"], .lg-node-widget) .pp-node-frame {
+  min-height: 0;
+  max-height: 100%;
+  contain: size;
+  contain-intrinsic-size: 0 0;
+}
+
+.pp-node {
+  position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--wg-bg, #1d1c1a);
+  font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  border-radius: 8px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--pp-accent, #6fa8d8) 55%, var(--wg-border, #2c2820));
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35), 0 0 0 1px color-mix(in srgb, var(--pp-accent, #6fa8d8) 22%, transparent);
+}
+
+/* ---- header: badge + gallery/refresh, the node's "same family, different
+   job" signature ---- */
+.pp-header {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 5px 6px; border-bottom: 1px solid var(--wg-border, #2c2820);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pp-accent, #6fa8d8) 12%, transparent), transparent);
+}
+.pp-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em;
+  color: var(--pp-accent, #6fa8d8);
+  padding: 3px 10px; border-radius: 20px;
+  background: color-mix(in srgb, var(--pp-accent, #6fa8d8) 16%, var(--wg-surface, #131211));
+  border: 1px solid color-mix(in srgb, var(--pp-accent, #6fa8d8) 45%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--pp-accent, #6fa8d8) 22%, transparent);
+}
+.pp-badge-icon { font-size: 12px; line-height: 1; }
+.pp-header-actions { display: flex; gap: 6px; flex: none; }
+/* Reuses .wg-icon-btn's chrome (border/hover/active) as-is for these two
+   buttons -- same button language as the Editor node, just living in this
+   node's own header instead of a full toolbar. */
+.pp-header .wg-icon-btn:hover { border-color: var(--pp-accent, #6fa8d8); box-shadow: 0 3px 8px rgba(0,0,0,0.28), 0 0 0 1px color-mix(in srgb, var(--pp-accent, #6fa8d8) 45%, transparent), 0 0 10px color-mix(in srgb, var(--pp-accent, #6fa8d8) 40%, transparent); }
+.pp-header .wg-icon-btn[data-act="refresh"].active { animation: wg-spin 650ms linear infinite; }
+
+/* ---- fan-out banner: the single most important thing a first-time user
+   needs to see -- this node emits a LIST and every wired output fires once
+   per prompt in it. Always visible, never a tooltip/console log. ---- */
+.pp-fanout-banner {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  margin: 6px 6px 0; padding: 7px 10px; border-radius: 7px;
+  font-size: 10.5px; line-height: 1.4; color: var(--wg-text-dim, #c9c2b1);
+  background: color-mix(in srgb, var(--pp-accent, #6fa8d8) 13%, var(--wg-surface, #131211));
+  border: 1px solid color-mix(in srgb, var(--pp-accent, #6fa8d8) 40%, transparent);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.pp-fanout-icon { flex: none; font-size: 14px; color: var(--pp-accent, #6fa8d8); }
+.pp-fanout-count { font-weight: 700; color: var(--pp-accent, #6fa8d8); font-variant-numeric: tabular-nums; }
+.pp-fanout-banner.pp-warning {
+  background: color-mix(in srgb, var(--wg-danger, #e0605f) 15%, var(--wg-surface, #131211));
+  border-color: color-mix(in srgb, var(--wg-danger, #e0605f) 50%, transparent);
+}
+.pp-fanout-banner.pp-warning .pp-fanout-icon,
+.pp-fanout-banner.pp-warning .pp-fanout-count { color: var(--wg-danger, #e0605f); }
+
+/* ---- mode toggle: which of the two very different execution models is
+   active, always visible (never just an inert disabled-looking dropdown) ---- */
+.pp-mode-toggle { flex: none; display: flex; border: 1px solid var(--wg-border-strong, #38352f); border-radius: 8px; overflow: hidden; }
+.pp-mode-btn {
+  flex: 1; background: var(--wg-surface, #131211); border: none; cursor: pointer;
+  color: var(--wg-text-dim, #b3ab99); font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em;
+  padding: 6px 10px; transition: background 120ms ease, color 120ms ease;
+}
+.pp-mode-btn + .pp-mode-btn { border-left: 1px solid var(--wg-border-strong, #38352f); }
+.pp-mode-btn:not(.pp-active):hover { background: color-mix(in srgb, var(--wg-panel-bg, #171511), white 8%); color: var(--wg-text, #fff); }
+.pp-mode-btn.pp-active { background: var(--pp-accent, #6fa8d8); color: #10181d; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pp-accent, #6fa8d8) 60%, transparent); }
+
+/* ---- generation controls: count / max_prompts (mode-aware show/hide) /
+   seed / seed_mode ---- */
+.pp-controls { flex: none; display: flex; flex-direction: column; gap: 7px; padding: 8px 2px 2px; margin-top: 6px; border-top: 1px solid var(--wg-border, #2c2820); }
+.pp-row { display: flex; align-items: center; gap: 8px; }
+.pp-row label { flex: none; width: 76px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wg-text-faint, #8a836f); }
+.pp-row input[type=number], .pp-row select {
+  flex: 1; min-width: 0; background: var(--wg-bg, #1d1c1a); border: 1px solid var(--wg-border-strong, #38352f);
+  color: var(--wg-text, #e8e2d4); font-size: 11px; padding: 5px 7px; border-radius: 6px; outline: none;
+  font-variant-numeric: tabular-nums; transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.pp-row input[type=number]:focus, .pp-row select:focus {
+  border-color: var(--pp-accent, #6fa8d8); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pp-accent, #6fa8d8) 25%, transparent);
+}
+/* Irrelevant-to-current-mode widget: hidden outright rather than left
+   disabled-and-confusing (see updateModeUI() in wildcard_combinatorial.js). */
+.pp-row.pp-hidden { display: none; }
+.pp-row .wg-icon-btn { flex: none; }
+.pp-row .wg-icon-btn:hover { border-color: var(--pp-accent, #6fa8d8); box-shadow: 0 3px 8px rgba(0,0,0,0.28), 0 0 0 1px color-mix(in srgb, var(--pp-accent, #6fa8d8) 45%, transparent), 0 0 10px color-mix(in srgb, var(--pp-accent, #6fa8d8) 40%, transparent); }
+
+/* ---- live combination-count estimate + cap warning ---- */
+.pp-estimate {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 6px 8px; border-radius: 6px;
+  background: var(--wg-surface, #131211); border: 1px solid var(--wg-border, #2c2820);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.pp-estimate-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pp-estimate-main > span:first-child { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wg-text-faint, #8a836f); }
+.pp-estimate-count { font-size: 11px; font-weight: 700; color: var(--pp-accent, #6fa8d8); font-variant-numeric: tabular-nums; }
+.pp-estimate.pp-loading .pp-estimate-count { opacity: 0.55; }
+.pp-estimate-warning-text { display: none; font-size: 9px; line-height: 1.4; color: var(--wg-danger, #e0605f); }
+.pp-estimate.pp-warning { background: color-mix(in srgb, var(--wg-danger, #e0605f) 12%, var(--wg-surface, #131211)); border-color: color-mix(in srgb, var(--wg-danger, #e0605f) 45%, transparent); }
+.pp-estimate.pp-warning .pp-estimate-count { color: var(--wg-danger, #e0605f); }
+.pp-estimate.pp-warning .pp-estimate-warning-text { display: block; }
+
+.pp-hidden { display: none !important; }

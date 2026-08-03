@@ -21,10 +21,20 @@
    margin doesn't swallow clicks meant for the canvas beneath it — only the
    inner .wg-node is interactive — which keeps the node's resize corner and
    ComfyUI's right-click context menu reachable at the edges. */
-.wg-node-frame { width: 100%; height: 100%; box-sizing: border-box; padding: 10px; pointer-events: none; }
-.wg-node-frame > .wg-node { pointer-events: auto; }
+.wg-node-frame { width: 100%; height: 100%; min-width: 0; min-height: 0; box-sizing: border-box; padding: 10px; pointer-events: none; overflow: hidden; }
+.wg-node-frame > .wg-node { min-width: 0; min-height: 0; pointer-events: auto; }
+/* Nodes 2.0 mounts the frame inside an auto-sized Vue grid row. Size
+   containment removes the category tree from that row's intrinsic minimum,
+   so the configured node height stays authoritative and .wg-list scrolls.
+   Only Prompt Palette's own frame is contained; no ComfyUI wrapper is edited. */
+:where([data-testid="node-widget"], .lg-node-widget) .wg-node-frame {
+  min-height: 0;
+  max-height: 100%;
+  contain: size;
+  contain-intrinsic-size: 0 0;
+}
 
-.wg-node { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--wg-bg, #1d1c1a); font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); border-radius: 8px; overflow: hidden; border: 1px solid var(--wg-border, #2c2820); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+.wg-node { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--wg-bg, #1d1c1a); font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); border-radius: 8px; overflow: hidden; border: 1px solid var(--wg-border, #2c2820); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
 
 .wg-toolbar { display: grid; grid-template-columns: 1fr auto 1fr; grid-auto-rows: auto; align-items: center; gap: 6px; padding: 4px 6px; flex: none; border-bottom: 1px solid var(--wg-border, #2c2820); }
 .wg-toolbar-group { display: flex; gap: 6px; align-items: center; }
@@ -70,12 +80,24 @@
 .wg-highlight { color: var(--wg-prompt-text, #e8e2d4); pointer-events: none; }
 .wg-textarea { background: transparent; color: transparent; caret-color: var(--wg-prompt-text, #f2ede0); border: none; outline: none; resize: none; }
 
-.wg-tok-bracket { font-weight: 700; opacity: 0.9; color: #d9a441; }
+/* --- width-drift note ---------------------------------------------------
+   This overlay sits on top of an otherwise-invisible <textarea> (the real,
+   always-plain, always-unweighted text the browser actually places the
+   caret/clicks against) — see .wg-textarea above. Any style here that
+   changes a glyph's advance width (font-weight, font-style/italic,
+   letter-spacing, etc.) makes this layer's text a different total width
+   than the real text underneath for any font where bold/italic aren't
+   perfectly fixed-width (i.e. almost everything except the default
+   monospace coding-font stack). That drift is what used to make clicks
+   and the caret land on the wrong character once a non-default font was
+   selected. So: color/opacity/text-shadow/border/background only, never
+   font-weight or font-style, in this block. */
+.wg-tok-bracket { opacity: 0.9; color: #d9a441; text-shadow: 0 0 0.35px currentColor; }
 .wg-tok-pipe { opacity: 0.5; }
-.wg-tok-weight { color: #e8b34c; font-weight: 600; }
-.wg-tok-comment { color: #6b665a; font-style: italic; }
-.wg-tok-mod { color: #7fae7a; font-weight: 700; }
-.wg-tok-error { color: #e0605f; border-bottom: 1px dashed #e0605f; font-weight: 600; }
+.wg-tok-weight { color: #e8b34c; text-shadow: 0 0 0.35px currentColor; }
+.wg-tok-comment { color: #6b665a; opacity: 0.85; }
+.wg-tok-mod { color: #7fae7a; text-shadow: 0 0 0.35px currentColor; }
+.wg-tok-error { color: #e0605f; border-bottom: 1px dashed #e0605f; text-shadow: 0 0 0.35px currentColor; }
 
 .wg-resolved { position: absolute; inset: 0; padding: 8px 10px; overflow-y: auto; font-family: var(--wg-font-family, "SF Mono", Consolas, monospace); font-size: var(--wg-editor-font-size, 12px); line-height: calc(var(--wg-editor-font-size, 12px) * 1.6); color: var(--wg-prompt-text, #cfead0); background: var(--wg-surface, #12140f); display: none; white-space: pre-wrap; }
 .wg-resolved.on { display: block; }
@@ -94,7 +116,16 @@
 .wg-hint-clickable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; transition: color 120ms ease; }
 .wg-hint-clickable:hover { color: var(--wg-danger, #e0605f); }
 
-.wg-drawer { width: 0; overflow: hidden; transition: width 160ms ease; background: var(--wg-panel-bg, #171511); display: flex; flex-direction: column; flex: none; }
+/* Token-count footer badge (see clip_tokenizer.py / updateTokenBadge()):
+   plain .wg-hint (--wg-text-faint) text under 2 CLIP-L chunks, amber at
+   exactly 2 (still fine, just worth noticing), red at 3+ (the prompt has
+   likely grown past what was intended, often from a wildcard picking a
+   much longer line than expected). */
+[data-el="tokenCount"] { font-variant-numeric: tabular-nums; transition: color 120ms ease; }
+.wg-token-warn { color: var(--wg-accent, #d9a441); }
+.wg-token-danger { color: var(--wg-danger, #e0605f); }
+
+.wg-drawer { width: 0; min-height: 0; overflow: hidden; transition: width 160ms ease; background: var(--wg-panel-bg, #171511); display: flex; flex-direction: column; flex: none; }
 .wg-drawer.left { position: relative; border-right: 1px solid var(--wg-border, #2c2820); order: -1; }
 .wg-drawer.right { border-left: 1px solid var(--wg-border, #2c2820); }
 .wg-drawer.open { width: 220px; }
@@ -239,7 +270,7 @@
 .wg-thumb-item.wg-selected { outline: 2px solid var(--wg-accent, #d9a441); outline-offset: -2px; }
 .wg-thumb-item.wg-item-recipe .wg-thumb-name { font-weight: 600; color: var(--wg-accent, #d9a441); }
 .wg-thumb-check.wg-recipe-check { position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; z-index: 2; }
-.wg-thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 2px 1px 8px; }
+.wg-thumb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px; padding: 2px 1px 8px; }
 .wg-thumb-item { position: relative; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--wg-surface, #131211); border: 1px solid var(--wg-border, #2c2820); transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
 .wg-thumb-item:hover { border-color: var(--wg-accent, #d9a441); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.3), 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d9a441) 45%, transparent); }
 .wg-thumb-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: var(--wg-bg, #1d1c1a); }

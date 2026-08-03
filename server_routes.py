@@ -1,23 +1,34 @@
+import asyncio
 import os
 
 from aiohttp import web
 from server import PromptServer
 from .wildcard_index import get_index
 from .wildcard_resolver import WildcardResolver
+from .clip_tokenizer import count_clip_tokens
 
 routes = PromptServer.instance.routes
 
 
+async def _get_fresh_index():
+    """Return the shared index after a due rescan has been moved off aiohttp's
+    event-loop thread. The index's normal read helpers still keep their own
+    synchronous safety check for backend/node callers outside async routes."""
+    index = get_index()
+    await index.ensure_fresh_async()
+    return index
+
+
 @routes.get("/prompt_palette/list")
 async def list_wildcards(request):
-    index = get_index()
+    index = await _get_fresh_index()
     return web.json_response({"items": index.flat_list()})
 
 
 @routes.get("/prompt_palette/search")
 async def search_wildcards(request):
     q = request.rel_url.query.get("q", "")
-    index = get_index()
+    index = await _get_fresh_index()
     names = index.search(q) if q else index.all_names()
     items = []
     for name in names:
@@ -30,7 +41,7 @@ async def search_wildcards(request):
 @routes.get("/prompt_palette/preview")
 async def preview_wildcard(request):
     name = request.rel_url.query.get("name", "")
-    index = get_index()
+    index = await _get_fresh_index()
     lines = index.preview(name, max_lines=5)
     if lines is None:
         return web.json_response({"found": False, "lines": []})
@@ -40,7 +51,7 @@ async def preview_wildcard(request):
 @routes.get("/prompt_palette/content")
 async def get_content(request):
     name = request.rel_url.query.get("name", "")
-    index = get_index()
+    index = await _get_fresh_index()
     entry = index.get_entry(name)
     if not entry:
         return web.json_response({"found": False}, status=404)
@@ -84,7 +95,8 @@ async def refresh_index(request):
     shape as GET /list) so the toolbar's ↻ button can repaint the picker/
     legend/known-wildcard set in one round trip without a follow-up call."""
     index = get_index()
-    index.rescan()
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, index.rescan)
     items = index.flat_list()
     return web.json_response({"ok": True, "count": len(items), "items": items})
 
@@ -95,7 +107,8 @@ async def set_path(request):
     path = data.get("path", "")
     index = get_index()
     try:
-        index.set_root(path)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, index.set_root, path)
     except ValueError as e:
         return web.json_response({"ok": False, "error": str(e)}, status=400)
     return web.json_response({"ok": True, "root_dir": index.root_dir})
@@ -103,17 +116,130 @@ async def set_path(request):
 
 @routes.post("/prompt_palette/resolve")
 async def resolve_prompt(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "invalid JSON body"}, status=400)
+
+    text = data.get("text", "") or ""
+    try:
+        seed = int(data.get("seed", 0) or 0)
+    except (TypeError, ValueError):
+        return web.json_response({"error": "seed must be an integer"}, status=400)
+    mode = data.get("mode", "entire text as one")
+    index = await _get_fresh_index()
+
+    # Resolution and CLIP tokenization can both become noticeable with large
+    # prompts/libraries. Keep them off aiohttp's event-loop thread so live
+    # previews do not stall unrelated ComfyUI requests.
+    def resolve_and_count():
+        resolver = WildcardResolver(index)
+        if mode == "line by line":
+            lines = resolver.resolve_lines(text, seed=seed)
+            resolved = "\n".join(lines)
+        else:
+            resolved = resolver.resolve(text, seed=seed)
+
+        response = {"resolved": resolved}
+        # Additive only -- existing callers that only read `resolved` (e.g. the
+        # editor widget before this field existed) are unaffected either way.
+        # Tokenizes the already-resolved text with the same tokenizer CLIP-L
+        # text encoding uses, so this reflects exactly what gets sent to CLIP,
+        # not the raw __wildcard__ syntax. Omitted entirely (rather than sent
+        # as null/0) when the tokenizer can't be built, so the frontend can
+        # tell "no data" apart from "zero tokens".
+        token_stats = count_clip_tokens(resolved)
+        if token_stats is not None:
+            response["token_stats"] = token_stats
+        return response
+
+    loop = asyncio.get_running_loop()
+    response = await loop.run_in_executor(None, resolve_and_count)
+    return web.json_response(response)
+
+
+@routes.post("/prompt_palette/resolve_combinatorial")
+async def resolve_combinatorial(request):
+    """Full-set combinatorial generation: returns every combination as a list,
+    in one call, matching dynamicprompts' CombinatorialPromptGenerator --
+    as opposed to /resolve's __%name__ mode, which steps one combination per
+    call (one per queued node run). Kept as its own route rather than a mode=
+    value on /resolve so the response shape (a list, not a single string)
+    never surprises existing /resolve callers.
+
+    max_prompts optionally lowers the safety cap below WildcardResolver.
+    MAX_COMBINATORIAL_PROMPTS; it can't raise it above that ceiling.
+    """
     data = await request.json()
     text = data.get("text", "")
     seed = int(data.get("seed", 0))
-    mode = data.get("mode", "entire text as one")
-    resolver = WildcardResolver(get_index())
-    if mode == "line by line":
-        lines = resolver.resolve_lines(text, seed=seed)
-        resolved = "\n".join(lines)
-    else:
-        resolved = resolver.resolve(text, seed=seed)
-    return web.json_response({"resolved": resolved})
+    max_prompts = data.get("max_prompts")
+    max_prompts = int(max_prompts) if max_prompts else None
+    index = await _get_fresh_index()
+    resolver = WildcardResolver(index)
+    loop = asyncio.get_running_loop()
+    prompts = await loop.run_in_executor(
+        None,
+        lambda: resolver.generate_combinatorial(text, seed=seed, max_prompts=max_prompts),
+    )
+    return web.json_response({
+        "resolved": prompts,
+        "count": len(prompts),
+        "truncated": resolver.last_generation_truncated,
+    })
+
+
+# Purely a computational safety valve for the estimate-only route below --
+# independent of, and much higher than, WildcardResolver.MAX_COMBINATORIAL_PROMPTS
+# (which caps what generate_combinatorial() will actually materialize and
+# return for a real run). An estimate stays cheap well past 5000.
+COUNT_ONLY_LIMIT = 20000
+
+
+@routes.post("/prompt_palette/count_combinatorial")
+async def count_combinatorial(request):
+    """Backs the Combinatorial node's live "roughly how many prompts" UI
+    estimate. Calls WildcardResolver.count_combinatorial() rather than
+    resolve()/generate_combinatorial(), so it never materializes the actual
+    prompt strings -- just the count -- keeping it cheap enough to run on
+    every keystroke.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "invalid JSON body"}, status=400)
+
+    text = data.get("text", "") or ""
+
+    try:
+        seed = int(data.get("seed", 0) or 0)
+    except (TypeError, ValueError):
+        seed = 0
+    try:
+        max_prompts = int(data.get("max_prompts", 0) or 0)
+    except (TypeError, ValueError):
+        max_prompts = 0
+
+    # 0 (or missing/negative) means "use the default cap" -- same convention
+    # as the Combinatorial node's own max_prompts input.
+    cap = max_prompts if max_prompts > 0 else WildcardResolver.MAX_COMBINATORIAL_PROMPTS
+
+    index = await _get_fresh_index()
+    resolver = WildcardResolver(index)
+    try:
+        loop = asyncio.get_running_loop()
+        count, truncated = await loop.run_in_executor(
+            None,
+            lambda: resolver.count_combinatorial(text, seed=seed, limit=COUNT_ONLY_LIMIT),
+        )
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+    return web.json_response({
+        "count": count,
+        "truncated": truncated,
+        "cap": cap,
+    })
 
 
 # ---- thumbnail gallery ------------------------------------------------
@@ -138,7 +264,11 @@ def _resolve_within_root(root_dir, rel_path):
     root = os.path.realpath(root_dir)
     candidate = os.path.join(root, *rel_path.split("/"))
     abs_path = os.path.realpath(candidate)
-    if os.path.commonpath([root, abs_path]) != root:
+    try:
+        inside_root = os.path.commonpath([root, abs_path]) == root
+    except ValueError:
+        inside_root = False
+    if not inside_root:
         return None
     return abs_path
 
