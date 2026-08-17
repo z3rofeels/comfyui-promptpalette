@@ -1,0 +1,39 @@
+.wg-performance-diagnostics {
+  margin-top:8px;
+  padding:8px;
+  border:1px solid var(--wg-border, #2a2e34);
+  border-radius:8px;
+  background:color-mix(in srgb, var(--wg-surface, #121417) 86%, transparent);
+}
+.wg-performance-diagnostics pre {
+  margin:0 0 7px;
+  max-height:220px;
+  overflow:auto;
+  white-space:pre-wrap;
+  color:var(--wg-text-dim, #b8b0a4);
+  font:600 8px/1.55 var(--wg-editor-font, ui-monospace, SFMono-Regular, Consolas, monospace);
+}
+.wg-virtual-more {
+  display:block;
+  width:100%;
+  min-height:24px;
+  margin:4px 0 7px;
+  border:1px dashed color-mix(in srgb, var(--wg-border-strong, #3a4048) 80%, transparent);
+  border-radius:6px;
+  background:transparent;
+  color:var(--wg-text-faint, #8f887e);
+  font:700 8px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.wg-virtual-more:hover { color:var(--wg-text, #f1eee8); border-color:var(--wg-accent, #d49a52); }
+.wg-library-popup .wg-picker-list,
+.wg-library-popup [data-el="pickerList"] {
+  /* Rows/categories are content-sized and are rebuilt dynamically. Layout/paint
+     containment here can preserve stale block geometry until an interaction
+     forces Chromium to relayout. Keep style isolation only. */
+  contain: style;
+}
+/* Do not use content-visibility on library rows/cards. Chromium can reserve the
+   30px intrinsic fallback while the real thumbnail is much taller, producing
+   large category gaps and clipping until interaction forces a relayout. Large
+   result sets are windowed in JS instead. */

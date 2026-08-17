@@ -1,48 +1,38 @@
 import { app } from "../../scripts/app.js";
-import { addStylesheet } from "../../scripts/utils.js";
 import {
-  API, loadTheme, saveTheme, defaultTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
+  loadExtensionStylesheet, svgIcon, copyPromptPaletteThemeScope,
+  installPromptPaletteKeyboardBoundary, registerPromptPaletteSettingsDrawer,
+} from "./prompt_palette_shared.js";
+import { bindSuiteAppearance } from "./editor/suite_appearance.js";
+import { readCombinatorialPreference, writeCombinatorialPreference } from "./prompt_palette_state.js";
+import { upgradeEditorSurface } from "./editor/editor_surface.js";
+import { createSyntaxHighlighter } from "./editor/syntax_highlighter.js";
+import {
+  API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
   editorStylesReady,
-  UI_THEME_KEYS, BUILTIN_UI_THEMES, loadUiThemes, saveUiThemes, loadActiveUiThemeName, saveActiveUiThemeName,
-  sanitizeHexColor, hslToHex,
-  findWildcardFragment, getCaretCoords, openOrUpdateAcMenu, closeAcMenu, acState,
+  sanitizeHexColor, categoryColorFromHue, currentUiSurface,
+  findWildcardFragment, openOrUpdateAcMenu, closeAcMenu, acState,
   loadPinned, savePinned, loadExpandedCats, saveExpandedCats, loadCatOrder, saveCatOrder,
-  notify, livePromptPaletteNodes,
-  // Thumbnail gallery: reuse the Editor node's view-mode persistence, shared
-  // right-click context menu, and shared native file-picker as-is rather
-  // than standing up a second copy of any of them (see their doc comments
-  // in wildcard_editor.js).
+  notify, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
+
   loadPickerView, savePickerView, openCtxMenu, closeCtxMenu, ctxMenuOpen,
   pickThumbnailFile, thumbnailFileError,
-  // Syntax Injector: the per-row ⚡ flyout (modifiers/templates/edit actions)
-  // and its right-click-on-token entry point in the textarea. Combinatorial
-  // mode leans on this heavily -- reused as-is rather than reimplemented,
-  // same one-shared-floating-element reasoning as the ctx menu above.
+
   openInjectMenu, openInjectMenuAtPoint, closeInjectMenu, scheduleCloseInjectMenu, injectState,
-  hideNativeWidget, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
-  // Optional-output-socket toggle: same node.properties.wg_io shape and same
-  // addOutput/removeOutput calls PromptPaletteEditor's own (larger) settings
-  // section uses, so "prompt" hides/shows here exactly like every toggleable
-  // output does over there -- see the helpers' definitions in wildcard_editor.js
-  // for the full rationale.
-  ioState, ioEnabled, syncIoSocket, renderIoToggleRow, migrateIoState,
-  dialogPrompt, isDialogOpen,
+  hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
+  ensureNodeLifecycle, nodeIsActive, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
+  installPromptStateGuard, installPromptMetadataCapture,
+
+  ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, setupIoRail,
+  installSocketRailLayout, cleanupSocketRailLayout, queueSocketRailLayout,
+  isDialogOpen,
 } from "./wildcard_editor.js";
 
-// The Editor stylesheet supplies the shared .wg-* controls used here. Await
-// both sheets before mounting the DOM widget so Nodes 2.0 never measures the
-// large picker tree in an unstyled state on a cold Desktop launch.
-const CSS_HREF = "extensions/comfyui-promptpalette/css/wildcard_combinatorial.css";
-const combinatorialStylesReady = addStylesheet(CSS_HREF).catch((error) => {
+const CSS_HREF = new URL("./css/wildcard_combinatorial.css", import.meta.url).href;
+const combinatorialStylesReady = loadExtensionStylesheet(CSS_HREF, "prompt-palette-combinatorial").catch((error) => {
   console.error("Prompt Palette: failed to load combinatorial stylesheet", error);
   throw error;
 });
-
-// What each seed_mode option does (tooltip content -- see backend contract:
-// seed_mode is "sequential" | "fixed" | "random"). Kept as its own map,
-// separate from the Editor node's own SEED_MODE_LABELS, since the two nodes'
-// seed_mode vocabularies are different (this node has no increment/decrement
-// split -- "sequential" covers that single direction).
 const SEED_MODE_INFO = {
   sequential: { label: "Sequential", desc: "Steps to the next seed value each run \u2014 paired with Combinatorial mode, walks every combination in order without repeats." },
   fixed: { label: "Fixed", desc: "Reuses the same seed for every run \u2014 re-running reproduces the exact same prompt(s)." },
@@ -50,160 +40,78 @@ const SEED_MODE_INFO = {
 };
 
 const ESTIMATE_DEBOUNCE_MS = 350;
-const DEFAULT_MAX_PROMPTS = 5000; // mirrors WildcardResolver.MAX_COMBINATORIAL_PROMPTS
+const DEFAULT_MAX_PROMPTS = 5000;
 
 function buildCombinatorialWidget(node, hiddenWidget) {
+  const promptState = installPromptStateGuard(node, hiddenWidget);
   const theme = loadTheme();
   const pinned = loadPinned();
   const expandedCats = loadExpandedCats();
   let catOrder = loadCatOrder();
 
-  let libraryCache = [];    // last fetched flat list of {path, ...}
-  let knownSet = new Set(); // full paths known to backend
-  let thumbMap = {};        // wildcard path -> matching thumbnail image path (or null), from /categories
-  let thumbBust = {};       // wildcard path -> cache-busting token, bumped by setThumbnailForItem/removeThumbnailForItem
-  let pickerViewMode = loadPickerView(); // "list" | "grid", persisted across sessions (shared key with the Editor node)
-  let tokenRanges = [];     // populated by highlightText(), read by hover-preview hit-test
-  const previewCache = new Map(); // name -> {found, lines}, same shape as API.preview()
+  let libraryCache = [];
+  let knownSet = new Set();
+  let thumbMap = {};
+  let thumbBust = {};
+  let pickerViewMode = loadPickerView();
+  let tokenRanges = [];
+  const previewCache = new Map();
 
   const root = document.createElement("div");
-  root.className = "pp-node";
+  root.className = "pp-node wg-root";
+  const cleanupKeyboardBoundary = installPromptPaletteKeyboardBoundary(root);
   root.innerHTML = `
     <div class="pp-header">
-      <div class="pp-badge"><span class="pp-badge-icon">&#9095;</span><span>Combinatorial</span></div>
+      <div class="pp-badge"><span class="pp-badge-icon">${svgIcon("branch", 13)}</span><span>Combinatorial</span></div>
       <div class="pp-header-actions">
-        <button type="button" class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="Gallery \u2014 browse &amp; insert wildcards">&#128193;</button>
-        <button type="button" class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Re-scan wildcards directory">&#8635;</button>
-        <button type="button" class="wg-icon-btn" data-act="dayNightToggle" data-el="dayNightBtn" title="Toggle day/night theme">&#127769;</button>
-        <button type="button" class="wg-icon-btn" data-act="settings" title="Settings">&#9881;</button>
+        <button type="button" class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="My Library \u2014 browse and insert reusable entries" aria-label="Open My Library">${svgIcon("gallery")}</button>
+        <button type="button" class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Rescan My Library files" aria-label="Rescan My Library">${svgIcon("refresh")}</button>
+        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Manage inputs, outputs, and socket labels" aria-label="Manage inputs, outputs, and socket labels">${svgIcon("io", 13)}<span class="wg-io-button-label">I/O</span><span data-io-count></span></button>
+        <button type="button" class="wg-icon-btn wg-settings-anchor" data-act="settings" title="Settings">${svgIcon("settings")}</button>
       </div>
     </div>
     <div class="pp-fanout-banner" data-el="fanoutBanner" title="This node's outputs are lists, one entry per generated prompt. Anything wired to model / clip / conditioning / prompt / seed_out / wildcards_used runs once per prompt in that list, not once per queue run.">
-      <span class="pp-fanout-icon">&#9095;</span>
+      <span class="pp-fanout-icon">${svgIcon("branch", 14)}</span>
       <span>Fans out into <span class="pp-fanout-count" data-el="fanoutCount">1</span> prompt<span data-el="fanoutPlural"></span> \u2014 every wired output fires once per prompt.</span>
     </div>
-    <div class="wg-settings-popup" data-el="settingsPopup">
-      <div class="wg-settings-head">
-        <span>Combinatorial settings</span>
-        <button type="button" class="wg-icon-btn" data-act="closeSettings" title="Close">&#10005;</button>
+    <div class="wg-settings-popup wg-settings-pro pp-combo-settings" data-el="settingsPopup" role="dialog" aria-label="Combinatorial settings" aria-hidden="true" hidden inert>
+      <div class="wg-settings-head wg-settings-head-pro">
+        <div><span>Combinatorial</span><small>Node settings</small></div>
+        <button type="button" class="wg-close-btn" data-act="closeSettings" title="Close settings" aria-label="Close Combinatorial settings">${svgIcon("close", 15)}</button>
       </div>
-      <div class="wg-settings-body">
-        <details class="wg-settings-section" open>
-          <summary>Outputs</summary>
-          <div class="wg-settings-section-body">
-            <div style="font-size:9px; color:var(--wg-text-faint,#8a836f); line-height:1.5; margin-bottom:6px;">Every output below is a list (one entry per generated prompt) \u2014 the backend always produces it regardless of this toggle. Turning it off just hides the socket on this node instance.</div>
-            <div data-el="ioOutputToggles"></div>
-          </div>
-        </details>
-        <details class="wg-settings-section" open>
-          <summary>Accessibility</summary>
-          <div class="wg-settings-section-body">
-            <div class="wg-srow">
-              <label>Font family</label>
-              <input type="text" class="wg-theme-select" data-el="fontFamilyInput" list="wg-font-suggestions"
-                     placeholder="Leave blank for default (monospace editor / system UI font)">
-              <datalist id="wg-font-suggestions">
-                <option value="Atkinson Hyperlegible">
-                <option value="OpenDyslexic">
-                <option value="Arial">
-                <option value="Verdana">
-                <option value="Tahoma">
-                <option value="Segoe UI">
-                <option value="Georgia">
-                <option value="Consolas">
-                <option value="Cascadia Code">
-                <option value="Courier New">
-              </datalist>
-              <div class="wg-drawer-btns" style="margin-top:6px;">
-                <button type="button" data-act="fontBrowseLocal" title="Pick from fonts actually installed on your system (Chrome/Edge only)">Browse installed fonts&#8230;</button>
-                <button type="button" data-act="fontClear" title="Clear override, use built-in default fonts">Use default</button>
-              </div>
-              <div class="wg-status" data-el="fontStatus"></div>
+      <div class="wg-settings-shell">
+        <nav class="wg-settings-nav" role="tablist" aria-label="Settings sections">
+          <button type="button" role="tab" aria-selected="true" class="active" data-settings-tab="behavior"><span>Generation</span><small>Combinations &amp; seeds</small></button>
+        </nav>
+        <div class="wg-settings-body">
+          <section role="tabpanel" class="wg-settings-panel active" data-settings-panel="behavior">
+            <div class="wg-panel-title"><div><h3>Combinatorial behavior</h3><p>These mirror this node's generation controls. Suite themes, fonts, and colors live in the main Prompt Palette settings.</p></div></div>
+            <div class="wg-settings-card-grid">
+              <section class="wg-settings-card">
+                <label class="wg-field"><span>Mode</span><select class="wg-theme-select" data-el="settingsModeSelect"><option value="random">Random</option><option value="combinatorial">Combinatorial</option></select></label>
+                <label class="wg-field"><span>Count</span><input type="number" min="1" step="1" class="wg-theme-select" data-el="settingsCountInput"></label>
+              </section>
+              <section class="wg-settings-card">
+                <label class="wg-field"><span>Seed behavior</span><select class="wg-theme-select" data-el="settingsSeedModeSelect"></select></label>
+                <label class="wg-field"><span>Maximum prompts</span><input type="number" min="0" step="1" class="wg-theme-select" data-el="settingsMaxPromptsInput" placeholder="5000 (default)"></label>
+              </section>
             </div>
-            <div class="wg-srow">
-              <div class="wg-rowline"><label style="margin:0;">Prompt text size</label><span data-el="editorFontOut">12.5px</span></div>
-              <input type="range" class="wg-range" data-el="editorFontRange" min="10" max="28" step="0.5" value="12.5">
-            </div>
-            <div class="wg-srow">
-              <div class="wg-rowline"><label style="margin:0;">Folder / sidebar text size</label><span data-el="uiFontOut">100%</span></div>
-              <input type="range" class="wg-range" data-el="uiFontRange" min="80" max="200" step="5" value="100">
-            </div>
-            <div class="wg-srow">
-              <label>Prompt text color <span style="opacity:.6;">(plain text, not wildcard tokens)</span></label>
-              <input type="color" data-el="promptTextColor" value="#e8e2d4">
-            </div>
-          </div>
-        </details>
-        <details class="wg-settings-section" open>
-          <summary>Interface theme</summary>
-          <div class="wg-settings-section-body">
-            <div class="wg-srow">
-              <select class="wg-theme-select" data-el="uiThemeSelect"></select>
-            </div>
-            <div class="wg-swatch-grid" data-el="uiThemeSwatches"></div>
-            <div class="wg-drawer-btns" style="margin-top:6px;">
-              <button type="button" data-act="uiThemeNew" title="Duplicate the current theme as an editable copy">New</button>
-              <button type="button" data-act="uiThemeRename" title="Rename the current custom theme">Rename</button>
-              <button type="button" data-act="uiThemeDelete" title="Delete the current custom theme">Delete</button>
-            </div>
-            <div class="wg-drawer-btns" style="margin-top:4px;">
-              <button type="button" data-act="uiThemeImport">Import JSON</button>
-              <button type="button" data-act="uiThemeExport">Export JSON</button>
-            </div>
-            <div class="wg-status" data-el="uiThemeStatus"></div>
-            <div class="wg-srow" style="margin-top:10px;">
-              <label>Day theme</label>
-              <select class="wg-theme-select" data-el="dayThemeSelect"></select>
-            </div>
-            <div class="wg-srow">
-              <label>Night theme</label>
-              <select class="wg-theme-select" data-el="nightThemeSelect"></select>
-            </div>
-          </div>
-        </details>
-        <details class="wg-settings-section">
-          <summary>Wildcard token colors</summary>
-          <div class="wg-settings-section-body">
-            <div class="wg-srow">
-              <div class="wg-rowline"><label style="margin:0;">Hue rotation</label><span data-el="hueOut">0°</span></div>
-              <input type="range" class="wg-range" data-el="hueRange" min="0" max="359" value="0">
-            </div>
-            <div class="wg-srow">
-              <div class="wg-rowline"><label style="margin:0;">Color intensity</label><span data-el="satOut">65%</span></div>
-              <input type="range" class="wg-range" data-el="satRange" min="30" max="90" step="5" value="65">
-            </div>
-          </div>
-        </details>
-        <details class="wg-settings-section">
-          <summary>Category colors</summary>
-          <div class="wg-settings-section-body">
-            <div data-el="catPins"></div>
-          </div>
-        </details>
-        <details class="wg-settings-section">
-          <summary>Import / export token theme</summary>
-          <div class="wg-settings-section-body">
-            <div class="wg-theme-export"><textarea data-el="themeJson" readonly></textarea></div>
-            <button type="button" class="wg-pill" data-act="copyTheme">Copy JSON</button>
-            <button type="button" class="wg-pill" data-act="pasteTheme">Paste + apply</button>
-            <button type="button" class="wg-pill" data-act="resetTheme">Reset</button>
-          </div>
-        </details>
+            <div class="wg-inline-note">Maximum prompts is the safety cap for full Cartesian expansion. A value of 0 uses the default 5000-prompt cap.</div>
+          </section>
+        </div>
       </div>
-      <div class="wg-settings-footer">
-        <button type="button" class="wg-pill" data-act="closeSettings">Done</button>
-      </div>
+      <div class="wg-settings-footer"><a class="wg-credit-link" href="https://github.com/z3rofeels/comfyui-promptpalette" target="_blank" rel="noopener noreferrer" title="Prompt Palette on GitHub"><span class="wg-credit-icon">${svgIcon("github", 13)}</span><span>made by <strong>z3rofeels</strong></span></a></div>
     </div>
     <div class="wg-main">
-      <div class="wg-drawer left" data-drawer="picker">
+      <div class="wg-drawer left" data-drawer="picker" role="region" aria-label="My Library" aria-hidden="true" hidden inert>
         <div class="wg-drawer-inner">
           <div class="wg-drawer-head">
-            <h4>Browse wildcards</h4>
+            <h4>My Library</h4>
             <div class="wg-drawer-head-actions">
-              <button type="button" class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle grid/list view">&#9638;</button>
+              <button type="button" class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle grid/list view">${svgIcon("grid")}</button>
             </div>
           </div>
-          <div class="wg-search"><input type="text" placeholder="Search wildcards..." data-el="search"></div>
+          <div class="wg-search"><input type="search" placeholder="Search My Library…" data-el="search"></div>
           <div class="wg-list" data-el="pickerList"></div>
         </div>
       </div>
@@ -214,9 +122,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
             <textarea class="wg-editor-layer wg-textarea" data-el="textarea" spellcheck="true"></textarea>
           </div>
         </div>
-        <div class="wg-legend" data-el="legend"></div>
+        <div class="wg-legend" data-el="legend" title="Wildcard colors follow your My Library category palette."></div>
         <div class="wg-footer">
-          <span class="wg-hint" data-el="hintLeft">colored by folder</span>
           <span class="wg-hint" data-el="charCount"></span>
           <span class="wg-hint" data-el="hintRight"></span>
         </div>
@@ -254,9 +161,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     </div>
   `;
 
-  const el = sel => root.querySelector(`[data-el="${sel}"]`);
-  const textarea = el("textarea");
+  let detachedSettingsPopup = null;
+  // Settings is portaled out of `root` immediately. Every lookup that can belong
+  // to that drawer must continue to resolve after the reparent, otherwise setup
+  // aborts midway (native widgets already hidden, DOM widget never mounted).
+  const el = sel => root.querySelector(`[data-el="${sel}"]`) || detachedSettingsPopup?.querySelector(`[data-el="${sel}"]`);
+  const action = name => root.querySelector(`[data-act="${name}"]`) || detachedSettingsPopup?.querySelector(`[data-act="${name}"]`);
+  const originalTextarea = el("textarea");
+  const editorSurface = upgradeEditorSurface(originalTextarea);
+  const textarea = editorSurface.element;
+  textarea.value = promptState.restore();
   const highlight = el("highlight");
+  const syntaxHighlighter = createSyntaxHighlighter(textarea, highlight);
   const legend = el("legend");
   const hintRight = el("hintRight");
   const charCount = el("charCount");
@@ -274,29 +190,28 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const maxPromptsInput = el("maxPromptsInput");
   const seedInput = el("seedInput");
   const seedModeSelect = el("seedModeSelect");
+  const settingsModeSelect = el("settingsModeSelect");
+  const settingsCountInput = el("settingsCountInput");
+  const settingsSeedModeSelect = el("settingsSeedModeSelect");
+  const settingsMaxPromptsInput = el("settingsMaxPromptsInput");
   const estimateBox = el("estimateBox");
   const estimateCount = el("estimateCount");
   const estimateWarning = el("estimateWarning");
 
-  // ---- pull mode / count / seed / seed_mode / max_prompts off the node body
-  // into this UI. All five are still real LiteGraph widgets underneath (so
-  // queueing/serialization work exactly as before) -- we just hide their
-  // canvas-drawn rows and mirror their values into these DOM controls
-  // instead. Same hide technique as the Editor node's seed/processing_mode
-  // widgets (see buildWildcardWidget in wildcard_editor.js). ----
   const modeWidget = node.widgets.find(w => w.name === "mode");
   const countWidget = node.widgets.find(w => w.name === "count");
   const seedWidget = node.widgets.find(w => w.name === "seed");
+  const controlWidget =
+    (seedWidget && seedWidget.linkedWidgets && seedWidget.linkedWidgets[0]) ||
+    node.widgets.find(w => w !== seedWidget && /control.*generate/i.test(w.name || ""));
   const seedModeWidget = node.widgets.find(w => w.name === "seed_mode");
   const maxPromptsWidget = node.widgets.find(w => w.name === "max_prompts");
-  [modeWidget, countWidget, seedWidget, seedModeWidget, maxPromptsWidget].forEach(hideNativeWidget);
-  // ComfyUI's own node-restore step (onConfigure: workflow load, tab switch,
-  // undo/redo) re-touches/recreates these widgets' DOM elements AFTER this
-  // initial hide already ran, undoing it. Exposed so the onConfigure hook
-  // below can call this again once that restore step has finished.
+  const nativeBackingWidgets = [modeWidget, countWidget, seedWidget, controlWidget, seedModeWidget, maxPromptsWidget];
+  nativeBackingWidgets.forEach(hideNativeWidget);
+
   function reassertHiddenWidgets() {
     hideNativeWidget(hiddenWidget);
-    [modeWidget, countWidget, seedWidget, seedModeWidget, maxPromptsWidget].forEach(hideNativeWidget);
+    nativeBackingWidgets.forEach(hideNativeWidget);
   }
 
   function buildSeedModeOptions() {
@@ -314,6 +229,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (maxPromptsWidget) maxPromptsInput.value = maxPromptsWidget.value; else maxPromptsInput.disabled = true;
     if (seedWidget) seedInput.value = seedWidget.value; else seedInput.disabled = true;
     if (seedModeWidget) seedModeSelect.value = seedModeWidget.value; else seedModeSelect.disabled = true;
+    if (settingsModeSelect) settingsModeSelect.value = modeWidget?.value || "random";
+    if (settingsCountInput) { settingsCountInput.value = countWidget?.value ?? 1; settingsCountInput.disabled = !countWidget; }
+    if (settingsMaxPromptsInput) { settingsMaxPromptsInput.value = maxPromptsWidget?.value ?? 0; settingsMaxPromptsInput.disabled = !maxPromptsWidget; }
+    if (settingsSeedModeSelect) { settingsSeedModeSelect.value = seedModeWidget?.value || "sequential"; settingsSeedModeSelect.disabled = !seedModeWidget; }
     updateModeUI();
   }
 
@@ -344,9 +263,37 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (typeof seedModeWidget.callback === "function") seedModeWidget.callback(seedModeWidget.value, node.graph?.canvas, node);
     node.graph?.setDirtyCanvas(true, true);
   });
-  root.querySelector('[data-act="seedRandomizeNow"]').addEventListener("click", () => {
+  settingsModeSelect?.addEventListener("change", () => {
+    if (!modeWidget) return;
+    modeWidget.value = settingsModeSelect.value;
+    if (typeof modeWidget.callback === "function") modeWidget.callback(modeWidget.value, node.graph?.canvas, node);
+    node.graph?.setDirtyCanvas(true, true);
+    syncControlsFromWidgets();
+  });
+  settingsCountInput?.addEventListener("input", () => {
+    if (!countWidget || settingsCountInput.value === "") return;
+    countWidget.value = Math.max(1, Math.floor(Number(settingsCountInput.value)) || 1);
+    if (typeof countWidget.callback === "function") countWidget.callback(countWidget.value, node.graph?.canvas, node);
+    node.graph?.setDirtyCanvas(true, true);
+    syncControlsFromWidgets();
+  });
+  settingsMaxPromptsInput?.addEventListener("input", () => {
+    if (!maxPromptsWidget) return;
+    maxPromptsWidget.value = settingsMaxPromptsInput.value === "" ? 0 : Math.max(0, Math.floor(Number(settingsMaxPromptsInput.value)) || 0);
+    if (typeof maxPromptsWidget.callback === "function") maxPromptsWidget.callback(maxPromptsWidget.value, node.graph?.canvas, node);
+    node.graph?.setDirtyCanvas(true, true);
+    syncControlsFromWidgets();
+  });
+  settingsSeedModeSelect?.addEventListener("change", () => {
+    if (!seedModeWidget) return;
+    seedModeWidget.value = settingsSeedModeSelect.value;
+    if (typeof seedModeWidget.callback === "function") seedModeWidget.callback(seedModeWidget.value, node.graph?.canvas, node);
+    node.graph?.setDirtyCanvas(true, true);
+    syncControlsFromWidgets();
+  });
+  action("seedRandomizeNow").addEventListener("click", () => {
     if (!seedWidget) return;
-    const maxSeed = Number.MAX_SAFE_INTEGER; // native widget's real ceiling is 2^64-1, JS numbers only carry 2^53-1 safely
+    const maxSeed = Number.MAX_SAFE_INTEGER;
     const randomSeed = Math.floor(Math.random() * maxSeed);
     seedWidget.value = randomSeed;
     seedInput.value = randomSeed;
@@ -355,413 +302,114 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     updateEstimate();
   });
 
-  // ---- optional output: toggleable "prompt" socket, same pattern as the
-  // Editor node's full input+output settings section (wildcard_editor.js) --
-  // this node only ever needs the one entry, since none of its other
-  // outputs (model/clip/conditioning/seed_out/wildcards_used) were ever
-  // asked for here and clip_token_count doesn't exist on this node at all.
-  // `default: true` keeps "prompt" visible exactly as before on every
-  // already-saved workflow -- see renderIoToggleRow's doc comment in
-  // wildcard_editor.js for why that matters.
+  const IO_INPUT_DEFS = [
+    { key: "clip", type: "CLIP", label: "CLIP", default: true, desc: "Optional CLIP input used to encode every generated prompt." },
+    { key: "model", type: "MODEL", label: "Model", default: true, desc: "Optional Model input used when applying per-prompt LoRA tags." },
+  ];
+
   const IO_OUTPUT_DEFS = [
-    { key: "prompt", type: "STRING", label: "Prompt", default: true, desc: "The list of resolved prompt texts, one per generated combination/random pick. This node's primary output \u2014 hide only if you're chaining purely through the other outputs (model/clip/conditioning/seed_out/wildcards_used)." },
+    { key: "model", slotIndex: 0, type: "MODEL", label: "Model list", default: true, desc: "One model value per generated prompt. LoRA tags may produce individually patched model entries." },
+    { key: "clip", slotIndex: 1, type: "CLIP", label: "CLIP list", default: true, desc: "One CLIP value per generated prompt, patched alongside Model when LoRA tags are applied." },
+    { key: "conditioning", slotIndex: 2, type: "CONDITIONING", label: "Conditioning list", default: true, desc: "One encoded conditioning entry per generated prompt when CLIP is connected." },
+    { key: "prompt", slotIndex: 3, type: "STRING", label: "Prompt list", default: true, desc: "Resolved prompt texts, one per generated combination or random pick." },
+    { key: "seed_out", slotIndex: 4, type: "INT", label: "Seed list", default: true, desc: "The resolve seed used for each generated prompt." },
+    { key: "wildcards_used", slotIndex: 5, type: "STRING", label: "Wildcards used", default: true, desc: "The wildcard files used during this batch, repeated for list-compatible fan-out." },
+    { key: "prompt_metadata_json", slotIndex: 6, type: "STRING", label: "Prompt metadata (JSON) list", default: false, desc: "One resolved/source metadata record per generated prompt." },
   ];
 
   node.properties = node.properties || {};
   node.properties.wg_io = node.properties.wg_io || { inputs: {}, outputs: {} };
 
-  const outWrap = el("ioOutputToggles");
-  function renderIoToggles() {
-    outWrap.innerHTML = "";
-    IO_OUTPUT_DEFS.forEach(def => renderIoToggleRow(node, "output", def, outWrap, "data-io-out"));
-  }
-  renderIoToggles();
-  // Backend declares this output unconditionally, so LiteGraph auto-creates
-  // the slot the moment the node is built. Sync it against saved state (or
-  // `default: true` for a brand-new node/first load) so it starts exactly
-  // where it should rather than always-on regardless of the toggle.
-  //
-  // DEFERRED (setTimeout 0) -- same fix and same reasoning as
-  // wildcard_editor.js's own onNodeCreated: this is the "prompt" output's
-  // own socket-restore race, which can silently steal or misplace a saved
-  // link the same way (see that file's comment, right above the matching
-  // line, for the full explanation of why a synchronous call here reads
-  // this node's not-yet-restored wg_io and mutates the live socket array
-  // right as ComfyUI is reconnecting saved links against it).
-  setTimeout(() => {
-    if (node._wgConfigured) migrateIoState(node, "output", IO_OUTPUT_DEFS);
-    IO_OUTPUT_DEFS.forEach(def => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+  const ioRail = setupIoRail(node, root, IO_INPUT_DEFS, IO_OUTPUT_DEFS);
+
+  scheduleNodeTimer(node, () => {
+    canonicalizeOutputs(node, IO_OUTPUT_DEFS);
+    migrateIoState(node, "input", IO_INPUT_DEFS);
+    migrateIoState(node, "output", IO_OUTPUT_DEFS);
+    IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+    IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    ioRail.render();
   }, 0);
   node._wgRefreshIoToggles = function () {
-    renderIoToggles();
-    if (node._wgConfigured) migrateIoState(node, "output", IO_OUTPUT_DEFS);
-    IO_OUTPUT_DEFS.forEach(def => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    canonicalizeOutputs(node, IO_OUTPUT_DEFS);
+    migrateIoState(node, "input", IO_INPUT_DEFS);
+    migrateIoState(node, "output", IO_OUTPUT_DEFS);
+    IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+    IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    ioRail.render();
   };
 
   const settingsPopup = el("settingsPopup");
-  const settingsBtn = root.querySelector('[data-act="settings"]');
-  function openSettings() { settingsPopup.classList.add("open"); }
-  function closeSettings() { settingsPopup.classList.remove("open"); }
+  detachedSettingsPopup = settingsPopup;
+  const settingsBtn = action("settings");
+  settingsPopup.id = `prompt-palette-combinatorial-${String(node.id ?? "node")}-settings`;
+  settingsBtn.setAttribute("aria-controls", settingsPopup.id);
+  settingsBtn.setAttribute("aria-expanded", "false");
+  settingsBtn.setAttribute("aria-label", "Open Combinatorial settings");
+  const settingsTabs = Array.from(settingsPopup.querySelectorAll("[data-settings-tab]"));
+  const settingsPanels = Array.from(settingsPopup.querySelectorAll("[data-settings-panel]"));
+  function activateSettingsTab(name) {
+    settingsTabs.forEach((button) => {
+      const active = button.dataset.settingsTab === name;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+    settingsPanels.forEach((panel) => {
+      const active = panel.dataset.settingsPanel === name;
+      panel.classList.toggle("active", active);
+      panel.setAttribute("aria-hidden", String(!active));
+    });
+    settingsPopup.dataset.activeTab = name;
+  }
+  settingsTabs.forEach((button) => button.addEventListener("click", () => activateSettingsTab(button.dataset.settingsTab)));
+  const settingsDrawer = registerPromptPaletteSettingsDrawer({
+    popup: settingsPopup,
+    trigger: settingsBtn,
+    isBlocked: isDialogOpen,
+  });
+  function openSettings() {
+    ioRail.close();
+    closePickerDrawer();
+    settingsDrawer.open();
+    activateSettingsTab("behavior");
+    syncControlsFromWidgets();
+  }
+  function closeSettings(options = {}) {
+    settingsDrawer.close(options);
+  }
+  node._wgBeforeIoRailOpen = () => {
+    closeSettings({ restoreFocus: false, reason: "io-rail" });
+    closePickerDrawer();
+  };
   settingsBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (settingsPopup.classList.contains("open")) closeSettings();
+    if (settingsDrawer.isOpen()) closeSettings();
     else openSettings();
   });
-  root.querySelectorAll('[data-act="closeSettings"]').forEach(btn => btn.addEventListener("click", closeSettings));
-  // Named (not inline) so cleanup() below can remove it -- an anonymous
-  // listener here would otherwise stay registered on `document` forever
-  // after this node is deleted, referencing its now-detached settingsPopup.
-  const handleSettingsOutsideClick = (e) => {
-    // A native app.extensionManager dialog (New Theme, Rename Theme, ...)
-    // renders outside settingsPopup's DOM subtree -- see the matching guard
-    // in wildcard_editor.js's own handleOutsideClick for why this has to be
-    // skipped while one is open.
-    if (isDialogOpen()) return;
-    if (settingsPopup.classList.contains("open") && !settingsPopup.contains(e.target) && e.target !== settingsBtn) {
-      closeSettings();
-    }
+  settingsPopup.querySelectorAll('[data-act="closeSettings"]').forEach(btn => btn.addEventListener("click", closeSettings));
+
+  const handleWorkspaceEscape = (event) => {
+    if (event.key !== "Escape" || isDialogOpen()) return;
+    if (node._wgIoRailOpen) ioRail.close();
+    else if (pickerDrawer.classList.contains("open")) closePickerDrawer();
   };
-  document.addEventListener("mousedown", handleSettingsOutsideClick);
+  root.addEventListener("keydown", handleWorkspaceEscape);
+  document.addEventListener("keydown", handleWorkspaceEscape);
 
-  // ---- accessibility: font family / sizes / prompt text color ----
-  // Ported from the Editor node's own "Accessibility" section
-  // (wildcard_editor.js). Applied to document.documentElement, same as
-  // there, so it's a single global legibility preference shared by every
-  // Prompt Palette node on the canvas -- not just this one -- and, unlike
-  // before this port, now takes effect even in workflows that only use
-  // Combinatorial nodes and never touch an Editor node's own settings panel.
-  const fontFamilyInput = el("fontFamilyInput");
-  const fontStatus = el("fontStatus");
-  const editorFontRange = el("editorFontRange"), editorFontOut = el("editorFontOut");
-  const uiFontRange = el("uiFontRange"), uiFontOut = el("uiFontOut");
-  const promptTextColorInput = el("promptTextColor");
-
-  function setFontStatus(msg, isErr) {
-    fontStatus.textContent = msg || "";
-    fontStatus.className = "wg-status" + (isErr ? " err" : "");
-  }
-
-  function applyFontSettings() {
-    const r = document.documentElement.style;
-    if (theme.fontFamily && theme.fontFamily.trim()) {
-      r.setProperty("--wg-font-family", `"${theme.fontFamily.trim()}"`);
-    } else {
-      r.removeProperty("--wg-font-family");
-    }
-    r.setProperty("--wg-editor-font-size", `${theme.editorFontSize}px`);
-    r.setProperty("--wg-ui-font-scale", theme.uiFontScale);
-    r.setProperty("--wg-prompt-text", theme.promptTextColor);
-  }
-
-  function refreshFontControlsUI() {
-    fontFamilyInput.value = theme.fontFamily || "";
-    editorFontRange.value = theme.editorFontSize;
-    editorFontOut.textContent = `${theme.editorFontSize}px`;
-    uiFontRange.value = Math.round(theme.uiFontScale * 100);
-    uiFontOut.textContent = `${Math.round(theme.uiFontScale * 100)}%`;
-    promptTextColorInput.value = theme.promptTextColor;
-  }
-  refreshFontControlsUI();
-
-  fontFamilyInput.addEventListener("input", () => {
-    theme.fontFamily = fontFamilyInput.value;
-    saveTheme(theme); applyFontSettings();
-  });
-  editorFontRange.addEventListener("input", () => {
-    theme.editorFontSize = parseFloat(editorFontRange.value);
-    editorFontOut.textContent = `${theme.editorFontSize}px`;
-    saveTheme(theme); applyFontSettings();
-  });
-  uiFontRange.addEventListener("input", () => {
-    theme.uiFontScale = parseInt(uiFontRange.value, 10) / 100;
-    uiFontOut.textContent = `${uiFontRange.value}%`;
-    saveTheme(theme); applyFontSettings();
-  });
-  promptTextColorInput.addEventListener("input", () => {
-    theme.promptTextColor = promptTextColorInput.value;
-    saveTheme(theme); applyFontSettings();
-  });
-  root.querySelector('[data-act="fontClear"]').addEventListener("click", () => {
-    theme.fontFamily = "";
-    fontFamilyInput.value = "";
-    saveTheme(theme); applyFontSettings();
-    setFontStatus("using default fonts");
-  });
-  root.querySelector('[data-act="fontBrowseLocal"]').addEventListener("click", async () => {
-    // Local Font Access API: Chrome/Edge 103+ only, requires a user gesture and a
-    // one-time permission grant. Lets the page read the *names* of fonts actually
-    // installed on the user's system (not the font files) so the family typed
-    // into the input above is guaranteed to exist, instead of guessing.
-    if (typeof window.queryLocalFonts !== "function") {
-      setFontStatus("Your browser doesn't support browsing installed fonts (Chrome/Edge only). Type a font name manually \u2014 it must already be installed on your system for the browser to render it.", true);
-      return;
-    }
-    try {
-      const fonts = await window.queryLocalFonts();
-      const families = Array.from(new Set(fonts.map(f => f.family))).sort();
-      if (!families.length) { setFontStatus("no local fonts found", true); return; }
-      fontStatus.innerHTML = "";
-      fontStatus.className = "wg-status";
-      const sel = document.createElement("select");
-      sel.className = "wg-theme-select";
-      sel.style.marginTop = "4px";
-      sel.innerHTML = `<option value="">${families.length} installed fonts found \u2014 pick one\u2026</option>` +
-        families.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join("");
-      sel.addEventListener("change", () => {
-        if (!sel.value) return;
-        theme.fontFamily = sel.value;
-        fontFamilyInput.value = sel.value;
-        saveTheme(theme); applyFontSettings();
-        setFontStatus(`using "${sel.value}"`);
-      });
-      fontStatus.appendChild(sel);
-    } catch (e) {
-      setFontStatus("font permission denied or unavailable", true);
-    }
-  });
-  applyFontSettings();
-
-  // ---- interface theme (UI chrome, not the token/text colors below) ----
-  // Ported from the Editor node's own "Interface theme" section. Applied to
-  // document.documentElement, same as there, so this node's theme choice
-  // stays in sync with every other Prompt Palette node on the canvas
-  // (Editor or Combinatorial) -- it's one shared global setting either way.
-  const uiThemeSelect = el("uiThemeSelect");
-  const uiThemeSwatches = el("uiThemeSwatches");
-  const uiThemeStatus = el("uiThemeStatus");
-
-  let customUiThemes = loadUiThemes();
-  let activeUiThemeName = loadActiveUiThemeName();
-
-  function allUiThemes() { return { ...BUILTIN_UI_THEMES, ...customUiThemes }; }
-  function isBuiltinUiTheme(name) { return !!BUILTIN_UI_THEMES[name] && !customUiThemes[name]; }
-  if (!allUiThemes()[activeUiThemeName]) activeUiThemeName = "Amber";
-
-  function applyUiTheme() {
-    const t = allUiThemes()[activeUiThemeName] || BUILTIN_UI_THEMES.Amber;
-    UI_THEME_KEYS.forEach(([key]) => {
-      document.documentElement.style.setProperty(`--wg-${key}`, t[key]);
-    });
-    // Also recolor the underlying LiteGraph node itself (title bar + body),
-    // same as the Editor node does, so no strip of the default grey node
-    // canvas shows around/behind the UI on light themes like Daylight.
-    node.bgcolor = t.bg;
-    node.color = t.accent;
-    node.graph?.setDirtyCanvas(true, true);
-    updateDayNightIcon();
-  }
-  function setUiThemeStatus(msg, isErr) {
-    uiThemeStatus.textContent = msg || "";
-    uiThemeStatus.className = "wg-status" + (isErr ? " err" : "");
-  }
-  function renderUiThemeSelect() {
-    const themes = allUiThemes();
-    uiThemeSelect.innerHTML = Object.keys(themes).sort().map(name =>
-      `<option value="${escapeHtml(name)}" ${name === activeUiThemeName ? "selected" : ""}>${escapeHtml(name)}${isBuiltinUiTheme(name) ? "" : " (custom)"}</option>`
-    ).join("");
-  }
-  function renderUiThemeSwatches() {
-    const t = allUiThemes()[activeUiThemeName] || BUILTIN_UI_THEMES.Amber;
-    const locked = isBuiltinUiTheme(activeUiThemeName);
-    uiThemeSwatches.innerHTML = "";
-    UI_THEME_KEYS.forEach(([key, label]) => {
-      const item = document.createElement("div");
-      item.className = "wg-swatch-item";
-      const swatchLabel = document.createElement("span");
-      swatchLabel.textContent = label;
-      const input = document.createElement("input");
-      input.type = "color";
-      input.value = sanitizeHexColor(t[key]);
-      input.disabled = locked;
-      item.appendChild(swatchLabel);
-      item.appendChild(input);
-      input.addEventListener("input", (e) => {
-        if (locked) return;
-        customUiThemes[activeUiThemeName][key] = e.target.value;
-        saveUiThemes(customUiThemes);
-        applyUiTheme();
-      });
-      uiThemeSwatches.appendChild(item);
-    });
-    setUiThemeStatus(locked ? "built-in theme \u2014 hit \u201cNew\u201d to make an editable copy" : "");
-  }
-  function refreshUiThemeUI() { renderUiThemeSelect(); renderUiThemeSwatches(); refreshDayNightSelects(); }
-
-  // ---- Day/Night quick toggle (header button) ----
-  const dayNightBtn = el("dayNightBtn");
-  const dayThemeSelect = el("dayThemeSelect");
-  const nightThemeSelect = el("nightThemeSelect");
-
-  function refreshDayNightSelects() {
-    const themes = allUiThemes();
-    const names = Object.keys(themes).sort();
-    if (!themes[theme.dayTheme]) theme.dayTheme = names.includes("Daylight") ? "Daylight" : names[0];
-    if (!themes[theme.nightTheme]) theme.nightTheme = names.includes("Amber") ? "Amber" : names[0];
-    saveTheme(theme);
-    [[dayThemeSelect, "dayTheme"], [nightThemeSelect, "nightTheme"]].forEach(([sel, key]) => {
-      sel.innerHTML = names.map(n =>
-        `<option value="${escapeHtml(n)}" ${n === theme[key] ? "selected" : ""}>${escapeHtml(n)}</option>`
-      ).join("");
-    });
-  }
-  // Icon reflects the ACTION (what clicking will do): moon while in the day
-  // theme (click to go dark), sun once night theme is active (click for day).
-  function updateDayNightIcon() {
-    const inNight = theme.nightTheme && activeUiThemeName === theme.nightTheme;
-    dayNightBtn.innerHTML = inNight ? "&#9728;" : "&#127769;";
-    dayNightBtn.title = inNight ? "Switch to day theme" : "Switch to night theme";
-  }
-  dayThemeSelect.addEventListener("change", () => {
-    theme.dayTheme = dayThemeSelect.value;
-    saveTheme(theme);
-    updateDayNightIcon();
-  });
-  nightThemeSelect.addEventListener("change", () => {
-    theme.nightTheme = nightThemeSelect.value;
-    saveTheme(theme);
-    updateDayNightIcon();
-  });
-  dayNightBtn.addEventListener("click", () => {
-    const target = activeUiThemeName === theme.nightTheme ? theme.dayTheme : theme.nightTheme;
-    if (!target || !allUiThemes()[target]) return; // configured theme got renamed/deleted — nothing to switch to
-    activeUiThemeName = target;
-    saveActiveUiThemeName(activeUiThemeName);
-    applyUiTheme();
-    refreshUiThemeUI();
+  // Combinatorial consumes the suite appearance but never writes it. All presentation
+  // controls live in the main Prompt Palette Settings > Appearance surface.
+  const appearanceBinding = bindSuiteAppearance({
+    node,
+    targets: [root, settingsPopup],
+    onApplied(snapshot, { initial }) {
+      Object.assign(theme, snapshot.theme);
+      if (!initial) render();
+    },
   });
 
-  uiThemeSelect.addEventListener("change", () => {
-    activeUiThemeName = uiThemeSelect.value;
-    saveActiveUiThemeName(activeUiThemeName);
-    applyUiTheme();
-    renderUiThemeSwatches();
-  });
-  root.querySelector('[data-act="uiThemeNew"]').addEventListener("click", async () => {
-    const base = allUiThemes()[activeUiThemeName] || BUILTIN_UI_THEMES.Amber;
-    let name = await dialogPrompt({
-      title: "New Theme",
-      message: "Name for the new theme:",
-      defaultValue: `${activeUiThemeName} copy`,
-    });
-    if (!name) return;
-    name = name.trim();
-    if (!name) return;
-    customUiThemes[name] = { ...base };
-    saveUiThemes(customUiThemes);
-    activeUiThemeName = name;
-    saveActiveUiThemeName(name);
-    applyUiTheme();
-    refreshUiThemeUI();
-  });
-  root.querySelector('[data-act="uiThemeRename"]').addEventListener("click", async () => {
-    if (isBuiltinUiTheme(activeUiThemeName)) return setUiThemeStatus("built-in themes can't be renamed", true);
-    let name = await dialogPrompt({
-      title: "Rename Theme",
-      message: "Rename theme:",
-      defaultValue: activeUiThemeName,
-    });
-    if (!name) return;
-    name = name.trim();
-    if (!name || name === activeUiThemeName) return;
-    if (allUiThemes()[name]) return setUiThemeStatus("a theme with that name already exists", true);
-    customUiThemes[name] = customUiThemes[activeUiThemeName];
-    delete customUiThemes[activeUiThemeName];
-    saveUiThemes(customUiThemes);
-    activeUiThemeName = name;
-    saveActiveUiThemeName(name);
-    refreshUiThemeUI();
-  });
-  root.querySelector('[data-act="uiThemeDelete"]').addEventListener("click", () => {
-    if (isBuiltinUiTheme(activeUiThemeName)) return setUiThemeStatus("built-in themes can't be deleted", true);
-    delete customUiThemes[activeUiThemeName];
-    saveUiThemes(customUiThemes);
-    activeUiThemeName = "Amber";
-    saveActiveUiThemeName(activeUiThemeName);
-    applyUiTheme();
-    refreshUiThemeUI();
-  });
-  root.querySelector('[data-act="uiThemeImport"]').addEventListener("click", async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const parsed = JSON.parse(text);
-      const source = parsed.colors || parsed;
-      const name = (parsed.name && String(parsed.name).trim()) || `Imported ${Object.keys(customUiThemes).length + 1}`;
-      const colors = {};
-      UI_THEME_KEYS.forEach(([key]) => {
-        colors[key] = sanitizeHexColor(source[key], BUILTIN_UI_THEMES.Amber[key]);
-      });
-      customUiThemes[name] = colors;
-      saveUiThemes(customUiThemes);
-      activeUiThemeName = name;
-      saveActiveUiThemeName(name);
-      applyUiTheme();
-      refreshUiThemeUI();
-      setUiThemeStatus(`imported "${name}"`);
-    } catch (e) {
-      setUiThemeStatus("clipboard doesn't contain a valid theme JSON", true);
-    }
-  });
-  root.querySelector('[data-act="uiThemeExport"]').addEventListener("click", async () => {
-    const t = allUiThemes()[activeUiThemeName] || BUILTIN_UI_THEMES.Amber;
-    const payload = { name: activeUiThemeName, ...t };
-    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2)).catch(() => {});
-    setUiThemeStatus("copied theme JSON to clipboard \u2014 share the file to let others import it");
-  });
-
-  // ---- wildcard token colors (hue/saturation) + category colors ----
-  // These two already drove this node's own token-coloring logic before this
-  // port (see colorForWildcard's use of theme.hueRotate/theme.saturation/
-  // theme.categoryPins above) -- what was missing was just the settings UI
-  // to change them, which is what's wired up here now.
-  const hueRange = el("hueRange"), hueOut = el("hueOut");
-  const satRange = el("satRange"), satOut = el("satOut");
-  hueRange.value = theme.hueRotate; hueOut.textContent = theme.hueRotate + "\u00b0";
-  satRange.value = theme.saturation; satOut.textContent = theme.saturation + "%";
-  hueRange.addEventListener("input", () => { theme.hueRotate = parseInt(hueRange.value, 10); hueOut.textContent = theme.hueRotate + "\u00b0"; saveTheme(theme); render(); });
-  satRange.addEventListener("input", () => { theme.saturation = parseInt(satRange.value, 10); satOut.textContent = theme.saturation + "%"; saveTheme(theme); render(); });
-
-  function renderCatPins() {
-    const wrap = el("catPins");
-    const categories = Array.from(new Set(libraryCache.map(l => categoryOf(l.path)))).sort();
-    wrap.innerHTML = "";
-    categories.forEach(cat => {
-      const row = document.createElement("div"); row.className = "wg-catpin-row";
-      const current = theme.categoryPins[cat] || hslToHex((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation, 66);
-      row.innerHTML = `<span>${escapeHtml(cat)}</span><input type="color" value="${current}">`;
-      row.querySelector("input").addEventListener("input", (e) => { theme.categoryPins[cat] = e.target.value; saveTheme(theme); render(); });
-      wrap.appendChild(row);
-    });
-  }
-
-  // ---- import / export token theme (font + token/category color prefs) ----
-  function updateThemeJson() {
-    el("themeJson").value = JSON.stringify(theme, null, 2);
-  }
-  root.querySelector('[data-act="copyTheme"]').addEventListener("click", async (e) => {
-    await navigator.clipboard.writeText(el("themeJson").value).catch(() => {});
-    e.target.textContent = "Copied"; setTimeout(() => e.target.textContent = "Copy JSON", 1200);
-  });
-  root.querySelector('[data-act="pasteTheme"]').addEventListener("click", async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const parsed = JSON.parse(text);
-      Object.assign(theme, { ...defaultTheme(), ...parsed });
-      hueRange.value = theme.hueRotate || 0; hueOut.textContent = (theme.hueRotate || 0) + "\u00b0";
-      satRange.value = theme.saturation || 65; satOut.textContent = (theme.saturation || 65) + "%";
-      refreshFontControlsUI();
-      saveTheme(theme); applyFontSettings(); render(); renderCatPins();
-    } catch (e) { notify("error", "Paste failed", "Clipboard doesn't contain valid theme JSON."); }
-  });
-  root.querySelector('[data-act="resetTheme"]').addEventListener("click", () => {
-    Object.assign(theme, defaultTheme());
-    hueRange.value = 0; hueOut.textContent = "0\u00b0";
-    satRange.value = 65; satOut.textContent = "65%";
-    refreshFontControlsUI();
-    saveTheme(theme); applyFontSettings(); render(); renderCatPins();
-  });
-
-  applyUiTheme();
-  refreshUiThemeUI();
+  let estimateDebounceTimer = null;
+  let estimateSeq = 0;
 
   modeButtons.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -773,8 +421,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     });
   });
 
-  // ---- mode-aware show/hide: count only matters in random mode,
-  // max_prompts only matters in combinatorial mode (requirement #2) ----
   function updateModeUI() {
     const mode = modeWidget ? modeWidget.value : "random";
     modeButtons.forEach(b => b.classList.toggle("pp-active", b.dataset.mode === mode));
@@ -782,16 +428,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     maxPromptsRow.classList.toggle("pp-hidden", mode !== "combinatorial");
     updateEstimate();
   }
-
-  // ---- live combination-count estimate + cap warning (requirement #3) ----
-  // Random mode is exactly `count` -- no backend round-trip needed, it's
-  // already known from the widget's own value. Combinatorial mode depends on
-  // the text's wildcard/brace structure, which only the Python resolver can
-  // size correctly (see wildcard_combinatorial_routes.py /
-  // WildcardResolver.count_combinatorial) -- debounced so it isn't fired on
-  // every keystroke.
-  let estimateDebounceTimer = null;
-  let estimateSeq = 0;
 
   function renderEstimate(count, truncated, cap) {
     const displayCount = truncated ? `${count.toLocaleString()}+` : count.toLocaleString();
@@ -814,7 +450,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const seed = seedWidget ? seedWidget.value : 0;
     try {
       const { count, truncated } = await API.countCombinatorial(textarea.value, seed, maxPromptsRaw);
-      if (mySeq !== estimateSeq) return; // superseded by a newer edit -- discard this stale response
+      if (mySeq !== estimateSeq) return;
       renderEstimate(count, truncated, cap);
     } catch (e) {
       if (mySeq !== estimateSeq) return;
@@ -827,7 +463,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function updateEstimate() {
-    clearTimeout(estimateDebounceTimer);
+    cancelNodeTimer(node, estimateDebounceTimer);
     const mode = modeWidget ? modeWidget.value : "random";
     if (mode === "random") {
       estimateBox.classList.remove("pp-loading");
@@ -836,17 +472,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       return;
     }
     estimateBox.classList.add("pp-loading");
-    estimateDebounceTimer = setTimeout(runCombinatorialEstimate, ESTIMATE_DEBOUNCE_MS);
+    estimateDebounceTimer = scheduleNodeTimer(node, runCombinatorialEstimate, ESTIMATE_DEBOUNCE_MS);
   }
 
-  // ---- syntax highlighting (ported from highlightText()/render() in
-  // wildcard_editor.js -- same tokenizing regex, same .wg-tok-* classes, so
-  // this reads as identical output, not a plainer version) ----
   function isKnown(name) {
     return knownSet.has(name) || Array.from(knownSet).some(n => n.split("/").pop() === name.split("/").pop());
   }
   function extractWildcardNames(text) {
-    const names = new Set(); const re = /__[+*]?([A-Za-z0-9_\-\/]+)__/g; let m;
+    const names = new Set(); const re = /__[+\-*%~@]?([A-Za-z0-9_\-\/]+)__/g; let m;
     while ((m = re.exec(text))) names.add(m[1]);
     return Array.from(names);
   }
@@ -867,62 +500,62 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const hue = categoryHueMap[cat] !== undefined ? categoryHueMap[cat] : (hashStr(cat) % 360 + theme.hueRotate) % 360;
     const leaf = name.split("/").pop();
     const shadeShift = (hashStr(leaf) % 20) - 10;
-    return `hsl(${hue}, ${theme.saturation}%, ${Math.min(78, Math.max(52, 66 + shadeShift))}%)`;
+    return categoryColorFromHue(hue, theme.saturation, currentUiSurface(), shadeShift);
   }
   function highlightText(text) {
     const names = extractWildcardNames(text);
     const categoriesInUse = Array.from(new Set(names.map(categoryOf)));
     const categoryHueMap = buildCategoryColorMap(categoriesInUse);
-    let out = ""; let i = 0; const ranges = [];
+    let out = ""; let i = 0; const ranges = []; const decorations = [];
     while (i < text.length) {
       const rest = text.slice(i);
-      const wildcardMatch = rest.match(/^__[+*]?[A-Za-z0-9_\-\/]+__/);
+      const wildcardMatch = rest.match(/^__[+\-*%~@]?[A-Za-z0-9_\-\/]+__/);
       if (wildcardMatch) {
         const token = wildcardMatch[0];
-        const innerName = token.replace(/^__[+*]?/, "").replace(/__$/, "");
+        const innerName = token.replace(/^__[+\-*%~@]?/, "").replace(/__$/, "");
         const start = i, end = i + token.length;
         if (isKnown(innerName)) {
           const color = colorForToken(innerName, categoryHueMap);
           out += `<span class="wg-token" style="color:${color}; font-weight:600;">${escapeHtml(token)}</span>`;
           ranges.push({ start, end, name: innerName, known: true });
+          decorations.push({ start, end, kind: "wildcard", color });
         } else {
           out += `<span class="wg-tok-error">${escapeHtml(token)}</span>`;
           ranges.push({ start, end, name: innerName, known: false });
+          decorations.push({ start, end, kind: "error" });
         }
         i = end; continue;
       }
       const weightMatch = rest.match(/^\d+::/);
-      if (weightMatch) { out += `<span class="wg-tok-weight">${escapeHtml(weightMatch[0])}</span>`; i += weightMatch[0].length; continue; }
+      if (weightMatch) { const start = i; out += `<span class="wg-tok-weight">${escapeHtml(weightMatch[0])}</span>`; i += weightMatch[0].length; decorations.push({ start, end: i, kind: "weight" }); continue; }
       const quantMatch = rest.match(/^(\d+(-\d+)?\$\$[^$]*\$\$|\d+#)/);
-      if (quantMatch) { out += `<span class="wg-tok-mod">${escapeHtml(quantMatch[0])}</span>`; i += quantMatch[0].length; continue; }
+      if (quantMatch) { const start = i; out += `<span class="wg-tok-mod">${escapeHtml(quantMatch[0])}</span>`; i += quantMatch[0].length; decorations.push({ start, end: i, kind: "modifier" }); continue; }
       const ch = text[i];
-      if (ch === "{" || ch === "}") { out += `<span class="wg-tok-bracket">${ch}</span>`; i++; continue; }
-      if (ch === "|") { out += `<span class="wg-tok-pipe">|</span>`; i++; continue; }
+      if (ch === "{" || ch === "}") { const start = i; out += `<span class="wg-tok-bracket">${ch}</span>`; i++; decorations.push({ start, end: i, kind: "bracket" }); continue; }
+      if (ch === "|") { const start = i; out += `<span class="wg-tok-pipe">|</span>`; i++; decorations.push({ start, end: i, kind: "pipe" }); continue; }
       if (ch === "#" && (i === 0 || text[i - 1] === "\n")) {
         const lineEnd = text.indexOf("\n", i);
         const line = lineEnd === -1 ? text.slice(i) : text.slice(i, lineEnd);
-        out += `<span class="wg-tok-comment">${escapeHtml(line)}</span>`; i += line.length; continue;
+        const start = i; out += `<span class="wg-tok-comment">${escapeHtml(line)}</span>`; i += line.length; decorations.push({ start, end: i, kind: "comment" }); continue;
       }
       out += escapeHtml(ch); i++;
     }
     tokenRanges = ranges;
-    return { html: out, names, categoriesInUse, categoryHueMap };
+    return { html: out, names, categoriesInUse, categoryHueMap, decorations };
   }
 
   function syncHiddenWidget() {
-    hiddenWidget.value = textarea.value;
-    if (typeof hiddenWidget.callback === "function") hiddenWidget.callback(hiddenWidget.value);
-    node.properties = node.properties || {};
-    node.properties.wg_text = textarea.value;
-    node.graph?.setDirtyCanvas(true, true);
+    if (promptState.current() !== textarea.value || promptState.isEstablished()) {
+      promptState.commit(textarea.value);
+    }
   }
 
   function render() {
-    const { html, names, categoriesInUse, categoryHueMap } = highlightText(textarea.value);
-    highlight.innerHTML = html + "\n";
+    const { html, names, categoriesInUse, categoryHueMap, decorations } = highlightText(textarea.value);
+    if (!syntaxHighlighter.render(decorations, textarea.value)) highlight.innerHTML = html + "\n";
     legend.innerHTML = "";
     categoriesInUse.forEach(cat => {
-      const color = theme.categoryPins[cat] || `hsl(${categoryHueMap[cat]}, ${theme.saturation}%, 66%)`;
+      const color = theme.categoryPins[cat] || categoryColorFromHue(categoryHueMap[cat], theme.saturation);
       const chip = document.createElement("div");
       chip.className = "wg-chip";
       chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>${escapeHtml(cat)}`;
@@ -935,14 +568,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     charCount.textContent = `${len.toLocaleString()} char${len === 1 ? "" : "s"}`;
     syncHiddenWidget();
     updateEstimate();
-    updateThemeJson();
   }
 
   function refreshFromHidden() {
-    const restored =
-      (node.properties && typeof node.properties.wg_text === "string" && node.properties.wg_text) ||
-      hiddenWidget.value ||
-      "";
+    const restored = promptState.restore();
     if (restored !== textarea.value) {
       textarea.value = restored;
       render();
@@ -950,9 +579,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     syncControlsFromWidgets();
   }
 
-  // ---- "__" wildcard autocomplete (reused as-is: findWildcardFragment /
-  // openOrUpdateAcMenu / closeAcMenu are the same module-level singleton
-  // menu the Editor node's textarea drives -- see wildcard_editor.js) ----
   function getAcMatches(query) {
     const q = query.toLowerCase();
     return libraryCache.map(i => i.path).filter(p => p.toLowerCase().includes(q)).slice(0, 20);
@@ -971,10 +597,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (e.key === "Escape") { closeAcMenu(); closeInjectMenu(); }
   });
 
-  // ---- hover preview (ported from wildcard_editor.js's charIndexFromEvent /
-  // showTipForName -- same approximate monospace hit-test, same .wg-tip
-  // singleton element, so a hovered token looks and behaves identically to
-  // the Editor node's) ----
   let hoverTip = document.querySelector(".wg-tip");
   if (!hoverTip) {
     hoverTip = document.createElement("div");
@@ -1005,6 +627,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       previewCache.set(name, entry);
     }
     const lines = (entry.lines || []).slice(0, 4);
+    copyPromptPaletteThemeScope(root, hoverTip);
     hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(known ? name : name + " (not found)")}</div>` +
       (lines.length ? lines.map(l => `<div class="wg-tip-line">${escapeHtml(l)}</div>`).join("") :
         `<div class="wg-tip-line">${known ? "no preview available" : "file missing"}</div>`);
@@ -1017,25 +640,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   textarea.addEventListener("mousemove", (e) => {
     const idx = charIndexFromEvent(e);
     const tok = tokenRanges.find(t => idx >= t.start && idx < t.end);
-    clearTimeout(hoverDebounce);
-    if (tok) hoverDebounce = setTimeout(() => showTipForName(e.clientX, e.clientY, tok.name, tok.known), 120);
+    cancelNodeTimer(node, hoverDebounce);
+    if (tok) hoverDebounce = scheduleNodeTimer(node, () => showTipForName(e.clientX, e.clientY, tok.name, tok.known), 120);
     else hideTip();
   });
   textarea.addEventListener("mouseleave", hideTip);
   textarea.addEventListener("scroll", () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });
 
-  // ---- Syntax Injector: right-click a wildcard token to open the same
-  // ⚡ flyout (Random/Sequential modifiers, {…} templates, Cut/Copy/Paste)
-  // the picker row's trigger opens, scoped to that exact token occurrence
-  // (see insertWildcard/pickerItemRow below for the picker-row entry point).
-  // Ported from wildcard_editor.js's textarea "contextmenu" handler, minus
-  // the selection-based "extract to new wildcard / Palette Recipe" actions,
-  // which are Editor-only features this node doesn't have. ----
   textarea.addEventListener("contextmenu", (e) => {
-    if (theme.syntaxInjectorEnabled === false) return; // Zen mode -- off, same as the picker's ⚡ trigger
+    if (theme.syntaxInjectorEnabled === false) return;
     const idx = textarea.selectionStart;
     const tok = tokenRanges.find(t => t.start <= idx && t.end >= idx);
-    if (!tok) return; // not on a wildcard token -- leave the browser's native menu alone
+    if (!tok) return;
     e.preventDefault();
     hideTip();
     if (ctxMenuOpen) closeCtxMenu();
@@ -1044,11 +660,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     openInjectMenuAtPoint(e.clientX, e.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
   });
 
-  // ---- folder picker drawer (ported subset of wildcard_editor.js's
-  // renderPickerList/pickerRow: search + category folders + pin + click-to-
-  // insert + hover-preview, sharing the same pp_pinned/pp_expanded_cats/
-  // pp_cat_order localStorage keys so folder state stays consistent between
-  // this node and the Editor node) ----
   function insertWildcard(path) {
     const start = textarea.selectionStart, end = textarea.selectionEnd;
     const tag = `__${path}__`;
@@ -1080,32 +691,27 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       renderPickerList(searchInput.value);
     });
 
-    // ---- Syntax Injector trigger (hover/click ⚡) ----
-    // Combinatorial mode leans on __+/__*/{…} syntax more than most, so this
-    // stays on by default (theme.syntaxInjectorEnabled, toggled from the
-    // Editor node's Zen-mode setting -- shared theme, so switching it off
-    // there hides it here too). Ported from wildcard_editor.js's pickerRow.
     if (theme.syntaxInjectorEnabled !== false) {
       const trigger = document.createElement("button");
       trigger.type = "button";
       trigger.className = "wg-inject-trigger";
       trigger.title = `Insert wildcard syntax for "${item.path}"`;
-      trigger.innerHTML = "&#9889;"; // ⚡
+      trigger.innerHTML = "&#9889;";
       trigger.setAttribute("draggable", "false");
       trigger.addEventListener("mousedown", (e) => e.stopPropagation());
       let openDelay = null;
       trigger.addEventListener("click", (e) => {
         e.stopPropagation();
-        clearTimeout(openDelay);
+        cancelNodeTimer(node, openDelay);
         if (injectState && injectState.trigger === trigger) closeInjectMenu();
         else openInjectMenu(trigger, item.path, textarea, render);
       });
       trigger.addEventListener("mouseenter", () => {
-        clearTimeout(openDelay);
-        openDelay = setTimeout(() => openInjectMenu(trigger, item.path, textarea, render), 90);
+        cancelNodeTimer(node, openDelay);
+        openDelay = scheduleNodeTimer(node, () => openInjectMenu(trigger, item.path, textarea, render), 90);
       });
       trigger.addEventListener("mouseleave", () => {
-        clearTimeout(openDelay);
+        cancelNodeTimer(node, openDelay);
         scheduleCloseInjectMenu();
       });
       row.insertBefore(trigger, row.querySelector(".wg-pin"));
@@ -1135,10 +741,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     return row;
   }
 
-  // Grid-view counterpart to pickerItemRow above -- same click-to-insert/
-  // pin/context-menu behavior, laid out as a thumbnail tile instead of a
-  // row. Ported from wildcard_editor.js's pickerTile, minus the Palette
-  // Recipe/select-mode branches that node has and this one doesn't.
   function pickerTile(item) {
     const cat = categoryOf(item.path);
     const hueMap = buildCategoryColorMap([cat]);
@@ -1149,8 +751,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const thumbBustQs = thumbBust[item.path] ? `&v=${thumbBust[item.path]}` : "";
 
     const thumbHtml = thumbRel
-      ? `<img class="wg-thumb-img" src="/prompt_palette/thumb?file=${encodeURIComponent(thumbRel)}${thumbBustQs}" alt="" loading="lazy">`
-      : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #131211));"><span class="wg-thumb-fallback-glyph" style="color:${color};">&#128193;</span></div>`;
+      ? `<img class="wg-thumb-img" src="${escapeHtml(API.thumbnailUrl(thumbRel, thumbBustQs))}" alt="" loading="lazy">`
+      : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #121417));"><span class="wg-thumb-fallback-glyph" style="color:${color};">&#128193;</span></div>`;
 
     const tile = document.createElement("div");
     tile.className = "wg-thumb-item";
@@ -1192,10 +794,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     return tile;
   }
 
-  // Appends `items` into `container` as either picker rows or a thumbnail
-  // grid, depending on pickerViewMode -- shared by both the pinned section
-  // and the category groups below so neither has to know which view is
-  // active. Ported from wildcard_editor.js's appendItems.
   function appendItems(container, items, filter = "") {
     if (pickerViewMode === "grid") {
       const grid = document.createElement("div");
@@ -1207,10 +805,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     }
   }
 
-  // Used by each row/tile's right-click context menu ("Jump to category").
-  // Category folders only exist in the idle browse view, so an active
-  // search filter is cleared first to bring the folder list back. Ported
-  // from wildcard_editor.js's jumpToCategory.
   function jumpToCategory(cat) {
     searchInput.value = "";
     if (!expandedCats.has(cat)) {
@@ -1218,19 +812,15 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       saveExpandedCats(expandedCats);
     }
     renderPickerList("");
-    requestAnimationFrame(() => {
-      const header = pickerList.querySelector(`.wg-folder[data-cat="${CSS.escape(cat)}"]`);
+    scheduleNodeFrame(node, () => {
+      const header = Array.from(pickerList.querySelectorAll(".wg-folder[data-cat]")).find((item) => item.dataset.cat === cat);
       if (!header) return;
       header.scrollIntoView({ block: "center" });
       header.classList.add("wg-jump-flash");
-      setTimeout(() => header.classList.remove("wg-jump-flash"), 900);
+      scheduleNodeTimer(node, () => header.classList.remove("wg-jump-flash"), 900);
     });
   }
 
-  // ---- Thumbnails: "Set Thumbnail..." / "Remove Thumbnail" context menu ----
-  // Re-fetches just thumbMap + repaints the picker (not a full refreshLibrary)
-  // so this stays fast and doesn't disturb pinned/scroll state. Ported from
-  // wildcard_editor.js's refreshThumbMap/setThumbnailForItem/removeThumbnailForItem.
   async function refreshThumbMap() {
     try { thumbMap = await API.categories(); } catch (e) {}
     renderPickerList(searchInput.value);
@@ -1263,9 +853,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function renderPickerList(filter = "") {
-    // The rows/tiles (and any context menu anchored to one) are about to be
-    // torn down and rebuilt below -- close both flyouts first rather than
-    // leaving them anchored to a DOM node that's about to be discarded.
+
     if (ctxMenuOpen) closeCtxMenu();
     if (injectState && injectState.textarea === textarea) closeInjectMenu();
     const q = (filter || "").trim().toLowerCase();
@@ -1312,26 +900,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
   let searchDebounce = null;
   searchInput.addEventListener("input", () => {
-    clearTimeout(searchDebounce);
-    searchDebounce = setTimeout(() => renderPickerList(searchInput.value), 150);
+    cancelNodeTimer(node, searchDebounce);
+    searchDebounce = scheduleNodeTimer(node, () => renderPickerList(searchInput.value), 150);
   });
-  // ---- resizable picker sidebar (drag right edge, 220-640px) ----
-  // Ported from wildcard_editor.js's identical feature -- this node's drawer
-  // never had it, so it was stuck at the CSS-default 220px with no drag
-  // handle. Shares the "pp_picker_width" localStorage key with the Editor
-  // node's picker, same reasoning as the shared pickerViewMode key above:
-  // one picker sidebar concept, one remembered width across both nodes.
+
   const PICKER_MIN_WIDTH = 220;
   const PICKER_MAX_WIDTH = 640;
   function loadPickerWidth() {
-    try {
-      const w = parseInt(localStorage.getItem("pp_picker_width"), 10);
-      if (Number.isFinite(w)) return Math.min(PICKER_MAX_WIDTH, Math.max(PICKER_MIN_WIDTH, w));
-    } catch (e) {}
-    return PICKER_MIN_WIDTH;
+    const w = Number(readCombinatorialPreference("pickerWidth", PICKER_MIN_WIDTH));
+    return Number.isFinite(w) ? Math.min(PICKER_MAX_WIDTH, Math.max(PICKER_MIN_WIDTH, w)) : PICKER_MIN_WIDTH;
   }
   function savePickerWidth(w) {
-    try { localStorage.setItem("pp_picker_width", String(w)); } catch (e) {}
+    writeCombinatorialPreference("pickerWidth", Number(w));
   }
   let pickerWidth = loadPickerWidth();
 
@@ -1343,17 +923,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   let resizingPicker = false;
   let resizeStartX = 0;
   let resizeStartWidth = 0;
+  let previousBodyUserSelect = null;
   pickerResizeHandle.addEventListener("mousedown", (e) => {
     if (!pickerDrawer.classList.contains("open")) return;
     resizingPicker = true;
     resizeStartX = e.clientX;
     resizeStartWidth = pickerDrawer.getBoundingClientRect().width;
     pickerDrawer.classList.add("resizing");
+    previousBodyUserSelect = document.body.style.userSelect;
     document.body.style.userSelect = "none";
     e.preventDefault();
   });
-  // Named (not inline), same reason as handleSettingsOutsideClick above --
-  // removed on node delete in cleanup() below instead of leaking forever.
+
   const handlePickerResizeMove = (e) => {
     if (!resizingPicker) return;
     pickerWidth = Math.min(PICKER_MAX_WIDTH, Math.max(PICKER_MIN_WIDTH, resizeStartWidth + (e.clientX - resizeStartX)));
@@ -1363,33 +944,45 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (!resizingPicker) return;
     resizingPicker = false;
     pickerDrawer.classList.remove("resizing");
-    document.body.style.userSelect = "";
+    document.body.style.userSelect = previousBodyUserSelect ?? "";
+    previousBodyUserSelect = null;
     savePickerWidth(pickerWidth);
   };
   document.addEventListener("mousemove", handlePickerResizeMove);
   document.addEventListener("mouseup", handlePickerResizeUp);
 
   function openPickerDrawer() {
+    pickerDrawer.hidden = false;
+    pickerDrawer.removeAttribute("inert");
+    pickerDrawer.setAttribute("aria-hidden", "false");
     pickerDrawer.classList.add("open");
-    root.querySelector('[data-act="picker"]').classList.add("active");
+    action("picker").classList.add("active");
     pickerDrawer.style.width = pickerWidth + "px";
   }
   function closePickerDrawer() {
     pickerDrawer.classList.remove("open");
-    root.querySelector('[data-act="picker"]').classList.remove("active");
+    action("picker").classList.remove("active");
     pickerDrawer.style.width = "";
+    pickerDrawer.setAttribute("aria-hidden", "true");
+    pickerDrawer.setAttribute("inert", "");
+    // A closed picker must not contribute intrinsic height to Nodes 2.
+    // Hide it from layout immediately; opening restores it before painting.
+    pickerDrawer.hidden = true;
   }
-  root.querySelector('[data-act="picker"]').addEventListener("click", () => {
-    if (pickerDrawer.classList.contains("open")) closePickerDrawer(); else openPickerDrawer();
+  action("picker").addEventListener("click", () => {
+    if (pickerDrawer.classList.contains("open")) {
+      closePickerDrawer();
+    } else {
+      closeSettings();
+      ioRail.close();
+      openPickerDrawer();
+    }
   });
 
-  // ---- picker grid/list view toggle ----
-  // Ported from wildcard_editor.js's syncPickerViewToggleBtn/click handler,
-  // sharing the pp_picker_view localStorage key (loadPickerView/savePickerView)
-  // so the mode stays consistent between this node and the Editor node.
   function syncPickerViewToggleBtn() {
     pickerViewToggleBtn.classList.toggle("active", pickerViewMode === "grid");
     pickerViewToggleBtn.title = pickerViewMode === "grid" ? "Switch to list view" : "Switch to grid view";
+    pickerViewToggleBtn.innerHTML = svgIcon(pickerViewMode === "grid" ? "list" : "grid");
   }
   syncPickerViewToggleBtn();
   pickerViewToggleBtn.addEventListener("click", () => {
@@ -1400,15 +993,31 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   });
 
   async function refreshLibrary() {
-    try { libraryCache = await API.list(); } catch (e) { libraryCache = []; }
-    knownSet = new Set(libraryCache.map(i => i.path));
-    try { thumbMap = await API.categories(); } catch (e) { thumbMap = {}; }
+    let nextLibrary;
+    try {
+      nextLibrary = await API.list();
+    } catch (error) {
+      console.error("Prompt Palette: wildcard refresh failed", error);
+      return false;
+    }
+    if (!nodeIsActive(node)) return false;
+    let nextThumbMap = thumbMap;
+    try {
+      nextThumbMap = await API.categories();
+    } catch (error) {
+      console.error("Prompt Palette: thumbnail refresh failed", error);
+    }
+    if (!nodeIsActive(node)) return false;
+    libraryCache = nextLibrary;
+    knownSet = new Set(nextLibrary.map((item) => item.path));
+    thumbMap = nextThumbMap;
     render();
     renderPickerList(searchInput.value);
+    return true;
   }
   node._wgRefreshLibrary = refreshLibrary;
 
-  root.querySelector('[data-act="refresh"]').addEventListener("click", async (e) => {
+  action("refresh").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     btn.classList.add("active");
     try {
@@ -1422,125 +1031,197 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     }
   });
 
+  // The settings coordinator owns the viewport portal mount; library/editor/picker remain inside the node.
+  const cleanupSettingsKeyboardBoundary = installPromptPaletteKeyboardBoundary(settingsPopup);
+
   syncControlsFromWidgets();
   render();
-  refreshLibrary().then(() => renderCatPins());
+  refreshLibrary().catch((error) => {
+    console.error("Prompt Palette: initial combinatorial refresh failed", error);
+  });
 
   const frame = document.createElement("div");
-  frame.className = "pp-node-frame";
+  frame.className = "wg-node-frame pp-node-frame";
   frame.appendChild(root);
+  // Match the main Prompt Palette lifecycle exactly: the DOM widget must exist
+  // before the renderer adapter inspects/positions socket rails. Installing the
+  // renderer while ComfyUI is still constructing the DOM row can feed transient
+  // intrinsic content measurements back into Nodes 2.
+  node._wgInstallSocketRailWhenReady = () => {
+    delete node._wgInstallSocketRailWhenReady;
+    installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, frame);
+  };
 
   return {
     root: frame,
     refreshFromHidden,
+    refreshVisuals: () => {
+      if (!frame.isConnected) return false;
+      render();
+      return true;
+    },
     reassertHiddenWidgets,
+    reapplyTheme: appearanceBinding.apply,
     cleanup: () => {
+      delete node._wgBeforeIoRailOpen;
+      ioRail.cleanup();
+      syntaxHighlighter.clear();
+      editorSurface.cleanup();
       if (acState && acState.textarea === textarea) closeAcMenu();
-      document.removeEventListener("mousedown", handleSettingsOutsideClick);
+      root.removeEventListener("keydown", handleWorkspaceEscape);
+      document.removeEventListener("keydown", handleWorkspaceEscape);
       document.removeEventListener("mousemove", handlePickerResizeMove);
       document.removeEventListener("mouseup", handlePickerResizeUp);
+      if (resizingPicker) {
+        resizingPicker = false;
+        pickerDrawer.classList.remove("resizing");
+        document.body.style.userSelect = previousBodyUserSelect ?? "";
+        previousBodyUserSelect = null;
+      }
+      clearNodeTimers(node);
+      appearanceBinding.cleanup();
+      settingsDrawer.unregister();
+      cleanupSettingsKeyboardBoundary();
+      settingsPopup.remove();
+      cleanupKeyboardBoundary();
     },
   };
 }
 
 app.registerExtension({
   name: "comfyui.promptpalette.combinatorial",
+
   async nodeCreated(node) {
     if (node.comfyClass !== "PromptPaletteCombinatorial") return;
     if (node.__promptPaletteCombinatorialInitialized) return;
-    await Promise.all([editorStylesReady, combinatorialStylesReady]);
 
-    const hiddenWidget = node.widgets?.find(w => w.name === "text");
-    if (!hiddenWidget) return;
-    Object.defineProperty(node, "__promptPaletteCombinatorialInitialized", {
-      value: true,
-      configurable: true,
-    });
+    const lifecycle = ensureNodeLifecycle(node);
+    await Promise.all([editorStylesReady, combinatorialStylesReady]);
+    if (!nodeIsActive(node) || node.__promptPaletteCombinatorialInitialized) return;
+
+    const hiddenWidget = node.widgets?.find((widget) => widget.name === "text");
+    if (!hiddenWidget) {
+      console.error("Prompt Palette: Combinatorial UI could not find the V3 text widget.");
+      return;
+    }
 
     hideNativeWidget(hiddenWidget);
-
+    installPromptStateGuard(node, hiddenWidget);
+    installPromptMetadataCapture(node);
     node.resizable = true;
 
-    const MIN_WIDTH = 420;
-    const MIN_HEIGHT = 430;
+    let built = null;
+    try {
+      built = buildCombinatorialWidget(node, hiddenWidget);
+      const {
+        root: container,
+        refreshFromHidden,
+        refreshVisuals,
+        reassertHiddenWidgets,
+        reapplyTheme,
+        cleanup,
+      } = built;
 
-    const { root: container, refreshFromHidden, reassertHiddenWidgets, cleanup } = buildCombinatorialWidget(node, hiddenWidget);
-    let domWidget;
-    domWidget = node.addDOMWidget("prompt_palette_combinatorial_ui", "div", container, {
-      getValue: () => hiddenWidget.value,
-      setValue: (v) => {
-        hiddenWidget.value = v;
-        node.properties = node.properties || {};
-        node.properties.wg_text = v;
-      },
-      serialize: false,
-      // MIN_HEIGHT belongs to the whole node, not to this one widget row.
-      // A widget-level minimum of MIN_HEIGHT makes Vue add the node header,
-      // slots and padding on top and turns that oversized content minimum into
-      // the node's effective locked height. Let LiteGraph allocate the row
-      // from the current node body instead.
-      getMinHeight: () => 0,
-      getMaxHeight: () => getDomWidgetAvailableHeight(node, domWidget),
-      getHeight: () => getDomWidgetAvailableHeight(node, domWidget),
-      afterResize: () => scheduleDomWidgetRemeasure(node),
-    });
-    node._wgRefreshFromHidden = refreshFromHidden;
-    node._wgReassertHiddenWidgets = reassertHiddenWidgets;
-    livePromptPaletteNodes.add(node);
+      const domWidget = node.addDOMWidget("prompt_palette_combinatorial_ui", "div", container, {
+        getValue: () => node._ppPromptStateGuard?.current() ?? hiddenWidget.value,
+        setValue: (value) => {
+          node._ppPromptStateGuard?.acceptRendererValue(value);
+          node._wgRefreshFromHidden?.();
+        },
+        serialize: false,
+        hideOnZoom: false,
+        // Match the working Editor/Weight Controller contract: no hard minimum,
+        // and only consume the height ComfyUI has already allocated to this row.
+        getMinHeight: () => 0,
+        getMaxHeight: () => getDomWidgetAvailableHeight(node, domWidget),
+        getHeight: () => getDomWidgetAvailableHeight(node, domWidget),
+        afterResize: () => scheduleDomWidgetRemeasure(node),
+      });
+      installResponsiveDomWidgetWidth(node, domWidget);
 
-    // Same fix as wildcard_editor.js's onNodeCreated: ComfyUI mounts the
-    // real DOM element for each hidden native widget (hiddenWidget,
-    // modeWidget, countWidget, seedWidget, seedModeWidget,
-    // maxPromptsWidget) asynchronously, after this onNodeCreated call
-    // already returns -- stomping the synchronous hideNativeWidget() call
-    // a few lines up the moment it mounts. onConfigure below already
-    // re-runs reassertHiddenWidgets() (deferred the same way) for nodes
-    // loaded from a saved workflow / restored on page refresh, which is
-    // why reloading the page fixed existing nodes but any freshly created
-    // node was broken again until the *next* reload routed it through
-    // onConfigure instead. Deferring the same call here closes that gap
-    // for fresh nodes too.
-    setTimeout(() => reassertHiddenWidgets(), 0);
-    scheduleDomWidgetRemeasure(node);
+      node._wgRefreshFromHidden = refreshFromHidden;
+      node._wgRefreshVisuals = refreshVisuals;
+      node._wgReassertHiddenWidgets = reassertHiddenWidgets;
+      node._wgReapplyTheme = reapplyTheme;
+      node._wgRendererModeChanged = () => {
+        node._wgReassertHiddenWidgets?.();
+        node._wgReapplyTheme?.();
+        scheduleDomWidgetRemeasure(node);
+      };
+      livePromptPaletteNodes.add(node);
 
-    const onRemoved = node.onRemoved;
-    node.onRemoved = function () {
-      livePromptPaletteNodes.delete(node);
-      if (cleanup) cleanup();
-      return onRemoved ? onRemoved.apply(this, arguments) : undefined;
-    };
+      Object.defineProperty(node, "__promptPaletteCombinatorialInitialized", {
+        value: true,
+        configurable: true,
+      });
 
-    function clampSize() {
-      if (node.size[0] < MIN_WIDTH) node.size[0] = MIN_WIDTH;
-      if (node.size[1] < MIN_HEIGHT) node.size[1] = MIN_HEIGHT;
+      const reassertSurface = () => {
+        if (!nodeIsActive(node) || !node.__promptPaletteCombinatorialInitialized) return;
+        node._wgRefreshFromHidden?.();
+        node._wgRefreshIoToggles?.();
+        node._wgReassertHiddenWidgets?.();
+        node._wgReapplyTheme?.();
+        queueSocketRailLayout(node);
+        scheduleDomWidgetRemeasure(node);
+      };
+      node._wgReassertCombinatorialSurface = reassertSurface;
+
+      // Let ComfyUI finish addDOMWidget before installing socket adapters, just
+      // like the main Prompt Palette node. This prevents Combinatorial's much
+      // larger library subtree from participating in a transient Nodes 2 mount
+      // measurement.
+      const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
+      raf(() => {
+        if (!nodeIsActive(node)) return;
+        node._wgInstallSocketRailWhenReady?.();
+        queueSocketRailLayout(node);
+        reassertSurface();
+      });
+      queueMicrotask(reassertSurface);
+      scheduleDomWidgetRemeasure(node);
+
+      lifecycle.add(() => {
+        livePromptPaletteNodes.delete(node);
+        cleanupSocketRailLayout(node);
+        delete node._wgInstallSocketRailWhenReady;
+        delete node._wgRendererModeChanged;
+        delete node._wgReassertCombinatorialSurface;
+        delete node._wgReapplyTheme;
+        delete node._wgRefreshFromHidden;
+        delete node._wgRefreshVisuals;
+        delete node._wgReassertHiddenWidgets;
+        cleanup?.();
+        if (livePromptPaletteNodes.size === 0) cleanupSharedPromptPaletteDom();
+      });
+    } catch (error) {
+      try { built?.cleanup?.(); } catch {}
+      cleanupSocketRailLayout(node);
+      delete node.__promptPaletteCombinatorialInitialized;
+      console.error("Prompt Palette: Combinatorial UI initialization failed", error);
     }
-    const onResize = node.onResize;
-    node.onResize = function (size) {
-      const result = onResize ? onResize.apply(this, arguments) : undefined;
-      clampSize();
-      return result;
-    };
+  },
 
-    node.setSize([Math.max(node.size[0], MIN_WIDTH), Math.max(node.size[1], MIN_HEIGHT)]);
+  loadedGraphNode(node) {
+    if (node.comfyClass !== "PromptPaletteCombinatorial") return;
+    const reassert = () => node._wgReassertCombinatorialSurface?.();
+    queueMicrotask(reassert);
+    const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
+    raf(reassert);
+  },
 
-    const onConfigure = node.onConfigure;
-    node.onConfigure = function () {
-      this._wgConfigured = true;
-      const r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
-      if (this._wgRefreshFromHidden) setTimeout(() => this._wgRefreshFromHidden(), 0);
-      // node.properties (including wg_io) gets replaced wholesale by this same
-      // restore step, *after* onNodeCreated already built the toggle UI off
-      // the old reference -- re-render/re-sync against whatever came back,
-      // same reasoning as wildcard_editor.js's own onConfigure hook.
-      if (this._wgRefreshIoToggles) setTimeout(() => this._wgRefreshIoToggles(), 0);
-      // See the matching comment in wildcard_editor.js's onConfigure: ComfyUI's
-      // own restore step re-touches these widgets' DOM elements after the
-      // onNodeCreated hide already ran, which is what left an invisible
-      // click-blocking box below nodes loaded from a saved workflow. Re-hide
-      // them here, after that restore has finished.
-      if (this._wgReassertHiddenWidgets) setTimeout(() => this._wgReassertHiddenWidgets(), 0);
-      scheduleDomWidgetRemeasure(this);
-      return r;
-    };
+  afterConfigureGraph() {
+    // loadedGraphNode is intentionally followed by a graph-complete pass because
+    // Nodes 2 may restore serialized shell/category colors later in configuration.
+    // Reapplying the suite theme here keeps Combinatorial cohesive with the other
+    // Prompt Palette nodes without hard-coding any color or geometry.
+    const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
+    raf(() => {
+      for (const node of livePromptPaletteNodes) {
+        if (node?.comfyClass === "PromptPaletteCombinatorial") {
+          node._wgReassertCombinatorialSurface?.();
+        }
+      }
+    });
   },
 });
+

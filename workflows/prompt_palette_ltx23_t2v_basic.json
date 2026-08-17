@@ -1,0 +1,1244 @@
+{
+  "last_node_id": 20,
+  "last_link_id": 24,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        20,
+        20
+      ],
+      "size": [
+        430,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "ltx-2.3-22b-dev-fp8.safetensors"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        20,
+        150
+      ],
+      "size": [
+        430,
+        120
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "ltx_2.3_22b_distilled_1.1_lora_dynamic_fro09_avg_rank_111_bf16.safetensors",
+        0.5
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LTXAVTextEncoderLoader",
+      "pos": [
+        20,
+        300
+      ],
+      "size": [
+        430,
+        130
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2,
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXAVTextEncoderLoader"
+      },
+      "widgets_values": [
+        "gemma_3_12B_it_fp4_mixed.safetensors",
+        "ltx-2.3-22b-dev-fp8.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "LTXVAudioVAELoader",
+      "pos": [
+        20,
+        460
+      ],
+      "size": [
+        430,
+        100
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "Audio VAE",
+          "type": "VAE",
+          "links": [
+            6,
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVAudioVAELoader"
+      },
+      "widgets_values": [
+        "ltx-2.3-22b-dev-fp8.safetensors"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "PromptPaletteEditor",
+      "pos": [
+        500,
+        20
+      ],
+      "size": [
+        430,
+        310
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2,
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "enhancer_override",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "external_seed",
+          "type": "INT",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_text",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Model (passthrough)",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CLIP (passthrough)",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "Conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "Negative conditioning",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "Prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Negative prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Seed used",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (JSON)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Raw text (unresolved)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (count)",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Used enhancer override",
+          "type": "BOOLEAN",
+          "links": null
+        },
+        {
+          "name": "CLIP token count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Prompt metadata (JSON)",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptPaletteEditor"
+      },
+      "widgets_values": [
+        "Wide establishing shot inside a small neighborhood bakery just before opening. Warm sunrise spills through the front windows. A baker carries a tray of fresh bread from the oven, places it on the counter, tears one loaf open and steam rises. The camera slowly dollies from the doorway to a medium shot at the counter. Flour floats in the light. Audio: oven fan, tray on wood, crust crackle, distant street traffic, no music.",
+        0,
+        "entire text as one"
+      ],
+      "title": "Prompt Palette — LTX 2.3"
+    },
+    {
+      "id": 6,
+      "type": "PromptPaletteEditor",
+      "pos": [
+        500,
+        380
+      ],
+      "size": [
+        430,
+        310
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3,
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "enhancer_override",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "external_seed",
+          "type": "INT",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_text",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Model (passthrough)",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CLIP (passthrough)",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "Conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "Negative conditioning",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "Prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Negative prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Seed used",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (JSON)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Raw text (unresolved)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (count)",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Used enhancer override",
+          "type": "BOOLEAN",
+          "links": null
+        },
+        {
+          "name": "CLIP token count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Prompt metadata (JSON)",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptPaletteEditor"
+      },
+      "widgets_values": [
+        "pc game, console game, video game, cartoon, childish, ugly",
+        0,
+        "entire text as one"
+      ],
+      "title": "Prompt Palette — Negative"
+    },
+    {
+      "id": 7,
+      "type": "LTXVConditioning",
+      "pos": [
+        980,
+        270
+      ],
+      "size": [
+        320,
+        130
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 4
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVConditioning",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        24
+      ],
+      "title": "LTX conditioning — 24 fps"
+    },
+    {
+      "id": 8,
+      "type": "EmptyLTXVLatentVideo",
+      "pos": [
+        980,
+        500
+      ],
+      "size": [
+        350,
+        200
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLTXVLatentVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        768,
+        512,
+        97,
+        1
+      ],
+      "title": "Video latent — 832×480 / 81 frames"
+    },
+    {
+      "id": 9,
+      "type": "LTXVEmptyLatentAudio",
+      "pos": [
+        980,
+        700
+      ],
+      "size": [
+        350,
+        180
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Latent",
+          "type": "LATENT",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVEmptyLatentAudio",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        97,
+        24,
+        1
+      ],
+      "title": "Audio latent — 81 frames / 24 fps"
+    },
+    {
+      "id": 10,
+      "type": "LTXVConcatAVLatent",
+      "pos": [
+        1320,
+        610
+      ],
+      "size": [
+        300,
+        100
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video_latent",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "audio_latent",
+          "type": "LATENT",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVConcatAVLatent",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 11,
+      "type": "CFGGuider",
+      "pos": [
+        1320,
+        270
+      ],
+      "size": [
+        320,
+        150
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 10
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CFGGuider",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        1.0
+      ],
+      "title": "Distilled guider — CFG 1"
+    },
+    {
+      "id": 12,
+      "type": "RandomNoise",
+      "pos": [
+        1320,
+        20
+      ],
+      "size": [
+        320,
+        100
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        1087440833994,
+        "randomize"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "KSamplerSelect",
+      "pos": [
+        1320,
+        120
+      ],
+      "size": [
+        320,
+        80
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "ManualSigmas",
+      "pos": [
+        1320,
+        770
+      ],
+      "size": [
+        520,
+        110
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ManualSigmas",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+      ],
+      "title": "LTX distilled 1.1 sigma schedule"
+    },
+    {
+      "id": 15,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        1680,
+        350
+      ],
+      "size": [
+        300,
+        190
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 12
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 13
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 14
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 15
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            17
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 16,
+      "type": "LTXVSeparateAVLatent",
+      "pos": [
+        1970,
+        350
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_latent",
+          "type": "LATENT",
+          "links": [
+            18
+          ]
+        },
+        {
+          "name": "audio_latent",
+          "type": "LATENT",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVSeparateAVLatent",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 17,
+      "type": "VAEDecode",
+      "pos": [
+        2250,
+        250
+      ],
+      "size": [
+        260,
+        80
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 18
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [],
+      "title": "Decode video frames"
+    },
+    {
+      "id": 18,
+      "type": "LTXVAudioVAEDecode",
+      "pos": [
+        2250,
+        470
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 20
+        },
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Audio",
+          "type": "AUDIO",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVAudioVAEDecode",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [],
+      "title": "Decode native audio"
+    },
+    {
+      "id": 19,
+      "type": "CreateVideo",
+      "pos": [
+        2530,
+        330
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 22
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 23,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        24,
+        8
+      ],
+      "title": "Create 24 fps video + audio"
+    },
+    {
+      "id": 20,
+      "type": "SaveVideo",
+      "pos": [
+        2820,
+        330
+      ],
+      "size": [
+        430,
+        120
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/PromptPalette_LTX23",
+        "auto",
+        "auto"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      3,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      3,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      5,
+      2,
+      7,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      5,
+      6,
+      2,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      4,
+      0,
+      9,
+      0,
+      "VAE"
+    ],
+    [
+      7,
+      8,
+      0,
+      10,
+      0,
+      "LATENT"
+    ],
+    [
+      8,
+      9,
+      0,
+      10,
+      1,
+      "LATENT"
+    ],
+    [
+      9,
+      2,
+      0,
+      11,
+      0,
+      "MODEL"
+    ],
+    [
+      10,
+      7,
+      0,
+      11,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      11,
+      7,
+      1,
+      11,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      12,
+      12,
+      0,
+      15,
+      0,
+      "NOISE"
+    ],
+    [
+      13,
+      11,
+      0,
+      15,
+      1,
+      "GUIDER"
+    ],
+    [
+      14,
+      13,
+      0,
+      15,
+      2,
+      "SAMPLER"
+    ],
+    [
+      15,
+      14,
+      0,
+      15,
+      3,
+      "SIGMAS"
+    ],
+    [
+      16,
+      10,
+      0,
+      15,
+      4,
+      "LATENT"
+    ],
+    [
+      17,
+      15,
+      0,
+      16,
+      0,
+      "LATENT"
+    ],
+    [
+      18,
+      16,
+      0,
+      17,
+      0,
+      "LATENT"
+    ],
+    [
+      19,
+      1,
+      2,
+      17,
+      1,
+      "VAE"
+    ],
+    [
+      20,
+      16,
+      1,
+      18,
+      0,
+      "LATENT"
+    ],
+    [
+      21,
+      4,
+      0,
+      18,
+      1,
+      "VAE"
+    ],
+    [
+      22,
+      17,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      18,
+      0,
+      19,
+      1,
+      "AUDIO"
+    ],
+    [
+      24,
+      19,
+      0,
+      20,
+      0,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.62,
+      "offset": [
+        50,
+        50
+      ]
+    }
+  },
+  "version": 0.4
+}

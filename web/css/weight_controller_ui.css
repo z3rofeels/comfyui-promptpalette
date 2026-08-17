@@ -1,58 +1,93 @@
-/* ------------------------------------------------------------------ */
-/* Weight Controller settings gear + popup + credit footer.            */
-/* Shares the wg- namespace and --wg-* custom properties with          */
-/* wildcard_editor.css so this node matches whatever Interface Theme   */
-/* the rest of the Prompt Palette suite is currently using -- those    */
-/* properties are set on :root at runtime by wildcard_editor.js's      */
-/* applyUiTheme() (or this file's own copy of it, see                  */
-/* weight_controller_ui.js), same shared "pp_ui_*" localStorage keys.  */
-/* The fallback values below just match BUILTIN_UI_THEMES.Amber so the */
-/* UI still looks right before either node has had a chance to apply   */
-/* anything.                                                            */
-/*                                                                       */
-/* This file only declares rules that are actually specific to this    */
-/* node (the .ppwc-* classes, plus the couple of .wg-icon-btn overrides */
-/* this node's smaller gear button needs). Everything else this popup's */
-/* markup uses -- .wg-settings-head, .wg-settings-body, .wg-settings-   */
-/* section, .wg-srow, .wg-theme-select, .wg-swatch-grid/-item,          */
-/* .wg-drawer-btns, .wg-status, .wg-credit-link, etc. -- is styled by   */
-/* wildcard_editor.css instead. weight_controller_ui.js imports from    */
-/* wildcard_editor.js, which guarantees that stylesheet is already on   */
-/* the page, so re-declaring byte-for-byte copies of its rules here     */
-/* would just be redundant (and a maintenance risk if the two ever      */
-/* drifted apart). See .ppwc-settings-popup below for the one rule that */
-/* genuinely can't be shared with wildcard_editor.js's .wg-settings-    */
-/* popup, since the two nodes anchor their popups differently.          */
-/* ------------------------------------------------------------------ */
+.ppwc-surface {
+  width:100%; height:100%; min-width:0; min-height:0;
+  display:flex; flex-direction:column; overflow:hidden;
+  border-radius:8px; border:1px solid var(--wg-border,#2a2e34);
+  background:var(--wg-bg,#17191c); color:var(--wg-text,#f1eee8);
+  box-sizing:border-box;
+  font-family:var(--wg-font-family,inherit);
+}
 
-/* Small always-visible strip added to the node body via addDOMWidget,
-   holding just the settings gear -- everything else on this node stays
-   as plain native ComfyUI widgets. */
-.ppwc-settings-row { display: flex; justify-content: flex-end; align-items: center; padding: 2px 4px; box-sizing: border-box; }
+/* Nodes 2 only: keep the DOM surface from becoming an intrinsic height floor. */
+[data-testid="node-widget"] .ppwc-surface {
+  min-height: 0;
+  max-height: 100%;
+  contain: size;
+  contain-intrinsic-size: 0 0;
+}
+.ppwc-settings-row {
+  flex:none; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  min-height:42px; padding:6px 7px 6px 10px; box-sizing:border-box;
+  border-bottom:1px solid var(--wg-border,#2a2e34);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--wg-accent,#d77768) 9%,var(--wg-panel-bg,#1c1f23)),var(--wg-panel-bg,#1c1f23));
+}
+.ppwc-title-wrap { min-width:0; display:flex; align-items:center; gap:8px; }
+.ppwc-title-wrap > div { min-width:0; display:grid; gap:1px; }
+.ppwc-title-wrap strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text,#f1eee8); font-size:calc(10px * var(--wg-ui-font-scale,1)); font-weight:700; letter-spacing:.015em; }
+.ppwc-title-wrap small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text-faint,#8f887e); font-size:calc(8px * var(--wg-ui-font-scale,1)); }
+.ppwc-title-mark { width:6px; height:22px; flex:none; border-radius:999px; background:var(--wg-accent,#d77768); box-shadow:0 0 12px color-mix(in srgb,var(--wg-accent,#d77768) 35%,transparent); }
+.ppwc-row-actions { flex:none; display:flex; align-items:center; gap:4px; }
+.ppwc-settings-row .wg-icon-btn { width:26px; height:26px; }
+.ppwc-settings-row .wg-io-toggle-btn { width:auto; min-width:48px; }
 
-/* This node's gear button is a couple px smaller than wildcard_editor.css's
-   toolbar .wg-icon-btn (22px vs 24px), since it sits alone in a slim strip
-   rather than a full toolbar -- so the base rule is overridden here. The
-   :hover/:active/.active states don't depend on size and are byte-identical
-   to wildcard_editor.css's, so they're left to that stylesheet rather than
-   copied. */
-.ppwc-settings-row .wg-icon-btn { width: 22px; height: 22px; }
+.ppwc-main { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:8px; padding:9px; box-sizing:border-box; }
+.ppwc-editor-head { flex:none; min-width:0; display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.ppwc-editor-head > span { color:var(--wg-text-dim,#b8b0a4); font-size:calc(9px * var(--wg-ui-font-scale,1)); font-weight:700; letter-spacing:.035em; text-transform:uppercase; }
+.ppwc-editor-head > small { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text-faint,#8f887e); font-size:calc(8px * var(--wg-ui-font-scale,1)); }
+.ppwc-editor-wrap {
+  flex:1 1 130px; min-height:110px; overflow:hidden; display:flex;
+  border:1px solid var(--wg-border,#2a2e34); border-radius:7px;
+  background:var(--wg-surface,#121417);
+  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--wg-text,#f1eee8) 3%,transparent);
+}
+.ppwc-editor-wrap:focus-within { border-color:color-mix(in srgb,var(--wg-accent,#d77768) 64%,var(--wg-border,#2a2e34)); box-shadow:0 0 0 1px color-mix(in srgb,var(--wg-accent,#d77768) 20%,transparent); }
+.ppwc-textarea {
+  width:100%; height:100%; min-width:0; min-height:0; margin:0; padding:10px 11px;
+  resize:none; border:0; outline:0; box-sizing:border-box; overflow:auto;
+  background:transparent; color:var(--wg-prompt-text,var(--wg-text,#f1eee8));
+  font-family:var(--wg-font-family,ui-monospace,SFMono-Regular,Consolas,monospace);
+  font-size:var(--wg-editor-font-size,12.5px); line-height:1.5; caret-color:var(--wg-accent,#d77768);
+}
+.ppwc-textarea::selection { background:color-mix(in srgb,var(--wg-accent,#d77768) 36%,transparent); }
+.ppwc-textarea::-webkit-scrollbar { width:8px; }
+.ppwc-textarea::-webkit-scrollbar-thumb { border:2px solid transparent; border-radius:999px; background:var(--wg-border-strong,#3a4048); background-clip:padding-box; }
 
-/* Unlike wildcard_editor.css's .wg-settings-popup (which slides in inside
-   a .wg-node frame sized to the node, since that node is one big
-   addDOMWidget), this node's real UI is plain native widgets -- there's no
-   full-node frame to anchor an absolutely-positioned drawer inside. So this
-   popup gets its own class, anchored to the browser viewport's right edge
-   (position: fixed) instead of the node's own box (position: absolute) --
-   keeping it as .wg-settings-popup would collide with wildcard_editor.css's
-   conflicting rule of the same name (different position/z-index/max-width)
-   any time both nodes' stylesheets are loaded together. Same slide-in
-   drawer chrome/behavior either way; everything inside it (.wg-settings-
-   head, .wg-settings-body, etc.) reuses wildcard_editor.css's classes as
-   normal since those aren't in conflict. */
-.ppwc-settings-popup { position: fixed; top: 0; right: 0; bottom: 0; width: 300px; max-width: 90vw; background: var(--wg-panel-bg, #201e1a); border-left: 1px solid var(--wg-border-strong, #3a362c); z-index: 10000; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 200ms ease, box-shadow 200ms ease; pointer-events: none; }
-.ppwc-settings-popup.open { transform: translateX(0); box-shadow: -10px 0 28px rgba(0,0,0,0.45); pointer-events: auto; }
+.ppwc-controls { flex:none; display:grid; grid-template-columns:minmax(0,1fr) minmax(170px,.8fr); gap:7px; }
+.ppwc-field { min-width:0; display:grid; gap:4px; color:var(--wg-text-dim,#b8b0a4); font-size:calc(8px * var(--wg-ui-font-scale,1)); font-weight:650; }
+.ppwc-field > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ppwc-field select {
+  width:100%; min-width:0; height:30px; padding:0 26px 0 9px; box-sizing:border-box;
+  border:1px solid var(--wg-border,#2a2e34); border-radius:6px;
+  background:var(--wg-panel-bg,#1c1f23); color:var(--wg-text,#f1eee8);
+  font:inherit; font-weight:500; outline:0;
+}
+.ppwc-field select:focus { border-color:color-mix(in srgb,var(--wg-accent,#d77768) 64%,var(--wg-border,#2a2e34)); }
+.ppwc-toggle-card {
+  min-width:0; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  min-height:50px; padding:7px 9px; box-sizing:border-box; cursor:pointer;
+  border:1px solid var(--wg-border,#2a2e34); border-radius:7px; background:var(--wg-panel-bg,#1c1f23);
+}
+.ppwc-toggle-card > div { min-width:0; display:grid; gap:2px; }
+.ppwc-toggle-card strong { color:var(--wg-text-dim,#b8b0a4); font-size:calc(9px * var(--wg-ui-font-scale,1)); }
+.ppwc-toggle-card small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text-faint,#8f887e); font-size:calc(8px * var(--wg-ui-font-scale,1)); }
+.ppwc-toggle-card input { flex:none; width:16px; height:16px; margin:0; accent-color:var(--wg-accent,#d77768); }
+.ppwc-advanced { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:7px; padding-top:1px; }
+.ppwc-advanced[hidden] { display:none !important; }
+.ppwc-surface .wg-io-rail { flex:none; max-height:96px; overflow:auto; border-top:1px solid var(--wg-border,#2a2e34); border-bottom:0; background:var(--wg-panel-bg,#1c1f23); }
+.ppwc-settings-row .wg-icon-btn .wg-svg-icon { width:13px; height:13px; }
 
-.ppwc-help-text { font-size: 9px; color: var(--wg-text-faint, #8a836f); line-height: 1.6; margin-bottom: 6px; }
-.ppwc-help-text strong { color: var(--wg-text-dim, #c9c2b1); font-weight: 600; }
-.ppwc-help-text + .ppwc-help-text { margin-top: 8px; }
+.ppwc-settings-popup { display:flex; flex-direction:column; }
+.ppwc-help-text { font-size:9px; color:var(--wg-text-faint,#8f887e); line-height:1.6; margin-bottom:6px; }
+.ppwc-help-text strong { color:var(--wg-text-dim,#b8b0a4); font-weight:600; }
+.ppwc-help-text + .ppwc-help-text { margin-top:8px; }
+.ppwc-settings-shell { grid-template-columns:112px minmax(0,1fr); }
+.ppwc-settings-popup .wg-settings-body { padding-bottom:22px; }
+.ppwc-settings-popup .wg-button .wg-svg-icon { margin-right:5px; vertical-align:-2px; }
+.ppwc-help-card { display:grid; gap:5px; margin-bottom:8px; padding:11px 12px; border:1px solid var(--wg-border,#2a2e34); border-radius:9px; background:color-mix(in srgb,var(--wg-surface,#121417) 82%,transparent); }
+.ppwc-help-card strong { color:var(--wg-text,#f1eee8); font-size:10px; }
+.ppwc-help-card span { color:var(--wg-text-faint,#8f887e); font-size:9px; line-height:1.55; }
+
+@media (max-width:470px) {
+  .ppwc-settings-shell { grid-template-columns:1fr; grid-template-rows:auto minmax(0,1fr); }
+  .ppwc-controls,.ppwc-advanced { grid-template-columns:1fr; }
+  .ppwc-advanced { grid-column:1; }
+}

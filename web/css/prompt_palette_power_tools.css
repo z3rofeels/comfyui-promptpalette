@@ -1,0 +1,80 @@
+/* Optional Prompt Palette power tools. These styles do not alter the core layout when disabled. */
+.wg-root .wg-toolbar-center{display:flex;align-items:center;gap:7px;min-width:0}
+.wg-root .wg-variation-launch{height:24px;padding:0 10px;border-radius:999px;white-space:nowrap}
+.wg-root .wg-variation-launch[hidden],.wg-root .wg-library-manager-btn[hidden]{display:none!important}
+.wg-root .wg-power-note{padding:10px 12px;border:1px solid color-mix(in srgb,var(--wg-border) 82%,transparent);border-radius:10px;background:color-mix(in srgb,var(--wg-panel-bg, #1c1f23) 78%,transparent);color:var(--wg-text-dim, #b8b0a4);font-size:11px;line-height:1.45;margin-bottom:10px}
+.wg-root .wg-toggle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.wg-root .wg-toggle-card{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 11px;border:1px solid var(--wg-border);border-radius:10px;background:var(--wg-panel-bg, #1c1f23);cursor:pointer;min-width:0}
+.wg-root .wg-toggle-card:hover{background:color-mix(in srgb,var(--wg-panel-bg, #1c1f23),white 7%)}
+.wg-root .wg-toggle-card>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.wg-root .wg-toggle-card strong{font-size:11px;color:var(--wg-text);font-weight:650}
+.wg-root .wg-toggle-card small{font-size:10px;line-height:1.35;color:var(--wg-text-dim, #b8b0a4)}
+.wg-root .wg-toggle-card input{flex:0 0 auto;margin-top:2px;accent-color:var(--wg-accent)}
+.wg-root .wg-power-popup{width:min(430px,calc(100% - 14px));z-index:18}
+.wg-root .wg-power-summary{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.wg-root .wg-power-summary-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--wg-border);border-radius:999px;background:var(--wg-panel-bg, #1c1f23);font-size:10px;color:var(--wg-text-dim, #b8b0a4)}
+.wg-root .wg-power-summary-pill strong{font-size:11px;color:var(--wg-text)}
+.wg-root .wg-power-list{display:flex;flex-direction:column;gap:7px;min-width:0}
+.wg-root .wg-power-item{border:1px solid var(--wg-border);border-radius:10px;background:var(--wg-panel-bg, #1c1f23);padding:9px 10px;min-width:0}
+.wg-root .wg-power-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.wg-root .wg-power-item-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:650;color:var(--wg-text);min-width:0}
+.wg-root .wg-power-item p{font-size:10px;line-height:1.45;color:var(--wg-text-dim, #b8b0a4);margin:5px 0 0;overflow-wrap:anywhere}
+.wg-root .wg-power-actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.wg-root .wg-power-actions button{border:1px solid var(--wg-border);background:var(--wg-surface, #111419);color:var(--wg-text);border-radius:7px;padding:4px 7px;font-size:9px;cursor:pointer}
+.wg-root .wg-power-actions button:hover{background:color-mix(in srgb,var(--wg-panel-bg, #1c1f23),white 7%)}
+.wg-root .wg-power-actions button.danger{color:var(--wg-danger,#d67572)}
+.wg-root .wg-severity-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto;background:var(--wg-text-dim, #b8b0a4)}
+.wg-root .wg-severity-dot.error{background:var(--wg-danger,#d67572)}
+.wg-root .wg-severity-dot.warning{background:#d9aa5c}
+.wg-root .wg-severity-dot.info{background:#7ea6cf}
+.wg-root .wg-severity-dot.clean{background:var(--wg-accent)}
+.wg-root .wg-doctor-chip{appearance:none;-webkit-appearance:none;display:inline-flex;align-items:center;gap:5px;padding:3px 8px;min-height:22px;border:1px solid color-mix(in srgb,var(--wg-accent,#d49a52) 42%,var(--wg-border,#2a2e34));border-radius:999px;background:color-mix(in srgb,var(--wg-accent,#d49a52) 9%,var(--wg-surface,#121417));color:var(--wg-text-dim,#b8b0a4);font:inherit;font-size:9px;font-weight:650;letter-spacing:.01em;cursor:pointer;white-space:nowrap;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wg-accent,#d49a52) 7%,transparent);transition:background 120ms ease,border-color 120ms ease,color 120ms ease,transform 120ms ease}
+.wg-root .wg-doctor-chip[hidden]{display:none!important}
+.wg-root .wg-doctor-chip:hover,.wg-root .wg-doctor-chip.active{background:color-mix(in srgb,var(--wg-accent,#d49a52) 16%,var(--wg-surface,#121417));border-color:var(--wg-accent,#d49a52);color:var(--wg-text,#f1eee8);transform:translateY(-1px)}
+.wg-root .wg-doctor-chip [data-el="doctorDot"]{width:6px;height:6px;border-radius:50%;background:var(--wg-accent)}
+.wg-root .wg-doctor-chip[data-status="error"] [data-el="doctorDot"]{background:var(--wg-danger,#d67572)}
+.wg-root .wg-doctor-chip[data-status="warning"] [data-el="doctorDot"]{background:#d9aa5c}
+.wg-root .wg-doctor-chip[data-status="info"] [data-el="doctorDot"]{background:#7ea6cf}
+.wg-root .wg-doctor-chip:focus-visible{outline:2px solid color-mix(in srgb,var(--wg-accent,#d49a52) 72%,white);outline-offset:2px}
+.wg-root .wg-resolved-changed{background:color-mix(in srgb,var(--wg-accent) 18%,transparent);color:var(--wg-text);border-radius:3px;box-shadow:0 0 0 1px color-mix(in srgb,var(--wg-accent) 26%,transparent);padding:0 1px}
+.wg-root .wg-resolved-diff-key{display:flex;align-items:center;gap:6px;color:var(--wg-text-dim, #b8b0a4);font-size:9px;margin:0 0 8px}
+.wg-root .wg-resolved-diff-key i{width:14px;height:8px;border-radius:3px;background:color-mix(in srgb,var(--wg-accent) 18%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--wg-accent) 26%,transparent)}
+.wg-root .wg-variation-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.wg-root .wg-variation-card{border:1px solid var(--wg-border);border-radius:11px;background:var(--wg-panel-bg, #1c1f23);padding:10px;min-width:0}
+.wg-root .wg-variation-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--wg-text-dim, #b8b0a4);font-size:9px;margin-bottom:7px}
+.wg-root .wg-variation-meta strong{color:var(--wg-text);font-size:10px}
+.wg-root .wg-variation-text{font-family:var(--wg-font-family,ui-monospace,SFMono-Regular,Consolas,monospace);white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:8px;border:1px solid var(--wg-border);border-radius:8px;background:var(--wg-surface, #111419);color:var(--wg-text);font-size:10px;line-height:1.45}
+.wg-root .wg-library-health-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:10px}
+.wg-root .wg-health-card{border:1px solid var(--wg-border);border-radius:9px;background:var(--wg-panel-bg, #1c1f23);padding:8px 9px;min-width:0}
+.wg-root .wg-health-card strong{display:block;color:var(--wg-text);font-size:15px;line-height:1.1}
+.wg-root .wg-health-card span{display:block;color:var(--wg-text-dim, #b8b0a4);font-size:9px;margin-top:4px}
+.wg-root .wg-manager-subhead{margin:12px 0 6px}
+.wg-root .wg-manager-search{margin-top:4px}
+.wg-root .wg-library-manager-entries{display:flex;flex-direction:column;gap:5px;max-height:250px;overflow:auto;padding-right:2px}
+.wg-root .wg-manager-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--wg-border);border-radius:8px;padding:6px 7px;background:var(--wg-panel-bg, #1c1f23);min-width:0}
+.wg-root .wg-manager-entry-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--wg-text);font-size:10px}
+.wg-root .wg-manager-entry-actions{display:flex;gap:3px;flex:0 0 auto}
+.wg-root .wg-manager-entry-actions button{width:24px;height:22px;border:1px solid var(--wg-border);border-radius:6px;background:transparent;color:var(--wg-text-dim, #b8b0a4);cursor:pointer;padding:0;display:grid;place-items:center;font-size:10px}
+.wg-root .wg-manager-entry-actions button:hover{background:color-mix(in srgb,var(--wg-panel-bg, #1c1f23),white 7%);color:var(--wg-text)}
+.wg-root .wg-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.wg-root .wg-field{display:flex;flex-direction:column;gap:5px;min-width:0;color:var(--wg-text-dim, #b8b0a4);font-size:9px}
+.wg-root .wg-field>span{font-size:9px;color:var(--wg-text-dim, #b8b0a4)}
+.wg-root .wg-field input,.wg-root .wg-field select{width:100%;box-sizing:border-box}
+.wg-root .wg-recipe-builder-list{display:flex;flex-direction:column;gap:5px;margin:10px 0}
+.wg-root .wg-recipe-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:6px;border:1px solid var(--wg-border);border-radius:8px;background:var(--wg-panel-bg, #1c1f23);padding:6px}
+.wg-root .wg-recipe-row.dragging{opacity:.55}
+.wg-root .wg-recipe-drag{cursor:grab;color:var(--wg-text-dim, #b8b0a4);text-align:center;user-select:none;font-size:14px}
+.wg-root .wg-recipe-path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--wg-text);font-size:10px}
+.wg-root .wg-recipe-row-actions{display:flex;gap:3px}
+.wg-root .wg-recipe-row-actions button{width:22px;height:22px;border:1px solid var(--wg-border);border-radius:6px;background:transparent;color:var(--wg-text-dim, #b8b0a4);cursor:pointer;padding:0}
+.wg-root .wg-recipe-builder-preview{min-height:80px;max-height:140px;resize:vertical;font-family:var(--wg-font-family,ui-monospace,SFMono-Regular,Consolas,monospace)}
+.wg-root .wg-empty-power{padding:18px 10px;text-align:center;color:var(--wg-text-dim, #b8b0a4);font-size:10px;border:1px dashed var(--wg-border);border-radius:10px}
+@media (max-width:760px){
+  .wg-root .wg-toggle-grid,.wg-root .wg-two-col{grid-template-columns:1fr}
+  .wg-root .wg-power-popup{width:min(390px,calc(100% - 10px))}
+}
+.wg-root .wg-manager-bulk{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:7px 8px;margin-bottom:6px;border:1px solid var(--wg-border);border-radius:8px;background:var(--wg-surface,#111419);color:var(--wg-text-dim,#b8b0a4);font-size:9px}
+.wg-root .wg-manager-bulk>div{display:flex;gap:4px;flex-wrap:wrap}
+.wg-root .wg-manager-bulk .wg-button{padding:4px 6px;font-size:8px}
+.wg-root .wg-manager-entry-select{width:14px;height:14px;accent-color:var(--wg-accent);flex:0 0 auto}
+.wg-root .wg-manager-entry-main{display:flex;align-items:center;gap:7px;min-width:0;flex:1}

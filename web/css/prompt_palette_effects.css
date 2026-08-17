@@ -1,0 +1,12 @@
+/* Prompt Palette-owned shape layer.
+   Appearance is palette-driven; there are no alternate glow/glass surface modes. */
+[data-wg-finish] {
+  --wg-corner-radius: 10px;
+}
+[data-wg-finish] :where(.wg-button,.wg-icon-btn,.wg-theme-select,.wg-search-field input,.wg-swatch-item,.wg-toggle-card,.wg-zen-card,.wg-color-field,.wg-theme-gallery-card,.wg-theme-pack-card,.wg-editor-wrap,.wg-drawer,.pp-node,.ppwc-surface,.ppwc-editor-wrap) {
+  border-radius: min(var(--wg-corner-radius, 10px), 18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-wg-finish] * { scroll-behavior: auto !important; }
+}

@@ -1,0 +1,159 @@
+/* Horizontal workspace: drawers stay beside the editor without covering prompt text. */
+.wg-node > .wg-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+}
+.wg-node > .wg-toolbar .wg-toolbar-group.left {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  min-width: 0;
+}
+.wg-node > .wg-toolbar .wg-pill-resolve {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  padding: 5px 12px;
+  font-size: 10px;
+}
+.wg-node > .wg-toolbar .wg-toolbar-group.right {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  width: auto;
+  flex-wrap: nowrap;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.wg-node > .wg-toolbar .wg-toolbar-extra {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.wg-node > .wg-toolbar .wg-tool-cluster,
+.wg-node > .wg-toolbar .wg-tool-label,
+.wg-node > .wg-toolbar .wg-settings-button-label,
+.wg-node > .wg-toolbar .wg-io-button-label { display: none !important; }
+.wg-node > .wg-toolbar .wg-icon-btn,
+.wg-node > .wg-toolbar .wg-action-btn,
+.wg-node > .wg-toolbar .wg-settings-anchor {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+}
+.wg-node > .wg-toolbar .wg-io-toggle-btn {
+  width: auto;
+  min-width: 48px;
+  padding: 0 6px;
+}
+
+.wg-node > .wg-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.wg-node > .wg-main > .wg-body {
+  order: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.wg-node > .wg-main > .wg-drawer,
+.wg-node > .wg-main > .wg-settings-popup,
+.wg-node > .wg-main > .wg-library-popup {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 0 !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 0 0 0 !important;
+  overflow: hidden !important;
+  transform: none !important;
+  transition: width 180ms ease, flex-basis 180ms ease, box-shadow 180ms ease !important;
+  pointer-events: none;
+  box-shadow: none !important;
+  border-top: 0 !important;
+  background: var(--wg-panel-bg, #1c1f23);
+  z-index: 4;
+}
+.wg-node > .wg-main > .wg-drawer[hidden],
+.wg-node > .wg-main > .wg-settings-popup[hidden],
+.wg-node > .wg-main > .wg-library-popup[hidden] { display: flex !important; visibility: hidden; }
+.wg-node > .wg-main > .wg-drawer.open,
+.wg-node > .wg-main > .wg-settings-popup.open,
+.wg-node > .wg-main > .wg-library-popup.open {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.wg-node > .wg-main > .wg-library-popup {
+  order: -1;
+  display: flex;
+  flex-direction: column;
+  border-right: 0;
+  border-left: 0;
+}
+.wg-node > .wg-main > .wg-library-popup.open {
+  width: var(--wg-library-width, 360px) !important;
+  flex-basis: var(--wg-library-width, 360px) !important;
+  border-right: 1px solid var(--wg-border-strong, #3a4048);
+  box-shadow: 10px 0 24px rgba(0,0,0,.2) !important;
+}
+.wg-node > .wg-main > .wg-library-popup > * { min-width: 0; }
+.wg-node > .wg-main > .wg-library-popup .wg-library-head { min-width: 0; }
+.wg-node > .wg-main > .wg-library-popup .wg-library-tabs { min-width: 0; }
+.wg-node > .wg-main > .wg-library-popup .wg-library-panel {
+  min-width: 0;
+  min-height: 0;
+}
+.wg-node > .wg-main > .wg-library-popup .wg-starter-grid {
+  grid-template-columns: 1fr;
+}
+.wg-node > .wg-main > .wg-library-popup .wg-starter-card-thumb { height: 76px; }
+
+.wg-node > .wg-main > .wg-drawer.right,
+.wg-node > .wg-main > .wg-settings-popup {
+  order: 1;
+  border-left: 0;
+}
+.wg-node > .wg-main > .wg-drawer.right:not(.wg-settings-popup).open {
+  width: min(250px, 48%) !important;
+  flex-basis: min(250px, 48%) !important;
+  border-left: 1px solid var(--wg-border-strong, #3a4048);
+  box-shadow: -10px 0 24px rgba(0,0,0,.18) !important;
+}
+.wg-node > .wg-main > .wg-drawer.right:not(.wg-settings-popup) > .wg-drawer-inner { width: 100%; min-width: 0; }
+
+.wg-node > .wg-main > .wg-settings-popup {
+  display: flex;
+  flex-direction: column;
+}
+.wg-node > .wg-main > .wg-settings-popup.open {
+  width: min(400px, 60%) !important;
+  flex-basis: min(400px, 60%) !important;
+  border-left: 1px solid var(--wg-border-strong, #3a4048);
+  box-shadow: -10px 0 24px rgba(0,0,0,.2) !important;
+}
+.wg-node > .wg-main > .wg-stash-popup.open {
+  width: min(310px, 55%) !important;
+  flex-basis: min(310px, 55%) !important;
+}
+.wg-node > .wg-main > .wg-settings-popup > * { min-width: 0; }
+.wg-node > .wg-main > .wg-stash-popup > * { min-width: 0; }
+

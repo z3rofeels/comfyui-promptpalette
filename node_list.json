@@ -1,0 +1,5 @@
+{
+  "PromptPaletteEditor": "Prompt library, wildcard editor, resolver, metadata output, and optional encoder",
+  "PromptPaletteCombinatorial": "Random and Cartesian wildcard prompt batch generator with resolved prompt metadata",
+  "PromptPaletteWeightController": "Prompt weight translation and optional conditioning controller"
+}

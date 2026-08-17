@@ -1,579 +1,854 @@
-"""
-Scans the ComfyUI wildcards/ folder (both flat .txt files and nested .yaml/.yml files),
-builds a unified name -> lines registry, and a folder tree for the picker UI.
+from __future__ import annotations
 
-YAML files are flattened: nested keys become slash-separated wildcard names.
-  characters:
-    female:
-      - "a woman"
-      - "a girl"
-  becomes wildcard name "characters/female" -> ["a woman", "a girl"]
-
-Performance notes (this file supports libraries with many thousands of wildcards):
-  - A full filesystem rescan is O(n) in file count and is only done when the cache is
-    stale (see _scan_interval) or explicitly forced (manual refresh button).
-  - Routes call `ensure_fresh_async()` which offloads a due rescan onto a worker thread
-    via run_in_executor, so a big library never freezes the whole aiohttp event loop
-    (and therefore the rest of the ComfyUI UI) while it scans.
-  - Saving/deleting a single .txt wildcard updates the in-memory registry directly
-    instead of re-walking the entire wildcards/ folder, so editing stays fast no
-    matter how large the library is.
-  - A leaf-name index (basename -> [full paths]) is maintained alongside the main
-    registry so "does this bare name match something, and is it ambiguous" lookups
-    (used for __basename__ style refs and for click-to-edit) are O(1)/O(k) instead of
-    scanning every entry.
-
-Where the wildcards/ folder actually lives (see resolve_wildcard_root() below):
-  1. An extra_model_paths.yaml `wildcards:` entry, if the user added one - this is
-     ComfyUI's own native multi-drive/multi-location config mechanism, so we don't
-     parse the YAML ourselves; we just read back what ComfyUI already registered.
-  2. A `wildcards_path` in wildcards_config.json next to this file, for anyone who'd
-     rather not touch YAML.
-  3. <ComfyUI base_path>/wildcards - folder_paths.base_path is ComfyUI's own resolved
-     install root (correct regardless of which drive ComfyUI or this node happen to
-     sit on), so this stays correct even for portable/multi-drive installs.
-"""
-
+import asyncio
+import fnmatch
+import json
+import logging
 import os
 import re
-import json
-import time
-import fnmatch
-import asyncio
+import shutil
+import tempfile
 import threading
+import time
+from typing import Any
 
 try:
     import yaml
+
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
 
 try:
     import folder_paths
+
     HAS_FOLDER_PATHS = True
 except Exception:
+    folder_paths = None
     HAS_FOLDER_PATHS = False
 
-# The folder_paths "type name" this node's wildcards folder is registered under.
-# Registering it (see WildcardIndex.__init__) means:
-#   - a user can point at a custom location natively, by adding a `wildcards:`
-#     entry under any profile in their extra_model_paths.yaml, the same way they
-#     would for `checkpoints:` or `loras:` - no code changes needed on our end.
-#   - other tools/nodes that introspect folder_paths.folder_names_and_paths can
-#     discover where this node keeps its wildcards.
+logger = logging.getLogger(__name__)
+
 FOLDER_PATHS_KEY = "wildcards"
-
 _NODE_DIR = os.path.dirname(os.path.abspath(__file__))
+_LEGACY_LOCAL_CONFIG_PATH = os.path.join(_NODE_DIR, "wildcards_config.json")
+_RAW_PATH_RE = re.compile(r'"wildcards_path"\s*:\s*"(.+?)"\s*[,}]', re.DOTALL)
+MAX_SOURCE_FILE_BYTES = 32 * 1024 * 1024
+_SOURCE_EXTENSIONS = (".txt", ".yaml", ".yml", ".json")
+_WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
 
-# Simple JSON override for anyone who'd rather not touch extra_model_paths.yaml.
-# Not created automatically - see _write_example_config() for the example file
-# that *is* dropped alongside it so the option is discoverable. wildcards_path
-# accepts a raw path pasted straight from File Explorer (backslashes and all) -
-# see _path_from_local_config()'s fallback for why that doesn't need escaping.
-_LOCAL_CONFIG_PATH = os.path.join(_NODE_DIR, "wildcards_config.json")
-_LOCAL_CONFIG_EXAMPLE_PATH = os.path.join(_NODE_DIR, "wildcards_config.example.json")
+
+def _config_directory() -> str:
+    if HAS_FOLDER_PATHS:
+        get_user_directory = getattr(folder_paths, "get_user_directory", None)
+        if callable(get_user_directory):
+            try:
+                return os.path.join(os.path.abspath(get_user_directory()), "prompt_palette")
+            except Exception:
+                logger.debug("Could not resolve ComfyUI's user directory", exc_info=True)
+    return _NODE_DIR
 
 
-def _write_example_config():
-    """Drops a wildcards_config.example.json next to this file (if not already
-    present) purely so the custom-path option is discoverable without reading
-    source code. Never overwrites/reads back from this file - only from
-    wildcards_config.json itself."""
+_CONFIG_DIR = _config_directory()
+_LOCAL_CONFIG_PATH = os.path.join(_CONFIG_DIR, "wildcards_config.json")
+_LOCAL_CONFIG_EXAMPLE_PATH = os.path.join(_CONFIG_DIR, "wildcards_config.example.json")
+
+
+def _atomic_write_text(path: str, text: str) -> None:
+    """Replace a text file atomically; the temp file stays on the same volume."""
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(prefix=f".{os.path.basename(path)}.", suffix=".tmp", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _atomic_write_json(path: str, payload: dict[str, Any]) -> None:
+    _atomic_write_text(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+
+
+def _write_example_config() -> None:
     if os.path.exists(_LOCAL_CONFIG_EXAMPLE_PATH):
         return
     try:
-        with open(_LOCAL_CONFIG_EXAMPLE_PATH, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "_comment": "Change your path here, then rename this file to "
-                                "wildcards_config.json. You can paste your folder "
-                                "path straight from File Explorer - no changes needed.",
-                    "wildcards_path": "C:/ComfyUI/my_wildcards",
-                },
-                f,
-                indent=2,
-            )
+        _atomic_write_json(
+            _LOCAL_CONFIG_EXAMPLE_PATH,
+            {
+                "_comment": (
+                    "Change your path here, then rename this file to wildcards_config.json. "
+                    "You can paste your folder path straight from File Explorer."
+                ),
+                "wildcards_path": "C:/ComfyUI/my_wildcards",
+            },
+        )
     except OSError:
-        pass  # best-effort only; e.g. a read-only install
+        # Example creation is optional and must never prevent the node from loading.
+        pass
 
 
-def _path_from_extra_model_paths():
-    """Picks up a `wildcards:` entry from extra_model_paths.yaml. ComfyUI parses
-    that file itself at startup and calls
-    folder_paths.add_model_folder_path("wildcards", <resolved path>) for every
-    such entry, so we just read back whatever landed in the registry - no YAML
-    parsing of our own, and it keeps working if ComfyUI changes that format."""
+_PROMPT_PALETTE_REGISTERED_PATHS: set[str] = set()
+
+
+def _normalise_abs_path(path: str) -> str:
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _path_from_extra_model_paths() -> str | None:
     if not HAS_FOLDER_PATHS:
         return None
     try:
         paths = folder_paths.get_folder_paths(FOLDER_PATHS_KEY)
     except Exception:
         return None
-    return paths[0] if paths else None
+    for path in paths:
+        if _normalise_abs_path(path) not in _PROMPT_PALETTE_REGISTERED_PATHS:
+            return path
+    return None
 
 
-# Matches "wildcards_path": "<value>" even when <value> isn't valid JSON - e.g. a
-# raw Windows path pasted straight from File Explorer, whose single backslashes
-# strict JSON would otherwise reject. Used only as a fallback below, so it never
-# has to interpret backslashes as escapes at all - it just grabs the literal text
-# between the quotes.
-_RAW_PATH_RE = re.compile(r'"wildcards_path"\s*:\s*"(.+?)"\s*[,}]', re.DOTALL)
-
-
-def _path_from_local_config():
-    if not os.path.isfile(_LOCAL_CONFIG_PATH):
+def _read_config_path(config_path: str) -> str | None:
+    if not os.path.isfile(config_path):
         return None
     try:
-        with open(_LOCAL_CONFIG_PATH, "r", encoding="utf-8") as f:
-            text = f.read()
-    except OSError as e:
-        print(f"[prompt-palette] warning: couldn't read {_LOCAL_CONFIG_PATH}: {e}")
+        with open(config_path, "r", encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError as exc:
+        logger.warning("Could not read %s: %s", config_path, exc)
         return None
 
     try:
-        raw = json.loads(text).get("wildcards_path")
+        parsed = json.loads(text)
+        raw = parsed.get("wildcards_path") if isinstance(parsed, dict) else None
     except (ValueError, AttributeError):
-        # Not valid JSON - almost always a raw Windows path pasted in without
-        # doubling the backslashes JSON requires. Pull the value out directly
-        # instead of making the user think about escaping at all.
+        # Preserve support for Windows paths pasted into hand-edited JSON without escaped slashes.
         match = _RAW_PATH_RE.search(text)
         raw = match.group(1) if match else None
         if raw is None:
-            print(f"[prompt-palette] warning: couldn't read {_LOCAL_CONFIG_PATH} - "
-                  f"make sure your path is wrapped in quotes")
+            logger.warning("Could not parse %s", config_path)
             return None
 
-    if not raw:
+    if not isinstance(raw, str) or not raw.strip() or "\x00" in raw:
         return None
-    raw = os.path.expanduser(os.path.expandvars(raw))
+    raw = os.path.expanduser(os.path.expandvars(raw.strip()))
     if not os.path.isabs(raw):
-        raw = os.path.join(_NODE_DIR, raw)
+        raw = os.path.join(os.path.dirname(config_path), raw)
     return raw
 
 
-def _default_wildcards_dir():
-    """Default when nothing above was configured: <ComfyUI base_path>/wildcards.
-    folder_paths.base_path is ComfyUI's own canonical install root - it's correct
-    even with --base-directory, portable builds, or an installation that spans
-    drives, unlike deriving a root from this file's own on-disk location."""
+def _path_from_local_config(*, include_managed_override: bool = True) -> str | None:
+    paths: list[str] = []
+    if include_managed_override:
+        paths.append(_LOCAL_CONFIG_PATH)
+    if os.path.abspath(_LEGACY_LOCAL_CONFIG_PATH) != os.path.abspath(_LOCAL_CONFIG_PATH):
+        paths.append(_LEGACY_LOCAL_CONFIG_PATH)
+    for config_path in paths:
+        configured = _read_config_path(config_path)
+        if configured:
+            return configured
+    return None
+
+
+def _default_wildcards_dir() -> str:
     base = getattr(folder_paths, "base_path", None) if HAS_FOLDER_PATHS else None
-    if base:
-        return os.path.join(base, "wildcards")
-    # Last-resort fallback if folder_paths itself is unusable (e.g. this file is
-    # being imported outside a real ComfyUI process, such as in a unit test):
-    # keep wildcards inside this custom node's own folder, which is always a
-    # valid, writable location regardless of where ComfyUI itself lives.
-    return os.path.join(_NODE_DIR, "wildcards")
+    return os.path.join(base, "wildcards") if base else os.path.join(_NODE_DIR, "wildcards")
 
 
-def resolve_wildcard_root():
-    """First match wins: extra_model_paths.yaml -> local config -> drive-agnostic
-    default. Never assumes a drive letter or a fixed relative nesting depth
-    between this node's folder and ComfyUI's install root."""
+def resolve_wildcard_root(*, include_managed_override: bool = True) -> str:
     _write_example_config()
-    for candidate in (_path_from_extra_model_paths(), _path_from_local_config()):
+    for candidate in (
+        _path_from_local_config(include_managed_override=include_managed_override),
+        _path_from_extra_model_paths(),
+    ):
         if candidate:
             return os.path.abspath(candidate)
     return os.path.abspath(_default_wildcards_dir())
 
 
-def _clean_lines(raw_lines):
-    out = []
+def _clean_lines(raw_lines) -> list[str]:
+    output: list[str] = []
     for line in raw_lines:
-        line = line.rstrip("\n").rstrip("\r")
+        line = str(line).rstrip("\n").rstrip("\r")
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        out.append(line)
-    return out
+        output.append(line)
+    return output
 
 
-def _flatten_yaml(node, prefix=""):
-    """yields (name, lines) pairs from a nested yaml structure"""
-    results = {}
-    if isinstance(node, list):
-        results[prefix] = [str(x) for x in node]
-        return results
-    if isinstance(node, dict):
-        for key, val in node.items():
-            sub_prefix = f"{prefix}/{key}" if prefix else str(key)
-            results.update(_flatten_yaml(val, sub_prefix))
-        return results
-    if isinstance(node, str) and prefix:
-        results[prefix] = [node]
+def _flatten_yaml(
+    node,
+    prefix: str = "",
+    *,
+    depth: int = 0,
+    active_ids: set[int] | None = None,
+) -> dict[str, list[str]]:
+    if depth > 64:
+        raise ValueError("wildcard YAML/JSON nesting is too deep")
+    active_ids = active_ids if active_ids is not None else set()
+    results: dict[str, list[str]] = {}
+
+    if isinstance(node, (list, dict)):
+        node_id = id(node)
+        if node_id in active_ids:
+            raise ValueError("wildcard YAML/JSON contains a recursive alias")
+        active_ids.add(node_id)
+        try:
+            if isinstance(node, list):
+                if prefix:
+                    values: list[str] = []
+                    for value in node:
+                        if isinstance(value, (dict, list)):
+                            raise ValueError("wildcard lists must contain scalar values")
+                        values.append(str(value))
+                    results[prefix] = values
+                return results
+
+            for key, value in node.items():
+                safe_key = str(key).strip().replace("\\", "/").strip("/")
+                if not safe_key or any(part in {"", ".", ".."} for part in safe_key.split("/")):
+                    raise ValueError("wildcard YAML/JSON contains an invalid key")
+                sub_prefix = f"{prefix}/{safe_key}" if prefix else safe_key
+                results.update(
+                    _flatten_yaml(value, sub_prefix, depth=depth + 1, active_ids=active_ids)
+                )
+            return results
+        finally:
+            active_ids.remove(node_id)
+
+    if node is not None and prefix:
+        results[prefix] = [str(node)]
     return results
 
 
-class WildcardIndex:
-    def __init__(self, root_dir=None):
-        self.root_dir = os.path.abspath(root_dir) if root_dir else resolve_wildcard_root()
-        os.makedirs(self.root_dir, exist_ok=True)
-        # Register with ComfyUI's own folder registry so this location shows up
-        # anywhere folder_paths.folder_names_and_paths is introspected, and so a
-        # `wildcards:` entry in extra_model_paths.yaml (which only ever *adds*
-        # paths, never overrides silently) still resolves back to this same
-        # directory as its first/primary entry on the next run.
-        if HAS_FOLDER_PATHS:
+def _normalise_wildcard_name(name: str) -> str:
+    if not isinstance(name, str) or "\x00" in name:
+        raise ValueError("invalid wildcard name")
+    raw_name = name.strip()
+    if not raw_name or raw_name.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", raw_name):
+        raise ValueError("invalid wildcard name")
+    safe_name = raw_name.replace("\\", "/").strip("/")
+    parts = [part.strip() for part in safe_name.split("/")]
+    if not parts or any(not part or part in {".", ".."} for part in parts):
+        raise ValueError("invalid wildcard name")
+    for part in parts:
+        if re.search(r'[<>:"|?*]', part) or part.endswith((".", " ")):
+            raise ValueError("wildcard names must be valid Windows filenames")
+        stem = part.split(".", 1)[0].upper()
+        if stem in _WINDOWS_RESERVED_NAMES:
+            raise ValueError("wildcard name uses a reserved Windows filename")
+    return "/".join(parts)
+
+
+def _copy_entry(entry: dict[str, Any] | None) -> dict[str, Any] | None:
+    if entry is None:
+        return None
+    return {
+        "lines": list(entry.get("lines", [])),
+        "type": entry.get("type", "txt"),
+        "abs_path": entry.get("abs_path", ""),
+    }
+
+
+def _is_within_root(root_dir: str, path: str) -> bool:
+    root = os.path.realpath(root_dir)
+    target = os.path.realpath(path)
+    try:
+        return os.path.commonpath([root, target]) == root
+    except ValueError:
+        return False
+
+
+def _source_signature(root_dir: str) -> tuple[tuple[str, int, int], ...]:
+    signature: list[tuple[str, int, int]] = []
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        dirnames[:] = sorted(
+            (name for name in dirnames if name not in {".git", "__pycache__"}),
+            key=str.casefold,
+        )
+        for filename in sorted(filenames, key=str.casefold):
+            if not filename.lower().endswith(_SOURCE_EXTENSIONS):
+                continue
+            abs_path = os.path.join(dirpath, filename)
+            if not _is_within_root(root_dir, abs_path):
+                continue
             try:
-                folder_paths.add_model_folder_path(FOLDER_PATHS_KEY, self.root_dir)
-            except Exception:
-                pass
-        print(f"[prompt-palette] wildcards folder: {self.root_dir}")
-        self._registry = {}    # name -> {"lines": [...], "type": "txt"/"yaml", "abs_path": str}
-        self._leaf_index = {}  # leaf (basename) -> [full names]  -- kept in sync with _registry
-        self._tree = []        # nested folder structure for the picker
-        self._last_scan = 0
-        # 30s is cheap even for tens of thousands of files, and saves/deletes update the
-        # in-memory registry directly rather than waiting on this interval.
-        self._scan_interval = 30
+                stat = os.stat(abs_path)
+            except OSError:
+                continue
+            rel_path = os.path.relpath(abs_path, root_dir).replace(os.sep, "/")
+            signature.append((rel_path, stat.st_mtime_ns, stat.st_size))
+    return tuple(signature)
+
+
+class WildcardIndexPreview:
+    """Read-only resolution view with private sequence counters for previews."""
+
+    def __init__(self, source: "WildcardIndex"):
+        self._source = source
+        with source._seq_lock:
+            self._seq_counters = dict(source._seq_counters)
+        with source._combo_lock:
+            self._combo_counters = dict(source._combo_counters)
+
+    def get_lines(self, name: str) -> list[str]:
+        return self._source.get_lines(name)
+
+    def get_entry(self, name: str) -> dict[str, Any] | None:
+        return self._source.get_entry(name)
+
+    def next_sequential_index(self, key: str, length: int, step: int = 1) -> int:
+        if length <= 0:
+            return 0
+        index = self._seq_counters.get(key, 0) % length
+        self._seq_counters[key] = index + step
+        return index
+
+    def next_combinatorial_index(self, key: str, total: int) -> int:
+        if total <= 0:
+            return 0
+        index = self._combo_counters.get(key, 0) % total
+        self._combo_counters[key] = index + 1
+        return index
+
+
+class WildcardIndex:
+    @staticmethod
+    def normalize_name(name: str) -> str:
+        return _normalise_wildcard_name(name)
+
+    def preview_view(self) -> WildcardIndexPreview:
+        return WildcardIndexPreview(self)
+
+    def __init__(self, root_dir: str | None = None):
+        self._registry_lock = threading.RLock()
         self._scan_lock = threading.Lock()
-        # Persistent state for sequential (+/-) wildcard and brace selectors. Lives on
-        # this singleton (not on WildcardResolver) so __+name__/{+a|b} etc. actually
-        # advance from one node execution / resolve call to the next, instead of
-        # resetting every time a fresh WildcardResolver is constructed.
-        self._seq_counters = {}
         self._seq_lock = threading.Lock()
-        # Separate persistent state for combinatorial (%) groups. Deliberately its
-        # own dict/lock, not reused from _seq_counters above: +/- counters advance
-        # once *per group, per hit* (independent round-robins), while a combinatorial
-        # counter advances once *per resolve() call* and is shared jointly across
-        # every %-group that appeared together in that call's text, so they can be
-        # decomposed into a single mixed-radix index (see WildcardResolver.
-        # _prepare_combinatorial). Keeping the stores separate means % and +/- can
-        # be used on the same wildcard file in different places without either
-        # mode's state bleeding into the other's.
-        self._combo_counters = {}
         self._combo_lock = threading.Lock()
 
-    def next_sequential_index(self, key, length, step=1):
-        """Return the next index to use for a sequential selector identified by `key`
-        (a wildcard name, or a synthetic key for a brace group), then advance the
-        persistent counter by `step` (1 = increment, -1 = decrement), wrapping via
-        modulo so it cycles indefinitely in either direction. Thread-safe."""
+        root = os.path.abspath(root_dir) if root_dir else resolve_wildcard_root()
+        os.makedirs(root, exist_ok=True)
+        self.root_dir = root
+        self._registry: dict[str, dict[str, Any]] = {}
+        self._leaf_index: dict[str, list[str]] = {}
+        self._tree: dict[str, list[dict[str, str]]] = {}
+        self._last_scan = 0.0
+        self._last_source_check = 0.0
+        self._source_check_interval = 0.5
+        self._last_known_source_check = 0.0
+        self._known_source_check_interval = 0.005
+        self._source_signature: tuple[tuple[str, int, int], ...] = ()
+        self._revision = 0
+        self._seq_counters: dict[str, int] = {}
+        self._combo_counters: dict[str, int] = {}
+
+        self._register_folder_path(root)
+        logger.info("Prompt Palette wildcards folder: %s", root)
+
+    @staticmethod
+    def _build_leaf_index(registry: dict[str, dict[str, Any]]) -> dict[str, list[str]]:
+        leaf_index: dict[str, list[str]] = {}
+        for full_name in registry:
+            leaf_index.setdefault(full_name.rsplit("/", 1)[-1], []).append(full_name)
+        return leaf_index
+
+    @staticmethod
+    def _build_tree(registry: dict[str, dict[str, Any]]) -> dict[str, list[dict[str, str]]]:
+        tree: dict[str, list[dict[str, str]]] = {}
+        for full_name, entry in registry.items():
+            folder = full_name.rpartition("/")[0]
+            tree.setdefault(folder, []).append({"path": full_name, "type": entry["type"]})
+        for items in tree.values():
+            items.sort(key=lambda item: item["path"].casefold())
+        return tree
+
+    @staticmethod
+    def _register_folder_path(path: str) -> None:
+        if not HAS_FOLDER_PATHS:
+            return
+        try:
+            normalised = _normalise_abs_path(path)
+            existing = {
+                _normalise_abs_path(candidate)
+                for candidate in folder_paths.get_folder_paths(FOLDER_PATHS_KEY)
+            }
+            if normalised not in existing:
+                folder_paths.add_model_folder_path(FOLDER_PATHS_KEY, path)
+                _PROMPT_PALETTE_REGISTERED_PATHS.add(normalised)
+        except Exception:
+            logger.debug("ComfyUI did not accept the wildcard folder registration", exc_info=True)
+
+    def get_root_dir(self) -> str:
+        with self._registry_lock:
+            return self.root_dir
+
+    def fingerprint(self) -> str:
+        """Stable cache key that changes when indexed wildcard content or root changes."""
+        # Known files get a cheap stat pass so edits invalidate execution promptly.
+        # Discovery of newly added files stays on the slower directory-walk cadence.
+        if self._known_sources_changed():
+            self.rescan(blocking=True)
+        self._ensure_fresh()
+        with self._registry_lock:
+            return f"{self.root_dir}:{self._revision}"
+
+    def _known_sources_changed(self) -> bool:
+        now = time.monotonic()
+        with self._registry_lock:
+            if (now - self._last_known_source_check) < self._known_source_check_interval:
+                return False
+            root_dir = self.root_dir
+            signature = self._source_signature
+            self._last_known_source_check = now
+        for rel_path, old_mtime_ns, old_size in signature:
+            abs_path = os.path.join(root_dir, *rel_path.split("/"))
+            try:
+                stat = os.stat(abs_path)
+            except OSError:
+                return True
+            if stat.st_mtime_ns != old_mtime_ns or stat.st_size != old_size:
+                return True
+        return False
+
+    def next_sequential_index(self, key: str, length: int, step: int = 1) -> int:
         if length <= 0:
             return 0
         with self._seq_lock:
-            i = self._seq_counters.get(key, 0) % length
-            self._seq_counters[key] = i + step
-        return i
+            index = self._seq_counters.get(key, 0) % length
+            self._seq_counters[key] = index + step
+        return index
 
-    def next_combinatorial_index(self, key, total):
-        """Return the next joint index (0..total-1) for a *set* of combinatorial
-        (%) groups identified by `key` — a fingerprint of every %-group that
-        appeared together in one resolve() call, in order, together with their
-        sizes (see _prepare_combinatorial). Advances by exactly 1 and wraps via
-        modulo `total` (= the product of every participating group's size), so
-        `total` consecutive resolve() calls visit each joint combination exactly
-        once before repeating. Unidirectional by design — decomposing a single
-        shared index into per-group digits (mixed-radix) only has one consistent
-        reading; there's no "step back through the whole cross-product" without
-        just walking the forward cycle from index 0. Thread-safe, and completely
-        independent of next_sequential_index's counters above."""
+    def next_combinatorial_index(self, key: str, total: int) -> int:
         if total <= 0:
             return 0
         with self._combo_lock:
-            i = self._combo_counters.get(key, 0) % total
-            self._combo_counters[key] = i + 1
-        return i
+            index = self._combo_counters.get(key, 0) % total
+            self._combo_counters[key] = index + 1
+        return index
 
-    # ---- internal registry helpers ----
-    def _rebuild_leaf_index(self):
-        leaf_index = {}
-        for full_name in self._registry:
-            leaf = full_name.split("/")[-1]
-            leaf_index.setdefault(leaf, []).append(full_name)
-        self._leaf_index = leaf_index
-
-    def _index_one(self, full_name, entry):
-        self._registry[full_name] = entry
-        leaf = full_name.split("/")[-1]
-        self._leaf_index.setdefault(leaf, [])
-        if full_name not in self._leaf_index[leaf]:
-            self._leaf_index[leaf].append(full_name)
-
-    def _unindex_one(self, full_name):
-        self._registry.pop(full_name, None)
-        leaf = full_name.split("/")[-1]
-        if leaf in self._leaf_index:
-            self._leaf_index[leaf] = [n for n in self._leaf_index[leaf] if n != full_name]
-            if not self._leaf_index[leaf]:
-                del self._leaf_index[leaf]
-
-    # ---- freshness ----
-    def _ensure_fresh(self, force=False):
-        """Synchronous freshness check. Safe to call from non-async contexts
-        (e.g. the node's process() method, which runs on a worker thread, not
-        the web server's event loop). A forced check blocks for an in-flight
-        scan to finish; a due-but-not-forced check is best-effort and just
-        uses current data if a scan is already running elsewhere."""
-        now = time.time()
-        if not (force or (now - self._last_scan) > self._scan_interval):
+    def _ensure_fresh(self, force_check: bool = False) -> None:
+        now = time.monotonic()
+        with self._registry_lock:
+            due = force_check or (now - self._last_source_check) >= self._source_check_interval
+            root_dir = self.root_dir
+        if not due:
             return
-        self.rescan(blocking=force)
+        signature = _source_signature(root_dir)
+        with self._registry_lock:
+            self._last_source_check = now
+            changed = signature != self._source_signature
+        if changed:
+            self.rescan(blocking=force_check)
 
-    async def ensure_fresh_async(self):
-        """Used by aiohttp routes. Offloads a due rescan onto a worker thread so a
-        large wildcards/ folder never blocks the event loop (and therefore the rest
-        of the running ComfyUI server/UI) while it scans."""
-        now = time.time()
-        if (now - self._last_scan) <= self._scan_interval:
-            return
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: self.rescan(blocking=False))
+    async def ensure_fresh_async(self) -> None:
+        await asyncio.to_thread(self._ensure_fresh, False)
 
-    def rescan(self, blocking=True):
-        """Full filesystem rescan, thread-safe via _scan_lock regardless of
-        caller. `blocking=False` (used by the periodic staleness check) skips
-        the scan and returns immediately if another rescan is already in
-        flight, since the caller is fine reusing whatever's currently
-        cached. Every other caller (manual refresh, set_root, get_index,
-        forced refresh) blocks until it can run, so a scan it explicitly
-        asked for actually completes before it returns."""
+    def rescan(self, blocking: bool = True) -> bool:
         if not self._scan_lock.acquire(blocking=blocking):
-            return
+            return False
         try:
-            registry = {}
-            tree_map = {}  # folder path -> list of entries
+            with self._registry_lock:
+                root_dir = self.root_dir
 
-            for dirpath, _dirnames, filenames in os.walk(self.root_dir):
-                rel_dir = os.path.relpath(dirpath, self.root_dir)
+            registry: dict[str, dict[str, Any]] = {}
+            tree_map: dict[str, list[dict[str, str]]] = {}
+            signature: list[tuple[str, int, int]] = []
+            for dirpath, dirnames, filenames in os.walk(root_dir):
+                dirnames[:] = sorted(
+                    (name for name in dirnames if name not in {".git", "__pycache__"}),
+                    key=str.casefold,
+                )
+                rel_dir = os.path.relpath(dirpath, root_dir)
                 rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/")
 
-                for fname in sorted(filenames):
-                    lower = fname.lower()
-                    abs_path = os.path.join(dirpath, fname)
-
+                for filename in sorted(filenames, key=str.casefold):
+                    lower = filename.lower()
+                    abs_path = os.path.join(dirpath, filename)
+                    if not lower.endswith(_SOURCE_EXTENSIONS):
+                        continue
+                    if not _is_within_root(root_dir, abs_path):
+                        logger.warning("Skipping wildcard source outside the configured root: %s", abs_path)
+                        continue
+                    try:
+                        stat = os.stat(abs_path)
+                    except OSError:
+                        continue
+                    rel_source = os.path.relpath(abs_path, root_dir).replace(os.sep, "/")
+                    signature.append((rel_source, stat.st_mtime_ns, stat.st_size))
+                    if stat.st_size > MAX_SOURCE_FILE_BYTES:
+                        logger.warning(
+                            "Skipping wildcard source larger than %s MB: %s",
+                            MAX_SOURCE_FILE_BYTES // (1024 * 1024),
+                            abs_path,
+                        )
+                        continue
                     if lower.endswith(".txt"):
-                        name = fname[:-4]
+                        name = filename[:-4]
                         full_name = f"{rel_dir}/{name}" if rel_dir else name
                         try:
-                            with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
-                                lines = _clean_lines(f.readlines())
+                            with open(abs_path, "r", encoding="utf-8", errors="replace") as handle:
+                                lines = _clean_lines(handle.readlines())
                         except OSError:
                             continue
                         registry[full_name] = {"lines": lines, "type": "txt", "abs_path": abs_path}
                         tree_map.setdefault(rel_dir, []).append({"path": full_name, "type": "txt"})
+                        continue
 
-                    elif (lower.endswith(".yaml") or lower.endswith(".yml")) and HAS_YAML:
-                        base = fname.rsplit(".", 1)[0]
-                        yaml_prefix = f"{rel_dir}/{base}" if rel_dir else base
-                        try:
-                            with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
-                                data = yaml.safe_load(f) or {}
-                        except Exception:
-                            continue
-                        flattened = _flatten_yaml(data, yaml_prefix)
-                        for full_name, lines in flattened.items():
-                            registry[full_name] = {
-                                "lines": _clean_lines(lines),
-                                "type": "yaml",
-                                "abs_path": abs_path,
-                            }
-                            folder = "/".join(full_name.split("/")[:-1])
-                            tree_map.setdefault(folder, []).append({"path": full_name, "type": "yaml"})
-
+                    if (lower.endswith(".yaml") or lower.endswith(".yml")) and HAS_YAML:
+                        data_type = "yaml"
+                        loader = yaml.safe_load
                     elif lower.endswith(".json"):
-                        base = fname.rsplit(".", 1)[0]
-                        json_prefix = f"{rel_dir}/{base}" if rel_dir else base
-                        try:
-                            with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
-                                data = json.load(f)
-                        except Exception:
-                            continue
-                        # _flatten_yaml is format-agnostic (plain dict/list walk) --
-                        # JSON parses to the same nested dict/list shape YAML does,
-                        # so it flattens identically: {"artists": {"finnish": [...]}}
-                        # -> "artists/finnish" -> [...], same slash-path convention.
-                        flattened = _flatten_yaml(data, json_prefix)
-                        for full_name, lines in flattened.items():
-                            registry[full_name] = {
-                                "lines": _clean_lines(lines),
-                                "type": "json",
-                                "abs_path": abs_path,
-                            }
-                            folder = "/".join(full_name.split("/")[:-1])
-                            tree_map.setdefault(folder, []).append({"path": full_name, "type": "json"})
+                        data_type = "json"
+                        loader = json.load
+                    else:
+                        continue
 
-            self._registry = registry
-            self._tree = tree_map
-            self._rebuild_leaf_index()
-            self._last_scan = time.time()
+                    base = filename.rsplit(".", 1)[0]
+                    prefix = f"{rel_dir}/{base}" if rel_dir else base
+                    try:
+                        with open(abs_path, "r", encoding="utf-8", errors="replace") as handle:
+                            data = loader(handle) or {}
+                        flattened = _flatten_yaml(data, prefix)
+                    except Exception:
+                        logger.warning("Skipping invalid wildcard source %s", abs_path, exc_info=True)
+                        continue
+                    for full_name, lines in flattened.items():
+                        registry[full_name] = {
+                            "lines": _clean_lines(lines),
+                            "type": data_type,
+                            "abs_path": abs_path,
+                        }
+                        folder = full_name.rpartition("/")[0]
+                        tree_map.setdefault(folder, []).append({"path": full_name, "type": data_type})
+
+            leaf_index = self._build_leaf_index(registry)
+            with self._registry_lock:
+                # Publish one complete snapshot so readers never observe a half-built index.
+                changed = registry != self._registry or tree_map != self._tree
+                self._registry = registry
+                self._leaf_index = leaf_index
+                self._tree = tree_map
+                self._source_signature = tuple(signature)
+                if changed:
+                    self._revision += 1
+                now = time.monotonic()
+                self._last_scan = now
+                self._last_source_check = now
+                self._last_known_source_check = now
+            return True
         finally:
             self._scan_lock.release()
 
-    def get_lines(self, name):
+    def get_lines(self, name: str) -> list[str] | None:
         self._ensure_fresh()
-        if "*" in name:
-            return self._get_lines_glob(name)
-        entry = self._registry.get(name)
-        if entry:
-            return entry["lines"]
-        # allow lookup by leaf name if unambiguous (helps with __basename__ style refs)
-        candidates = self._leaf_index.get(name)
-        if candidates and len(candidates) == 1:
-            return self._registry[candidates[0]]["lines"]
+        with self._registry_lock:
+            if "*" in name:
+                return self._get_lines_glob_locked(name)
+            entry = self._registry.get(name)
+            if entry:
+                return list(entry["lines"])
+            candidates = self._leaf_index.get(name)
+            if candidates and len(candidates) == 1:
+                return list(self._registry[candidates[0]]["lines"])
         return None
 
-    def _get_lines_glob(self, pattern):
-        """__colours*__-style globbing: pools together the lines of every
-        wildcard whose name matches `pattern` into one combined list to pick
-        from, e.g. "colours*" matches both colours-cold and colours-warm.
-        "prefix/**" is the recursive form -- every wildcard anywhere under
-        prefix/, at any depth, regardless of what's after the last slash.
-        Returns None if nothing matches (same "unresolved" contract as
-        get_lines for an unknown exact name)."""
+    def _get_lines_glob_locked(self, pattern: str) -> list[str] | None:
         if pattern.endswith("/**"):
             prefix = pattern[:-3]
-            names = [
-                n for n in self._registry
-                if n == prefix or n.startswith(prefix + "/")
-            ]
+            names = [name for name in self._registry if name == prefix or name.startswith(prefix + "/")]
         else:
-            names = [n for n in self._registry if fnmatch.fnmatchcase(n, pattern)]
+            names = [name for name in self._registry if fnmatch.fnmatchcase(name, pattern)]
         if not names:
             return None
-        pooled = []
-        for n in names:
-            pooled.extend(self._registry[n]["lines"])
-        return pooled
+        pooled: list[str] = []
+        for name in sorted(names):
+            pooled.extend(self._registry[name]["lines"])
+        return list(pooled)
 
-    def get_entry(self, name):
+    def get_entry(self, name: str) -> dict[str, Any] | None:
         self._ensure_fresh()
-        return self._registry.get(name)
+        with self._registry_lock:
+            return _copy_entry(self._registry.get(name))
 
-    def leaf_candidates(self, name):
-        """full paths whose basename equals `name` (used to disambiguate clicks
-        on a bare wildcard reference that matches more than one file)."""
+    def leaf_candidates(self, name: str) -> list[str]:
         self._ensure_fresh()
-        return list(self._leaf_index.get(name, []))
+        with self._registry_lock:
+            return list(self._leaf_index.get(name, []))
 
-    def all_names(self):
+    def all_names(self) -> list[str]:
         self._ensure_fresh()
-        return sorted(self._registry.keys())
+        with self._registry_lock:
+            return sorted(self._registry)
 
-    def search(self, query, limit=200):
+    def search(self, query: str, limit: int = 200) -> list[str]:
         self._ensure_fresh()
-        q = query.lower()
-        names = [n for n in self._registry.keys() if q in n.lower()]
-        names.sort()
-        return names[:limit]
+        query_lower = str(query).lower()
+        with self._registry_lock:
+            names = [name for name in self._registry if query_lower in name.lower()]
+        return sorted(names)[: max(0, int(limit))]
 
-    def flat_list(self):
+    def flat_list(self) -> list[dict[str, Any]]:
         self._ensure_fresh()
-        return [
-            {"path": name, "type": entry["type"], "count": len(entry["lines"])}
-            for name, entry in sorted(self._registry.items())
-        ]
+        with self._registry_lock:
+            return [
+                {"path": name, "type": entry["type"], "count": len(entry["lines"])}
+                for name, entry in sorted(self._registry.items())
+            ]
 
-    def preview(self, name, max_lines=4):
+    def preview(self, name: str, max_lines: int = 4) -> list[str] | None:
         lines = self.get_lines(name)
-        if lines is None:
-            return None
-        return lines[:max_lines]
+        return None if lines is None else lines[: max(0, int(max_lines))]
 
-    def save_txt(self, name, content_text):
-        """create or overwrite a .txt wildcard. name is a slash-path without extension.
-        Updates the in-memory registry directly (no full rescan) so this stays fast
-        even with a very large wildcards/ folder.
-
-        Path safety: rather than blocklisting ".." substrings (which misses
-        Windows drive-letter segments like "C:/foo" and UNC segments like
-        "\\\\host\\share\\foo", both of which make os.path.join discard
-        root_dir entirely), we resolve the final absolute path and verify it
-        is actually contained within root_dir before touching the filesystem.
-        """
-        safe_name = name.strip("/")
-        if not safe_name:
-            raise ValueError("invalid wildcard name")
-
-        root = os.path.realpath(self.root_dir)
+    def save_txt(self, name: str, content_text: str) -> str:
+        safe_name = _normalise_wildcard_name(name)
+        if not isinstance(content_text, str):
+            raise ValueError("content must be text")
+        with self._registry_lock:
+            root = os.path.realpath(self.root_dir)
         candidate = os.path.join(root, *safe_name.split("/")) + ".txt"
         abs_path = os.path.realpath(candidate)
-
         try:
             inside_root = os.path.commonpath([root, abs_path]) == root
         except ValueError:
-            # Different Windows drives have no common path.
             inside_root = False
         if not inside_root:
             raise ValueError("invalid wildcard name")
 
-        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-        with open(abs_path, "w", encoding="utf-8") as f:
-            f.write(content_text)
-        lines = _clean_lines(content_text.split("\n"))
-        self._index_one(safe_name, {"lines": lines, "type": "txt", "abs_path": abs_path})
+        entry = {"lines": _clean_lines(content_text.splitlines()), "type": "txt", "abs_path": abs_path}
+        with self._scan_lock:
+            try:
+                _atomic_write_text(abs_path, content_text)
+            except OSError as exc:
+                raise ValueError(f"couldn't save wildcard: {exc}") from exc
+            with self._registry_lock:
+                registry = dict(self._registry)
+                changed = registry.get(safe_name) != entry
+                registry[safe_name] = entry
+                self._registry = registry
+                self._leaf_index = self._build_leaf_index(registry)
+                self._tree = self._build_tree(registry)
+                if changed:
+                    self._revision += 1
+                now = time.monotonic()
+                self._source_signature = _source_signature(root)
+                self._last_scan = now
+                self._last_source_check = now
+                self._last_known_source_check = now
         return abs_path
 
-    def delete(self, name):
-        entry = self.get_entry(name)
-        if not entry:
-            raise FileNotFoundError(name)
-        if entry["type"] != "txt":
-            raise ValueError("only .txt wildcards can be deleted individually; edit the source .yaml file directly")
-        os.remove(entry["abs_path"])
-        self._unindex_one(name)
+    def assert_txt_target_available(self, target: str) -> str:
+        target_name = _normalise_wildcard_name(target)
+        with self._registry_lock:
+            target_entry = _copy_entry(self._registry.get(target_name))
+            root = os.path.realpath(self.root_dir)
+        if target_entry:
+            raise ValueError(f"{target_name} already exists")
+        target_path = os.path.realpath(os.path.join(root, *target_name.split("/")) + ".txt")
+        if not _is_within_root(root, target_path):
+            raise ValueError("invalid target wildcard name")
+        target_base = os.path.splitext(target_path)[0]
+        if os.path.exists(target_path) or any(os.path.exists(target_base + extension) for extension in (".jpg", ".jpeg", ".png")):
+            raise ValueError(f"{target_name} already exists on disk")
+        return target_path
 
-    def set_root(self, path):
-        """Point this index at a different wildcards folder - e.g. from the
-        in-app "Wildcards folder path" setting - and persist the choice to
-        wildcards_config.json, the same JSON-config tier _path_from_local_config()
-        reads on startup, so it sticks across restarts and is still just a
-        plain text file old-school users can open and edit by hand (a
-        ComfyUI restart picks up manual edits there, same as it always has).
-        Only that tier is touched: an extra_model_paths.yaml `wildcards:`
-        entry, if the user has one, still wins on the next restart per
-        resolve_wildcard_root()'s precedence order, exactly as it does today.
+    def rename_txt(self, source: str, target: str) -> str:
+        source_name = _normalise_wildcard_name(source)
+        target_name = _normalise_wildcard_name(target)
+        if source_name == target_name:
+            return self.get_entry(source_name)["abs_path"] if self.get_entry(source_name) else ""
+        with self._registry_lock:
+            source_entry = _copy_entry(self._registry.get(source_name))
+        if not source_entry:
+            raise FileNotFoundError(source_name)
+        if source_entry["type"] != "txt":
+            raise ValueError("only .txt wildcards can be renamed individually")
+        target_path = self.assert_txt_target_available(target_name)
+        target_base = os.path.splitext(target_path)[0]
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        with self._scan_lock:
+            text_moved = False
+            moved_thumbnails: list[tuple[str, str]] = []
+            try:
+                os.replace(source_entry["abs_path"], target_path)
+                text_moved = True
+                source_base = os.path.splitext(source_entry["abs_path"])[0]
+                for extension in (".jpg", ".jpeg", ".png"):
+                    old_thumb = source_base + extension
+                    if os.path.isfile(old_thumb):
+                        new_thumb = target_base + extension
+                        os.replace(old_thumb, new_thumb)
+                        moved_thumbnails.append((old_thumb, new_thumb))
+            except OSError as exc:
+                for old_thumb, new_thumb in reversed(moved_thumbnails):
+                    try:
+                        if os.path.exists(new_thumb) and not os.path.exists(old_thumb):
+                            os.replace(new_thumb, old_thumb)
+                    except OSError:
+                        logger.exception("Prompt Palette could not roll back thumbnail rename")
+                if text_moved:
+                    try:
+                        if os.path.exists(target_path) and not os.path.exists(source_entry["abs_path"]):
+                            os.replace(target_path, source_entry["abs_path"])
+                    except OSError:
+                        logger.exception("Prompt Palette could not roll back wildcard rename")
+                raise ValueError(f"couldn't rename wildcard: {exc}") from exc
+        self.rescan(blocking=True)
+        return target_path
 
-        Raises ValueError if path is empty, or exists but isn't a directory,
-        or can't be created - callers (e.g. the /set_path route) can turn
-        that straight into a 400.
-        """
-        if not path or not path.strip():
+    def copy_txt(self, source: str, target: str) -> str:
+        source_name = _normalise_wildcard_name(source)
+        target_name = _normalise_wildcard_name(target)
+        with self._registry_lock:
+            source_entry = _copy_entry(self._registry.get(source_name))
+        if not source_entry:
+            raise FileNotFoundError(source_name)
+        if source_entry["type"] != "txt":
+            raise ValueError("only .txt wildcards can be copied individually")
+        target_path = self.assert_txt_target_available(target_name)
+        target_base = os.path.splitext(target_path)[0]
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        created_paths: list[str] = []
+        with self._scan_lock:
+            try:
+                shutil.copy2(source_entry["abs_path"], target_path)
+                created_paths.append(target_path)
+                source_base = os.path.splitext(source_entry["abs_path"])[0]
+                for extension in (".jpg", ".jpeg", ".png"):
+                    old_thumb = source_base + extension
+                    if os.path.isfile(old_thumb):
+                        new_thumb = target_base + extension
+                        shutil.copy2(old_thumb, new_thumb)
+                        created_paths.append(new_thumb)
+                        break
+            except OSError as exc:
+                for created in reversed(created_paths):
+                    try:
+                        os.remove(created)
+                    except FileNotFoundError:
+                        pass
+                    except OSError:
+                        logger.exception("Prompt Palette could not roll back wildcard copy")
+                raise ValueError(f"couldn't copy wildcard: {exc}") from exc
+        self.rescan(blocking=True)
+        return target_path
+
+    def delete(self, name: str) -> None:
+        safe_name = _normalise_wildcard_name(name)
+        with self._scan_lock:
+            with self._registry_lock:
+                entry = _copy_entry(self._registry.get(safe_name))
+            if not entry:
+                raise FileNotFoundError(safe_name)
+            if entry["type"] != "txt":
+                raise ValueError("only .txt wildcards can be deleted individually; edit the source file directly")
+            try:
+                os.remove(entry["abs_path"])
+            except FileNotFoundError:
+                pass
+            except OSError as exc:
+                raise ValueError(f"couldn't delete wildcard: {exc}") from exc
+            with self._registry_lock:
+                registry = dict(self._registry)
+                removed = registry.pop(safe_name, None) is not None
+                self._registry = registry
+                self._leaf_index = self._build_leaf_index(registry)
+                self._tree = self._build_tree(registry)
+                if removed:
+                    self._revision += 1
+                now = time.monotonic()
+                root = self.root_dir
+                self._source_signature = _source_signature(root)
+                self._last_scan = now
+                self._last_source_check = now
+                self._last_known_source_check = now
+
+    def _switch_root(self, abs_path: str) -> None:
+        changed = False
+        with self._scan_lock:
+            with self._registry_lock:
+                if abs_path != self.root_dir:
+                    self.root_dir = abs_path
+                    self._registry = {}
+                    self._leaf_index = {}
+                    self._tree = {}
+                    self._last_scan = 0.0
+                    self._last_source_check = 0.0
+                    self._last_known_source_check = 0.0
+                    self._source_signature = ()
+                    self._revision += 1
+                    changed = True
+        if not changed:
+            return
+        self._register_folder_path(abs_path)
+        self.rescan(blocking=True)
+
+    def set_root(self, path: str) -> None:
+        if not isinstance(path, str) or not path.strip() or "\x00" in path:
             raise ValueError("path is required")
-
         raw = os.path.expanduser(os.path.expandvars(path.strip()))
         abs_path = os.path.abspath(raw)
-
-        if abs_path == self.root_dir:
-            return  # already pointed here - nothing to validate, write, or rescan
-
         if os.path.exists(abs_path):
             if not os.path.isdir(abs_path):
                 raise ValueError(f"{abs_path} exists but is not a directory")
         else:
             try:
                 os.makedirs(abs_path, exist_ok=True)
-            except OSError as e:
-                raise ValueError(f"couldn't create {abs_path}: {e}")
+            except OSError as exc:
+                raise ValueError(f"couldn't create {abs_path}: {exc}") from exc
 
         try:
-            with open(_LOCAL_CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(
-                    {
-                        "_comment": "Managed by Prompt Palette's in-app path picker "
-                                    "(ComfyUI Settings > Prompt Palette > Wildcards "
-                                    "Library > Folder path). You can also edit "
-                                    "wildcards_path below by hand - restart ComfyUI "
-                                    "to pick up manual edits, same as always.",
-                        "wildcards_path": abs_path,
-                    },
-                    f,
-                    indent=2,
-                )
-        except OSError as e:
-            raise ValueError(f"couldn't save {_LOCAL_CONFIG_PATH}: {e}")
+            _atomic_write_json(
+                _LOCAL_CONFIG_PATH,
+                {
+                    "_comment": "Managed by Prompt Palette. Clear the in-app path setting to return to automatic discovery.",
+                    "wildcards_path": abs_path,
+                },
+            )
+        except OSError as exc:
+            raise ValueError(f"couldn't save {_LOCAL_CONFIG_PATH}: {exc}") from exc
 
-        self.root_dir = abs_path
-        self.rescan()
+        self._switch_root(abs_path)
+
+    def reset_root(self) -> str:
+        fallback = resolve_wildcard_root(include_managed_override=False)
+        try:
+            os.makedirs(fallback, exist_ok=True)
+        except OSError as exc:
+            raise ValueError(f"couldn't use fallback wildcard folder {fallback}: {exc}") from exc
+
+        try:
+            if os.path.isfile(_LOCAL_CONFIG_PATH):
+                os.remove(_LOCAL_CONFIG_PATH)
+        except OSError as exc:
+            raise ValueError(f"couldn't clear {_LOCAL_CONFIG_PATH}: {exc}") from exc
+
+        self._switch_root(os.path.abspath(fallback))
+        return self.get_root_dir()
 
 
-_shared_index = None
+_shared_index: WildcardIndex | None = None
+_shared_index_lock = threading.Lock()
 
 
-def get_index():
+def get_index() -> WildcardIndex:
     global _shared_index
     if _shared_index is None:
-        _shared_index = WildcardIndex()
-        _shared_index.rescan()
+        with _shared_index_lock:
+            if _shared_index is None:
+                index = WildcardIndex()
+                index.rescan()
+                _shared_index = index
     return _shared_index

@@ -1,0 +1,3009 @@
+{
+  "version": "2.1.0",
+  "name": "Prompt Palette Starter Packs",
+  "models": [
+    {
+      "id": "prompt-palette-syntax",
+      "name": "Prompt Palette Syntax",
+      "short": "SYNTAX",
+      "kind": "Prompt Palette",
+      "accent": "#78b58b",
+      "summary": "Ready-to-run examples for Prompt Palette choices, wildcard modifiers, multi-select, variables, comments, parameters, and combinatorial expansion.",
+      "format": "Insert an example and preview it. Wildcard examples use a real My Library path automatically when one is available.",
+      "categories": [
+        {
+          "id": "inline-choices",
+          "name": "Inline Choices",
+          "visual": "text",
+          "description": "Brace syntax for seeded, unseeded, sequential, weighted, and cycling choices.",
+          "prompts": [
+            {
+              "id": "pps-choice-seeded",
+              "title": "Seeded random choice",
+              "prompt": "Editorial portrait, {soft window light|late-afternoon backlight|clean studio light}, 70mm lens.",
+              "note": "Plain braces pick one option. The same Prompt Palette seed reproduces the same result.",
+              "visual": "lighting",
+              "subcategory": "Random"
+            },
+            {
+              "id": "pps-choice-unseeded",
+              "title": "Unseeded random choice",
+              "prompt": "Editorial portrait, {*soft window light|late-afternoon backlight|clean studio light}, 70mm lens.",
+              "note": "The * modifier makes this choice independent of the Prompt Palette seed.",
+              "visual": "lighting",
+              "subcategory": "Random"
+            },
+            {
+              "id": "pps-choice-next",
+              "title": "Sequential choice — next",
+              "prompt": "Editorial portrait, {+soft daylight|warm tungsten|cool fluorescent}, clean background.",
+              "note": "The + modifier advances through the options one step at a time.",
+              "visual": "rotation",
+              "subcategory": "Sequential"
+            },
+            {
+              "id": "pps-choice-previous",
+              "title": "Sequential choice — previous",
+              "prompt": "Editorial portrait, {-soft daylight|warm tungsten|cool fluorescent}, clean background.",
+              "note": "The - modifier walks backward through the options.",
+              "visual": "rotation",
+              "subcategory": "Sequential"
+            },
+            {
+              "id": "pps-choice-weighted",
+              "title": "Weighted choice",
+              "prompt": "Portrait framing, {5::tight close-up|2::medium portrait|1::full-body shot}, clean background.",
+              "note": "Weights before :: make an option more or less likely while keeping the choice seeded.",
+              "visual": "camera",
+              "subcategory": "Weighted"
+            },
+            {
+              "id": "pps-choice-cycle",
+              "title": "Cartesian cycle",
+              "prompt": "{%close portrait|full body|detail crop}, {%soft daylight|hard sun|tungsten practicals}.",
+              "note": "The % modifier cycles through the Cartesian combinations across editor resolves.",
+              "visual": "rotation",
+              "subcategory": "Cycle"
+            }
+          ]
+        },
+        {
+          "id": "wildcard-modifiers",
+          "name": "Wildcard Modifiers",
+          "visual": "catalog",
+          "description": "The same selection modes applied to files from your wildcard library.",
+          "prompts": [
+            {
+              "id": "pps-wildcard-seeded",
+              "title": "Seeded wildcard",
+              "prompt": "Full-body fashion portrait in __Locations/Location__, natural motion, 70mm lens.",
+              "note": "Prompt Palette substitutes an available My Library path when possible. Plain __path__ is seeded.",
+              "visual": "map",
+              "subcategory": "Random"
+            },
+            {
+              "id": "pps-wildcard-unseeded",
+              "title": "Unseeded wildcard",
+              "prompt": "Full-body fashion portrait in __*Locations/Location__, natural motion, 70mm lens.",
+              "note": "* ignores the Prompt Palette seed and makes a fresh random wildcard pick.",
+              "visual": "map",
+              "subcategory": "Random"
+            },
+            {
+              "id": "pps-wildcard-next",
+              "title": "Sequential wildcard — next",
+              "prompt": "Full-body fashion portrait in __+Locations/Location__, natural motion, 70mm lens.",
+              "note": "+ advances to the next line in the wildcard file each time it resolves.",
+              "visual": "rotation",
+              "subcategory": "Sequential"
+            },
+            {
+              "id": "pps-wildcard-previous",
+              "title": "Sequential wildcard — previous",
+              "prompt": "Full-body fashion portrait in __-Locations/Location__, natural motion, 70mm lens.",
+              "note": "- walks backward through the wildcard file.",
+              "visual": "rotation",
+              "subcategory": "Sequential"
+            },
+            {
+              "id": "pps-wildcard-cycle",
+              "title": "Cartesian wildcard cycle",
+              "prompt": "__%Locations/Location__, {%morning|afternoon|night}, editorial photograph.",
+              "note": "% groups advance through their Cartesian combinations across editor resolves.",
+              "visual": "map",
+              "subcategory": "Cycle"
+            }
+          ]
+        },
+        {
+          "id": "multi-select",
+          "name": "Multi-select & Joining",
+          "visual": "catalog",
+          "description": "Choose several options at once and control how they are joined.",
+          "prompts": [
+            {
+              "id": "pps-multi-exact",
+              "title": "Pick exactly two",
+              "prompt": "Accessories: {2$$, $$gold chain|silver ring|leather watch|black sunglasses}.",
+              "note": "2$$joiner$$ chooses exactly two unique slots and joins them with comma + space.",
+              "visual": "fashion",
+              "subcategory": "Exact count"
+            },
+            {
+              "id": "pps-multi-range",
+              "title": "Pick one to three",
+              "prompt": "Atmosphere: {1-3$$ + $$rim light|fog|lens flare|practical glow}.",
+              "note": "1-3 chooses a seeded count in the range, then joins the selected options with the text between $$ markers.",
+              "visual": "lighting",
+              "subcategory": "Range"
+            },
+            {
+              "id": "pps-multi-wildcard-slots",
+              "title": "Wildcard multi-pick slots",
+              "prompt": "Palette: {2$$, $$4#__Locations/Location__}.",
+              "note": "N# duplicates a token into option slots before multi-select. Prompt Palette substitutes an available My Library path when possible.",
+              "visual": "catalog",
+              "subcategory": "Wildcard slots"
+            }
+          ]
+        },
+        {
+          "id": "variables",
+          "name": "Prompt Variables",
+          "visual": "diagram",
+          "description": "Define reusable text once, resolve it immediately when needed, or provide a default.",
+          "prompts": [
+            {
+              "id": "pps-var-raw",
+              "title": "Define and reuse",
+              "prompt": "${subject=handsome man}\nEditorial portrait of ${subject}; ${subject} reflected in a shop window.",
+              "note": "The assignment is removed from output. ${subject} reuses its stored expression wherever it appears.",
+              "visual": "diagram",
+              "subcategory": "Assignment"
+            },
+            {
+              "id": "pps-var-immediate",
+              "title": "Resolve once, reuse result",
+              "prompt": "${light=!{soft window light|hard side light|warm practical light}}\nPortrait in ${light}; background reflections echo the same ${light}.",
+              "note": "=! resolves the expression when assigned, so every later use gets the exact same picked value.",
+              "visual": "lighting",
+              "subcategory": "Immediate"
+            },
+            {
+              "id": "pps-var-default",
+              "title": "Variable with default",
+              "prompt": "${wardrobe:tailored black suit}, editorial portrait, clean studio backdrop.",
+              "note": "If wardrobe has not been assigned, the text after : is resolved as its fallback value.",
+              "visual": "fashion",
+              "subcategory": "Fallback"
+            }
+          ]
+        },
+        {
+          "id": "workflow-syntax",
+          "name": "Workflow Syntax",
+          "visual": "diagram",
+          "description": "Comments, parameterized wildcards, and full combinatorial generation.",
+          "prompts": [
+            {
+              "id": "pps-comments",
+              "title": "Comment line",
+              "prompt": "# Notes can live in the editor without reaching the final prompt.\nEditorial portrait, clean natural light, 85mm lens.",
+              "note": "A line whose first non-space character is # is removed before resolution.",
+              "visual": "text",
+              "subcategory": "Comments"
+            },
+            {
+              "id": "pps-parameter-call",
+              "title": "Parameterized wildcard call",
+              "prompt": "__Templates/Portrait(subject=handsome man,light=warm tungsten)__",
+              "note": "A parameterized wildcard can use ${subject} and ${light} inside its own wildcard file. Replace the path with your template entry.",
+              "visual": "diagram",
+              "subcategory": "Parameters"
+            },
+            {
+              "id": "pps-combinatorial",
+              "title": "Combinatorial matrix",
+              "prompt": "{close portrait|full body} in {soft daylight|warm tungsten}, {35mm|85mm} lens.",
+              "note": "In Prompt Palette Combinatorial, unmodified braces expand to every unique combination. In the editor, the same text resolves to one seeded prompt.",
+              "visual": "diagram",
+              "subcategory": "Combinatorial"
+            },
+            {
+              "id": "pps-combinatorial-wildcard",
+              "title": "Wildcard × choice matrix",
+              "prompt": "__Locations/Location__, {morning|afternoon|night}, editorial photograph.",
+              "note": "In Prompt Palette Combinatorial, an unmodified wildcard expands every line and combines it with each brace option, up to the node limit.",
+              "visual": "map",
+              "subcategory": "Combinatorial"
+            }
+          ]
+        },
+        {
+          "id": "combined-recipes",
+          "name": "Combined Examples",
+          "visual": "cinematic",
+          "description": "Small recipes that show several Prompt Palette features working together.",
+          "prompts": [
+            {
+              "id": "pps-combined-editorial",
+              "title": "Editorial recipe",
+              "prompt": "${subject=handsome man}\n${mood=!{quiet confidence|focused intensity|relaxed warmth}}\n${subject} at __Locations/Location__, ${mood}, {5::50mm|2::85mm|1::35mm} lens, {2$$, $$soft key light|rim light|practical glow|window spill}.",
+              "note": "Variables, a library wildcard, a weighted lens choice, and an exact two-item lighting selection in one prompt.",
+              "visual": "fashion",
+              "subcategory": "Recipes"
+            },
+            {
+              "id": "pps-combined-sequence",
+              "title": "Location sequence recipe",
+              "prompt": "__+Locations/Location__, {+morning|afternoon|blue hour|night}, editorial street photograph, 50mm lens.",
+              "note": "Both + groups step forward, useful for deliberately walking a repeatable set instead of randomizing it.",
+              "visual": "city",
+              "subcategory": "Recipes"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "universal",
+      "name": "Universal",
+      "short": "ALL",
+      "kind": "Any current model",
+      "accent": "#d49a52",
+      "summary": "Reusable building blocks for poses, cameras, locations, wardrobe, props, lighting and Prompt Palette combinations. Designed to mix into any current model prompt.",
+      "format": "Insert a fragment or a ready-to-run Prompt Palette combination; tailor wording to the active model when needed.",
+      "categories": [
+        {
+          "id": "influencer-poses",
+          "name": "Influencer Poses",
+          "visual": "pose",
+          "description": "Gender-neutral pose directions that can be appended to any subject.",
+          "prompts": [
+            {
+              "id": "u-influencer-candid-walk",
+              "title": "Candid walk",
+              "prompt": "walking naturally toward camera, mid-step, shoulders relaxed, one hand loosely occupied, candid social-photo energy",
+              "note": "Natural walking pose without assigning gender.",
+              "visual": "motion",
+              "subcategory": "Everyday movement"
+            },
+            {
+              "id": "u-influencer-rail-lean",
+              "title": "Rail lean",
+              "prompt": "leaning casually against a railing, weight shifted to one hip, forearms relaxed, gaze slightly away from camera",
+              "note": "Easy lifestyle pose for rooftops, balconies and overlooks.",
+              "visual": "pose",
+              "subcategory": "Everyday movement"
+            },
+            {
+              "id": "u-influencer-cafe-seat",
+              "title": "Café seat",
+              "prompt": "seated at a small café table, torso turned slightly toward camera, one forearm resting on the table, relaxed posture",
+              "note": "Natural seated creator-style pose.",
+              "visual": "pose",
+              "subcategory": "Seated"
+            },
+            {
+              "id": "u-influencer-over-shoulder",
+              "title": "Over-shoulder glance",
+              "prompt": "body angled away from camera, head turned back over one shoulder, relaxed stance, natural candid expression",
+              "note": "Useful for street, travel and fashion imagery.",
+              "visual": "portrait",
+              "subcategory": "Standing"
+            },
+            {
+              "id": "u-influencer-phone",
+              "title": "Phone in hand",
+              "prompt": "standing casually with a phone held low in one hand, free hand relaxed, weight shifted naturally, not looking at the screen",
+              "note": "Contemporary lifestyle pose without making the phone the subject.",
+              "visual": "pose",
+              "subcategory": "Props in hand"
+            },
+            {
+              "id": "u-influencer-stairs",
+              "title": "Stair pause",
+              "prompt": "paused halfway on a staircase, one foot one step higher, body turned three-quarter to camera, one hand lightly touching the rail",
+              "note": "Adds depth and natural asymmetry.",
+              "visual": "pose",
+              "subcategory": "Environment poses"
+            },
+            {
+              "id": "u-influencer-car-door",
+              "title": "Car-door pause",
+              "prompt": "standing beside an open car door, one hand resting on the top edge, body angled away from the vehicle, relaxed candid posture",
+              "note": "Lifestyle/automotive pose direction.",
+              "visual": "pose",
+              "subcategory": "Environment poses"
+            },
+            {
+              "id": "u-influencer-luggage",
+              "title": "Travel luggage",
+              "prompt": "walking beside a compact rolling suitcase, one hand on the handle, free arm swinging naturally, looking past camera",
+              "note": "Travel-content pose direction.",
+              "visual": "motion",
+              "subcategory": "Props in hand"
+            }
+          ]
+        },
+        {
+          "id": "photoshoot-poses",
+          "name": "Photoshoot Poses",
+          "visual": "fashion",
+          "description": "Studio and editorial pose directions that stay subject-neutral.",
+          "prompts": [
+            {
+              "id": "u-pose-contrapposto",
+              "title": "Contrapposto",
+              "prompt": "relaxed contrapposto stance, weight on the back leg, front knee soft, one shoulder slightly lower than the other",
+              "note": "Classic editorial full-body balance.",
+              "visual": "pose",
+              "subcategory": "Standing"
+            },
+            {
+              "id": "u-pose-hands-pockets",
+              "title": "Hands in pockets",
+              "prompt": "standing tall with both hands loosely in pockets, elbows slightly out, feet offset rather than symmetrical",
+              "note": "Simple fashion pose with clean silhouette.",
+              "visual": "pose",
+              "subcategory": "Standing"
+            },
+            {
+              "id": "u-pose-jacket-shoulder",
+              "title": "Jacket over shoulder",
+              "prompt": "standing three-quarter to camera with a jacket draped over one shoulder and held lightly by one hand, free arm relaxed",
+              "note": "Editorial wardrobe pose.",
+              "visual": "fashion",
+              "subcategory": "Standing"
+            },
+            {
+              "id": "u-pose-wall-lean",
+              "title": "Wall lean",
+              "prompt": "shoulder lightly against a wall, one foot planted flat against the wall behind, torso relaxed, gaze toward camera",
+              "note": "Casual editorial wall pose.",
+              "visual": "pose",
+              "subcategory": "Leaning"
+            },
+            {
+              "id": "u-pose-chair-edge",
+              "title": "Chair edge",
+              "prompt": "seated on the front edge of a chair, feet planted apart, elbows resting lightly on thighs, torso leaning slightly forward",
+              "note": "Strong seated portrait pose.",
+              "visual": "pose",
+              "subcategory": "Seated"
+            },
+            {
+              "id": "u-pose-low-crouch",
+              "title": "Low crouch",
+              "prompt": "balanced low crouch with one knee forward, one heel raised, one hand relaxed near the knee, body turned three-quarter to camera",
+              "note": "Dynamic streetwear pose.",
+              "visual": "pose",
+              "subcategory": "Low poses"
+            },
+            {
+              "id": "u-pose-floor-seated",
+              "title": "Floor seated",
+              "prompt": "seated on the floor with one knee raised and the other leg relaxed outward, one arm resting loosely on the raised knee",
+              "note": "Relaxed editorial floor pose.",
+              "visual": "pose",
+              "subcategory": "Seated"
+            },
+            {
+              "id": "u-pose-half-turn",
+              "title": "Half turn",
+              "prompt": "caught halfway through turning toward camera, shoulders and hips offset, clothing showing subtle motion",
+              "note": "Natural transitional pose.",
+              "visual": "motion",
+              "subcategory": "Movement"
+            }
+          ]
+        },
+        {
+          "id": "camera-composition",
+          "name": "Camera & Composition",
+          "visual": "camera",
+          "description": "Drop-in framing and camera-language fragments.",
+          "prompts": [
+            {
+              "id": "u-camera-24-low",
+              "title": "24mm low angle",
+              "prompt": "24mm wide-angle lens, camera close to ground, low upward angle, full-body framing, controlled perspective exaggeration",
+              "note": "Dynamic full-body perspective.",
+              "visual": "camera",
+              "subcategory": "Lens & angle"
+            },
+            {
+              "id": "u-camera-35-editorial",
+              "title": "35mm editorial",
+              "prompt": "35mm lens, three-quarter environmental portrait, camera near chest height, subject integrated naturally with surroundings",
+              "note": "Versatile editorial framing.",
+              "visual": "camera",
+              "subcategory": "Lens & angle"
+            },
+            {
+              "id": "u-camera-50-natural",
+              "title": "50mm natural",
+              "prompt": "50mm lens, natural perspective, medium-full composition, eye-level camera, balanced subject-to-background relationship",
+              "note": "Neutral all-purpose camera setup.",
+              "visual": "camera",
+              "subcategory": "Lens & angle"
+            },
+            {
+              "id": "u-camera-85-portrait",
+              "title": "85mm portrait",
+              "prompt": "85mm lens, chest-up portrait, shallow depth of field, gentle background compression, precise eye focus",
+              "note": "Classic portrait setup.",
+              "visual": "portrait",
+              "subcategory": "Lens & angle"
+            },
+            {
+              "id": "u-camera-overhead",
+              "title": "Overhead",
+              "prompt": "true top-down overhead composition, camera perpendicular to the scene, deliberate graphic arrangement",
+              "note": "Useful for layouts, food, products and floor poses.",
+              "visual": "overhead",
+              "subcategory": "Specialty"
+            },
+            {
+              "id": "u-camera-dutch",
+              "title": "Subtle Dutch angle",
+              "prompt": "subtle Dutch angle, horizon tilted approximately ten degrees, intentional cinematic tension without extreme distortion",
+              "note": "A restrained dynamic tilt.",
+              "visual": "camera",
+              "subcategory": "Specialty"
+            },
+            {
+              "id": "u-camera-negative-space",
+              "title": "Negative space",
+              "prompt": "subject placed on one third of the frame with generous clean negative space on the opposite side",
+              "note": "Useful for editorial layouts and text placement.",
+              "visual": "camera",
+              "subcategory": "Composition"
+            },
+            {
+              "id": "u-camera-symmetry",
+              "title": "Centered symmetry",
+              "prompt": "centered one-point composition with strong bilateral symmetry, clean leading lines and controlled visual balance",
+              "note": "Architecture and graphic portrait composition.",
+              "visual": "camera",
+              "subcategory": "Composition"
+            }
+          ]
+        },
+        {
+          "id": "locations",
+          "name": "Locations",
+          "visual": "city",
+          "description": "Flexible locations written as scene fragments.",
+          "prompts": [
+            {
+              "id": "u-location-rooftop",
+              "title": "City rooftop",
+              "prompt": "open city rooftop at late afternoon, concrete parapet, layered skyline, light wind, uncluttered foreground",
+              "note": "Editorial urban setting.",
+              "visual": "rooftop",
+              "subcategory": "Urban"
+            },
+            {
+              "id": "u-location-hotel",
+              "title": "Modern hotel lobby",
+              "prompt": "quiet modern hotel lobby with stone floors, warm indirect lighting, sculptural seating and generous negative space",
+              "note": "Polished lifestyle interior.",
+              "visual": "interior",
+              "subcategory": "Interiors"
+            },
+            {
+              "id": "u-location-garage",
+              "title": "Parking garage",
+              "prompt": "clean concrete parking structure, long fluorescent ceiling lines, deep perspective, sparse parked cars",
+              "note": "Graphic streetwear environment.",
+              "visual": "architecture",
+              "subcategory": "Urban"
+            },
+            {
+              "id": "u-location-cafe",
+              "title": "Window café",
+              "prompt": "small contemporary café beside a large street-facing window, warm wood, soft daylight, subtle reflections",
+              "note": "Lifestyle interior.",
+              "visual": "interior",
+              "subcategory": "Interiors"
+            },
+            {
+              "id": "u-location-brutalist",
+              "title": "Brutalist gallery",
+              "prompt": "monumental pale-concrete gallery, oversized stair, diffuse skylight, restrained architectural details",
+              "note": "High-end editorial architecture.",
+              "visual": "architecture",
+              "subcategory": "Interiors"
+            },
+            {
+              "id": "u-location-subway",
+              "title": "Subway platform",
+              "prompt": "clean underground transit platform, repeating columns, directional fluorescent light, long vanishing point",
+              "note": "Urban cinematic location.",
+              "visual": "transit",
+              "subcategory": "Urban"
+            },
+            {
+              "id": "u-location-coast",
+              "title": "Windy coast",
+              "prompt": "windswept coastal overlook with dark rock, pale horizon, textured ocean and low cloud cover",
+              "note": "Outdoor fashion/travel setting.",
+              "visual": "landscape",
+              "subcategory": "Nature"
+            },
+            {
+              "id": "u-location-seamless",
+              "title": "Studio seamless",
+              "prompt": "large neutral seamless studio backdrop, clean floor transition, no visible equipment, controlled empty space",
+              "note": "Neutral studio base.",
+              "visual": "portrait",
+              "subcategory": "Studio"
+            }
+          ]
+        },
+        {
+          "id": "wardrobe-props",
+          "name": "Clothing & Props",
+          "visual": "fashion",
+          "description": "Wardrobe and prop fragments that can be combined with any subject.",
+          "prompts": [
+            {
+              "id": "u-clothing-tailored",
+              "title": "Tailored monochrome",
+              "prompt": "tailored charcoal suit, fine-gauge black knit, minimal leather shoes, restrained monochrome styling",
+              "note": "Polished menswear building block.",
+              "visual": "fashion",
+              "subcategory": "Menswear"
+            },
+            {
+              "id": "u-clothing-street",
+              "title": "Premium streetwear",
+              "prompt": "structured bomber jacket, heavyweight tee, relaxed technical trousers, clean low-profile sneakers",
+              "note": "Contemporary streetwear building block.",
+              "visual": "fashion",
+              "subcategory": "Menswear"
+            },
+            {
+              "id": "u-clothing-knit",
+              "title": "Relaxed knitwear",
+              "prompt": "textured merino crewneck, straight-leg trousers, understated leather belt and simple shoes",
+              "note": "Soft lifestyle wardrobe.",
+              "visual": "fashion",
+              "subcategory": "Menswear"
+            },
+            {
+              "id": "u-clothing-outerwear",
+              "title": "Long outerwear",
+              "prompt": "long wool overcoat layered over minimal tonal clothing, clean boots, subtle fabric movement",
+              "note": "Strong full-body silhouette.",
+              "visual": "fashion",
+              "subcategory": "Menswear"
+            },
+            {
+              "id": "u-prop-sunglasses",
+              "title": "Sunglasses",
+              "prompt": "slim dark sunglasses used as a natural hand prop, either worn or held loosely by one temple",
+              "note": "Easy hand interaction prop.",
+              "visual": "product",
+              "subcategory": "Props"
+            },
+            {
+              "id": "u-prop-coffee",
+              "title": "Coffee cup",
+              "prompt": "simple takeaway coffee cup held naturally at waist or chest level, no visible branding",
+              "note": "Lifestyle hand prop.",
+              "visual": "product",
+              "subcategory": "Props"
+            },
+            {
+              "id": "u-prop-camera",
+              "title": "Compact camera",
+              "prompt": "small unbranded compact camera held casually in one hand with wrist strap visible",
+              "note": "Creator/travel prop.",
+              "visual": "camera",
+              "subcategory": "Props"
+            },
+            {
+              "id": "u-prop-bag",
+              "title": "Structured bag",
+              "prompt": "minimal structured shoulder or cross-body bag with no visible logo, used as a clean styling accent",
+              "note": "Fashion accessory.",
+              "visual": "product",
+              "subcategory": "Props"
+            }
+          ]
+        },
+        {
+          "id": "lighting-looks",
+          "name": "Lighting & Looks",
+          "visual": "lighting",
+          "description": "Lighting and finish directions that travel well across models.",
+          "prompts": [
+            {
+              "id": "u-light-window",
+              "title": "Soft window light",
+              "prompt": "large soft window light from one side, gentle falloff across the face and clothing, natural room ambience",
+              "note": "Natural portrait light.",
+              "visual": "lighting",
+              "subcategory": "Natural light"
+            },
+            {
+              "id": "u-light-direct-flash",
+              "title": "Direct flash",
+              "prompt": "on-camera direct flash, crisp hard shadow, bright subject separation, slight ambient underexposure, candid editorial finish",
+              "note": "Current editorial/direct-flash look.",
+              "visual": "lighting",
+              "subcategory": "Flash"
+            },
+            {
+              "id": "u-light-golden",
+              "title": "Golden hour rim",
+              "prompt": "low warm sun behind the subject, soft rim light around silhouette, cooler open-shadow fill",
+              "note": "Outdoor golden-hour setup.",
+              "visual": "lighting",
+              "subcategory": "Natural light"
+            },
+            {
+              "id": "u-light-softbox",
+              "title": "Large softbox",
+              "prompt": "large rectangular softbox close to subject, soft sculpted key light, restrained fill, clean studio falloff",
+              "note": "Controlled studio portrait light.",
+              "visual": "lighting",
+              "subcategory": "Studio"
+            },
+            {
+              "id": "u-light-hard-sun",
+              "title": "Hard midday sun",
+              "prompt": "hard direct sunlight with graphic high-contrast shadows, crisp edges and saturated natural color",
+              "note": "Bold outdoor editorial light.",
+              "visual": "lighting",
+              "subcategory": "Natural light"
+            },
+            {
+              "id": "u-light-sodium",
+              "title": "Sodium streetlight",
+              "prompt": "warm sodium-vapor street lighting mixed with cooler distant ambient light, cinematic night contrast",
+              "note": "Urban night atmosphere.",
+              "visual": "lighting",
+              "subcategory": "Night"
+            },
+            {
+              "id": "u-look-film",
+              "title": "Fine-grain film",
+              "prompt": "subtle fine film grain, gentle highlight rolloff, restrained saturation, realistic tonal density, no artificial vintage damage",
+              "note": "Analog-inspired finishing.",
+              "visual": "painting",
+              "subcategory": "Finish"
+            },
+            {
+              "id": "u-look-clean-digital",
+              "title": "Clean digital",
+              "prompt": "clean high-resolution digital capture, natural microcontrast, accurate color, realistic texture, restrained sharpening",
+              "note": "Neutral modern finish.",
+              "visual": "camera",
+              "subcategory": "Finish"
+            }
+          ]
+        },
+        {
+          "id": "wildcard-combos",
+          "name": "Wildcard Combos",
+          "visual": "catalog",
+          "description": "Ready-to-run Prompt Palette combinatorial templates. They use existing brace/% syntax and require no extra wildcard files.",
+          "prompts": [
+            {
+              "id": "u-combo-editorial-man",
+              "title": "Editorial man generator",
+              "prompt": "handsome man, {%relaxed contrapposto stance|walking naturally toward camera|seated on the edge of a chair|leaning casually against a wall}, wearing {%a tailored charcoal suit|premium neutral streetwear|a textured merino knit with straight-leg trousers|a long wool overcoat over tonal clothing}, in {%a modern hotel lobby|a brutalist gallery|an open city rooftop|a clean concrete parking structure}, {%35mm editorial photograph|85mm portrait|24mm low-angle full-body photograph}, {%soft window light|direct on-camera flash|large softbox lighting|golden-hour rim light}",
+              "note": "Cycles pose, wardrobe, location, camera and lighting using Prompt Palette combinatorial syntax.",
+              "visual": "catalog",
+              "subcategory": "People builders"
+            },
+            {
+              "id": "u-combo-influencer",
+              "title": "Influencer pose roll",
+              "prompt": "{%walking naturally toward camera, mid-step|leaning casually against a railing|seated at a small café table, torso turned slightly toward camera|body angled away from camera, head turned back over one shoulder|paused halfway on a staircase, one hand lightly touching the rail}, {%35mm environmental framing|50mm natural perspective|85mm compressed portrait framing}, {%soft window light|bright overcast daylight|direct on-camera flash|golden-hour backlight}",
+              "note": "Gender-neutral pose/camera/light roller to append to any subject.",
+              "visual": "pose",
+              "subcategory": "Pose builders"
+            },
+            {
+              "id": "u-combo-product",
+              "title": "Product campaign generator",
+              "prompt": "{%a premium unbranded fragrance bottle|a sculptural wireless speaker|a minimalist wristwatch|a compact mirrorless camera|a pair of technical sneakers}, photographed {%on a seamless studio sweep|on textured stone|inside a clean architectural niche|on brushed metal|on translucent acrylic}, {%large softbox with controlled specular highlights|hard directional sunlight with graphic shadow|soft gradient lighting|direct flash with crisp shadow}, {%centered hero composition|three-quarter close-up|macro detail crop|overhead graphic layout}",
+              "note": "Ready-to-run product variation template.",
+              "visual": "product",
+              "subcategory": "Product builders"
+            },
+            {
+              "id": "u-combo-location",
+              "title": "Location explorer",
+              "prompt": "{%quiet modern hotel lobby|open city rooftop|brutalist gallery|clean subway platform|windswept coastal overlook|small window café|concrete parking structure}, {%early morning|late afternoon|blue hour|rainy night}, {%35mm natural perspective|24mm wide establishing shot|50mm eye-level framing}, {%soft natural light|hard directional sun|mixed practical lighting|moody overcast light}",
+              "note": "Fast environmental exploration template.",
+              "visual": "landscape",
+              "subcategory": "Environment builders"
+            },
+            {
+              "id": "u-combo-character-sheet",
+              "title": "Handsome man character sheet",
+              "prompt": "character design sheet of the same handsome man, {%front, three-quarter, side and back turnaround|six facial expressions|four coordinated wardrobe variations|three hairstyle and grooming variations}, consistent identity and proportions, clean neutral background, evenly spaced panels, production-ready reference layout",
+              "note": "Character-sheet combination that stays on a handsome male default.",
+              "visual": "sheet",
+              "subcategory": "Character builders"
+            },
+            {
+              "id": "u-combo-fashion",
+              "title": "Fashion campaign roller",
+              "prompt": "handsome male model wearing {%tailored monochrome suiting|premium technical streetwear|relaxed luxury knitwear|long sculptural outerwear}, {%full-body contrapposto|low crouch|seated chair-edge pose|walking toward camera}, {%direct flash against a saturated color wall|large softbox in a neutral studio|hard midday sun in brutalist architecture|soft overcast light on a city rooftop}, high-end editorial campaign photography",
+              "note": "Fashion-oriented combinatorial starter.",
+              "visual": "fashion",
+              "subcategory": "People builders"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "krea-2",
+      "name": "KREA 2",
+      "short": "K2",
+      "kind": "Image",
+      "accent": "#f2a65a",
+      "summary": "Natural, detailed language. Strong for people, art direction, products, typography, and unusual compositions.",
+      "format": "Write a complete visual description in flowing natural language. Put requested text in quotation marks.",
+      "categories": [
+        {
+          "id": "people-poses",
+          "name": "People & Poses",
+          "description": "Useful full-body, editorial, action, and interaction poses.",
+          "visual": "pose",
+          "prompts": [
+            {
+              "id": "relaxed-contrapposto",
+              "title": "Relaxed contrapposto",
+              "prompt": "Full-body editorial photograph of a handsome man in a tailored rust-red suit, relaxed contrapposto stance with one hip lowered, one hand resting loosely in a pocket and the other relaxed at his side, clean studio backdrop, soft directional light, natural skin texture, refined magazine styling.",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Influencer poses"
+            },
+            {
+              "id": "low-crouch",
+              "title": "Low crouch",
+              "prompt": "a handsome male streetwear dancer in a deep low crouch with one knee forward and one hand touching the pavement, photographed from ground level with a 24mm wide-angle lens, dynamic foreshortening, concrete plaza after rain, crisp overcast light, energetic but believable body mechanics.",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Movement"
+            },
+            {
+              "id": "mid-stride-turn",
+              "title": "Mid-stride turn",
+              "prompt": "Full-body fashion image of a handsome man caught mid-stride as he turns over his shoulder, long coat swinging behind him, one foot lifted, busy crosswalk softly blurred in the background, late-afternoon backlight, candid editorial energy, 70mm lens.",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "seated-editorial",
+              "title": "Seated editorial",
+              "prompt": "A handsome man seated sideways on a simple chrome chair, ankles crossed, elbow resting on the chair back, chin lightly supported by one hand, minimal grey studio, sculpted softbox lighting, understated luxury editorial styling.",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Influencer poses"
+            },
+            {
+              "id": "hands-framing-face",
+              "title": "Hands framing face",
+              "prompt": "Close beauty portrait of a handsome man gently framing his face with both hands, fingers relaxed and asymmetrical, healthy natural skin texture, subtle grooming, pale seamless background, precise soft beauty lighting.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Influencer poses"
+            },
+            {
+              "id": "leaning-against-wall",
+              "title": "Leaning against wall",
+              "prompt": "Full-body lifestyle portrait of a handsome young man leaning one shoulder against a sun-warmed stucco wall, one knee bent with the foot resting behind him, linen shirt moving in a light breeze, Mediterranean alley, warm natural light, relaxed candid posture.",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "dynamic-leap",
+              "title": "Dynamic leap",
+              "prompt": "A handsome male contemporary dancer suspended at the peak of a sideways leap, arms creating a long diagonal line, flowing neutral costume, black stage, single hard spotlight and faint atmospheric haze, full body visible.",
+              "visual": "motion",
+              "note": "",
+              "subcategory": "Movement"
+            },
+            {
+              "id": "two-person-interaction",
+              "title": "Two-person interaction",
+              "prompt": "Editorial photograph of two handsome men standing back-to-back, one laughing while the other looks toward camera, contrasting monochrome outfits, slightly staggered heights, clean color-block studio background, relaxed natural chemistry.",
+              "visual": "duo",
+              "note": "",
+              "subcategory": "Pairs"
+            }
+          ]
+        },
+        {
+          "id": "character-sheets",
+          "name": "Character Sheets",
+          "description": "Turnarounds, expressions, outfits, silhouettes, and prop studies.",
+          "visual": "sheet",
+          "prompts": [
+            {
+              "id": "four-view-turnaround",
+              "title": "Four-view turnaround",
+              "prompt": "Professional character turnaround sheet for the same handsome man, an original desert courier wearing a weathered utility coat, compact backpack and protective goggles. Show front, three-quarter, side and back views with consistent facial identity, body proportions and wardrobe details on a clean neutral background.",
+              "visual": "sheet",
+              "note": "",
+              "subcategory": "Turnarounds"
+            },
+            {
+              "id": "expression-sheet",
+              "title": "Expression sheet",
+              "prompt": "Expression sheet for the same handsome young man, an original mechanic with short curly hair and grease-smudged cheeks. Arrange eight head-and-shoulder expressions: neutral, amused, focused, worried, irritated, surprised, relieved and determined. Keep facial identity, hairstyle, camera angle and lighting consistent.",
+              "visual": "expression",
+              "note": "",
+              "subcategory": "Expressions"
+            },
+            {
+              "id": "outfit-lineup",
+              "title": "Outfit lineup",
+              "prompt": "Fashion character lineup showing the same handsome man, an original musician, in five coordinated outfits: rehearsal casual, premium streetwear, formal performance, rainy-day layers and futuristic stage clothing. Keep face, body proportions and hairstyle consistent across the lineup.",
+              "visual": "fashion",
+              "note": "",
+              "subcategory": "Wardrobe"
+            },
+            {
+              "id": "prop-and-accessory-sheet",
+              "title": "Prop and accessory sheet",
+              "prompt": "Design sheet of accessories for an original urban explorer: modular camera, folding map device, utility pouch, boots, gloves, flashlight and enamel pins. Orthographic product-like views, small callout details, coherent color palette, clean off-white presentation board.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "silhouette-exploration",
+              "title": "Silhouette exploration",
+              "prompt": "Twelve black silhouette thumbnails exploring distinct shapes for an original forest guardian character, varying shoulder width, cloak length, head shape, staff design and posture. Strong readable silhouettes, evenly spaced grid, minimal warm-grey background.",
+              "visual": "silhouette",
+              "note": "",
+              "subcategory": "Shape studies"
+            },
+            {
+              "id": "age-progression",
+              "title": "Age progression",
+              "prompt": "Character age progression sheet for the same handsome man at ages 18, 30, 45, 60 and 80, preserving recognizable facial structure, hairstyle cues and distinctive eyebrow shape. Head-and-shoulders lineup, neutral studio lighting, consistent angle and scale.",
+              "visual": "sheet",
+              "note": "",
+              "subcategory": "Age studies"
+            }
+          ]
+        },
+        {
+          "id": "camera-framing",
+          "name": "Camera & Framing",
+          "description": "Fast ways to explore lens language and composition.",
+          "visual": "camera",
+          "prompts": [
+            {
+              "id": "extreme-close-up",
+              "title": "Extreme close-up",
+              "prompt": "Extreme close-up of a handsome man's eye and cheek, tiny reflections of city lights in the iris, individual eyelashes and skin texture visible, shallow depth of field, cinematic teal-and-amber night lighting, intimate 100mm macro framing.",
+              "visual": "macro",
+              "note": "",
+              "subcategory": "Close framing"
+            },
+            {
+              "id": "24mm-low-angle",
+              "title": "24mm low angle",
+              "prompt": "Low-angle 24mm photograph from near the pavement looking up at a cyclist beside a brutalist concrete tower, exaggerated perspective, strong vertical lines, bright cloud cover, graphic editorial composition, subject close to lens.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Lens & angle"
+            },
+            {
+              "id": "overhead-top-down",
+              "title": "Overhead top-down",
+              "prompt": "Perfect top-down photograph of a ceramic artist working at a circular table, hands shaping clay at the center, tools and test tiles arranged in an intentional radial layout, soft north-window light, calm earthy palette, precise overhead geometry.",
+              "visual": "overhead",
+              "note": "",
+              "subcategory": "Lens & angle"
+            },
+            {
+              "id": "dutch-angle-tension",
+              "title": "Dutch angle tension",
+              "prompt": "Cinematic hallway scene photographed with a restrained Dutch angle, a lone figure paused beneath flickering fluorescent lights, long converging lines, slightly off-balance framing, cool green shadows, suspenseful but realistic atmosphere.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Specialty framing"
+            },
+            {
+              "id": "long-lens-compression",
+              "title": "Long-lens compression",
+              "prompt": "A pedestrian in a bright yellow coat crossing a distant hill road, photographed with a 200mm telephoto lens that compresses layered mountains and mist behind them, muted landscape, small human figure, elegant graphic depth.",
+              "visual": "telephoto",
+              "note": "",
+              "subcategory": "Camera direction"
+            },
+            {
+              "id": "fisheye-room-portrait",
+              "title": "Fisheye room portrait",
+              "prompt": "Playful fisheye portrait inside a tiny colorful bedroom, subject sitting close to the lens on the floor, curved walls and exaggerated furniture edges, direct on-camera flash, youthful magazine energy, detailed room objects.",
+              "visual": "fisheye",
+              "note": "",
+              "subcategory": "Specialty framing"
+            },
+            {
+              "id": "split-diopter-composition",
+              "title": "Split-diopter composition",
+              "prompt": "Cinematic split-diopter shot: a glass perfume bottle in sharp focus in the extreme foreground while a handsome man at a vanity remains simultaneously sharp in the background, warm tungsten practicals, elegant editorial styling.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Specialty framing"
+            },
+            {
+              "id": "security-camera-view",
+              "title": "Security camera view",
+              "prompt": "Fixed high-corner security-camera view of an empty late-night laundromat, timestamp-style composition without visible text, fluorescent lighting, rows of machines, one forgotten red umbrella, wide surveillance lens, quiet liminal mood.",
+              "visual": "surveillance",
+              "note": "",
+              "subcategory": "Camera direction"
+            }
+          ]
+        },
+        {
+          "id": "editorial-product",
+          "name": "Editorial & Product",
+          "description": "Campaign-ready portraits, objects, packaging, food, and beauty.",
+          "visual": "product",
+          "prompts": [
+            {
+              "id": "direct-flash-campaign",
+              "title": "Direct-flash campaign",
+              "prompt": "Direct-flash fashion campaign portrait of a handsome male model in a silver windbreaker against a deep cobalt wall, slight motion blur in the raised hand, crisp face, hard shadow, glossy magazine color, spontaneous 2000s editorial attitude.",
+              "visual": "fashion",
+              "note": "",
+              "subcategory": "Fashion editorial"
+            },
+            {
+              "id": "beauty-macro",
+              "title": "Beauty macro",
+              "prompt": "High-end beauty macro of glossy coral lipstick on natural lips, dewy skin, tiny water droplets, soft peach background, controlled specular highlights, ultra-clean cosmetic campaign lighting, sharp texture without plastic skin.",
+              "visual": "macro",
+              "note": "",
+              "subcategory": "Fashion editorial"
+            },
+            {
+              "id": "floating-product",
+              "title": "Floating product",
+              "prompt": "A matte-black wireless speaker floating above a rippling sheet of translucent orange acrylic, small suspended droplets, dramatic side light, dark studio background, precise product edges, premium technology campaign composition.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Product studio"
+            },
+            {
+              "id": "packaging-lineup",
+              "title": "Packaging lineup",
+              "prompt": "Studio product photograph of a complete fictional skincare range arranged from tallest to shortest, frosted glass bottles, cream labels with the brand name \"Morrow\", soft stone platform, warm daylight, subtle shadows, clean luxury packaging system.",
+              "visual": "packaging",
+              "note": "",
+              "subcategory": "Product studio"
+            },
+            {
+              "id": "food-editorial",
+              "title": "Food editorial",
+              "prompt": "Editorial overhead photograph of handmade citrus pastries on imperfect ceramic plates, crumbs and folded linen placed naturally, hard morning sun creating graphic window shadows, saturated yellow and blue palette, tactile magazine styling.",
+              "visual": "food",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "hero-product-close-up",
+              "title": "Hero product close-up",
+              "prompt": "Hero close-up of a translucent running shoe on a dark reflective pedestal, low raking light revealing mesh and molded details, faint fog, blue-white edge lighting, dynamic three-quarter angle, premium sports advertising image.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Product studio"
+            }
+          ]
+        },
+        {
+          "id": "worlds-architecture",
+          "name": "Worlds & Architecture",
+          "description": "Locations that immediately establish mood, scale, and story.",
+          "visual": "architecture",
+          "prompts": [
+            {
+              "id": "brutalist-gallery",
+              "title": "Brutalist gallery",
+              "prompt": "Vast brutalist art gallery carved from pale concrete, monumental stair crossing a double-height atrium, one small visitor for scale, soft skylight, restrained warm-grey palette, architectural photography, precise perspective.",
+              "visual": "architecture",
+              "note": "",
+              "subcategory": "Interiors"
+            },
+            {
+              "id": "liminal-hotel-corridor",
+              "title": "Liminal hotel corridor",
+              "prompt": "Long carpeted hotel corridor at 3 a.m., repeating cream doors, warm wall sconces, one housekeeping cart at the far end, no people, symmetrical one-point perspective, slightly faded film color, quiet uncanny atmosphere.",
+              "visual": "corridor",
+              "note": "",
+              "subcategory": "Interiors"
+            },
+            {
+              "id": "solarpunk-street",
+              "title": "Solarpunk street",
+              "prompt": "Lively solarpunk neighborhood street with shaded pedestrian lanes, integrated fruit trees, lightweight timber balconies, solar fabric awnings, cyclists and small market stalls, bright morning, believable contemporary construction, optimistic documentary realism.",
+              "visual": "city",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "analog-sci-fi-cockpit",
+              "title": "Analog sci-fi cockpit",
+              "prompt": "Compact analog science-fiction cockpit built from worn beige panels, chunky switches, green CRT displays and handwritten labels, pilot seat centered toward a wide starfield window, practical lighting, tactile retro-futurist production design.",
+              "visual": "cockpit",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "miniature-cutaway-home",
+              "title": "Miniature cutaway home",
+              "prompt": "Isometric dollhouse cutaway of a tiny three-story townhouse, each room fully furnished and occupied by a different everyday activity, warm evening light, miniature handcrafted materials, clean architectural storytelling.",
+              "visual": "diorama",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "cozy-micro-apartment",
+              "title": "Cozy micro apartment",
+              "prompt": "A beautifully organized 24-square-meter apartment with a raised sleeping nook, hidden storage, fold-down dining table and plants near a large rainy window, warm lamps, realistic lived-in details, wide interior photograph.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Scenes & places"
+            }
+          ]
+        },
+        {
+          "id": "current-concepts",
+          "name": "Current Concepts",
+          "description": "Popular contemporary visual directions without relying on named artists or IP.",
+          "visual": "concept",
+          "prompts": [
+            {
+              "id": "vintage-analog-collage",
+              "title": "Vintage analog collage",
+              "prompt": "Vintage analog collage of a snowy mountain broken across a strict tiled grid, alternating sections replaced by solid ultramarine color, torn paper edges, photocopy grain, mid-century print texture, bold experimental editorial layout.",
+              "visual": "collage",
+              "note": "",
+              "subcategory": "Analog & print"
+            },
+            {
+              "id": "cyber-organic-fashion",
+              "title": "Cyber-organic fashion",
+              "prompt": "Editorial portrait of a handsome male model wearing a sculptural garment that blends translucent bio-plastic petals with braided fiber-optic strands, dark botanical set, soft bioluminescent accents, believable materials, elegant futuristic fashion direction.",
+              "visual": "fashion",
+              "note": "",
+              "subcategory": "Experimental fashion"
+            },
+            {
+              "id": "archival-catalog-scan",
+              "title": "Archival catalog scan",
+              "prompt": "Archival catalog-style scan of six fictional household objects from 1987, arranged on warm grey paper with small numbered labels and faint registration marks, flat even light, subtle paper wear, clean museum-reference presentation.",
+              "visual": "catalog",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "designer-toy-photography",
+              "title": "Designer toy photography",
+              "prompt": "Studio photograph of a charming original vinyl creature with oversized round shoes and a tiny messenger bag, matte tactile surface, photographed like a collectible product on a bright single-color backdrop, soft shadow, crisp commercial detail.",
+              "visual": "toy",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "translucent-material-study",
+              "title": "Translucent material study",
+              "prompt": "Material-study still life of folded translucent silicone, cloudy glass and iridescent film arranged on a pale table, sunlight refracting into soft rainbow fragments, minimal composition, realistic surface behavior, art-school documentation.",
+              "visual": "materials",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "monochrome-color-field",
+              "title": "Monochrome color field",
+              "prompt": "Monochrome crimson portrait set: subject, clothing, chair, floor and background all in layered shades of red, only skin and small chrome jewelry break the palette, soft frontal light, precise tonal separation, contemporary editorial image.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "surreal-scale",
+              "title": "Surreal scale",
+              "prompt": "A tiny maintenance worker standing beside an enormous ordinary desk lamp as if it were industrial machinery, believable warehouse environment, hard morning light, realistic scale cues, quiet deadpan surrealism.",
+              "visual": "surreal",
+              "note": "",
+              "subcategory": "Graphic looks"
+            },
+            {
+              "id": "soft-plastic-nostalgia",
+              "title": "Soft-plastic nostalgia",
+              "prompt": "Nostalgic tabletop scene of translucent colorful electronics, rounded alarm clock, cassette player and wired headphones made from soft-touch plastic, bright window light, subtle 1990s catalog styling, clean cheerful composition.",
+              "visual": "stilllife",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "prompt-builders",
+          "name": "Prompt Builders",
+          "visual": "catalog",
+          "description": "KREA 2 natural-language starters that use Prompt Palette combinations for controlled exploration.",
+          "prompts": [
+            {
+              "id": "krea-combo-editorial",
+              "title": "Editorial exploration",
+              "prompt": "A handsome man {%walking naturally toward camera|standing in relaxed contrapposto|seated on the edge of a chrome chair}, wearing {%tailored charcoal suiting|premium neutral streetwear|a long wool overcoat}, photographed {%on a quiet city rooftop|inside a brutalist gallery|in a modern hotel lobby}, {%35mm editorial framing|85mm portrait compression|24mm low-angle full-body framing}, {%direct flash|soft window light|large softbox lighting}, highly natural skin texture and refined contemporary art direction.",
+              "note": "KREA 2 rewards natural language and can explore useful variation from intentionally open prompts.",
+              "visual": "fashion",
+              "subcategory": "People builders"
+            },
+            {
+              "id": "krea-combo-pose-study",
+              "title": "Pose study grid",
+              "prompt": "A clean editorial pose study of the same handsome man, {%relaxed contrapposto|hands in pockets|low crouch|chair-edge seated pose|half-turn with clothing motion|wall lean}, full body visible, neutral studio background, consistent wardrobe, natural anatomy, photographed with a 50mm lens and soft directional light.",
+              "note": "Cycle useful poses while keeping identity and styling stable.",
+              "visual": "sheet",
+              "subcategory": "Pose builders"
+            },
+            {
+              "id": "krea-combo-commercial",
+              "title": "Commercial concept roll",
+              "prompt": "Premium campaign image for {%a fragrance bottle|technical sneakers|a compact camera|a sculptural speaker}, set {%on textured stone|inside a clean architectural niche|on brushed metal|on translucent acrylic}, lit with {%soft gradient light|hard directional sun|large controlled softbox|direct flash}, {%centered hero framing|macro detail crop|three-quarter close-up|overhead graphic layout}.",
+              "note": "Fast commercial concept exploration.",
+              "visual": "commercial",
+              "subcategory": "Product builders"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "minimax-h3",
+      "name": "MiniMax H3",
+      "short": "H3",
+      "kind": "Video + Audio",
+      "accent": "#75c9c8",
+      "summary": "Official H3-ready audiovisual prompts for text, first-frame, first-and-last-frame, and last-frame workflows.",
+      "format": "Keep H3's three core fields intact: integrated_multimodal_description, overall_soundscape, and non_diegetic_music. Reference workflows begin with the required Picture alignment line.",
+      "categories": [
+        {
+          "id": "t2va-scenes",
+          "name": "Text to Video + Audio",
+          "description": "Complete audiovisual timelines created from text, using H3's official three-field structure.",
+          "visual": "cinematic",
+          "prompts": [
+            {
+              "id": "rainy-corner-reunion",
+              "title": "Rainy corner reunion",
+              "note": "Two-shot emotional scene with a clear reveal, camera move, physical sound, and restrained score.",
+              "visual": "story",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a medium-wide shot frames a small neighborhood corner store at night during heavy rain. a handsome man in a dark green coat waits beneath the awning, notices an old friend across the street, and freezes with one hand still wrapped around a paper cup. The camera trucks left with small amplitude at slow speed as passing headlights sweep across her face. [Shot 2] At 00:04.000, the camera cuts to a street-level tracking shot as she steps into the rain and the friend moves toward her; they meet beside the center line and share a relieved embrace while traffic remains stopped in the background.\n\noverall_soundscape: Heavy rain strikes the awning and pavement while distant engines idle. Wet footsteps approach from opposite sides, fabric rustles during the embrace, and both people release quiet, unsteady breaths.\n\nnon_diegetic_music: Sparse piano notes at a slow tempo, joined by a low sustained cello tone that grows slightly during the embrace and then fades.",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "desert-repair-stop",
+              "title": "Desert repair stop",
+              "note": "Single-shot mechanical action with wind, believable hand interaction, and a motivated camera push.",
+              "visual": "workshop",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a wide shot frames an empty desert roadside in late afternoon with a dusty electric motorcycle stopped beside dry grass. A traveler kneels at the open side panel, traces a loose cable with one hand, reconnects it firmly, and presses the ignition. The camera pushes in with small amplitude at slow speed from the road shoulder toward the exposed components as indicator lights flicker, stabilize, and cast a faint blue reflection across the traveler's gloves. The traveler closes the panel, stands, and looks down the road as the motor settles into a steady idle.\n\noverall_soundscape: Dry wind moves through grass and loose fabric. Small metal clips click against the panel, the cable snaps into place, and the motorcycle starts with a rising electronic whine before settling into a low hum.\n\nnon_diegetic_music: A restrained sequence of low analog-synth pulses at a moderate tempo, ending on one sustained note after the motor starts.",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "contemporary-dance-phrase",
+              "title": "Contemporary dance phrase",
+              "note": "Continuous full-body choreography with causal movement and a stable observational camera.",
+              "visual": "motion",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a full-body medium-wide shot frames a handsome male contemporary dancer alone in a bright rehearsal studio with pale wood floors and tall north-facing windows. The dancer begins with a slow reach, shifts weight through the hips, drops in a controlled fall to one knee, sweeps one leg through a floor turn, and rises sharply facing the camera. The camera holds a static shot until the floor turn, then arcs right with small amplitude at slow speed to preserve the dancer's full silhouette and spatial continuity. Loose clothing follows each change in direction with natural delay.\n\noverall_soundscape: Bare feet slide and strike softly against the wood floor. Fabric moves with each turn, controlled breathing becomes audible during the rise, and distant building ambience remains low.\n\nnon_diegetic_music: A minimal percussion pattern built from soft hand drums and one sustained bowed tone, increasing slightly in speed before stopping with the final pose.",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "sneaker-launch-beat",
+              "title": "Sneaker launch beat",
+              "note": "Commercial action built as a clean two-shot product reveal with precise motion and impact sound.",
+              "visual": "commercial",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action commercial, a tight low-angle shot frames a runner tightening the laces of a lightweight white-and-coral shoe on a dark starting block. The camera pushes in with small amplitude at fast speed as the final lace pull compresses the upper and the runner plants the forefoot. [Shot 2] At 00:02.800, the camera cuts to a side tracking shot at ankle height as the runner launches forward, the sole flexes under load, and small droplets lift from the wet track. The camera matches the runner's speed, then pulls ahead to reveal the full stride and clean product silhouette against stadium lights.\n\noverall_soundscape: Laces rasp through eyelets, rubber grips the starting block, and one sharp foot impact is followed by rapid steps and fine water spray. Stadium ambience remains distant and diffuse.\n\nnon_diegetic_music: Tight electronic percussion at a fast tempo with a short sub-bass hit at launch and a clean stop on the final stride.",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "foggy-harbor-arrival",
+              "title": "Foggy harbor arrival",
+              "note": "Atmospheric location setup with layered environmental motion and a gentle reveal.",
+              "visual": "harbor",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a wide dawn shot frames a working harbor covered in low fog. The camera pans right with large amplitude at slow speed along wet timber posts as deck lights emerge one by one through the mist. A small fishing boat enters from the left, turns toward the pier, and slows while a deckhand throws a rope that lands across a cleat in the foreground. The fog thins enough to reveal cranes and pale mountains beyond the water without breaking the soft atmosphere.\n\noverall_soundscape: Water knocks gently against wood, a diesel engine idles, gulls call through the fog, and the thrown rope lands with a heavy fiber slap before tightening against the cleat.\n\nnon_diegetic_music: Low bowed strings hold long notes beneath widely spaced bell tones, both remaining quiet and gradually fading with the fog reveal.",
+              "subcategory": "Narrative scenes"
+            }
+          ]
+        },
+        {
+          "id": "i2va-first-frame",
+          "name": "First Frame Motion",
+          "description": "Image-to-video prompts that explicitly preserve Picture 1 before developing motion forward.",
+          "visual": "motion",
+          "prompts": [
+            {
+              "id": "portrait-window-breath",
+              "title": "Portrait by the window",
+              "note": "Preserves identity and composition while adding only controlled breathing, gaze, hair, curtain, and camera motion.",
+              "visual": "portrait",
+              "prompt": "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] Live-action, cinematic, the person shown in <Picture 1> remains beside the window with the same face, hairstyle, clothing, pose, framing, room layout, and lighting direction. The subject takes a slow breath, shifts weight slightly through the shoulders, and turns their eyes from the window toward the camera without changing position. The camera pushes in with small amplitude at slow speed while a light breeze moves only a few loose hair strands and the curtain behind the subject.\n\noverall_soundscape: Soft room tone continues beneath faint street noise outside the window. Fabric moves quietly, the subject breathes once, and the curtain brushes the wall.\n\nnon_diegetic_music: N/A",
+              "subcategory": "First-frame motion"
+            },
+            {
+              "id": "streetwear-turn",
+              "title": "Streetwear half-turn",
+              "note": "A clean I2V fashion movement that protects the face, outfit design, and background geometry.",
+              "visual": "fashion",
+              "prompt": "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] Live-action fashion film, the handsome male model in <Picture 1> retains the same identity, hairstyle, layered streetwear, body proportions, location, and initial full-body composition. the handsome male model shifts one foot back, turns the torso roughly ninety degrees, looks over the shoulder, and lets one hand settle into a jacket pocket. The camera arcs left with small amplitude at slow speed, keeping the head and shoes inside frame while fabric folds and accessories respond naturally to the turn.\n\noverall_soundscape: Shoes scrape lightly against concrete, jacket fabric rustles, and a distant city ventilation hum continues without interruption.\n\nnon_diegetic_music: A dry mid-tempo drum-machine pattern with a muted bass note on every second beat, fading at the final pose.",
+              "subcategory": "First-frame motion"
+            },
+            {
+              "id": "motorcycle-ignition",
+              "title": "Motorcycle ignition",
+              "note": "Adds believable machine startup and rider reaction while anchoring all first-frame design details.",
+              "visual": "action",
+              "prompt": "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] Live-action, cinematic, the rider and motorcycle shown in <Picture 1> preserve their exact appearance, color, position, perspective, surrounding street, and night lighting. The rider lowers one gloved hand to the ignition, twists it, and the dashboard wakes in sequence. The headlight brightens, the suspension settles slightly as the motor starts, and the rider lifts their gaze toward the road. The camera trucks right with small amplitude at slow speed while reflections travel across the motorcycle bodywork.\n\noverall_soundscape: A switch clicks, dashboard electronics chirp, the starter engages, and the motor settles into a steady idle beneath distant traffic and light wind.\n\nnon_diegetic_music: A low electronic drone with one short rising pulse during ignition, then silence.",
+              "subcategory": "First-frame motion"
+            },
+            {
+              "id": "product-turntable",
+              "title": "Product turntable",
+              "note": "Locked product composition with a measured rotation and controlled moving highlight.",
+              "visual": "product",
+              "prompt": "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] Live-action studio product film, the product in <Picture 1> remains centered with the same shape, label, materials, color, platform, background, and lighting setup. The turntable rotates clockwise by roughly one hundred twenty degrees at constant speed while a narrow highlight travels across the surface and reveals edge details. The camera holds a static shot, the product remains the same scale in frame, and the platform slows smoothly before stopping.\n\noverall_soundscape: A quiet turntable motor hum continues under subtle mechanical movement. No other physical sounds are prominent.\n\nnon_diegetic_music: A clean sequence of soft glassy synth notes at a slow tempo, ending as the rotation stops.",
+              "subcategory": "First-frame motion"
+            },
+            {
+              "id": "workshop-reveal",
+              "title": "Workshop reveal",
+              "note": "Begins from a still foreground obstruction and reveals the existing subject through a controlled push.",
+              "visual": "workshop",
+              "prompt": "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] Live-action, cinematic, the composition, subject, workbench, tools, hanging translucent strips, lighting, and color palette in <Picture 1> remain consistent. The camera pushes forward with medium amplitude at slow speed through the hanging strips, which separate and slide along the lens edges. The subject continues assembling the small mechanical device already on the bench, lifts one component into place, and tests its movement with one finger. The final framing is a stable medium shot across the work surface.\n\noverall_soundscape: Plastic strips brush together near the camera, tiny tools tap against the bench, and a small mechanism clicks twice amid quiet workshop ventilation.\n\nnon_diegetic_music: Sparse plucked-string notes at a moderate tempo with no percussion, remaining low beneath the workshop sounds.",
+              "subcategory": "First-frame motion"
+            }
+          ]
+        },
+        {
+          "id": "fl2va-between-frames",
+          "name": "First + Last Frame",
+          "description": "Single-shot motion paths that connect Picture 1 to Picture 2 instead of restating two still images.",
+          "visual": "transition",
+          "prompts": [
+            {
+              "id": "umbrella-open",
+              "title": "Umbrella opens",
+              "note": "Continuous physical path from closed umbrella to final open pose over eight seconds.",
+              "visual": "fluid",
+              "prompt": "How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns with the 8.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action, cinematic, the rain-soaked subject begins in the pose, framing, clothing, and location established by Picture 1 while holding the closed umbrella. The camera pulls out with small amplitude at slow speed as the subject releases the lower grip, raises the umbrella above one shoulder, presses the runner upward, and lets the canopy expand. Water rolls from the opening fabric while the subject steps beneath it, rotates the handle, and gradually settles into the exact spacing, posture, and final composition established by Picture 2.\n\noverall_soundscape: Steady rain falls on pavement, the umbrella runner clicks, wet fabric snaps open, and water drips from the canopy edge while distant traffic passes.\n\nnon_diegetic_music: N/A",
+              "subcategory": "Transition choreography"
+            },
+            {
+              "id": "coat-to-dance-pose",
+              "title": "Coat to dance pose",
+              "note": "Uses natural body mechanics to connect a standing first frame to a dynamic final pose.",
+              "visual": "pose",
+              "prompt": "How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns with the 6.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action fashion film, the subject begins in Picture 1's relaxed standing pose with the same identity, coat, studio, lighting, and camera position. The subject steps diagonally forward, releases the coat hem, pivots through the hips, sweeps one arm upward, and lowers into the balanced dance pose shown in Picture 2. The camera arcs right with small amplitude at slow speed, following the turn while the coat trails behind the body and settles only as the final pose is reached.\n\noverall_soundscape: Shoes slide against the studio floor, coat fabric sweeps through the air, and one controlled breath is audible at the final landing.\n\nnon_diegetic_music: A short sequence of muted hand drums accelerates through the pivot and stops precisely at the final pose.",
+              "subcategory": "Transition choreography"
+            },
+            {
+              "id": "flat-pack-assembly",
+              "title": "Flat-pack assembly",
+              "note": "Connects separated components to a finished object through a readable sequence of hand actions.",
+              "visual": "materials",
+              "prompt": "How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns with the 10.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action overhead product film, the tabletop, hands, tools, loose components, lighting, and opening arrangement match Picture 1. The camera holds a static shot as the hands align two panels, press connector tabs into place, rotate the partially assembled object, attach the final piece, and slide the completed object into the exact centered orientation shown in Picture 2. Each component remains visually consistent and the assembly progresses without skipped transformations.\n\noverall_soundscape: Cardboard and molded parts scrape softly across the table, tabs click into place in sequence, and the completed object lands with a light final tap.\n\nnon_diegetic_music: A precise marimba pattern at a moderate tempo, adding one note for each assembly step and resolving on the final placement.",
+              "subcategory": "Transition choreography"
+            },
+            {
+              "id": "empty-to-lit-cafe",
+              "title": "Closed to open café",
+              "note": "Transitions a quiet dark interior into the exact illuminated final frame through motivated actions.",
+              "visual": "interior",
+              "prompt": "How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns with the 8.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action, cinematic, the empty café begins with the furniture, framing, exterior light, and dark fixtures established by Picture 1. A worker enters from the rear, crosses behind the counter, and switches on the pendant lights from back to front. Warm pools of light appear across the room, the espresso machine wakes, and the worker turns the hanging door sign while the camera pushes in with small amplitude at slow speed. The room gradually reaches the brightness, worker position, and welcoming final composition established by Picture 2.\n\noverall_soundscape: A key turns in the door, shoes cross the floor, light switches click in sequence, and the espresso machine begins a low warming hum.\n\nnon_diegetic_music: Soft brushed drums and upright-bass notes at a slow tempo, entering only after the first light turns on.",
+              "subcategory": "Transition choreography"
+            },
+            {
+              "id": "paper-to-bird",
+              "title": "Paper folds into bird",
+              "note": "A stylized but continuous transformation with every fold leading toward the final silhouette.",
+              "visual": "paper",
+              "prompt": "How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns with the 7.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Stylized stop-motion, the square sheet of paper begins in the color, position, scale, tabletop setting, and overhead framing established by Picture 1. Two hands fold the sheet along visible creases, turn it once, compress the center, pull the wings outward, and sharpen the head and tail. The camera holds a static overhead shot while each fold remains physically continuous. The hands withdraw as the finished paper bird settles into the exact orientation and composition established by Picture 2.\n\noverall_soundscape: Paper creases, fingertips brush the tabletop, and each fold produces a soft dry snap. The hands lift away in near silence.\n\nnon_diegetic_music: Light pizzicato strings at a moderate tempo, one brief note per fold, ending with a sustained high tone.",
+              "subcategory": "Transition choreography"
+            }
+          ]
+        },
+        {
+          "id": "l2va-final-frame",
+          "name": "Land on Final Frame",
+          "description": "Last-frame workflows that infer a plausible opening and converge precisely on Picture 1.",
+          "visual": "rotation",
+          "prompts": [
+            {
+              "id": "glass-break-final",
+              "title": "Glass breaks to final",
+              "note": "Builds a believable lead-in and ends on the shattered-glass arrangement in Picture 1.",
+              "visual": "physics",
+              "prompt": "How the reference pictures align with the target video — <Picture 1> (from [Shot 1]) aligns with the 6.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action, cinematic, a clear glass tumbler begins near the edge of the stone tabletop in a composition compatible with Picture 1. A hand reaches into frame, fingertips accidentally tap the glass, and the tumbler slides, tips, falls, and strikes the floor. The camera tilts down with medium amplitude at fast speed to follow the fall, then holds as the glass breaks, water spreads, and the final shards gradually stop in the exact arrangement, lighting, and floor-level composition established by Picture 1.\n\noverall_soundscape: Fingertips tap glass, the base scrapes across stone, and the tumbler falls into a sharp crash. Water splashes and small fragments continue sliding before becoming still.\n\nnon_diegetic_music: A low electronic pulse at a slow tempo, ending immediately after the glass breaks.",
+              "subcategory": "Final-frame landings"
+            },
+            {
+              "id": "runner-kneeling-final",
+              "title": "Runner reaches kneeling pose",
+              "note": "Infers the approach, deceleration, and natural body mechanics required to land on a final pose.",
+              "visual": "action",
+              "prompt": "How the reference pictures align with the target video — <Picture 1> (from [Shot 1]) aligns with the 7.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action sports film, the runner begins farther back along the same wet track and under lighting consistent with Picture 1. The camera performs a tracking shot beside the runner at waist height as they sprint forward, decelerate, plant the lead foot, lower one knee, and brace one hand against the track. The camera eases into a lower angle and stops as the athlete settles into the exact kneeling posture, expression, clothing folds, spacing, and final framing established by Picture 1.\n\noverall_soundscape: Rapid footfalls strike the wet track, breath becomes heavier, fabric moves in rhythm, and one knee lands with a controlled impact followed by dripping water.\n\nnon_diegetic_music: Fast low percussion gradually reduces to one final bass hit as the runner reaches the kneeling pose.",
+              "subcategory": "Final-frame landings"
+            },
+            {
+              "id": "cake-table-final",
+              "title": "Cake arrives on table",
+              "note": "Creates the preceding carrying action and lands on the finished tabletop composition.",
+              "visual": "food",
+              "prompt": "How the reference pictures align with the target video — <Picture 1> (from [Shot 1]) aligns with the 6.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action, warm commercial photography, the dining table begins empty in the same room, perspective, and lighting shown in Picture 1. A baker enters carrying the decorated cake with both hands, steps around the chair, lowers the cake carefully onto the center stand, rotates it a few degrees, and withdraws their hands. The camera pushes in with small amplitude at slow speed as crumbs and decorations remain stable, ending on the exact cake orientation, table arrangement, depth of field, and final composition established by Picture 1.\n\noverall_soundscape: Soft footsteps approach, the cake stand contacts the table with a ceramic tap, clothing rustles, and the baker exhales quietly while adjusting the stand.\n\nnon_diegetic_music: Gentle acoustic-guitar harmonics at a slow tempo, ending on a warm sustained chord.",
+              "subcategory": "Final-frame landings"
+            },
+            {
+              "id": "doorway-final-reveal",
+              "title": "Doorway final reveal",
+              "note": "Starts outside the room and converges on the final open-door composition without a cut.",
+              "visual": "corridor",
+              "prompt": "How the reference pictures align with the target video — <Picture 1> (from [Shot 1]) aligns with the 8.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action, cinematic, the camera begins in the dim corridor outside the room shown in Picture 1. A hand enters frame, turns the handle, and pushes the door inward while warm light expands across the corridor floor. The camera pushes forward with medium amplitude at slow speed through the doorway as the room's furniture, subject, and key objects become visible in the correct spatial relationships. The door reaches its final angle and the camera settles into the exact viewpoint, lighting balance, and final composition established by Picture 1.\n\noverall_soundscape: The handle turns with a metal click, hinges move softly, the door brushes the floor, and quiet room ambience becomes clearer as the camera enters.\n\nnon_diegetic_music: A sustained low string note joined by one soft piano chord as the full room is revealed.",
+              "subcategory": "Final-frame landings"
+            },
+            {
+              "id": "skateboard-splash-final",
+              "title": "Skateboard splash landing",
+              "note": "Builds a short approach and lands precisely on a dramatic water-splash final frame.",
+              "visual": "action",
+              "prompt": "How the reference pictures align with the target video — <Picture 1> (from [Shot 1]) aligns with the 5.00-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Live-action street film, the skateboarder approaches the shallow puddle from the background along the same street and under lighting compatible with Picture 1. The camera tracks backward at low height as the skateboarder bends the knees, shifts weight, and rides through the water. The front wheels displace the puddle, the board remains aligned under both feet, and the splash rises while the camera slows into the exact low angle, body pose, board position, and frozen-looking final composition established by Picture 1.\n\noverall_soundscape: Skateboard wheels roll across rough pavement, the deck rattles lightly, and water bursts outward with a broad splash followed by scattered droplets.\n\nnon_diegetic_music: One fast breakbeat phrase that cuts off at the peak of the splash.",
+              "subcategory": "Final-frame landings"
+            }
+          ]
+        },
+        {
+          "id": "dialogue-sound",
+          "name": "Dialogue & Sound",
+          "description": "H3 examples with stable speaker IDs, tagged dialogue, diegetic sound, soundscape, and audience-only music kept in the correct fields.",
+          "visual": "dialogue",
+          "prompts": [
+            {
+              "id": "parked-car-confession",
+              "title": "Parked-car confession",
+              "note": "Single-scene dialogue with a stable speaker identity and rain-heavy soundscape.",
+              "visual": "dialogue",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a medium close-up frames two handsome men in a parked car at night while rain moves across the windshield. The driver, a tired man in his thirties with a quiet low voice (S1), keeps both hands on the wheel, looks forward, and says softly: <d>[English] I should have called you sooner.</d> He swallows, turns toward the passenger, and waits while the camera pushes in with small amplitude at slow speed.\n\noverall_soundscape: Rain taps steadily against the roof and windshield while the ventilation fan runs at low speed. The driver's jacket creaks against the seat and both people breathe quietly during the pause.\n\nnon_diegetic_music: Sparse piano notes at a slow tempo with a single sustained cello note underneath, fading during the final silence.",
+              "subcategory": "Dialogue"
+            },
+            {
+              "id": "toaster-comedy",
+              "title": "Toaster comedy beat",
+              "note": "Two-speaker timing with physical business, tagged dialogue, and no repeated dialogue in soundscape.",
+              "visual": "dialogue",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action comedy, a wide kitchen shot frames two handsome male roommates beside a smoking toaster. The first roommate with an energetic mid-range voice (S1) waves a dish towel while the second roommate with a dry lower voice (S2) opens the window. The second roommate (S2) looks at the blackened toast and says: <d>[English] Breakfast is technically ready.</d> Both pause, look at each other, and laugh as the camera arcs left with small amplitude at slow speed.\n\noverall_soundscape: The smoke alarm chirps intermittently, the window slides open, fabric snaps through the air, and both roommates break into natural laughter. A refrigerator hum continues underneath.\n\nnon_diegetic_music: A brief pizzicato-string phrase at a moderate tempo, stopping immediately after the line.",
+              "subcategory": "Dialogue"
+            },
+            {
+              "id": "station-announcement",
+              "title": "Station voiceover memory",
+              "note": "Uses the required off-screen voiceover wording while the visible character's lips remain closed.",
+              "visual": "audio",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a wide shot frames a nearly empty rural train platform at blue hour. a handsome middle-aged man with a warm, slightly raspy voice (S1) stands beneath a flickering lamp and watches a departing train. The traveler (S1) says in an off-screen voiceover: <d>[English] I thought this place would feel smaller.</d> while his lips remain completely closed. The camera pulls out with large amplitude at slow speed as the red tail lights recede into mist.\n\noverall_soundscape: Train wheels diminish along the track, the platform lamp buzzes, wind moves loose paper, and one distant crossing bell continues after the train disappears.\n\nnon_diegetic_music: Sustained harmonium tones at a slow tempo with widely spaced low piano notes, gradually decreasing in volume.",
+              "subcategory": "Voice & ambience"
+            },
+            {
+              "id": "platform-two-speakers",
+              "title": "Two-speaker platform exchange",
+              "note": "A clean shot-reverse progression with stable speaker IDs and one short line each.",
+              "visual": "story",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a medium two-shot frames two handsome men beneath a station canopy during light rain. the handsome man with a clear quick voice (S1) checks the departure board and says: <d>[English] We have three minutes.</d> The man with a soft baritone voice (S2) lifts both suitcases and answers: <d>[English] Then stop walking so calmly.</d> [Shot 2] At 00:03.500, the camera cuts to a wide tracking shot as they run together along the platform, dodging one bench while the arriving train becomes visible through the rain.\n\noverall_soundscape: Rain ticks against the metal canopy, suitcase wheels rattle, shoes accelerate across concrete, and a train horn sounds in the distance.\n\nnon_diegetic_music: Fast muted percussion and plucked bass at a moderate tempo, increasing slightly after the cut.",
+              "subcategory": "Dialogue"
+            },
+            {
+              "id": "street-musician-diegetic",
+              "title": "Street musician performance",
+              "note": "Keeps music heard by the characters inside the scene instead of incorrectly placing it in non-diegetic music.",
+              "visual": "performance",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action documentary style, a medium-wide shot frames a handsome male violinist performing beneath an arcade while evening pedestrians slow around them. The violinist with no spoken dialogue plays a quick rising melody audible within the scene, pivots toward a child who has stopped nearby, and finishes the phrase with one sustained note. The camera arcs right with medium amplitude at slow speed, revealing the small audience and an open instrument case as several listeners begin to applaud.\n\noverall_soundscape: The live violin resonates through the covered walkway alongside footsteps, low crowd murmur, distant traffic, and applause after the final note.\n\nnon_diegetic_music: N/A",
+              "subcategory": "Voice & ambience"
+            }
+          ]
+        },
+        {
+          "id": "scene-builders",
+          "name": "Scene Builders",
+          "visual": "cinematic",
+          "description": "MiniMax H3 scene skeletons with Prompt Palette combinations inside the audiovisual structure.",
+          "prompts": [
+            {
+              "id": "h3-combo-scene",
+              "title": "Narrative scene roller",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a {%medium-wide|medium|close} shot frames a handsome man in {%a quiet late-night diner|a rain-soaked city arcade|a sunlit workshop|an empty station concourse}. He {%checks a folded note, pauses, then looks toward the doorway|finishes fastening his coat, exhales, and walks toward camera|sets an object on the table, glances offscreen, and gives a restrained smile}. The camera {%holds nearly static with subtle handheld drift|slowly pushes in|tracks laterally at walking speed}. Lighting is {%warm practical light with cool exterior spill|soft overcast daylight|high-contrast sodium streetlight}. Audio: {%room tone and distant traffic|soft rain against glass and quiet footsteps|subtle mechanical ambience and fabric movement}.",
+              "note": "Ready-to-run H3 audiovisual structure with controlled variation.",
+              "visual": "cinematic",
+              "subcategory": "Text to video"
+            },
+            {
+              "id": "h3-combo-fashion-motion",
+              "title": "Fashion motion roller",
+              "prompt": "integrated_multimodal_description: [Shot 1] Live-action fashion film, a full-body shot frames a handsome male model wearing {%tailored monochrome suiting|premium streetwear|a long sculptural overcoat} in {%a brutalist gallery|a clean parking structure|an open city rooftop}. He {%walks toward camera and gives a half turn|leans against a wall, pushes away, then crosses frame|adjusts one cuff, looks offscreen, then steps into motion}. Camera: {%35mm lateral tracking|24mm low-angle follow|50mm slow push-in}. Audio: subtle footsteps, fabric movement and location ambience; no dialogue.",
+              "note": "Compact H3 fashion-film builder.",
+              "visual": "fashion",
+              "subcategory": "People & motion"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qwen-image",
+      "name": "Qwen Image",
+      "short": "QW",
+      "kind": "Image + Edit",
+      "accent": "#b59cff",
+      "summary": "Natural-language generation and precise editing, especially useful for typography, layouts, semantic edits, and view changes.",
+      "format": "Describe the layout and exact text clearly. For edits, state what changes and what must remain unchanged.",
+      "categories": [
+        {
+          "id": "text-design",
+          "name": "Text & Design",
+          "description": "Posters, packaging, signage, menus, and information layouts.",
+          "visual": "poster",
+          "prompts": [
+            {
+              "id": "coffee-shop-poster",
+              "title": "Coffee shop poster",
+              "prompt": "A warm editorial poster for a fictional neighborhood café. Cream paper background, dark brown woodcut-style coffee plant illustration, clean centered layout. Large headline reads \"MORNING CLUB\" and the smaller line reads \"Coffee, bread, and a quiet start\". Accurate English text, balanced spacing, subtle print texture.",
+              "visual": "poster",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "bilingual-storefront",
+              "title": "Bilingual storefront",
+              "prompt": "Night photograph of a modern bookstore entrance with a vertical illuminated sign reading \"OPEN LATE\" and a smaller Chinese sign reading \"深夜书店\". Clean legible lettering, realistic reflections on wet pavement, warm interior shelves visible through glass.",
+              "visual": "text",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "festival-schedule",
+              "title": "Festival schedule",
+              "prompt": "Graphic schedule poster for a fictional weekend design festival. Bold modular grid, cobalt blue, warm red and cream palette, clear hierarchy. Header: \"FORM / FUNCTION\". Include readable sections for Friday, Saturday and Sunday with short placeholder event names and times, crisp editorial typography.",
+              "visual": "infographic",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "product-label",
+              "title": "Product label",
+              "prompt": "Close product photograph of a clear sparkling-water bottle with a minimal white label. Brand name reads \"TIDEGLASS\" and flavor reads \"YUZU + SALT\". Accurate text, refined sans-serif typography, condensation, pale aqua background, bright commercial lighting.",
+              "visual": "packaging",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "wayfinding-system",
+              "title": "Wayfinding system",
+              "prompt": "Interior architectural photograph of a contemporary museum lobby with a clear wall-mounted wayfinding system. Large readable arrows and labels: \"GALLERIES\", \"CAFÉ\", \"AUDITORIUM\", \"EXIT\". Black lettering on pale stone, realistic scale and perspective.",
+              "visual": "text",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "precise-edits",
+          "name": "Precise Edits",
+          "description": "Instruction patterns that clearly protect everything outside the requested change.",
+          "visual": "edit",
+          "prompts": [
+            {
+              "id": "change-one-garment",
+              "title": "Change one garment",
+              "prompt": "Change the subject's jacket to deep forest-green suede with realistic nap and stitching. Preserve the subject's face, hairstyle, pose, body proportions, hands, background, camera angle, lighting and every other clothing item exactly as in the source image.",
+              "visual": "edit",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "remove-background-object",
+              "title": "Remove background object",
+              "prompt": "Remove the red chair from the back-left corner and reconstruct the wall and floor naturally behind it. Keep the people, table, foreground objects, framing, shadows, colors and lighting unchanged.",
+              "visual": "edit",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "replace-sign-text",
+              "title": "Replace sign text",
+              "prompt": "Replace only the headline text on the sign with \"OPEN STUDIO\" while preserving the original font style, size, color, spacing, material texture, perspective and lighting. Do not alter any other part of the image.",
+              "visual": "text",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "day-to-evening",
+              "title": "Day to evening",
+              "prompt": "Transform the exterior lighting from bright midday to blue-hour evening. Turn on the building's warm interior and exterior practical lights while preserving the architecture, objects, people, camera position and composition.",
+              "visual": "edit",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "clean-product-surface",
+              "title": "Clean product surface",
+              "prompt": "Remove fingerprints, dust and small scratches from the product surface while preserving its exact shape, printed logo, materials, reflections, background and original lighting direction. Keep the result realistic rather than airbrushed.",
+              "visual": "edit",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "product-layout",
+          "name": "Product & Layout",
+          "description": "Catalog, e-commerce, packaging, and controlled composition.",
+          "visual": "product",
+          "prompts": [
+            {
+              "id": "e-commerce-front-view",
+              "title": "E-commerce front view",
+              "prompt": "Centered front-facing e-commerce photograph of a compact cream-colored espresso machine, isolated on a light warm-grey background. Even soft lighting, accurate proportions, all controls visible, subtle grounded shadow, no text or extra props.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "exploded-product-view",
+              "title": "Exploded product view",
+              "prompt": "Clean exploded-view illustration of a wireless over-ear headphone showing ear cushions, shell, driver, circuit board, battery and headband separated along logical axes. White background, precise component alignment, subtle shadows, technical product visualization.",
+              "visual": "diagram",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "packaging-family",
+              "title": "Packaging family",
+              "prompt": "A coordinated packaging family for a fictional tea brand named \"FIELDNOTE\": one tall box, one tin and three sachets. Botanical line drawings, moss green and cream palette, accurate repeated brand text, premium tabletop presentation.",
+              "visual": "packaging",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "flat-lay-kit",
+              "title": "Flat-lay kit",
+              "prompt": "Top-down flat lay of a compact travel drawing kit: small sketchbook, mechanical pencil, watercolor set, folded cloth, clips and postcard. Objects aligned in a practical grid on muted blue paper, soft directional sunlight, crisp editorial detail.",
+              "visual": "overhead",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "shelf-planogram",
+              "title": "Shelf planogram",
+              "prompt": "Straight-on retail shelf planogram for a fictional sparkling drink line. Four flavors arranged in neat blocks, clear labels and consistent bottle shapes, shelf-edge price tags, bright grocery lighting, realistic commercial presentation.",
+              "visual": "catalog",
+              "note": "",
+              "subcategory": "Products"
+            }
+          ]
+        },
+        {
+          "id": "views-consistency",
+          "name": "Views & Consistency",
+          "description": "Rotation, alternate angles, repeated characters, and object consistency.",
+          "visual": "rotation",
+          "prompts": [
+            {
+              "id": "rotate-object-90-degrees",
+              "title": "Rotate object 90 degrees",
+              "prompt": "Show the same chair from a clean right-side view, rotated exactly 90 degrees from the source orientation. Preserve its design, materials, dimensions, color and lighting. Keep the background and image scale consistent.",
+              "visual": "rotation",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "reveal-the-back",
+              "title": "Reveal the back",
+              "prompt": "Generate a rear view of the same backpack so the straps, back padding and rear seams are visible. Preserve the exact fabric, hardware, proportions, branding and studio setup from the original image.",
+              "visual": "rotation",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "character-in-new-pose",
+              "title": "Character in new pose",
+              "prompt": "Place the same handsome man in a relaxed seated pose on a simple stool while preserving facial identity, hairstyle, outfit design, colors and body proportions. Use the same neutral lighting and clean background so the edit reads as one consistent character study.",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "three-angle-lineup",
+              "title": "Three-angle lineup",
+              "prompt": "Create a clean three-panel lineup of the same object from front, three-quarter and side views. Keep scale, material, color and lighting consistent across all panels, with equal spacing on a neutral background.",
+              "visual": "sheet",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "consistent-room-alternate-angle",
+              "title": "Consistent room alternate angle",
+              "prompt": "Show the same room from the opposite corner while preserving the exact furniture, decor, wall colors, window placement and time of day. Use a realistic 28mm interior-photography perspective.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "illustration-info",
+          "name": "Illustration & Information",
+          "description": "Maps, diagrams, step-by-step visuals, and clear explanatory art.",
+          "visual": "infographic",
+          "prompts": [
+            {
+              "id": "how-it-works-diagram",
+              "title": "How-it-works diagram",
+              "prompt": "Friendly cutaway diagram explaining how a home heat pump moves heat between outdoor air and indoor rooms. Use clear arrows, simple labeled components and a clean blue-orange palette. Accurate readable English labels, modern educational illustration.",
+              "visual": "diagram",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "recipe-steps",
+              "title": "Recipe steps",
+              "prompt": "Six-panel illustrated recipe card showing how to make vegetable dumplings: prepare filling, fold wrapper, seal, steam, plate and serve. Consistent hands and ingredients, clean numbered layout, readable short captions, warm approachable style.",
+              "visual": "infographic",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "neighborhood-map",
+              "title": "Neighborhood map",
+              "prompt": "Charming top-down illustrated map of a fictional walkable neighborhood with a library, bakery, park, tram stop, river path and community garden. Clear street hierarchy, small readable labels, restrained color palette and useful legend.",
+              "visual": "map",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "assembly-instruction",
+              "title": "Assembly instruction",
+              "prompt": "Minimal four-step assembly instruction sheet for a small wooden side table. Black line drawings on white background, consistent parts, arrows showing motion, numbered steps and no unnecessary text. Clear flat-pack manual style.",
+              "visual": "diagram",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "editorial-data-graphic",
+              "title": "Editorial data graphic",
+              "prompt": "Elegant magazine infographic comparing five fictional city parks by area, tree cover and walking-path length. Use horizontal bars, small map silhouettes and concise readable labels in a clean editorial grid, cream and dark green palette.",
+              "visual": "infographic",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "z-image-turbo",
+      "name": "Z-Image Turbo",
+      "short": "ZIT",
+      "kind": "Image",
+      "accent": "#f5d76e",
+      "summary": "Fast natural-language prompting with strong photorealism, instruction following, and English/Chinese text rendering on consumer hardware.",
+      "format": "Use a complete descriptive sentence or paragraph. State exact text in quotation marks and describe materials, camera, and light.",
+      "categories": [
+        {
+          "id": "photoreal-people",
+          "name": "Photoreal People",
+          "description": "Efficient portrait and lifestyle setups.",
+          "visual": "portrait",
+          "prompts": [
+            {
+              "id": "window-portrait",
+              "title": "Window portrait",
+              "prompt": "Natural portrait of a handsome man in a charcoal knit sweater standing beside a large apartment window on an overcast morning, soft side light, realistic skin texture, relaxed hair, neutral expression, 85mm lens.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "street-documentary",
+              "title": "Street documentary",
+              "prompt": "Candid documentary photograph of a handsome older man repairing a bicycle outside a small neighborhood shop, tools spread on a cloth, morning pedestrians passing behind him, natural color, realistic hands, 35mm lens, subtle film grain.",
+              "visual": "documentary",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "night-direct-flash",
+              "title": "Night direct flash",
+              "prompt": "Direct-flash night portrait of two handsome men beside a convenience-store freezer, casual layered clothing, hard crisp shadows, saturated product colors, spontaneous expressions, compact-camera aesthetic, realistic skin and fabric.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "outdoor-full-body",
+              "title": "Outdoor full body",
+              "prompt": "Full-body fashion photograph of a handsome man in a long olive coat standing on a windswept concrete overlook, coat moving naturally, cloudy coastline, restrained cool palette, 50mm lens, believable body proportions.",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "professional-headshot",
+              "title": "Professional headshot",
+              "prompt": "Clean professional headshot of a friendly software designer, simple navy shirt, warm grey background, soft key and subtle rim light, natural skin texture, centered eye contact, realistic 85mm studio portrait.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "products-text",
+          "name": "Products & Text",
+          "description": "Fast product scenes and readable packaging/signage.",
+          "visual": "product",
+          "prompts": [
+            {
+              "id": "canned-drink-campaign",
+              "title": "Canned drink campaign",
+              "prompt": "Commercial studio photograph of a chilled aluminum can labeled \"NORTH COAST TONIC\" with the flavor \"GRAPEFRUIT\" clearly readable. Condensation, pale pink stone pedestal, hard sunlight and crisp shadow, premium beverage campaign.",
+              "visual": "packaging",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "bilingual-tea-box",
+              "title": "Bilingual tea box",
+              "prompt": "Elegant tea gift box on dark wood with gold foil English text \"MOUNTAIN SPRING\" and Chinese text \"山泉茶\". Accurate lettering, embossed paper texture, soft warm side light, refined product photograph.",
+              "visual": "text",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "laptop-desk-setup",
+              "title": "Laptop desk setup",
+              "prompt": "Clean lifestyle product photograph of a slim laptop, compact mechanical keyboard, ceramic mug and notebook on a small oak desk, morning window light, realistic reflections, organized but lived-in composition.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "perfume-macro",
+              "title": "Perfume macro",
+              "prompt": "Macro product photograph of a square amber perfume bottle with the label \"EMBER / 03\", placed among dry cedar shavings, narrow warm light, crisp engraved cap, realistic glass refraction and premium editorial styling.",
+              "visual": "macro",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "storefront-sign",
+              "title": "Storefront sign",
+              "prompt": "Rainy evening photograph of a small record shop with a glowing sign reading \"SIDE B RECORDS\". Accurate English lettering, warm interior shelves, wet pavement reflections, realistic urban atmosphere.",
+              "visual": "text",
+              "note": "",
+              "subcategory": "Products"
+            }
+          ]
+        },
+        {
+          "id": "spaces",
+          "name": "Spaces & Architecture",
+          "description": "Interiors, architecture, and atmospheric environments.",
+          "visual": "architecture",
+          "prompts": [
+            {
+              "id": "warm-modern-kitchen",
+              "title": "Warm modern kitchen",
+              "prompt": "Wide interior photograph of a compact modern kitchen with natural oak cabinets, brushed steel counters, open shelves and a large north-facing window, soft cloudy daylight, practical organization, realistic materials, 24mm lens.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "concrete-courtyard",
+              "title": "Concrete courtyard",
+              "prompt": "Quiet contemporary courtyard enclosed by textured concrete walls, one sculptural olive tree, shallow reflecting pool and a narrow bench, late-afternoon sunlight creating strong geometric shadows, architectural photography.",
+              "visual": "architecture",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "rainy-train-platform",
+              "title": "Rainy train platform",
+              "prompt": "Empty regional train platform during steady rain, simple metal shelter, timetable board, yellow safety line and distant hills hidden in mist, cinematic but realistic color, wet surface reflections, 35mm photograph.",
+              "visual": "transit",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "tiny-bookstore",
+              "title": "Tiny bookstore",
+              "prompt": "Cozy narrow secondhand bookstore packed with uneven wooden shelves, rolling ladder, handwritten category cards and one reading chair beneath a lamp, warm practical light, realistic clutter, inviting wide-angle interior.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "rooftop-greenhouse",
+              "title": "Rooftop greenhouse",
+              "prompt": "Urban rooftop greenhouse at sunrise, condensation on glass, rows of herbs and tomatoes, surrounding apartment buildings catching warm light, believable structure and irrigation details, documentary architectural photograph.",
+              "visual": "greenhouse",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "creative-fast",
+          "name": "Creative Fast Starts",
+          "description": "Strong concepts that work well for rapid low-step exploration.",
+          "visual": "concept",
+          "prompts": [
+            {
+              "id": "miniature-maintenance-crew",
+              "title": "Miniature maintenance crew",
+              "prompt": "Photoreal miniature maintenance crew repairing the glowing filament inside an enormous household light bulb, realistic ladders, tools and protective gear, dark workshop, warm light illuminating tiny figures, playful scale contrast.",
+              "visual": "surreal",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "transparent-electronics",
+              "title": "Transparent electronics",
+              "prompt": "Product still life of transparent consumer electronics showing colorful internal components: handheld radio, compact camera and small speaker, arranged on brushed aluminum, bright softbox lighting, clean industrial-design study.",
+              "visual": "materials",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "color-block-portrait",
+              "title": "Color-block portrait",
+              "prompt": "Graphic portrait of a handsome man in a cobalt jacket against a flat tangerine wall, one hard diagonal shadow crossing the composition, simple confident pose, clean contemporary editorial photograph.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "paper-city",
+              "title": "Paper city",
+              "prompt": "Handcrafted miniature city made entirely from layered cream and blue paper, tiny windows cut by hand, long afternoon shadows, photographed like an architectural model, visible paper fibers and precise folds.",
+              "visual": "diorama",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "retro-future-appliance",
+              "title": "Retro future appliance",
+              "prompt": "Studio product photograph of an original retro-futurist countertop appliance with rounded cream shell, amber display and tactile orange controls, 1970s industrial-design influence without copying a real brand, clean blue backdrop.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ltx-2-3",
+      "name": "LTX-2.3",
+      "short": "LTX",
+      "kind": "Video + Audio",
+      "accent": "#8ab4f8",
+      "summary": "Long, chronological scene prompts with explicit action, camera, lighting, dialogue, ambience, and synchronized sound.",
+      "format": "Establish the shot, describe action in time order, direct physical performance, then specify camera and audio. Keep dialogue short and quoted.",
+      "categories": [
+        {
+          "id": "text-to-video",
+          "name": "Text-to-Video",
+          "description": "Complete audiovisual scenes from a blank frame.",
+          "visual": "cinematic",
+          "prompts": [
+            {
+              "id": "morning-bakery",
+              "title": "Morning bakery",
+              "prompt": "Wide establishing shot inside a small neighborhood bakery just before opening. Warm sunrise spills through the front windows. A baker carries a tray of fresh bread from the oven, places it on the counter, tears one loaf open and steam rises. The camera slowly dollies from the doorway to a medium shot at the counter. Flour floats in the light. Audio: oven fan, tray on wood, crust crackle, distant street traffic, no music.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "storm-observatory",
+              "title": "Storm observatory",
+              "prompt": "Night at a remote mountain observatory during a thunderstorm. A scientist crosses the circular room, secures a loose window latch, then returns to a telescope as lightning briefly illuminates the dome. Start with a wide shot, track beside the scientist, then tilt upward with the telescope. Blue practical light, wet glass, wind, metal latch, thunder delayed after each flash.",
+              "visual": "cinematic",
+              "note": "",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "subway-busker",
+              "title": "Subway busker",
+              "prompt": "Medium-wide shot on an underground train platform. A busker begins a gentle guitar rhythm while commuters pass. One tired commuter stops, listens, then drops a coin into the case just as a train enters. The camera remains mostly static with a subtle push toward the exchange. Fluorescent light, train wind lifting clothing, guitar, footsteps, coin ping and arriving train.",
+              "visual": "documentary",
+              "note": "",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "coastal-workshop",
+              "title": "Coastal workshop",
+              "prompt": "Late-afternoon interior of a boat-repair workshop facing the sea. a handsome male craftsperson sands a small wooden hull, wipes away dust and brushes on a final stripe of blue paint. Slow side dolly across tools in the foreground to the subject, then hold on the brush stroke. Golden rim light, airborne sawdust, sanding, brush on wood and gulls outside.",
+              "visual": "workshop",
+              "note": "",
+              "subcategory": "Narrative scenes"
+            },
+            {
+              "id": "tiny-sci-fi-ritual",
+              "title": "Tiny sci-fi ritual",
+              "prompt": "A compact spacecraft cabin lit by dim amber panels. An astronaut removes one glove, opens a small metal box and places a dried flower beside the navigation display before launch. Begin with a close insert on the glove, pull back to a medium profile and gently orbit as engine vibration begins. Audio: soft ventilation, box latch, low engine rumble, restrained breathing.",
+              "visual": "cockpit",
+              "note": "",
+              "subcategory": "Narrative scenes"
+            }
+          ]
+        },
+        {
+          "id": "image-to-video",
+          "name": "Image-to-Video",
+          "description": "Motion-focused prompts that assume the first frame already defines appearance.",
+          "visual": "motion",
+          "prompts": [
+            {
+              "id": "portrait-comes-alive",
+              "title": "Portrait comes alive",
+              "prompt": "The subject takes a slow breath, shifts their weight and looks from the window toward the camera. A breeze moves only a few loose hair strands and the curtain behind them. The camera performs a very slow dolly in. Preserve the face, outfit, room layout and lighting from the input image. Audio: quiet room tone, distant traffic and soft fabric movement.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Reference-preserving motion"
+            },
+            {
+              "id": "product-rotation",
+              "title": "Product rotation",
+              "prompt": "The product remains centered while the platform rotates clockwise by roughly 120 degrees. A narrow highlight travels across the surface, revealing texture and edge details. The camera stays locked and the background remains unchanged. Audio: subtle motor hum and one clean tonal accent at the final angle.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Reference-preserving motion"
+            },
+            {
+              "id": "landscape-weather-shift",
+              "title": "Landscape weather shift",
+              "prompt": "Cloud shadows move slowly across the landscape, grasses bend in a passing gust and a thin curtain of rain becomes visible in the far distance. The camera remains static; preserve all terrain and structures from the source image. Audio: wind through grass, one distant rumble, no music.",
+              "visual": "landscape",
+              "note": "",
+              "subcategory": "Reference-preserving motion"
+            },
+            {
+              "id": "character-action-continuation",
+              "title": "Character action continuation",
+              "prompt": "The handsome man lowers the object he is holding, glances to the left, takes two cautious steps forward and stops. Keep his identity, clothing and proportions unchanged. The camera follows with a gentle lateral move; preserve the reference composition and environment. Audio: natural room tone, soft footsteps and clothing movement.",
+              "visual": "action",
+              "note": "",
+              "subcategory": "Reference-preserving motion"
+            },
+            {
+              "id": "room-light-transition",
+              "title": "Room light transition",
+              "prompt": "The daylight in the room gradually fades into blue evening while practical lamps turn on one by one. Curtains move gently and reflections shift naturally across the furniture. Camera is static and all objects remain fixed. Audio: room tone, one light switch click and distant evening city sound.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Reference-preserving motion"
+            }
+          ]
+        },
+        {
+          "id": "dialogue-audio",
+          "name": "Dialogue & Audio",
+          "description": "Short lines with physical acting and synchronized ambience.",
+          "visual": "audio",
+          "prompts": [
+            {
+              "id": "quiet-confession",
+              "title": "Quiet confession",
+              "prompt": "Medium close-up in a parked car at night. The driver keeps both hands on the wheel, looks forward and says softly, \"I should have called you sooner.\" They swallow, glance toward the passenger and wait. Rain moves across the windshield; dashboard light shapes the face. Camera remains still. Audio: natural voice, rain, wipers and distant traffic, no score.",
+              "visual": "dialogue",
+              "note": "",
+              "subcategory": "Audio & dialogue"
+            },
+            {
+              "id": "kitchen-comedy-beat",
+              "title": "Kitchen comedy beat",
+              "prompt": "two handsome male roommates stand beside a smoking toaster. One waves a dish towel while the other opens the window and says, \"Breakfast is technically ready.\" They both pause, then laugh. Wide kitchen shot with a small handheld adjustment toward the toaster. Audio: smoke alarm chirp, window slide, natural dialogue and laughter.",
+              "visual": "dialogue",
+              "note": "",
+              "subcategory": "Dialogue"
+            },
+            {
+              "id": "market-vendor-call",
+              "title": "Market vendor call",
+              "prompt": "Morning outdoor market. A fruit vendor stacks oranges, looks up as customers approach and calls, \"Sweet today—try one.\" They cut a slice and offer it across the stall. Gentle lateral camera move, bright natural light. Audio: clear voice, knife on board, crowd murmur and fabric awnings in wind.",
+              "visual": "dialogue",
+              "note": "",
+              "subcategory": "Audio & dialogue"
+            },
+            {
+              "id": "mechanical-sound-study",
+              "title": "Mechanical sound study",
+              "prompt": "Macro sequence inside a mechanical watch while it begins running: gears engage, balance wheel oscillates and the second hand starts. The camera glides smoothly through the mechanism with realistic scale and reflections. Audio is entirely diegetic: precise clicks, tiny spring tension and a steady amplified tick, no music.",
+              "visual": "audio",
+              "note": "",
+              "subcategory": "Sound design"
+            },
+            {
+              "id": "ambient-nature-scene",
+              "title": "Ambient nature scene",
+              "prompt": "Static wide shot at the edge of a marsh before sunrise. Mist drifts, reeds sway and several birds lift from the water. No people and no music. Audio: layered frogs, insects, distant wings, soft water movement and a gradual increase in morning birdsong.",
+              "visual": "landscape",
+              "note": "",
+              "subcategory": "Sound design"
+            }
+          ]
+        },
+        {
+          "id": "camera-transitions",
+          "name": "Camera & Transitions",
+          "description": "Controlled motion paths and coherent scene changes.",
+          "visual": "camera",
+          "prompts": [
+            {
+              "id": "doorway-match-transition",
+              "title": "Doorway match transition",
+              "prompt": "The camera follows a handsome man toward a dark doorway in a modern apartment. As they pass through, the doorway becomes the entrance to a bright coastal cabin while the walking motion continues seamlessly. Maintain the subject's identity and pace. Smooth shoulder-height tracking, natural exposure shift, footsteps changing from wood floor to sand-dusted boards.",
+              "visual": "transition",
+              "note": "",
+              "subcategory": "Camera movement"
+            },
+            {
+              "id": "orbit-reveal",
+              "title": "Orbit reveal",
+              "prompt": "Begin in a tight profile close-up of a sculptor. Perform a slow 180-degree orbit around them, gradually revealing the large unfinished clay figure they are studying. End with both faces in frame. Soft skylight, visible clay texture, subtle room ambience and distant tools.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Camera movement"
+            },
+            {
+              "id": "crane-from-detail",
+              "title": "Crane from detail",
+              "prompt": "Start on a close detail of a single red umbrella in a crowd. Rise smoothly into a high crane shot revealing a vast rainy plaza filled with dark umbrellas, keeping the red umbrella readable near center. Natural rain, crowd movement and city ambience.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Camera movement"
+            },
+            {
+              "id": "whip-pan-location-change",
+              "title": "Whip-pan location change",
+              "prompt": "A cyclist races past camera from left to right. Follow with a fast whip pan; the motion blur resolves into the same cyclist continuing through a different location at sunset. Preserve speed, direction and body position across the transition. Audio flows continuously from tire noise into the new environment.",
+              "visual": "transition",
+              "note": "",
+              "subcategory": "Camera movement"
+            },
+            {
+              "id": "focus-led-reveal",
+              "title": "Focus-led reveal",
+              "prompt": "Close focus on condensation running down a café window. Slowly rack focus through the glass to reveal two handsome men inside exchanging a small wrapped gift. Camera remains fixed, rain reflections stay visible, quiet street ambience outside and muted café sound inside.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Camera movement"
+            }
+          ]
+        },
+        {
+          "id": "locations-atmosphere",
+          "name": "Locations & Atmosphere",
+          "description": "Strong environmental setups with useful sound and motion cues.",
+          "visual": "environment",
+          "prompts": [
+            {
+              "id": "foggy-harbor",
+              "title": "Foggy harbor",
+              "prompt": "Wide dawn shot of a working harbor covered in low fog. Fishing boats emerge slowly, deck lights glow and ropes tighten against wet posts. The camera pans gently along the pier. Cool muted color, gulls, water against wood, distant engines and metal rigging.",
+              "visual": "harbor",
+              "note": "",
+              "subcategory": "Locations"
+            },
+            {
+              "id": "desert-motel",
+              "title": "Desert motel",
+              "prompt": "Static twilight shot outside a small desert motel. The neon vacancy sign flickers on, warm room lights appear behind curtains and a dusty car rolls into the lot. Dry wind moves a palm frond. Audio: neon buzz, tires on gravel and far-off highway.",
+              "visual": "motel",
+              "note": "",
+              "subcategory": "Locations"
+            },
+            {
+              "id": "winter-tram",
+              "title": "Winter tram",
+              "prompt": "Interior of an old city tram moving through snowfall. Warm overhead lights reflect in fogged windows while passengers sway subtly with the turns. Camera tracks slowly down the aisle. Audio: rail clatter, heater fan, coat fabric and muted stop announcement.",
+              "visual": "transit",
+              "note": "",
+              "subcategory": "Locations"
+            },
+            {
+              "id": "greenhouse-rain",
+              "title": "Greenhouse rain",
+              "prompt": "Inside a large glass greenhouse during steady rain. Leaves tremble under droplets, water runs down panes and a gardener closes a roof vent. Slow push through foreground plants, humid soft light. Audio: layered rain on glass, latch movement and distant thunder.",
+              "visual": "greenhouse",
+              "note": "",
+              "subcategory": "Locations"
+            },
+            {
+              "id": "underground-archive",
+              "title": "Underground archive",
+              "prompt": "Long subterranean archive corridor lined with compact shelving. Motion-sensor lights activate sequentially as a researcher walks forward carrying one box. Centered tracking shot, cool air and subtle dust. Audio: footsteps, fluorescent hum, wheels on tracks and cardboard handling.",
+              "visual": "archive",
+              "note": "",
+              "subcategory": "Locations"
+            }
+          ]
+        },
+        {
+          "id": "scene-builders",
+          "name": "Scene Builders",
+          "visual": "cinematic",
+          "description": "LTX-2.3 narrative blocks with clear action, camera and sound progression.",
+          "prompts": [
+            {
+              "id": "ltx-combo-scene",
+              "title": "LTX scene roller",
+              "prompt": "A handsome man in {%a quiet hotel lobby|a coastal workshop|a nearly empty subway platform|a small window café} {%checks his watch, looks toward the entrance and begins walking|sets down a bag, removes his coat and takes a seat|notices something offscreen, pauses, then crosses the room}. Camera: {%slow 35mm push-in|steady lateral tracking shot|static 50mm medium-wide composition}. Lighting: {%soft window light|warm practical lamps with cool exterior spill|overcast daylight|mixed fluorescent and ambient light}. Audio: {%subtle room tone and footsteps|distant traffic and fabric movement|quiet mechanical ambience}; no music.",
+              "note": "Clear LTX action/camera/audio progression with Prompt Palette variation.",
+              "visual": "cinematic",
+              "subcategory": "Text to video"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "anima",
+      "name": "Anima",
+      "short": "ANI",
+      "kind": "Anime / Illustration",
+      "accent": "#ff8eb4",
+      "summary": "Anime and illustration model trained on tags plus natural-language captions. Best with a quality prefix and clear character details.",
+      "format": "Use lowercase tag phrases, spaces instead of underscores, then add a short natural-language composition sentence.",
+      "categories": [
+        {
+          "id": "characters",
+          "name": "Characters & Outfits",
+          "description": "Reusable character and costume foundations.",
+          "visual": "anime",
+          "prompts": [
+            {
+              "id": "modern-courier",
+              "title": "Modern courier",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, short black hair, amber eyes, cropped utility jacket, layered streetwear, messenger bag, fingerless gloves, full body, standing, clean character design, subtle fabric details, neutral light background",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "fantasy-botanist",
+              "title": "Fantasy botanist",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, long auburn braid, round glasses, practical green field coat, leather specimen satchel, pressed flowers, notebook, gentle expression, three-quarter body, detailed illustration, forest research station",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "retro-pilot",
+              "title": "Retro pilot",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, tousled brown hair, orange flight suit, vintage headset, patches, gloves tucked into belt, confident relaxed stance, full body, analog science-fiction hangar, clean line art",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "urban-mage",
+              "title": "Urban mage",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, dark curly hair, oversized hoodie layered under a long coat, glowing geometric charms attached to backpack, sneakers, night city, original modern fantasy character, cinematic illustration",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "anima-outfit-lineup",
+              "title": "Outfit lineup",
+              "prompt": "masterpiece, best quality, score_7, safe, same original handsome male character shown in four coordinated outfits, school casual, rainy-day layers, festival clothing, futuristic performance look, full-body lineup, consistent face and proportions, clean design sheet",
+              "visual": "sheet",
+              "note": "",
+              "subcategory": "Character design"
+            }
+          ]
+        },
+        {
+          "id": "poses-action",
+          "name": "Poses & Action",
+          "description": "Clear body language from relaxed to dynamic.",
+          "visual": "pose",
+          "prompts": [
+            {
+              "id": "relaxed-seated",
+              "title": "Relaxed seated",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, sitting sideways on chair, one arm resting over chair back, ankles crossed, relaxed shoulders, subtle smile, full body, simple studio, clean anime illustration",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "running-toward-camera",
+              "title": "Running toward camera",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, running toward viewer, coat and hair trailing, strong foreshortening, determined expression, low camera angle, city crosswalk, dynamic action illustration, readable anatomy",
+              "visual": "action",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "crouched-rooftop",
+              "title": "Crouched rooftop",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, balanced low crouch on rooftop ledge, one hand touching concrete, looking over shoulder, windblown scarf, night skyline, dramatic perspective, clean silhouette",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "sword-practice",
+              "title": "Sword practice",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, wooden practice sword, mid-swing, stable wide stance, hips and shoulders rotating naturally, training yard, morning light, dynamic full-body composition, no combat injury",
+              "visual": "action",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "two-friends-walking",
+              "title": "Two friends walking",
+              "prompt": "masterpiece, best quality, score_7, safe, 2boys, two handsome men, walking side by side, one speaking with animated hand gesture, the other laughing, casual outfits, shopping bags, natural interaction, full body, lively pedestrian street",
+              "visual": "duo",
+              "note": "",
+              "subcategory": "Pose ideas"
+            }
+          ]
+        },
+        {
+          "id": "expressions-composition",
+          "name": "Expressions & Composition",
+          "description": "Faces, emotions, camera angles, and panel-ready framing.",
+          "visual": "expression",
+          "prompts": [
+            {
+              "id": "expression-grid",
+              "title": "Expression grid",
+              "prompt": "masterpiece, best quality, score_7, safe, expression sheet, same handsome male handsome male original character, eight headshots, neutral, happy, annoyed, worried, surprised, embarrassed, determined, sleepy, consistent face, clean labeled grid",
+              "visual": "expression",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "close-up-with-hand",
+              "title": "Close-up with hand",
+              "prompt": "masterpiece, best quality, score_7, safe, close-up portrait, index finger near lips, playful secretive smile, large detailed eyes, loose hair strands, tilted framing, shallow depth of field, bright high-key lighting",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "overhead-bedroom",
+              "title": "Overhead bedroom",
+              "prompt": "masterpiece, best quality, score_7, safe, 1boy, handsome male, lying on bedroom floor surrounded by sketchbooks, headphones and postcards, top-down composition, relaxed pose, afternoon sunlight, colorful lived-in room, detailed illustration",
+              "visual": "overhead",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "tiny-figure-landscape",
+              "title": "Tiny figure landscape",
+              "prompt": "masterpiece, best quality, score_7, safe, tiny solitary figure standing beneath an enormous windswept tree, vast grassy slope, strong diagonal sunlight and shadow, painterly anime landscape, large negative space, emotional scale",
+              "visual": "landscape",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "manga-reaction-panel",
+              "title": "Manga reaction panel",
+              "prompt": "masterpiece, best quality, score_7, safe, close reaction shot, shocked handsome male character turning suddenly, wide eyes, loose hair motion, dramatic speed-line background, clear black-and-white manga inking, strong readable expression",
+              "visual": "expression",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "worlds-backgrounds",
+          "name": "Worlds & Backgrounds",
+          "description": "Illustrated locations that support character scenes.",
+          "visual": "environment",
+          "prompts": [
+            {
+              "id": "rainy-shopping-street",
+              "title": "Rainy shopping street",
+              "prompt": "masterpiece, best quality, score_7, safe, narrow Japanese shopping street in rain, glowing shop windows, umbrellas, wet reflections, overhead cables, evening blue light, detailed anime background, believable perspective, no prominent logos",
+              "visual": "city",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "coastal-classroom",
+              "title": "Coastal classroom",
+              "prompt": "masterpiece, best quality, score_7, safe, empty classroom overlooking a bright sea, open windows, curtains moving in wind, desks with small personal details, summer afternoon, luminous anime background, calm atmosphere",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "forest-shrine-path",
+              "title": "Forest shrine path",
+              "prompt": "masterpiece, best quality, score_7, safe, mossy stone path through dense forest leading to a small original shrine, red ribbons, filtered morning light, drifting insects, detailed painterly environment, quiet magical realism",
+              "visual": "forest",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "orbital-market",
+              "title": "Orbital market",
+              "prompt": "masterpiece, best quality, score_7, safe, bustling market inside a rotating space habitat, curved horizon visible through glass, layered stalls, handsome men, warm practical lights, detailed anime science-fiction background",
+              "visual": "market",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "cozy-workshop",
+              "title": "Cozy workshop",
+              "prompt": "masterpiece, best quality, score_7, safe, compact inventor workshop filled with labeled drawers, tools, half-built gadgets and plants, warm desk lamps, sunlit dust, inviting clutter, detailed anime interior background",
+              "visual": "workshop",
+              "note": "",
+              "subcategory": "Scenes & places"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "illustrious",
+      "name": "Illustrious",
+      "short": "ILL",
+      "kind": "Anime / Illustration",
+      "accent": "#d78bff",
+      "summary": "Tag-forward anime illustration prompting with strong character design, compositions, and polished rendering.",
+      "format": "Lead with quality and subject tags, then pose, camera, clothing, environment, lighting, and finish.",
+      "categories": [
+        {
+          "id": "character",
+          "name": "Character Design",
+          "description": "Clean reusable character foundations.",
+          "visual": "anime",
+          "prompts": [
+            {
+              "id": "street-fashion-hero",
+              "title": "Street-fashion hero",
+              "prompt": "masterpiece, best quality, absurdres, 1boy, solo, handsome male original character, short silver hair, dark brown eyes, oversized varsity jacket, tailored wide-leg trousers, patterned socks, high-top sneakers, full body, street fashion, neutral studio background, clean silhouette",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "fantasy-traveler",
+              "title": "Fantasy traveler",
+              "prompt": "masterpiece, best quality, absurdres, 1boy, solo, handsome male original character, long dark braid, layered traveling cloak, practical leather boots, map case, small lantern, full body, three-quarter view, detailed costume design, warm parchment background",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "mecha-technician",
+              "title": "Mecha technician",
+              "prompt": "masterpiece, best quality, absurdres, 1boy, solo, handsome male original character, curly hair, mechanic coveralls tied at waist, tool belt, grease marks, protective goggles on head, confident stance, workshop hangar, detailed illustration",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "four-outfit-sheet",
+              "title": "Four-outfit sheet",
+              "prompt": "masterpiece, best quality, absurdres, same handsome male handsome male original character, four full-body outfit variations, casual, formal, outdoor, futuristic, consistent face and body, evenly spaced design sheet, clean off-white background",
+              "visual": "sheet",
+              "note": "",
+              "subcategory": "Character design"
+            }
+          ]
+        },
+        {
+          "id": "pose-camera",
+          "name": "Pose & Camera",
+          "description": "Dynamic and editorial framing.",
+          "visual": "pose",
+          "prompts": [
+            {
+              "id": "foreshortened-reach",
+              "title": "Foreshortened reach",
+              "prompt": "masterpiece, best quality, absurdres, 1boy, solo, handsome male, reaching one hand toward viewer, dramatic foreshortening, wide-angle lens, playful smile, windblown hair, bright sky, dynamic diagonal composition, detailed hands",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "low-angle-hero",
+              "title": "Low-angle hero",
+              "prompt": "masterpiece, best quality, absurdres, 1boy, solo, handsome male, standing on rooftop edge, coat fluttering, low-angle view, strong silhouette, sunset city, heroic but relaxed posture, cinematic lighting",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "quiet-window-seat",
+              "title": "Quiet window seat",
+              "prompt": "masterpiece, best quality, absurdres, 1boy, solo, handsome male, sitting on wide window ledge, knees drawn up, reading a letter, side profile, soft rainy daylight, intimate interior, gentle reflective mood",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "overhead-action",
+              "title": "Overhead action",
+              "prompt": "masterpiece, best quality, absurdres, 1boy, solo, handsome male, spinning with long ribbon, overhead view, circular motion, flowing long coat, patterned floor, elegant dynamic composition, crisp line art",
+              "visual": "overhead",
+              "note": "",
+              "subcategory": "Pose ideas"
+            }
+          ]
+        },
+        {
+          "id": "lighting-style",
+          "name": "Lighting & Finish",
+          "description": "Useful look directions that do not depend on named artists.",
+          "visual": "lighting",
+          "prompts": [
+            {
+              "id": "luminous-pastel",
+              "title": "Luminous pastel",
+              "prompt": "masterpiece, best quality, absurdres, soft luminous pastel illustration, pearlescent highlights, delicate colored shadows, airy atmosphere, refined line work, gentle bloom, clean skin tones, balanced composition",
+              "visual": "lighting",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "graphic-cel-shading",
+              "title": "Graphic cel shading",
+              "prompt": "masterpiece, best quality, absurdres, bold graphic cel shading, limited red blue and cream palette, crisp shadow shapes, strong silhouette, clean poster-like composition, subtle paper texture",
+              "visual": "poster",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "painterly-dusk",
+              "title": "Painterly dusk",
+              "prompt": "masterpiece, best quality, absurdres, painterly anime scene at dusk, visible brush texture, deep blue shadows, warm window lights, atmospheric depth, restrained detail, cinematic color contrast",
+              "visual": "painting",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "monochrome-ink",
+              "title": "Monochrome ink",
+              "prompt": "masterpiece, best quality, absurdres, black ink illustration on warm white paper, expressive brush lines, controlled dry-brush texture, selective solid blacks, elegant negative space, no color",
+              "visual": "ink",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "scenes",
+          "name": "Scenes & Backgrounds",
+          "description": "Character-focused environment prompts.",
+          "visual": "environment",
+          "prompts": [
+            {
+              "id": "night-train-interior",
+              "title": "Night train interior",
+              "prompt": "masterpiece, best quality, absurdres, quiet night train interior, one handsome male original character by the window, city lights streaking outside, warm cabin lamps, reflective glass, cinematic anime scene, detailed environment",
+              "visual": "transit",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "festival-alley",
+              "title": "Festival alley",
+              "prompt": "masterpiece, best quality, absurdres, narrow festival alley, paper lanterns, food stalls, handsome men in casual summer clothing, warm night light, layered crowd, lively detailed background, no recognizable IP",
+              "visual": "market",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "snow-observatory",
+              "title": "Snow observatory",
+              "prompt": "masterpiece, best quality, absurdres, small mountain observatory during snowfall, handsome male original character carrying equipment toward the dome, blue twilight, warm door light, vast winter landscape, cinematic scale",
+              "visual": "landscape",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "sunlit-library",
+              "title": "Sunlit library",
+              "prompt": "masterpiece, best quality, absurdres, tall old library with ladders and arched windows, dust in sunbeams, handsome male student character at a large table, detailed books and woodwork, peaceful illustration",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Scenes & places"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pony",
+      "name": "Pony",
+      "short": "PONY",
+      "kind": "Character / Anime",
+      "accent": "#ff9f80",
+      "summary": "Tag-driven character prompting with score tags, clear poses, expressions, camera, and scene details.",
+      "format": "Use score/quality tags, subject count, character traits, pose, camera, environment, and safety tags. Keep concepts explicit.",
+      "categories": [
+        {
+          "id": "characters",
+          "name": "Characters",
+          "description": "Safe original character foundations.",
+          "visual": "anime",
+          "prompts": [
+            {
+              "id": "adventure-courier",
+              "title": "Adventure courier",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, 1boy, solo, handsome male original character, tan skin, short curly black hair, amber eyes, orange utility jacket, cargo pants, messenger bag, full body, confident smile, clean character design",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "cozy-inventor",
+              "title": "Cozy inventor",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, 1boy, solo, handsome male original character, round glasses, messy brown hair, oversized sweater, tool apron, holding small robot, warm workshop, gentle expression",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "fantasy-ranger",
+              "title": "Fantasy ranger",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, 1boy, solo, handsome male original character, braided red hair, green travel cloak, bow carried safely at side, leather boots, forest path, full body, detailed outfit",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Character design"
+            },
+            {
+              "id": "character-lineup",
+              "title": "Character lineup",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, same handsome male handsome male original character, front view, side view, back view, three-quarter view, consistent outfit and proportions, clean turnaround sheet, neutral background",
+              "visual": "sheet",
+              "note": "",
+              "subcategory": "Character design"
+            }
+          ]
+        },
+        {
+          "id": "poses",
+          "name": "Poses & Expressions",
+          "description": "Readable body language and acting.",
+          "visual": "pose",
+          "prompts": [
+            {
+              "id": "playful-lean",
+              "title": "Playful lean",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, 1boy, solo, handsome male, leaning toward viewer, hands behind back, one knee bent, playful smile, full body, slight wide-angle perspective, bright outdoor plaza",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "determined-run",
+              "title": "Determined run",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, 1boy, solo, handsome male, running, determined expression, arms and legs in believable stride, coat trailing, low-angle tracking composition, city street",
+              "visual": "action",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "quiet-reading",
+              "title": "Quiet reading",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, 1boy, solo, handsome male, sitting cross-legged in armchair, reading book, relaxed shoulders, soft smile, cozy room, warm lamp light, three-quarter view",
+              "visual": "pose",
+              "note": "",
+              "subcategory": "Pose ideas"
+            },
+            {
+              "id": "pony-expression-sheet",
+              "title": "Expression sheet",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, same handsome male handsome male original character, six facial expressions, happy, annoyed, surprised, worried, focused, sleepy, consistent face, clean grid",
+              "visual": "expression",
+              "note": "",
+              "subcategory": "Pose ideas"
+            }
+          ]
+        },
+        {
+          "id": "cinematic-scenes",
+          "name": "Cinematic Scenes",
+          "description": "Story-ready safe environments and compositions.",
+          "visual": "cinematic",
+          "prompts": [
+            {
+              "id": "rooftop-sunset",
+              "title": "Rooftop sunset",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, handsome male original character standing on rooftop at sunset, wind moving jacket, wide city skyline, warm rim light, low camera angle, cinematic composition",
+              "visual": "rooftop",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "rainy-bus-stop",
+              "title": "Rainy bus stop",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, two original friends waiting at a rainy bus stop, one sharing umbrella, wet street reflections, blue evening light, natural interaction, detailed background",
+              "visual": "duo",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "forest-discovery",
+              "title": "Forest discovery",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, handsome male original character kneeling beside a glowing plant in a dark forest, curious expression, soft light on face, detailed foliage, atmospheric depth",
+              "visual": "forest",
+              "note": "",
+              "subcategory": "Scenes & places"
+            },
+            {
+              "id": "small-kitchen-morning",
+              "title": "Small kitchen morning",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, handsome male original character making breakfast in a tiny sunny kitchen, casual clothes, steam from pan, warm domestic scene, detailed props, natural pose",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Scenes & places"
+            }
+          ]
+        },
+        {
+          "id": "finish",
+          "name": "Finish & Composition",
+          "description": "Quality and visual-direction blocks.",
+          "visual": "lighting",
+          "prompts": [
+            {
+              "id": "clean-anime-finish",
+              "title": "Clean anime finish",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, clean line art, refined cel shading, accurate anatomy, detailed eyes, balanced color palette, clear focal point, polished background",
+              "visual": "anime",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "soft-painterly-finish",
+              "title": "Soft painterly finish",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, soft painterly rendering, textured brushwork, gentle atmospheric perspective, warm highlights, cool shadows, elegant composition",
+              "visual": "painting",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "graphic-poster-finish",
+              "title": "Graphic poster finish",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, bold flat colors, strong silhouette, geometric shadow shapes, limited palette, poster-like framing, subtle print texture",
+              "visual": "poster",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "cinematic-lighting",
+              "title": "Cinematic lighting",
+              "prompt": "score_9, score_8_up, score_7_up, source_anime, safe, cinematic lighting, motivated key light, soft rim light, controlled contrast, atmospheric depth, realistic color separation, clear subject readability",
+              "visual": "lighting",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sdxl",
+      "name": "SDXL",
+      "short": "XL",
+      "kind": "Image",
+      "accent": "#9acb7b",
+      "summary": "Reliable concise prompting for photography, illustration, products, environments, and general-purpose workflows.",
+      "format": "Lead with subject and medium, then composition, lens, lighting, color, and materials. Keep quality phrases restrained.",
+      "categories": [
+        {
+          "id": "photography",
+          "name": "Photography",
+          "description": "Versatile portrait and documentary setups.",
+          "visual": "camera",
+          "prompts": [
+            {
+              "id": "soft-studio-portrait",
+              "title": "Soft studio portrait",
+              "prompt": "Professional studio portrait of a handsome man in a simple black turtleneck, soft large key light from camera left, subtle rim light, warm grey background, realistic skin texture, restrained color grading, 85mm lens.",
+              "visual": "portrait",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "environmental-portrait",
+              "title": "Environmental portrait",
+              "prompt": "Environmental portrait of a ceramic artist standing in a bright working studio, shelves of unfinished pieces behind them, natural window light, relaxed posture, realistic hands and materials, 35mm documentary photograph.",
+              "visual": "documentary",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "night-street-photo",
+              "title": "Night street photo",
+              "prompt": "Candid night street photograph of a cyclist waiting at a red light in light rain, neon reflections, natural motion blur in passing traffic, deep blue shadows, 50mm lens, subtle film grain.",
+              "visual": "city",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "landscape-telephoto",
+              "title": "Landscape telephoto",
+              "prompt": "Telephoto landscape photograph of layered desert ridges at sunrise, compressed depth, thin atmospheric haze, one small road crossing the foreground, warm ochre and cool violet palette, 200mm lens.",
+              "visual": "landscape",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "macro-nature",
+              "title": "Macro nature",
+              "prompt": "Macro photograph of a tiny tree frog resting on a wet green leaf, detailed skin and water droplets, soft diffuse forest light, creamy dark bokeh, 100mm macro lens, realistic natural color.",
+              "visual": "macro",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "illustration",
+          "name": "Illustration",
+          "description": "Broad non-photographic looks without artist-name dependence.",
+          "visual": "painting",
+          "prompts": [
+            {
+              "id": "editorial-gouache",
+              "title": "Editorial gouache",
+              "prompt": "Editorial gouache illustration of commuters moving through a train station, simplified geometric shapes, visible paper texture, muted navy, coral and cream palette, strong directional composition, expressive but readable figures.",
+              "visual": "painting",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "ligne-claire-scene",
+              "title": "Ligne claire scene",
+              "prompt": "Clean ligne-claire illustration of a handsome man walking a small dog beside a windy harbor, precise black line work, flat restrained colors, large open sky, subtle paper texture, calm graphic storytelling.",
+              "visual": "ink",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "cut-paper-landscape",
+              "title": "Cut-paper landscape",
+              "prompt": "Layered cut-paper illustration of a mountain valley, overlapping colored paper shapes creating depth, small cabin and winding river, visible fiber texture, soft shadows between layers, limited earthy palette.",
+              "visual": "paper",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "isometric-room",
+              "title": "Isometric room",
+              "prompt": "Isometric illustration of a compact music studio with desk, speakers, keyboard, plants and acoustic panels, clean geometry, warm evening light, detailed but uncluttered, soft shadows.",
+              "visual": "diorama",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "ink-wash-city",
+              "title": "Ink wash city",
+              "prompt": "Monochrome ink-wash illustration of an old hillside city in rain, loose atmospheric buildings, dark brush accents, tiny umbrellas, large misty negative space, elegant handmade paper texture.",
+              "visual": "ink",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "product",
+          "name": "Product & Brand",
+          "description": "Simple controlled commercial prompts.",
+          "visual": "product",
+          "prompts": [
+            {
+              "id": "minimal-bottle-hero",
+              "title": "Minimal bottle hero",
+              "prompt": "Minimal studio product photograph of a frosted glass bottle with a plain cream label, centered on a stone block, soft shadow, warm beige background, subtle side light, premium understated composition.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "tech-exploded-view",
+              "title": "Tech exploded view",
+              "prompt": "Exploded technical visualization of a compact wireless speaker showing shell, drivers, battery and circuit board, components aligned cleanly, dark grey background, precise soft lighting, premium industrial-design render.",
+              "visual": "diagram",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "food-package-mockup",
+              "title": "Food package mockup",
+              "prompt": "Commercial mockup of three fictional granola packages standing together, consistent clean branding, matte paper pouches, oat and fruit ingredients arranged naturally around them, bright soft daylight, realistic shadows.",
+              "visual": "packaging",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "watch-macro",
+              "title": "Watch macro",
+              "prompt": "Macro luxury product photograph of a brushed-steel wristwatch at a shallow angle, crisp dial detail, controlled highlights, dark charcoal surface, subtle reflections, 100mm macro lens.",
+              "visual": "macro",
+              "note": "",
+              "subcategory": "Products"
+            },
+            {
+              "id": "furniture-catalog",
+              "title": "Furniture catalog",
+              "prompt": "Straight-on catalog photograph of a modern walnut lounge chair on a warm off-white seamless background, even soft light, accurate wood grain and upholstery, small grounded shadow, no props.",
+              "visual": "product",
+              "note": "",
+              "subcategory": "Products"
+            }
+          ]
+        },
+        {
+          "id": "environments",
+          "name": "Environments",
+          "description": "Useful locations for concepts and scene building.",
+          "visual": "architecture",
+          "prompts": [
+            {
+              "id": "modern-reading-room",
+              "title": "Modern reading room",
+              "prompt": "Quiet modern reading room with long oak tables, green task lamps, tall windows and concrete columns, overcast daylight, a few distant readers, realistic architecture, balanced wide-angle interior photograph.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "foggy-forest-road",
+              "title": "Foggy forest road",
+              "prompt": "Narrow asphalt road curving through a dense foggy pine forest, wet surface, one small road marker, soft diffused morning light, moody cinematic landscape photograph, realistic vegetation.",
+              "visual": "forest",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "sunlit-courtyard",
+              "title": "Sunlit courtyard",
+              "prompt": "Mediterranean courtyard with pale plaster walls, terracotta tiles, lemon tree and simple wooden table, hard midday sunlight creating graphic shadows, realistic architectural photograph, calm lived-in details.",
+              "visual": "architecture",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "industrial-workshop",
+              "title": "Industrial workshop",
+              "prompt": "Large industrial workshop with steel beams, suspended task lights, organized tool walls and one partially assembled machine, cool daylight through high windows, realistic materials, cinematic wide view.",
+              "visual": "workshop",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "small-futuristic-clinic",
+              "title": "Small futuristic clinic",
+              "prompt": "Compact near-future neighborhood clinic with soft curved partitions, warm indirect light, practical medical equipment and welcoming natural materials, believable contemporary design, clean wide interior.",
+              "visual": "interior",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        },
+        {
+          "id": "composition-light",
+          "name": "Composition & Light",
+          "description": "Drop-in visual direction for general SDXL prompting.",
+          "visual": "lighting",
+          "prompts": [
+            {
+              "id": "hard-window-shadow",
+              "title": "Hard window shadow",
+              "prompt": "Hard late-afternoon window light casting a strong geometric shadow across the subject and wall, high contrast but retained detail, warm highlights, cool ambient fill, clean editorial composition.",
+              "visual": "lighting",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "soft-overcast",
+              "title": "Soft overcast",
+              "prompt": "Soft overcast daylight with broad even illumination, gentle skin and material texture, low contrast, natural colors, subtle atmospheric depth, quiet documentary mood.",
+              "visual": "lighting",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "centered-symmetry",
+              "title": "Centered symmetry",
+              "prompt": "Centered symmetrical composition with strong one-point perspective, subject placed precisely on axis, repeated architectural lines, clean visual hierarchy, restrained color palette.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "foreground-framing",
+              "title": "Foreground framing",
+              "prompt": "Use a softly blurred foreground object to frame the subject, clear middle-ground focus and readable background context, natural depth layers, 50mm lens, cinematic but unobtrusive composition.",
+              "visual": "camera",
+              "note": "",
+              "subcategory": "Essentials"
+            },
+            {
+              "id": "color-block-lighting",
+              "title": "Color-block lighting",
+              "prompt": "Two-color studio lighting with a warm amber key and cool blue edge light, dark neutral background, controlled separation, realistic skin and materials, bold contemporary portrait look.",
+              "visual": "lighting",
+              "note": "",
+              "subcategory": "Essentials"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "model": "Universal",
+      "source": "Prompt Palette curated reusable prompt-building patterns; uses existing Prompt Palette syntax."
+    },
+    {
+      "label": "KREA 2 official prompting guide",
+      "url": "https://github.com/krea-ai/krea-2/blob/main/docs/prompting.md"
+    },
+    {
+      "label": "MiniMax H3 official prompt writing guide",
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/docs/VIDEO_PROMPT_WRITING_GUIDE_base_en.md"
+    },
+    {
+      "label": "LTX official prompting guide",
+      "url": "https://docs.ltx.video/api-documentation/implementation-guides/prompting-guide"
+    },
+    {
+      "label": "Qwen Image official model card",
+      "url": "https://huggingface.co/Qwen/Qwen-Image"
+    },
+    {
+      "label": "Z-Image official model card",
+      "url": "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
+    },
+    {
+      "label": "Anima official model card",
+      "url": "https://huggingface.co/yrtyry/Anima"
+    },
+    {
+      "label": "Illustrious XL official model card",
+      "url": "https://huggingface.co/OnomaAIResearch/Illustrious-XL-v1.0"
+    },
+    {
+      "label": "Pony Diffusion V6 official model card",
+      "url": "https://huggingface.co/AstraliteHeart/pony-diffusion-v6"
+    },
+    {
+      "label": "Stable Diffusion XL official model card",
+      "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0"
+    }
+  ]
+}

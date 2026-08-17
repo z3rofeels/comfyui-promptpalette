@@ -1,0 +1,86 @@
+/* Nodes 2.x uses a DOM slot column while Nodes 1.x uses LiteGraph slot positions.
+   Keep the Prompt Palette socket presentation equivalent in both renderers:
+   compact dots when labels are hidden, normal labeled rows when labels are shown. */
+[data-pp-socket-rail="true"] {
+  box-sizing: border-box;
+  min-width: 0;
+}
+[data-pp-socket-rail="true"][data-pp-socket-empty="true"] { display: none !important; }
+[data-pp-socket-hidden="true"] { display: none !important; }
+
+[data-pp-socket-rail-item="true"] {
+  box-sizing: border-box;
+  min-height: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+}
+[data-pp-socket-rail-item="true"][data-pp-socket-labels="hidden"] {
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  justify-content: center !important;
+  overflow: visible !important;
+  font-size: 0 !important;
+  color: transparent !important;
+}
+[data-pp-socket-rail-item="true"][data-pp-socket-labels="hidden"] > :where(div, span):not(.lg-slot__connection-dot) {
+  min-width: 0 !important;
+}
+[data-pp-socket-rail-item="true"][data-pp-socket-labels="hidden"] :where(span, [data-slot-label], [class*="slot-text"]) {
+  display: none !important;
+}
+
+/* Labels hidden: the Vue NodeSlots wrapper reserves zero vertical space. The two
+   native slot groups become horizontal, edge-anchored dot rails like Nodes 1.x. */
+[data-pp-socket-rail="true"][data-pp-socket-compact="true"] {
+  position: relative !important;
+  display: block !important;
+  flex: none !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  z-index: 20;
+}
+[data-pp-socket-rail="true"][data-pp-socket-compact="true"] [data-pp-socket-rail-group] {
+  position: absolute !important;
+  top: -8px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  width: max-content !important;
+  min-width: 0 !important;
+  height: 16px !important;
+  min-height: 0 !important;
+  gap: 1px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+[data-pp-socket-rail="true"][data-pp-socket-compact="true"] [data-pp-socket-rail-group="input"] {
+  left: 10px !important;
+  right: auto !important;
+}
+[data-pp-socket-rail="true"][data-pp-socket-compact="true"] [data-pp-socket-rail-group="output"] {
+  left: auto !important;
+  right: 10px !important;
+}
+
+/* Labels shown: leave ComfyUI's normal labeled rows intact, while hidden sockets
+   are removed completely rather than reserving invisible rows. */
+[data-pp-socket-rail="true"][data-pp-socket-compact="false"] {
+  min-height: 18px;
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 0 3px;
+  border-bottom: 1px solid rgba(127,127,127,.16);
+  background: rgba(127,127,127,.035);
+  scrollbar-width: thin;
+}

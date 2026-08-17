@@ -1,0 +1,698 @@
+{
+  "last_node_id": 10,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        20,
+        30
+      ],
+      "size": [
+        380,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_fp8_e4m3fn.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        20,
+        160
+      ],
+      "size": [
+        380,
+        120
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1,
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        20,
+        310
+      ],
+      "size": [
+        380,
+        80
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "PromptPaletteEditor",
+      "pos": [
+        450,
+        20
+      ],
+      "size": [
+        430,
+        310
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1,
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "enhancer_override",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "external_seed",
+          "type": "INT",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_text",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Model (passthrough)",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CLIP (passthrough)",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "Conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "Negative conditioning",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "Prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Negative prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Seed used",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (JSON)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Raw text (unresolved)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (count)",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Used enhancer override",
+          "type": "BOOLEAN",
+          "links": null
+        },
+        {
+          "name": "CLIP token count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Prompt metadata (JSON)",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptPaletteEditor"
+      },
+      "widgets_values": [
+        "A warm editorial poster for a fictional neighborhood café. Cream paper background, dark brown woodcut-style coffee plant illustration, clean centered layout. Large headline reads \"MORNING CLUB\" and the smaller line reads \"Coffee, bread, and a quiet start\". Accurate English text, balanced spacing, subtle print texture.",
+        0,
+        "entire text as one"
+      ],
+      "title": "Prompt Palette — Positive"
+    },
+    {
+      "id": 5,
+      "type": "PromptPaletteEditor",
+      "pos": [
+        450,
+        370
+      ],
+      "size": [
+        430,
+        310
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2,
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "enhancer_override",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "external_seed",
+          "type": "INT",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_text",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Model (passthrough)",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CLIP (passthrough)",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "Conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "Negative conditioning",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "Prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Negative prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Seed used",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (JSON)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Raw text (unresolved)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (count)",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Used enhancer override",
+          "type": "BOOLEAN",
+          "links": null
+        },
+        {
+          "name": "CLIP token count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Prompt metadata (JSON)",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptPaletteEditor"
+      },
+      "widgets_values": [
+        "",
+        0,
+        "entire text as one"
+      ],
+      "title": "Prompt Palette — Negative"
+    },
+    {
+      "id": 6,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        930,
+        520
+      ],
+      "size": [
+        280,
+        160
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptySD3LatentImage"
+      },
+      "widgets_values": [
+        1328,
+        1328,
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "type": "ModelSamplingAuraFlow",
+      "pos": [
+        930,
+        50
+      ],
+      "size": [
+        280,
+        100
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingAuraFlow"
+      },
+      "widgets_values": [
+        3.1
+      ]
+    },
+    {
+      "id": 8,
+      "type": "KSampler",
+      "pos": [
+        1260,
+        160
+      ],
+      "size": [
+        330,
+        300
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 5
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "randomize",
+        50,
+        4.0,
+        "euler",
+        "simple",
+        1.0
+      ]
+    },
+    {
+      "id": 9,
+      "type": "VAEDecode",
+      "pos": [
+        1610,
+        190
+      ],
+      "size": [
+        240,
+        90
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 8
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 10,
+      "type": "SaveImage",
+      "pos": [
+        1870,
+        190
+      ],
+      "size": [
+        300,
+        280
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "PromptPalette_QwenImage"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      2,
+      2,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      1,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      7,
+      0,
+      8,
+      0,
+      "MODEL"
+    ],
+    [
+      5,
+      4,
+      2,
+      8,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      5,
+      2,
+      8,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      6,
+      0,
+      8,
+      3,
+      "LATENT"
+    ],
+    [
+      8,
+      8,
+      0,
+      9,
+      0,
+      "LATENT"
+    ],
+    [
+      9,
+      3,
+      0,
+      9,
+      1,
+      "VAE"
+    ],
+    [
+      10,
+      9,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.78,
+      "offset": [
+        50,
+        50
+      ]
+    }
+  },
+  "version": 0.4
+}

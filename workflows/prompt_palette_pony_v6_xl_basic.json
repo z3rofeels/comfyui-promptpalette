@@ -1,0 +1,602 @@
+{
+  "last_node_id": 7,
+  "last_link_id": 9,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        20,
+        180
+      ],
+      "size": [
+        320,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1,
+            2
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "v6.safetensors"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "PromptPaletteEditor",
+      "pos": [
+        400,
+        20
+      ],
+      "size": [
+        430,
+        310
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1,
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "enhancer_override",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "external_seed",
+          "type": "INT",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_text",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Model (passthrough)",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CLIP (passthrough)",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "Conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "Negative conditioning",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "Prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Negative prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Seed used",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (JSON)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Raw text (unresolved)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (count)",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Used enhancer override",
+          "type": "BOOLEAN",
+          "links": null
+        },
+        {
+          "name": "CLIP token count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Prompt metadata (JSON)",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptPaletteEditor"
+      },
+      "widgets_values": [
+        "score_9, score_8_up, score_7_up, source_anime, safe, 1boy, solo, handsome male original character, tan skin, short curly black hair, amber eyes, orange utility jacket, cargo pants, messenger bag, full body, confident smile, clean character design",
+        0,
+        "entire text as one"
+      ],
+      "title": "Prompt Palette — Positive"
+    },
+    {
+      "id": 3,
+      "type": "PromptPaletteEditor",
+      "pos": [
+        400,
+        390
+      ],
+      "size": [
+        430,
+        310
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2,
+          "shape": 7
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "enhancer_override",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "external_seed",
+          "type": "INT",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_text",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_prefix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "negative_suffix",
+          "type": "STRING",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Model (passthrough)",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CLIP (passthrough)",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "Conditioning",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "Negative conditioning",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "Prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Negative prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Seed used",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (JSON)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Raw text (unresolved)",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "Wildcards used (count)",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Used enhancer override",
+          "type": "BOOLEAN",
+          "links": null
+        },
+        {
+          "name": "CLIP token count",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "Prompt metadata (JSON)",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptPaletteEditor"
+      },
+      "widgets_values": [
+        "",
+        0,
+        "entire text as one"
+      ],
+      "title": "Prompt Palette — Negative"
+    },
+    {
+      "id": 4,
+      "type": "EmptyLatentImage",
+      "pos": [
+        40,
+        520
+      ],
+      "size": [
+        270,
+        130
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 5,
+      "type": "KSampler",
+      "pos": [
+        920,
+        180
+      ],
+      "size": [
+        330,
+        300
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 4
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 5
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "randomize",
+        20,
+        8.0,
+        "euler",
+        "normal",
+        1.0
+      ]
+    },
+    {
+      "id": 6,
+      "type": "VAEDecode",
+      "pos": [
+        1320,
+        180
+      ],
+      "size": [
+        240,
+        90
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 7,
+      "type": "SaveImage",
+      "pos": [
+        1640,
+        160
+      ],
+      "size": [
+        300,
+        280
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "PromptPalette_PonyV6XL"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      1,
+      2,
+      0,
+      "CLIP"
+    ],
+    [
+      2,
+      1,
+      1,
+      3,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      1,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      2,
+      2,
+      5,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      5,
+      3,
+      2,
+      5,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      4,
+      0,
+      5,
+      3,
+      "LATENT"
+    ],
+    [
+      7,
+      5,
+      0,
+      6,
+      0,
+      "LATENT"
+    ],
+    [
+      8,
+      1,
+      2,
+      6,
+      1,
+      "VAE"
+    ],
+    [
+      9,
+      6,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.85,
+      "offset": [
+        60,
+        60
+      ]
+    }
+  },
+  "version": 0.4
+}

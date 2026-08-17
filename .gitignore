@@ -1,112 +1,73 @@
-# ====================================================================
-# Security, Tokens, and Sensitive Information
-# ====================================================================
-.env
-.env.*
-*.pem
-*.key
-secrets.json
-config.local.json
-credentials.json
-credentials.yml
-oauth_token.json
-id_rsa
-id_rsa.pub
-*.cert
-*.crt
-*_token
-*_key
+==========================================
 
-# ====================================================================
-# ComfyUI Specific Directories (I/O, Temp, Models)
-# ====================================================================
-input/
-output/
-temp/
-models/
-user/
-*.safetensors
-*.pt
-*.bin
-*.pth
-*.ckpt
-*.onnx
+Prompt Palette / ComfyUI Custom Node
 
-# ====================================================================
-# Wildcard Temp, Cache, and Backup Folders
-# ====================================================================
-*temp*/
-*tmp*/
-*cache*/
-__pycache__/
-*.bak
-*.tmp
-*.temp
-*.swp
-*~
-*.log
-*.log.*
-wildcards_config.json
-wildcards_config.example.json
+Cross-platform Git Ignore
 
-# ====================================================================
-# Python Backend Clutter
-# ====================================================================
-*.py[cod]
-*$py.class
-.Python
-local_settings.py
-.pytest_cache/
-.venv/
-env/
-venv/
-ENV/
+Windows + macOS + Linux
 
-# ====================================================================
-# Frontend & JavaScript Clutter (UI components)
-# ====================================================================
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-.eslintcache
-.stylelintcache
-dist/
-build/
-out/
+==========================================
 
-# ====================================================================
-# Cross-Platform OS Clutter (Mac/Windows)
-# ====================================================================
-# macOS specific
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
+Python
+
+pycache/ .py[cod] $py.class .so .pyd
+
+.Python build/ dist/ downloads/ eggs/ .eggs/ lib/ lib64/ parts/ sdist/
+wheels/ .egg-info/ .egg
+
+Virtual environments
+
+.venv/ venv/ env/ ENV/ env.bak/ venv.bak/ .python-version
+
+Testing / coverage
+
+.pytest_cache/ .coverage .coverage.* htmlcov/ .tox/ .nox/ test-results/
+coverage/
+
+Type checking / linting
+
+.mypy_cache/ .pyright/ .ruff_cache/ .cache/
+
+Node/frontend tooling
+
+node_modules/ npm-debug.log yarn-debug.log yarn-error.log pnpm-debug.log
+.vite/ .next/
+
+ComfyUI local files
+
+ComfyUI/ comfyui/ output/ outputs/ models/ checkpoints/ loras/ vae/
+
+Local workflows and experiments
+
+workflows_local/ workflow_tests/ experimental_workflows/
+
+ComfyUI local config/logs
+
+extra_model_paths.yaml extra_model_paths.yaml .log logs/
+
+Prompt Palette local development data
+
+prompt_library_local/ dev_library/ local_palettes/ exports/ exports_tmp/
+thumbnails_generated/ generated_thumbnails/
+
+macOS
+
+.DS_Store .AppleDouble .LSOverride ._* .Spotlight-V100 .Trashes
 .VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-*.pyc
 
-# Windows specific
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-Ehthumbs.db
-[Dd]esktop.ini
-$RECYCLE.BIN/
-*.lnk
+Windows
 
-# ====================================================================
-# IDEs and Code Editors
-# ====================================================================
-.vscode/
-!.vscode/extensions.json
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
+Thumbs.db ehthumbs.db Desktop.ini $RECYCLE.BIN/ *.lnk
+
+Editors
+
+.vscode/ .idea/ .suo .user .userosscache .sln.docstates .swp .swo
+
+Temporary files
+
+.tmp .temp .bak .old .orig ~$
+
+Release build artifacts
+
+release/ releases/ packages/ artifacts/ .zip .tar *.gz
+.DS_Store

@@ -1,0 +1,444 @@
+/* One I/O control and non-obscuring workspace panels. */
+.wg-node { container-type: inline-size; }
+.wg-action-btn {
+  width: auto;
+  min-width: 27px;
+  padding: 0 7px;
+  gap: 5px;
+}
+.wg-tool-label { font-size: 8.5px; font-weight: 650; white-space: nowrap; }
+.wg-io-toggle-btn {
+  min-width: 70px;
+  padding: 0 7px;
+  gap: 4px;
+  border-color: color-mix(in srgb, var(--wg-accent, #d49a52) 24%, var(--wg-border-strong, #3a4048));
+}
+.wg-io-button-label { font-size: 8.5px; font-weight: 800; letter-spacing: .02em; }
+.wg-io-toggle-btn [data-io-count] {
+  padding-left: 4px;
+  border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+}
+.wg-io-rail {
+  display: block;
+  padding: 0;
+  background: var(--wg-panel-bg, #1c1f23);
+}
+.wg-io-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px 6px;
+  border-bottom: 1px solid var(--wg-border, #2a2e34);
+}
+.wg-io-rail-head > div { display: grid; gap: 1px; min-width: 0; }
+.wg-io-rail-head strong { color: var(--wg-text, #f1eee8); font-size: 9px; }
+.wg-io-rail-head span { color: var(--wg-text-faint, #8f887e); font-size: 8px; }
+.wg-io-visible-count {
+  flex: none;
+  padding: 3px 6px;
+  border: 1px solid var(--wg-border, #2a2e34);
+  border-radius: 999px;
+  background: var(--wg-surface, #121417);
+  color: var(--wg-text-dim, #b8b0a4) !important;
+  font-variant-numeric: tabular-nums;
+}
+.wg-io-rail-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 7px;
+  padding: 5px 7px 7px;
+}
+.wg-io-rail-content .wg-io-rail-group + .wg-io-rail-group { grid-column: 1; }
+.wg-io-rail-content .wg-io-rail-actions { grid-column: 2; grid-row: 1 / span 2; }
+.wg-io-rail-actions button { min-width: 72px; min-height: 21px; font-size: 8.5px; white-space: nowrap; }
+
+/* Node-local utility drawers (Stash/Doctor/etc.) remain part of the node workspace.
+   The suite Settings drawer is portal-mounted and intentionally excluded by this ancestry. */
+.wg-node > .wg-settings-popup {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  height: clamp(150px, 42%, 280px);
+  flex: 0 0 clamp(150px, 42%, 280px);
+  z-index: 4;
+  border-left: 0;
+  border-top: 1px solid var(--wg-border-strong, #3a4048);
+  transform: none;
+  transition: none;
+  pointer-events: auto;
+  box-shadow: 0 -10px 26px rgba(0,0,0,.22);
+}
+.wg-node > .wg-settings-popup.open { transform: none; box-shadow: 0 -10px 26px rgba(0,0,0,.22); }
+.wg-node > .wg-stash-popup {
+  height: clamp(132px, 34%, 220px);
+  flex-basis: clamp(132px, 34%, 220px);
+}
+.wg-node > .wg-settings-popup .wg-settings-footer { min-height: 28px; }
+
+@container (max-width: 610px) {
+  .wg-action-btn { padding-inline: 6px; }
+  .wg-io-toggle-btn { min-width: 64px; }
+}
+@container (max-width: 520px) {
+  .wg-io-button-label { display: none; }
+  .wg-io-toggle-btn { min-width: 49px; padding: 0 5px; }
+  .wg-io-rail-head > div span { display: none; }
+  .wg-io-rail-actions button { min-width: 52px; }
+}
+
+
+/* Clear two-tier toolbar: primary creative actions first, utilities second. */
+.wg-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+}
+.wg-toolbar-group.left { grid-column: 1; grid-row: 1; min-width: 0; }
+.wg-pill-resolve { grid-column: 2; grid-row: 1; }
+.wg-toolbar-group.right {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  justify-self: stretch;
+  justify-content: flex-end;
+  padding-top: 5px;
+  margin-top: 1px;
+  border-top: 1px solid color-mix(in srgb, var(--wg-border, #2a2e34) 70%, transparent);
+}
+.wg-toolbar-extra { grid-column: 1 / -1; }
+.wg-main { min-height: 120px; }
+.wg-node.wg-zen .wg-toolbar { grid-template-rows: auto; }
+.wg-node.wg-zen .wg-toolbar-group.right {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  padding-top: 0;
+  margin-top: 0;
+  border-top: 0;
+}
+
+
+/* Visually group utilities without adding toolbar noise. */
+.wg-tool-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.wg-tool-cluster + .wg-tool-cluster {
+  margin-left: 2px;
+  padding-left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--wg-border-strong, #3a4048) 68%, transparent);
+}
+.wg-settings-anchor {
+  width: auto;
+  min-width: 69px;
+  padding: 0 7px;
+  gap: 4px;
+}
+.wg-settings-button-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.wg-settings-popup[role="region"] { isolation: isolate; }
+@container (max-width: 520px) {
+  .wg-toolbar-group.right { gap: 3px; }
+  .wg-tool-cluster { gap: 3px; }
+  .wg-tool-cluster + .wg-tool-cluster { padding-left: 4px; }
+  .wg-settings-anchor { min-width: 24px; padding: 0; }
+  .wg-settings-button-label { display: none; }
+}
+@container (max-width: 500px) {
+  .wg-tool-cluster + .wg-tool-cluster { margin-left: 0; padding-left: 3px; }
+}
+
+
+/* Combinatorial settings now use the shared viewport-level right drawer. */
+
+/* Prompt Library is a docked workspace so browsing never hides the editable prompt. */
+.wg-library-popup[hidden],
+.wg-library-panel[hidden] { display: none !important; }
+.wg-node > .wg-library-popup {
+  position: relative;
+  order: 18;
+  width: 100%;
+  height: clamp(330px, 60%, 460px);
+  flex: 0 0 clamp(330px, 60%, 460px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--wg-panel-bg, #1c1f23);
+  border-top: 1px solid var(--wg-border-strong, #3a4048);
+  box-shadow: 0 -12px 30px rgba(0,0,0,.24);
+  isolation: isolate;
+}
+.wg-library-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 43px;
+  padding: 8px 10px 7px 12px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--wg-panel-bg, #1c1f23) 90%, var(--wg-text, #fff) 10%),
+    var(--wg-panel-bg, #1c1f23));
+  border-bottom: 1px solid var(--wg-border, #2a2e34);
+}
+.wg-library-head > div { min-width: 0; display: grid; gap: 1px; }
+.wg-library-head strong { color: var(--wg-text, #f1eee8); font-size: 11px; letter-spacing: .01em; }
+.wg-library-head small { color: var(--wg-text-faint, #8f887e); font-size: 8.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-library-tabs {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+  background: color-mix(in srgb, var(--wg-bg, #17191c) 68%, var(--wg-panel-bg, #1c1f23));
+  border-bottom: 1px solid var(--wg-border, #2a2e34);
+}
+.wg-library-tabs button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  padding: 7px 12px 6px;
+  background: transparent;
+  color: var(--wg-text-faint, #8f887e);
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wg-library-tabs button:hover { color: var(--wg-text, #f1eee8); background: color-mix(in srgb, var(--wg-surface, #121417) 78%, transparent); }
+.wg-library-tabs button.active {
+  color: var(--wg-text, #f1eee8);
+  border-color: var(--wg-border, #2a2e34);
+  background: var(--wg-panel-bg, #1c1f23);
+  box-shadow: inset 0 2px 0 var(--wg-accent, #d49a52);
+}
+.wg-library-tabs button:focus-visible { outline: none; box-shadow: var(--wg-focus), inset 0 2px 0 var(--wg-accent, #d49a52); }
+.wg-library-panel { flex: 1; min-height: 0; overflow: hidden; }
+.wg-library-panel.active { display: flex; }
+
+.wg-starter-panel { flex-direction: column; gap: 7px; padding: 8px; }
+.wg-starter-intro {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(155px, 34%);
+  align-items: center;
+  gap: 10px;
+}
+.wg-starter-intro > div:first-child { min-width: 0; display: grid; gap: 2px; }
+.wg-starter-intro strong { color: var(--wg-text, #f1eee8); font-size: 10px; }
+.wg-starter-intro span { color: var(--wg-text-faint, #8f887e); font-size: 8.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-starter-search { margin: 0; }
+.wg-starter-model-strip,
+.wg-starter-category-strip {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 1px 1px 4px;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.wg-starter-model {
+  flex: 0 0 auto;
+  min-width: 125px;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px 5px 6px;
+  border: 1px solid var(--wg-border, #2a2e34);
+  border-radius: 8px;
+  background: var(--wg-surface, #121417);
+  color: var(--wg-text-dim, #b8b0a4);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.wg-starter-model:hover { transform: translateY(-1px); border-color: var(--starter-accent, var(--wg-accent, #d49a52)); }
+.wg-starter-model.active {
+  border-color: var(--starter-accent, var(--wg-accent, #d49a52));
+  background: color-mix(in srgb, var(--starter-accent, var(--wg-accent, #d49a52)) 12%, var(--wg-surface, #121417));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--starter-accent, var(--wg-accent, #d49a52)) 24%, transparent);
+}
+.wg-starter-model-mark {
+  flex: none;
+  min-width: 31px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 6px;
+  color: color-mix(in srgb, var(--starter-accent, #d49a52), white 35%);
+  background: color-mix(in srgb, var(--starter-accent, #d49a52) 17%, var(--wg-bg, #17191c));
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .025em;
+}
+.wg-starter-model > span:last-child { min-width: 0; display: grid; gap: 1px; }
+.wg-starter-model strong { color: var(--wg-text, #f1eee8); font-size: 9px; white-space: nowrap; }
+.wg-starter-model small { color: var(--wg-text-faint, #8f887e); font-size: 7.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wg-starter-model-summary {
+  --starter-accent: var(--wg-accent, #d49a52);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--starter-accent) 40%, var(--wg-border, #2a2e34));
+  border-radius: 8px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--starter-accent) 10%, var(--wg-surface, #121417)), var(--wg-surface, #121417));
+}
+.wg-starter-model-summary > div { min-width: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 7px; }
+.wg-starter-summary-badge {
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  max-width: 76px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: color-mix(in srgb, var(--starter-accent), white 38%);
+  background: color-mix(in srgb, var(--starter-accent) 15%, var(--wg-bg, #17191c));
+  font-size: 7px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.wg-starter-model-summary strong { color: var(--wg-text, #f1eee8); font-size: 9.5px; }
+.wg-starter-model-summary p { margin: 0; color: var(--wg-text-faint, #8f887e); font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-starter-model-summary > small { flex: 0 0 min(40%, 220px); color: var(--wg-text-dim, #b8b0a4); font-size: 7.8px; line-height: 1.35; text-align: right; }
+.wg-starter-category {
+  flex: 0 0 auto;
+  width: 128px;
+  min-height: 49px;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 3px;
+  border: 1px solid var(--wg-border, #2a2e34);
+  border-radius: 8px;
+  background: var(--wg-surface, #121417);
+  color: var(--wg-text-dim, #b8b0a4);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.wg-starter-category:hover,
+.wg-starter-category.active { border-color: var(--wg-accent, #d49a52); }
+.wg-starter-category.active { background: color-mix(in srgb, var(--wg-accent, #d49a52) 10%, var(--wg-surface, #121417)); }
+.wg-starter-category-thumb { width: 54px; height: 40px; border-radius: 6px; overflow: hidden; }
+.wg-starter-category-thumb svg { width: 100%; height: 100%; display: block; }
+.wg-starter-category > span:last-child { min-width: 0; display: grid; gap: 2px; }
+.wg-starter-category strong { color: var(--wg-text, #f1eee8); font-size: 8.5px; line-height: 1.15; }
+.wg-starter-category small { color: var(--wg-text-faint, #8f887e); font-size: 7.2px; }
+.wg-starter-results-head { flex: none; min-height: 15px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--wg-text-faint, #8f887e); font-size: 8px; }
+.wg-starter-status.error { color: var(--wg-danger, #d86f70); }
+.wg-starter-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+  align-content: start;
+  gap: 8px;
+  padding: 1px 2px 5px 1px;
+  scrollbar-width: thin;
+}
+.wg-starter-card {
+  --starter-accent: var(--wg-accent, #d49a52);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--wg-border, #2a2e34);
+  border-radius: 9px;
+  background: var(--wg-surface, #121417);
+  box-shadow: 0 4px 12px rgba(0,0,0,.16);
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.wg-starter-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--starter-accent) 70%, var(--wg-border, #2a2e34)); box-shadow: 0 7px 18px rgba(0,0,0,.24); }
+.wg-starter-card-thumb { width: 100%; height: 68px; overflow: hidden; background: var(--wg-bg, #17191c); }
+.wg-starter-card-thumb svg { width: 100%; height: 100%; display: block; }
+.wg-starter-card-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 3px; padding: 7px 8px 8px; }
+.wg-starter-card-kicker { color: color-mix(in srgb, var(--starter-accent), white 22%); font-size: 7px; font-weight: 800; text-transform: uppercase; letter-spacing: .055em; }
+.wg-starter-card h5 { margin: 0; color: var(--wg-text, #f1eee8); font-size: 9.5px; line-height: 1.25; }
+.wg-starter-card p {
+  min-height: 29px;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--wg-text-faint, #8f887e);
+  font-size: 7.8px;
+  line-height: 1.3;
+}
+.wg-starter-card-actions { margin-top: auto; padding-top: 4px; }
+.wg-starter-card-actions button {
+  width: 100%;
+  min-height: 25px;
+  border: 1px solid color-mix(in srgb, var(--starter-accent) 55%, var(--wg-border, #2a2e34));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--starter-accent) 9%, var(--wg-bg, #17191c));
+  color: var(--wg-text-dim, #b8b0a4);
+  font: inherit;
+  font-size: 8px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.wg-starter-card-actions button:hover { color: var(--wg-text, #f1eee8); background: color-mix(in srgb, var(--starter-accent) 17%, var(--wg-bg, #17191c)); }
+.wg-starter-empty { grid-column: 1 / -1; min-height: 80px; display: grid; place-items: center; color: var(--wg-text-faint, #8f887e); font-size: 9px; border: 1px dashed var(--wg-border, #2a2e34); border-radius: 8px; }
+
+.wg-personal-panel { flex-direction: column; gap: 6px; padding: 8px; }
+.wg-personal-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wg-personal-head > div:first-child { min-width: 0; display: grid; gap: 1px; }
+.wg-personal-head strong { color: var(--wg-text, #f1eee8); font-size: 10px; }
+.wg-personal-head span { color: var(--wg-text-faint, #8f887e); font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-personal-panel > .wg-search { margin: 0; }
+.wg-personal-panel > .wg-list { flex: 1; min-height: 0; overflow: auto; }
+
+.wg-library-popup .wg-starter-grid,
+.wg-library-popup .wg-starter-model-strip,
+.wg-library-popup .wg-starter-category-strip,
+.wg-library-popup .wg-list {
+  scrollbar-color: var(--wg-border-strong, #3a4048) transparent;
+}
+
+@container (max-width: 520px) {
+  .wg-node > .wg-library-popup { height: clamp(330px, 60%, 440px); flex-basis: clamp(330px, 60%, 440px); }
+  .wg-library-head small { display: none; }
+  .wg-starter-intro { grid-template-columns: 1fr; gap: 5px; }
+  .wg-starter-intro span { white-space: normal; }
+  .wg-starter-model-summary > small { display: none; }
+  .wg-starter-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+}
+@container (max-width: 420px) {
+  .wg-library-tabs button { flex: 1; padding-inline: 7px; }
+  .wg-starter-model { min-width: 108px; }
+  .wg-starter-model-mark { min-width: 27px; }
+  .wg-starter-grid { grid-template-columns: 1fr; }
+}
+
+
+/* Socket labels are independent from visibility and persist with the workflow. */
+.wg-io-rail-actions [data-io-labels][aria-pressed="true"] {
+  color: var(--wg-accent-text, #17191c);
+  border-color: var(--wg-accent, #d49a52);
+  background: var(--wg-accent, #d49a52);
+}

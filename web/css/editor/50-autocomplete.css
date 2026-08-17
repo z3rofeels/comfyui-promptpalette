@@ -1,0 +1,51 @@
+/* Fast insert remains additive and compact. */
+.wg-ac-group {
+  padding: 5px 9px 3px;
+  color: var(--wg-text-faint, #8f887e);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border-top: 1px solid var(--wg-border, #2a2e34);
+}
+.wg-ac-group:first-child { border-top: 0; }
+.wg-ac-item { display: flex; align-items: center; gap: 7px; }
+.wg-ac-kind { width: 20px; flex: none; color: var(--wg-accent, #d49a52); font-size: 9px; font-weight: 800; text-align: center; }
+.wg-ac-copy { min-width: 0; display: grid; gap: 1px; }
+.wg-ac-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: 650; }
+.wg-ac-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--wg-text-faint, #8f887e); font-size: 8px; }
+
+@container (max-width: 650px) {
+  .wg-node > .wg-toolbar .wg-toolbar-group { gap: 4px; }
+  .wg-node > .wg-toolbar .wg-pill-resolve { padding-inline: 8px; }
+}
+
+@container (max-width: 560px) {
+  .wg-node > .wg-toolbar { gap: 4px; padding-inline: 5px; }
+  .wg-node > .wg-toolbar .wg-toolbar-group { gap: 3px; }
+  .wg-node > .wg-toolbar .wg-icon-btn,
+  .wg-node > .wg-toolbar .wg-action-btn,
+  .wg-node > .wg-toolbar .wg-settings-anchor {
+    width: 21px;
+    min-width: 21px;
+    height: 22px;
+    border-radius: 5px;
+  }
+  .wg-node > .wg-toolbar .wg-icon-btn svg { width: 12px; height: 12px; }
+  .wg-node > .wg-toolbar .wg-io-toggle-btn {
+    width: 39px;
+    min-width: 39px;
+    padding-inline: 4px;
+  }
+  .wg-node > .wg-toolbar .wg-pill-resolve {
+    min-width: 78px;
+    padding: 4px 7px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+}
+.wg-starter-card-actions { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 5px; }
+.wg-starter-card-actions button { width: auto; }
+.wg-starter-favorite { padding: 0 !important; color: var(--wg-text-faint, #8f887e) !important; }
+.wg-starter-favorite.active { color: var(--wg-accent, #d49a52) !important; background: color-mix(in srgb, var(--wg-accent, #d49a52) 14%, var(--wg-bg, #17191c)) !important; }
+
