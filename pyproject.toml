@@ -26,7 +26,7 @@ Discussions = "https://github.com/z3rofeels/comfyui-promptpalette/discussions"
 
 [tool.comfy]
 PublisherId = "z3rofeels"
-DisplayName = "Prompt Palette by z3rofeels"
+DisplayName = "Prompt Palette"
 Icon = "https://raw.githubusercontent.com/z3rofeels/comfyui-promptpalette/main/assets/prompt-palette-icon.png"
 Banner = "https://raw.githubusercontent.com/z3rofeels/comfyui-promptpalette/main/assets/prompt-palette-banner.png"
 
