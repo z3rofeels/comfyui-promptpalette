@@ -1,0 +1,29 @@
+[project]
+name = "zf-prompt-palette"
+version = "2.0.0"
+description = "A colorful wildcard editor, batch prompt generator, prompt library, and backend-aware weight controller for ComfyUI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "z3rofeels" },
+]
+dependencies = [
+    "PyYAML>=6.0",
+    "typing-extensions>=4.12",
+]
+classifiers = [
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+
+[project.urls]
+Homepage = "https://github.com/z3rofeels/comfyui-promptpalette"
+Repository = "https://github.com/z3rofeels/comfyui-promptpalette"
+Documentation = "https://github.com/z3rofeels/comfyui-promptpalette#readme"
+"Bug Tracker" = "https://github.com/z3rofeels/comfyui-promptpalette/issues"
+Discussions = "https://github.com/z3rofeels/comfyui-promptpalette/discussions"
+
+[tool.comfy]
+PublisherId = "z3rofeels"
+DisplayName = "Prompt Palette by z3rofeels"
