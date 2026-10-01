@@ -11,7 +11,7 @@ from .comfy_compat import io
 
 from .wildcard_index import get_index
 from .wildcard_resolver import WildcardResolver
-from .clip_tokenizer import count_clip_tokens
+from .clip_tokenizer import clip_counting_applies, count_clip_tokens
 from .prompt_metadata import (
     build_prompt_metadata, compact_json, compose_source_prompt, publish_prompt_metadata,
 )
@@ -57,7 +57,48 @@ _DYNAMIC_PROMPT_RE = re.compile(
 def _prompt_uses_runtime_sequence(*values):
     return any(_DYNAMIC_PROMPT_RE.search(_coerce_text(value)) for value in values)
 
-class PromptPaletteEditor(io.ComfyNode):
+
+class PromptPaletteV3Node(io.ComfyNode):
+    """Base for Prompt Palette V3 nodes with isolated ComfyUI schema caches.
+
+    ComfyUI currently stores V3 compatibility metadata as plain class attributes
+    and guards schema population with ``is None``. A subclass can therefore
+    inherit a parent's already-populated cache. Give every concrete Prompt
+    Palette node its own fresh cache sentinels at class creation time.
+    """
+
+    _SCHEMA_CACHE_FIELDS = (
+        "_DESCRIPTION",
+        "_CATEGORY",
+        "_EXPERIMENTAL",
+        "_DEPRECATED",
+        "_DEV_ONLY",
+        "_API_NODE",
+        "_OUTPUT_NODE",
+        "_HAS_INTERMEDIATE_OUTPUT",
+        "_INPUT_IS_LIST",
+        "_OUTPUT_IS_LIST",
+        "_RETURN_TYPES",
+        "_RETURN_NAMES",
+        "_OUTPUT_TOOLTIPS",
+        "_NOT_IDEMPOTENT",
+        "_ACCEPT_ALL_INPUTS",
+    )
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        for field in cls._SCHEMA_CACHE_FIELDS:
+            try:
+                setattr(cls, field, None)
+            except AttributeError:
+                # ComfyUI (>= 0.37) re-creates node classes through a
+                # metaclass whose __setattr__ is locked (e.g. the
+                # "...Clone" class it builds at execution time). Those
+                # classes already carry the cache values copied from the
+                # unlocked clone, so there is nothing left to reset.
+                return
+
+class PromptPaletteEditor(PromptPaletteV3Node):
 
     _LORA_TAG_RE = re.compile(
         r"<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)>"
@@ -236,7 +277,7 @@ class PromptPaletteEditor(io.ComfyNode):
                 io.Int.Output(
                     "clip_token_count",
                     display_name="CLIP token count",
-                    tooltip="CLIP-L token count for the final prompt, or -1 when unavailable.",
+                    tooltip="CLIP-L token count for the final prompt, or -1 when unavailable or when the connected text encoder is not CLIP-based.",
                 ),
                 io.String.Output(
                     "prompt_metadata_json",
@@ -300,9 +341,15 @@ class PromptPaletteEditor(io.ComfyNode):
             })
         return records
 
-    @staticmethod
-    def _apply_loras(model, clip, loras):
+    _LORA_CACHE_LIMIT = 4
 
+    @staticmethod
+    def _apply_loras(model, clip, loras, cache=None):
+        # ``cache`` maps resolved LoRA path -> loaded state dict. Callers that apply
+        # LoRAs repeatedly in one run (Combinatorial) pass one dict so the same file
+        # is read from disk once. It is bounded to keep memory predictable.
+        if cache is None:
+            cache = {}
         for name, weight in loras:
             lora_path = folder_paths.get_full_path("loras", name)
             if lora_path is None:
@@ -315,15 +362,33 @@ class PromptPaletteEditor(io.ComfyNode):
             if lora_path is None:
                 logger.warning("LoRA %r was not found in the loras folder; skipping it", name)
                 continue
-            lora_sd = comfy.utils.load_torch_file(lora_path, safe_load=True)
+            lora_sd = cache.get(lora_path)
+            if lora_sd is None:
+                lora_sd = comfy.utils.load_torch_file(lora_path, safe_load=True)
+                while len(cache) >= PromptPaletteEditor._LORA_CACHE_LIMIT:
+                    cache.pop(next(iter(cache)))
+                cache[lora_path] = lora_sd
             model, clip = comfy.sd.load_lora_for_models(model, clip, lora_sd, weight, weight)
         return model, clip
 
+    @classmethod
+    def _strip_lora_tags(cls, text):
+        """Remove <lora:...> tags only when present, leaving other text untouched."""
+        if not text or not cls._LORA_TAG_RE.search(text):
+            return text, []
+        return cls._extract_loras(text)
+
     @staticmethod
     def _encode(clip, text):
+        # Mirror the stock CLIP Text Encode node. The scheduled path handles hooks and
+        # omits pooled_output for encoders that have none (Qwen/T5/LLM-style).
         tokens = clip.tokenize(text)
+        scheduled = getattr(clip, "encode_from_tokens_scheduled", None)
+        if callable(scheduled):
+            return scheduled(tokens)
         cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
-        return [[cond, {"pooled_output": pooled}]]
+        extras = {} if pooled is None else {"pooled_output": pooled}
+        return [[cond, extras]]
 
     @classmethod
     def execute(cls, text, seed, processing_mode,
@@ -393,6 +458,13 @@ class PromptPaletteEditor(io.ComfyNode):
             negative_conditioning = cls._encode(out_clip, resolved_negative)
         elif clip is not None:
 
+            resolved, ignored_positive = cls._strip_lora_tags(resolved)
+            resolved_negative, ignored_negative = cls._strip_lora_tags(resolved_negative)
+            if ignored_positive or ignored_negative:
+                logger.warning(
+                    "LoRA tags were ignored because MODEL is not connected; "
+                    "connect both MODEL and CLIP to apply them"
+                )
             conditioning = cls._encode(clip, resolved)
             negative_conditioning = cls._encode(clip, resolved_negative)
         elif model is not None:
@@ -401,7 +473,7 @@ class PromptPaletteEditor(io.ComfyNode):
                 "A model was connected without CLIP; LoRA loading and conditioning are unavailable"
             )
 
-        token_stats = count_clip_tokens(resolved)
+        token_stats = count_clip_tokens(resolved) if clip_counting_applies(clip) else None
         clip_token_count = token_stats["tokens"] if token_stats is not None else -1
 
         metadata = build_prompt_metadata(
@@ -435,7 +507,7 @@ class PromptPaletteEditor(io.ComfyNode):
             ui={"prompt_palette": published},
         )
 
-class PromptPaletteCombinatorial(io.ComfyNode):
+class PromptPaletteCombinatorial(PromptPaletteV3Node):
 
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -513,6 +585,65 @@ class PromptPaletteCombinatorial(io.ComfyNode):
                     tooltip="Optional model input used when applying per-prompt LoRA tags.",
                     optional=True,
                 ),
+                # Prompt Palette's remaining optional sockets. They are appended after the
+                # original inputs and are link-only (force_input), so they add no widgets and
+                # saved workflows keep their widget values in the same order.
+                io.String.Input(
+                    "prompt_prefix",
+                    display_name="Prompt prefix",
+                    tooltip="External wildcard-aware text prepended to every generated prompt (resolved per prompt).",
+                    optional=True,
+                    force_input=True,
+                    default="",
+                ),
+                io.String.Input(
+                    "prompt_suffix",
+                    display_name="Prompt suffix",
+                    tooltip="External wildcard-aware text appended to every generated prompt (resolved per prompt).",
+                    optional=True,
+                    force_input=True,
+                    default="",
+                ),
+                io.String.Input(
+                    "enhancer_override",
+                    display_name="LLM / enhancer override",
+                    tooltip="A non-empty value replaces every generated prompt (the batch keeps its length and seeds).",
+                    optional=True,
+                    force_input=True,
+                    default="",
+                ),
+                io.Int.Input(
+                    "external_seed",
+                    display_name="External seed",
+                    tooltip="Optional external seed that takes precedence over the node's Seed control.",
+                    optional=True,
+                    force_input=True,
+                ),
+                io.String.Input(
+                    "negative_text",
+                    display_name="Negative prompt (text)",
+                    tooltip="Optional wildcard-aware negative prompt, resolved once for the whole batch.",
+                    optional=True,
+                    force_input=True,
+                    multiline=True,
+                    default="",
+                ),
+                io.String.Input(
+                    "negative_prefix",
+                    display_name="Negative prefix",
+                    tooltip="External wildcard-aware text prepended to the negative prompt.",
+                    optional=True,
+                    force_input=True,
+                    default="",
+                ),
+                io.String.Input(
+                    "negative_suffix",
+                    display_name="Negative suffix",
+                    tooltip="External wildcard-aware text appended to the negative prompt.",
+                    optional=True,
+                    force_input=True,
+                    default="",
+                ),
             ],
             hidden=[io.Hidden.unique_id, io.Hidden.prompt, io.Hidden.extra_pnginfo],
             outputs=[
@@ -558,12 +689,90 @@ class PromptPaletteCombinatorial(io.ComfyNode):
                     tooltip="One resolved/source metadata record per generated prompt.",
                     is_output_list=True,
                 ),
+                # ---- Single-value outputs (not lists: wiring these runs downstream once). ----
+                # Appended after the seven list outputs so existing links keep their slot index.
+                io.Model.Output(
+                    "model_passthrough",
+                    display_name="Model (passthrough)",
+                    tooltip="The connected Model, unchanged (per-prompt LoRA patched models are on Model list).",
+                ),
+                io.Clip.Output(
+                    "clip_passthrough",
+                    display_name="CLIP (passthrough)",
+                    tooltip="The connected CLIP, unchanged (per-prompt LoRA patched CLIPs are on CLIP list).",
+                ),
+                io.Conditioning.Output(
+                    "first_conditioning",
+                    display_name="Conditioning (first)",
+                    tooltip="Conditioning for the first generated prompt. Needs CLIP connected. Use Conditioning list for every prompt.",
+                ),
+                io.Conditioning.Output(
+                    "negative_conditioning",
+                    display_name="Negative conditioning",
+                    tooltip="The resolved negative prompt encoded once with the connected CLIP (unpatched). Needs CLIP connected.",
+                ),
+                io.String.Output(
+                    "first_prompt",
+                    display_name="Prompt (first)",
+                    tooltip="The first generated prompt. Use Prompt list for every prompt.",
+                ),
+                io.String.Output(
+                    "negative_prompt",
+                    display_name="Negative prompt",
+                    tooltip="Resolved negative prompt text, resolved once for the whole batch.",
+                ),
+                io.Int.Output(
+                    "first_seed",
+                    display_name="Seed used (first)",
+                    tooltip="Seed used for the first generated prompt. Use Seed list for every prompt.",
+                ),
+                io.String.Output(
+                    "wildcards_used_json",
+                    display_name="Wildcards used (JSON)",
+                    tooltip="JSON list of wildcard files used during this batch, as one value.",
+                ),
+                io.String.Output(
+                    "raw_text",
+                    display_name="Raw text (unresolved)",
+                    tooltip="Source prompt before wildcard resolution.",
+                ),
+                io.Int.Output(
+                    "wildcards_used_count",
+                    display_name="Wildcards used (count)",
+                    tooltip="Number of distinct wildcard files used during this batch.",
+                ),
+                io.Boolean.Output(
+                    "used_enhancer",
+                    display_name="Used enhancer override",
+                    tooltip="True when the enhancer override replaced the generated prompts.",
+                ),
+                io.Int.Output(
+                    "clip_token_count",
+                    display_name="CLIP token count (max)",
+                    tooltip="Highest CLIP-L token count across the batch, or -1 when unavailable or the connected text encoder is not CLIP-based.",
+                ),
+                io.String.Output(
+                    "batch_metadata_json",
+                    display_name="Batch metadata (JSON)",
+                    tooltip="One JSON record for the whole batch, including every generated prompt's metadata.",
+                ),
+                io.Int.Output(
+                    "prompt_count",
+                    display_name="Prompt count",
+                    tooltip="How many prompts this batch generated.",
+                ),
             ],
         )
 
     @classmethod
-    def fingerprint_inputs(cls, text="", **_kwargs):
-        if _prompt_uses_runtime_sequence(text):
+    def fingerprint_inputs(
+        cls, text="", prompt_prefix="", prompt_suffix="", enhancer_override="",
+        negative_text="", negative_prefix="", negative_suffix="", **_kwargs,
+    ):
+        if _prompt_uses_runtime_sequence(
+            text, prompt_prefix, prompt_suffix, enhancer_override,
+            negative_text, negative_prefix, negative_suffix,
+        ):
             return float("nan")
         return get_index().fingerprint()
 
@@ -578,19 +787,30 @@ class PromptPaletteCombinatorial(io.ComfyNode):
         return [rng.randint(0, 0xFFFFFFFFFFFFFFFF) for _ in range(n)]
 
     @classmethod
-    def execute(cls, text, mode, count, seed, seed_mode, max_prompts, clip=None, model=None):
+    def execute(cls, text, mode, count, seed, seed_mode, max_prompts, clip=None, model=None,
+                prompt_prefix="", prompt_suffix="", enhancer_override="",
+                external_seed=None, negative_text="",
+                negative_prefix="", negative_suffix=""):
         mode = _coerce_choice(mode, {"random", "combinatorial"}, "random")
         seed_mode = _coerce_choice(seed_mode, {"sequential", "fixed", "random"}, "sequential")
         text = _coerce_text(text)
         count = _coerce_int(count, 10)
         max_prompts = _coerce_int(max_prompts, 0)
+        prompt_prefix = _coerce_text(prompt_prefix)
+        prompt_suffix = _coerce_text(prompt_suffix)
+        enhancer_override = _coerce_text(enhancer_override)
+        negative_text = _coerce_text(negative_text)
+        negative_prefix = _coerce_text(negative_prefix)
+        negative_suffix = _coerce_text(negative_suffix)
         seed = _coerce_uint64(seed)
+        # An external seed wins over the Seed control, exactly like the base Prompt Palette node.
+        effective_seed = seed if external_seed is None else _coerce_uint64(external_seed, seed)
         count = max(1, min(count, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
         max_prompts = max(0, min(max_prompts, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
         resolver = WildcardResolver(get_index())
 
         if mode == "combinatorial":
-            prompts = resolver.generate_combinatorial(text, seed=seed, max_prompts=max_prompts or None)
+            prompts = resolver.generate_combinatorial(text, seed=effective_seed, max_prompts=max_prompts or None)
             if resolver.last_generation_truncated:
                 cap = max_prompts or resolver.MAX_COMBINATORIAL_PROMPTS
                 logger.warning(
@@ -599,32 +819,65 @@ class PromptPaletteCombinatorial(io.ComfyNode):
                 )
             if not prompts:
                 prompts = [""]
-            seeds_out = cls._derive_seeds(seed, seed_mode, len(prompts))
+            seeds_out = cls._derive_seeds(effective_seed, seed_mode, len(prompts))
         else:
-            seeds_out = cls._derive_seeds(seed, seed_mode, count)
+            seeds_out = cls._derive_seeds(effective_seed, seed_mode, count)
             prompts = [resolver.resolve(text, seed=s) for s in seeds_out]
+
+        # Prefix / suffix / enhancer are applied per generated prompt. With none of them
+        # connected this block changes nothing, so existing workflows behave as before.
+        def resolve_extra(block, prompt_seed, offset):
+            if not block:
+                return ""
+            return resolver.resolve(block, seed=(prompt_seed + offset) & UINT64_MAX)
+
+        used_enhancer = bool(enhancer_override and enhancer_override.strip())
+        if used_enhancer:
+            prompts = [enhancer_override for _ in prompts]
+        elif prompt_prefix or prompt_suffix:
+            composed = []
+            for prompt_seed, generated in zip(seeds_out, prompts):
+                parts = [
+                    part for part in (
+                        resolve_extra(prompt_prefix, prompt_seed, -1),
+                        generated,
+                        resolve_extra(prompt_suffix, prompt_seed, 1),
+                    ) if part
+                ]
+                composed.append(" ".join(parts))
+            prompts = composed
+
+        # The negative prompt is a single value for the whole batch.
+        negative_parts = [part for part in (
+            resolve_extra(negative_prefix, effective_seed, 1001),
+            resolve_extra(negative_text, effective_seed, 1000),
+            resolve_extra(negative_suffix, effective_seed, 1002),
+        ) if part]
+        resolved_negative = " ".join(negative_parts)
 
         used_names = sorted(set(resolver.used_names))
         wildcards_used = json.dumps(used_names)
 
         out_models, out_clips, conditioning, out_prompts = [], [], [], []
         prompt_metadata = []
+        lora_cache = {}
         for index, p in enumerate(prompts):
             lora_records = PromptPaletteEditor._lora_records(p, "positive")
             loras_applied = False
             if model is not None and clip is not None:
                 clean, loras = PromptPaletteEditor._extract_loras(p)
-                m, c = PromptPaletteEditor._apply_loras(model, clip, loras) if loras else (model, clip)
+                m, c = PromptPaletteEditor._apply_loras(model, clip, loras, lora_cache) if loras else (model, clip)
                 loras_applied = bool(loras)
                 out_models.append(m)
                 out_clips.append(c)
                 conditioning.append(PromptPaletteEditor._encode(c, clean))
                 out_prompts.append(clean)
             elif clip is not None:
+                clean, _ignored = PromptPaletteEditor._strip_lora_tags(p)
                 out_models.append(model)
                 out_clips.append(clip)
-                conditioning.append(PromptPaletteEditor._encode(clip, p))
-                out_prompts.append(p)
+                conditioning.append(PromptPaletteEditor._encode(clip, clean))
+                out_prompts.append(clean)
             else:
                 out_models.append(model)
                 out_clips.append(clip)
@@ -633,11 +886,14 @@ class PromptPaletteCombinatorial(io.ComfyNode):
             prompt_metadata.append(build_prompt_metadata(
                 node_type="PromptPaletteCombinatorial",
                 prompt=out_prompts[-1],
+                negative_prompt=resolved_negative,
                 source_prompt=text,
                 source_text=text,
                 seed=seeds_out[index],
                 processing_mode=mode,
                 wildcards_used=used_names,
+                used_enhancer=used_enhancer,
+                enhancer_override=enhancer_override,
                 loras=lora_records,
                 extra={
                     "batch_index": index,
@@ -649,6 +905,28 @@ class PromptPaletteCombinatorial(io.ComfyNode):
             ))
 
         n = len(out_prompts)
+
+        negative_conditioning = None
+        if clip is not None:
+            clean_negative, ignored_negative = PromptPaletteEditor._strip_lora_tags(resolved_negative)
+            if ignored_negative:
+                logger.warning(
+                    "LoRA tags in the negative prompt are ignored by the Combinatorial node; "
+                    "it encodes one shared negative prompt with the unpatched CLIP"
+                )
+            resolved_negative = clean_negative
+            negative_conditioning = PromptPaletteEditor._encode(clip, clean_negative)
+
+        clip_token_count = -1
+        if clip_counting_applies(clip):
+            counts = []
+            for item in out_prompts:
+                stats = count_clip_tokens(item)
+                if stats is not None:
+                    counts.append(stats["tokens"])
+            if counts:
+                clip_token_count = max(counts)
+
         batch_metadata = {
             "schema": "prompt-palette.prompt-metadata.v1",
             "schema_version": 1,
@@ -658,9 +936,17 @@ class PromptPaletteCombinatorial(io.ComfyNode):
             "count": n,
             "source_prompt": text,
             "source_text": text,
+            "negative_prompt": resolved_negative,
+            "source_negative_text": negative_text,
+            "prompt_prefix": prompt_prefix,
+            "prompt_suffix": prompt_suffix,
+            "negative_prefix": negative_prefix,
+            "negative_suffix": negative_suffix,
+            "used_enhancer": used_enhancer,
+            "enhancer_override": enhancer_override if used_enhancer else "",
             "mode": mode,
             "seed_mode": seed_mode,
-            "seed": seed,
+            "seed": effective_seed,
             "requested_count": count,
             "max_prompts": max_prompts,
             "wildcards_used": used_names,
@@ -674,15 +960,22 @@ class PromptPaletteCombinatorial(io.ComfyNode):
         ui_metadata["ui_prompts_count"] = len(ui_metadata["prompts"])
         ui_metadata["ui_prompts_truncated"] = n > ui_limit
         return io.NodeOutput(
+            # 0-6: list outputs, unchanged.
             out_models, out_clips, conditioning, out_prompts, seeds_out, [wildcards_used] * n,
             [compact_json(item) for item in prompt_metadata],
+            # 7-20: single-value outputs, in the order declared in the schema.
+            model, clip, conditioning[0] if conditioning else None, negative_conditioning,
+            out_prompts[0] if out_prompts else "", resolved_negative,
+            seeds_out[0] if seeds_out else effective_seed,
+            wildcards_used, text, len(used_names), used_enhancer, clip_token_count,
+            compact_json(published_batch), n,
             ui={"prompt_palette": ui_metadata},
         )
 
-class PromptPaletteWeightController(io.ComfyNode):
+class PromptPaletteWeightController(PromptPaletteV3Node):
 
-    _WEIGHT_RE = re.compile(
-        r"\(([^()]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\)"
+    _WEIGHT_SUFFIX_RE = re.compile(
+        r"^(.*):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)$", re.DOTALL
     )
 
     _SOFT_CLAMP_STEEPNESS = 8.0
@@ -790,35 +1083,97 @@ class PromptPaletteWeightController(io.ComfyNode):
                 io.Int.Output(
                     "clip_token_count",
                     display_name="CLIP tokens",
-                    tooltip="CLIP-L token count for the weighted text, or -1 when unavailable.",
+                    tooltip="CLIP-L token count for the weighted text, or -1 when unavailable or when the connected text encoder is not CLIP-based.",
                 ),
             ],
         )
 
+    @staticmethod
+    def _find_group_end(text, start):
+        """Index of the ')' matching the '(' at ``start`` (escaped parens ignored), or -1."""
+        depth = 0
+        i = start
+        length = len(text)
+        while i < length:
+            ch = text[i]
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    return i
+            i += 1
+        return -1
+
+    @classmethod
+    def _collect_segments(cls, text, weight, out):
+        pos = 0
+        i = 0
+        length = len(text)
+        while i < length:
+            ch = text[i]
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == "(":
+                end = cls._find_group_end(text, i)
+                if end != -1:
+                    inner = text[i + 1:end]
+                    match = cls._WEIGHT_SUFFIX_RE.match(inner)
+                    if match and match.group(1).strip():
+                        if i > pos:
+                            out.append((text[pos:i], weight))
+                        try:
+                            own = float(match.group(2))
+                        except (ValueError, OverflowError):
+                            own = 1.0
+                        combined = weight * own if math.isfinite(own) else weight
+                        if not math.isfinite(combined):
+                            combined = weight
+                        cls._collect_segments(match.group(1), combined, out)
+                        pos = i = end + 1
+                        continue
+                    # Unweighted group: keep the parentheses as text, but still
+                    # look for weighted groups inside it.
+                    out.append((text[pos:i + 1], weight))
+                    cls._collect_segments(inner, weight, out)
+                    pos = end
+                    i = end + 1
+                    continue
+            i += 1
+        if pos < length:
+            out.append((text[pos:], weight))
+
     @classmethod
     def _parse_weighted_segments(cls, text):
+        """Split ``text`` into (phrase, weight) pieces.
 
+        Nested weighted groups multiply their weights, escaped parentheses stay
+        literal, and whitespace around a weighted phrase is kept outside it.
+        """
+        raw = []
+        cls._collect_segments(text, 1.0, raw)
         segments = []
-        pos = 0
-        for m in cls._WEIGHT_RE.finditer(text):
-            if m.start() > pos:
-                leading = text[pos:m.start()]
-                if leading:
-                    segments.append((leading, 1.0))
-            phrase = m.group(1).strip()
-            try:
-                weight = float(m.group(2))
-            except (ValueError, OverflowError):
-                weight = 1.0
-            if not math.isfinite(weight):
-                weight = 1.0
-            if phrase:
-                segments.append((phrase, weight))
-            pos = m.end()
-        if pos < len(text):
-            trailing = text[pos:]
-            if trailing:
-                segments.append((trailing, 1.0))
+        for phrase, weight in raw:
+            if not phrase:
+                continue
+            if weight == 1.0:
+                segments.append((phrase, 1.0))
+                continue
+            core = phrase.strip()
+            if not core:
+                segments.append((phrase, 1.0))
+                continue
+            lead = phrase[:len(phrase) - len(phrase.lstrip())]
+            trail = phrase[len(phrase.rstrip()):]
+            if lead:
+                segments.append((lead, 1.0))
+            segments.append((core, weight))
+            if trail:
+                segments.append((trail, 1.0))
         return segments
 
     @classmethod
@@ -858,12 +1213,20 @@ class PromptPaletteWeightController(io.ComfyNode):
     def _format_clean_text(cls, segments, weight_clamping, negative_routing):
 
         parts = []
+        dropped = False
         for phrase, weight in segments:
             w = cls._apply_clamp(weight, weight_clamping)
             if w < 0.0 and negative_routing == "Zero Inversion Null":
+                dropped = True
                 continue
+            if dropped:
+                # Don't leave a doubled space (or a leading space) where a phrase was removed.
+                if not parts or (parts[-1][-1:].isspace() and phrase[:1].isspace()):
+                    phrase = phrase.lstrip()
+                dropped = False
             parts.append(phrase)
-        return "".join(parts)
+        result = "".join(parts)
+        return result.rstrip() if dropped else result
 
     @classmethod
     def execute(cls, text, weighting_mode, advanced_controls=False,
@@ -892,9 +1255,17 @@ class PromptPaletteWeightController(io.ComfyNode):
         segments = cls._parse_weighted_segments(text)
 
         weight_dict = {}
+        seen_pairs = set()
         for phrase, weight in segments:
-            if weight != 1.0:
-                weight_dict[phrase] = weight
+            if weight == 1.0 or (phrase, weight) in seen_pairs:
+                continue
+            seen_pairs.add((phrase, weight))
+            key, suffix = phrase, 2
+            while key in weight_dict:
+                # Same phrase, different weight: keep both instead of overwriting.
+                key = f"{phrase} #{suffix}"
+                suffix += 1
+            weight_dict[key] = weight
 
         if weighting_mode == "SDXL / CLIP (Standard)":
             text_out = cls._format_bracket_text(segments, effective_clamping)
@@ -908,7 +1279,7 @@ class PromptPaletteWeightController(io.ComfyNode):
 
             conditioning = PromptPaletteEditor._encode(clip, text_out)
 
-        token_stats = count_clip_tokens(text_out)
+        token_stats = count_clip_tokens(text_out) if clip_counting_applies(clip) else None
         clip_token_count = token_stats["tokens"] if token_stats is not None else -1
 
         return io.NodeOutput(text_out, weight_dict, negpip_text, conditioning,

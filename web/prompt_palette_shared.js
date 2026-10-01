@@ -1,4 +1,56 @@
+import { api } from "../../scripts/api.js";
+
 const STYLE_PROMISES = new Map();
+const EXTENSION_BASE_URL = new URL("./", import.meta.url).href;
+
+// Every Prompt Palette module shares this one registry. If two copies of the node
+// are installed (e.g. "PromptPalette" and "ComfyUI-PromptPalette"), both register
+// here and we warn, because the wrong copy silently winning is the classic cause
+// of "my theme looks different on this machine".
+const INSTANCES = (globalThis.__promptPaletteInstances ||= new Set());
+if (!INSTANCES.has(EXTENSION_BASE_URL)) {
+  INSTANCES.add(EXTENSION_BASE_URL);
+  if (INSTANCES.size > 1) {
+    console.warn(
+      "[Prompt Palette] More than one copy is loaded. Remove the extra folder from custom_nodes:",
+      Array.from(INSTANCES),
+    );
+  }
+}
+
+let buildIdPromise = null;
+
+// Content hash of the installed web/ folder, from the server. Changes whenever any
+// file changes, so it is safe to use as a cache-busting query string.
+export function getPromptPaletteBuildId() {
+  if (!buildIdPromise) {
+    buildIdPromise = (async () => {
+      try {
+        const url = typeof api.apiURL === "function" ? api.apiURL("/prompt_palette/build_id") : "/prompt_palette/build_id";
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) return "";
+        const data = await response.json();
+        const build = String(data?.build || "");
+        if (build) console.info(`[Prompt Palette] assets build ${build} (${EXTENSION_BASE_URL})`);
+        return build;
+      } catch {
+        return "";
+      }
+    })();
+  }
+  return buildIdPromise;
+}
+
+function withBuildParam(href, build) {
+  if (!build) return href;
+  try {
+    const url = new URL(href, document.baseURI);
+    url.searchParams.set("v", build);
+    return url.href;
+  } catch {
+    return href;
+  }
+}
 
 export function loadExtensionStylesheet(href, id = href) {
   if (STYLE_PROMISES.has(id)) return STYLE_PROMISES.get(id);
@@ -10,18 +62,20 @@ export function loadExtensionStylesheet(href, id = href) {
     STYLE_PROMISES.set(id, ready);
     return ready;
   }
-  const promise = new Promise((resolve, reject) => {
+  // Links are appended in call order (the build-id promise resolves callbacks FIFO),
+  // so the CSS cascade order matches the order callers asked for.
+  const promise = getPromptPaletteBuildId().then((build) => new Promise((resolve, reject) => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href;
+    link.href = withBuildParam(href, build);
     link.dataset.promptPaletteStyle = id;
     link.addEventListener("load", () => resolve(link), { once: true });
     link.addEventListener("error", () => {
       link.remove();
-      reject(new Error(`Unable to load ${href}`));
+      reject(new Error(`Unable to load ${link.href}`));
     }, { once: true });
     document.head.appendChild(link);
-  });
+  }));
   const tracked = promise.catch((error) => {
     if (STYLE_PROMISES.get(id) === tracked) STYLE_PROMISES.delete(id);
     throw error;

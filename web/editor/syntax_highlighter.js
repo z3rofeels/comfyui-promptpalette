@@ -5,8 +5,9 @@ function supportsNativeHighlights(editor) {
 }
 
 function styleForDecoration(decoration) {
-  if (decoration.kind === "wildcard") return `color:${decoration.color};text-shadow:0 0 0.35px currentColor;`;
+  if (decoration.kind === "wildcard" || decoration.kind === "booru") return `color:${decoration.color};text-shadow:0 0 0.35px currentColor;`;
   if (decoration.kind === "error") return "color:var(--wg-danger,#d86f70);text-decoration-line:underline;text-decoration-style:dashed;text-decoration-color:var(--wg-danger,#d86f70);";
+  if (decoration.kind === "conditional") return "color:var(--wg-accent,#d49a52);font-weight:600;";
   if (decoration.kind === "weight") return "color:color-mix(in srgb,var(--wg-accent,#d49a52) 82%,var(--wg-prompt-text,#f1eee8));text-shadow:0 0 0.35px currentColor;";
   if (decoration.kind === "modifier") return "color:var(--wg-success,#78b58b);text-shadow:0 0 0.35px currentColor;";
   if (decoration.kind === "bracket") return "color:var(--wg-accent,#d49a52);text-shadow:0 0 0.35px currentColor;";

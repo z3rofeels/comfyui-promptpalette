@@ -1,0 +1,19 @@
+{
+  "schema_version": 4,
+  "source": "PYU224/tagdb-updater",
+  "source_url": "https://raw.githubusercontent.com/PYU224/tagdb-updater/main/dist/danbooru.csv",
+  "generated_at": "2026-09-28T17:03:45Z",
+  "csv_sha256": "9264d5b5cf3fac216b1c0a9553f66c4dfd6328ddf8ef6573a4a3f433638c3bf4",
+  "counts": {
+    "tags": 187415,
+    "aliases": 15405,
+    "alias_values": 15405,
+    "categories": {
+      "general": 36922,
+      "artist": 50000,
+      "copyright": 19893,
+      "character": 80000,
+      "meta": 600
+    }
+  }
+}

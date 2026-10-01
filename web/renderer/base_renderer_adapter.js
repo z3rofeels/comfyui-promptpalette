@@ -31,15 +31,21 @@ export function ioSocketIndex(list, name) {
 
 export function ensureSchemaSocket(node, kind, def) {
   const list = kind === "input" ? node?.inputs : node?.outputs;
-  const matches = (list || []).filter((slot) => slot?.name === def.key);
-  const existing = matches.find((slot) => socketConnected(kind, slot)) || matches[0] || null;
-  if (existing) return existing;
-  let index = -1;
-  if (kind === "input" && typeof node?.addInput === "function") node.addInput(def.key, def.type);
-  else if (kind === "output" && typeof node?.addOutput === "function") node.addOutput(def.key, def.type);
-  const updated = kind === "input" ? node?.inputs : node?.outputs;
-  index = ioSocketIndex(updated, def.key);
-  return index === -1 ? null : updated[index];
+  if (!Array.isArray(list)) return null;
+
+  // V3 schemas own socket creation and ordering. Never append sockets from the
+  // renderer: doing so can create a live frontend slot whose serialized index
+  // is not present in the backend schema/RETURN_TYPES tuple.
+  if (kind === "output" && Number.isInteger(def?.slotIndex)) {
+    const indexed = list[def.slotIndex];
+    // V3 output identity is positional for graph links. The frontend may expose
+    // a display/localized name that differs from the schema key, so never reject
+    // the authoritative slot index just because its current name differs.
+    if (indexed) return indexed;
+  }
+
+  const matches = list.filter((slot) => slot?.name === def.key);
+  return matches.find((slot) => socketConnected(kind, slot)) || matches[0] || null;
 }
 
 export function rememberSocketState(slot) {

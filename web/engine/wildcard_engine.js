@@ -1,5 +1,5 @@
 const WILDCARD_RE = /__([+\-*%~@]?)([A-Za-z0-9_\-/*]+)(?:\(([^()]*)\))?__/g;
-const SIMPLE_TOKEN_RE = /(__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/g;
+const SIMPLE_TOKEN_RE = /(__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
 const LORA_RE = /<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)>/gi;
 const CACHE_LIMIT = 768;
 
@@ -45,7 +45,8 @@ function parseLine(raw) {
       const split = assign >= 0 ? assign : fallback;
       segment = { type: "variable", text: token, name: (split >= 0 ? inner.slice(0, split) : inner).trim(), operator: assign >= 0 ? "=" : fallback >= 0 ? ":" : "", value: split >= 0 ? inner.slice(split + 1).trim() : "", start: match.index, end: match.index + token.length };
       variables.push(segment);
-    } else if (/^\d+::$/.test(token)) segment = { type: "weight", text: token, start: match.index, end: match.index + token.length };
+    } else if (/^\[(?:if|elif|else|\/if)(?:\s+[^\]]+)?\]$/i.test(token)) segment = { type: "conditional", text: token, start: match.index, end: match.index + token.length };
+    else if (/^\d+::$/.test(token)) segment = { type: "weight", text: token, start: match.index, end: match.index + token.length };
     else if (/^(?:\d+(?:-\d+)?\$\$|\d+#)/.test(token)) segment = { type: "modifier", text: token, start: match.index, end: match.index + token.length };
     else if (token === "{" || token === "}") {
       segment = { type: "bracket", text: token, start: match.index, end: match.index + 1 };
@@ -117,6 +118,17 @@ export class UnifiedWildcardEngine {
     const underscores = (source.match(/__/g) || []).length;
     if (underscores % 2) add("error", "unclosed-wildcard", "Unclosed wildcard token", "A double-underscore wildcard delimiter is missing its closing pair.");
 
+    const conditionalStack = [];
+    for (const match of source.matchAll(/\[(if|elif|else|\/if)(?:\s+([^\]]+))?\]/gi)) {
+      const kind = String(match[1]).toLowerCase();
+      if (kind === "if") conditionalStack.push(match.index ?? 0);
+      else if (kind === "elif" || kind === "else") {
+        if (!conditionalStack.length) add("error", "orphan-conditional", "Conditional branch without if", `[${kind}] has no matching [if].`, { index: match.index ?? 0 });
+      } else if (!conditionalStack.length) add("error", "orphan-conditional", "Conditional close without if", "[/if] has no matching [if].", { index: match.index ?? 0 });
+      else conditionalStack.pop();
+    }
+    if (conditionalStack.length) add("error", "unclosed-conditional", "Unclosed conditional", "One or more [if] blocks are missing a closing [/if].");
+
     const duplicateWildcards = new Map();
     for (const token of parsed?.wildcards || []) {
       const glob = token.name.includes("*");
@@ -163,15 +175,57 @@ export class UnifiedWildcardEngine {
     issues.sort((a, b) => rank[a.severity] - rank[b.severity] || a.code.localeCompare(b.code));
     return diagnosticSummary(issues);
   }
-  autocompleteContext(sourceText, caret) {
+  autocompleteContext(sourceText, caret, options = {}) {
     const source = normalize(sourceText);
     const before = source.slice(0, Math.max(0, Number(caret) || 0));
-    const match = before.match(/__([+\-*%~@]?)([A-Za-z0-9_\-/]*)$/);
-    if (!match) return null;
-    const start = match.index;
-    const priorPairs = (before.slice(0, start).match(/__/g) || []).length;
-    if (priorPairs % 2 !== 0) return null;
-    return { query: match[2] || "", modifier: match[1] || "", start, end: before.length };
+    const wildcard = before.match(/__([+\-*%~@]?)([A-Za-z0-9_\-/]*)$/);
+    if (wildcard) {
+      // A query that already contains "__" is a closed wildcard followed by
+      // additional text. If the caret is immediately after the closing "__",
+      // there is nothing to complete; otherwise fall through so the booru
+      // parser can treat the closed wildcard as a boundary for the new word.
+      const containsClosedBoundary = (wildcard[2] || "").includes("__");
+      if (containsClosedBoundary) {
+        if (before.endsWith("__")) return null;
+      } else {
+        const start = wildcard.index;
+        const priorPairs = (before.slice(0, start).match(/__/g) || []).length;
+        if (priorPairs % 2 === 0) {
+          return { kind: "wildcard", query: wildcard[2] || "", modifier: wildcard[1] || "", start, end: before.length };
+        }
+      }
+    }
+    // "{" (optionally with a mode marker, or "${" for variables) that was just typed: offer the
+    // inline-syntax templates. Only the bare opener matches; once anything else follows it the
+    // fragment disappears and the menu closes by itself.
+    const opener = before.match(/(?:^|[^${])(\$?\{[+\-*%]?)$/);
+    if (opener) {
+      const typed = opener[1];
+      return { kind: "syntax", query: typed, modifier: "", start: before.length - typed.length, end: before.length };
+    }
+    if (/\$\{[^}]*$/.test(before)) return null;
+    const minChars = Math.max(1, Math.min(12, Math.round(Number(options?.booruMinChars) || 2)));
+
+    // A Library card inserts a complete `__name__` token. When the user keeps
+    // typing immediately after that token (for example `__characters__artist`),
+    // the normal booru boundary regex sees the whole string as one underscore-
+    // prefixed word and autocomplete cannot start a new query. Treat a closed
+    // wildcard token as a hard autocomplete boundary, just like whitespace or
+    // a comma, while leaving the wildcard token itself non-completable.
+    const afterClosedWildcard = before.match(
+      /__(?:[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?)__([A-Za-z0-9_+():'\/\-]*)$/
+    );
+    if (afterClosedWildcard && afterClosedWildcard[1]) {
+      const query = afterClosedWildcard[1];
+      if (query.length < minChars || query.startsWith("__")) return null;
+      const start = before.length - query.length;
+      return { kind: "booru", query, modifier: "", start, end: before.length };
+    }
+
+    const tag = before.match(/(?:^|[\s,])([A-Za-z0-9_+():'\/\-]*)$/);
+    if (!tag || !tag[1] || tag[1].length < minChars) return null;
+    const start = before.length - tag[1].length;
+    return { kind: "booru", query: tag[1], modifier: "", start, end: before.length };
   }
   stats() { return { cachedLines: this.lineCache.size, lastChars: this.lastSource?.length || 0 }; }
 }

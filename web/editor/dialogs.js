@@ -67,6 +67,21 @@ function dialogChoice({ title, message, choices }) {
 }
 
 
+// For Prompt Palette modal surfaces built elsewhere: counts as an open dialog (so global
+// shortcuts stay quiet) and gets closed with the rest when the editor is torn down.
+// Returns a release function; `close` must be safe to call more than once.
+export function trackDialog(close) {
+  openDialogCount++;
+  activeChoiceDialogs.add(close);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    activeChoiceDialogs.delete(close);
+    openDialogCount--;
+  };
+}
+
 export function cleanupDialogOverlays() {
   for (const finish of [...activeChoiceDialogs]) finish(null);
 }

@@ -31,15 +31,133 @@ function findPrimarySlotRail(nodeElement, node) {
   if (!nodeElement?.querySelector) return null;
   const nodeId = escapeAttributeValue(node?.id);
   const body = nodeElement.querySelector(`[data-testid="node-body-${nodeId}"]`) || nodeElement.querySelector('[data-testid^="node-body-"]');
-  if (!body?.children) return null;
-  for (const candidate of Array.from(body.children)) {
+  if (!body) return null;
+
+  // Current Nodes 2 renders NodeSlots as a wrapper with two child groups:
+  //   NodeSlots -> input group -> .lg-slot--input*
+  //            -> output group -> .lg-slot--output*
+  // Older Nodes 2 builds used a slightly different wrapper shape, so retain a
+  // narrow fallback that walks direct children before using the canonical shape.
+  const firstInput = body.querySelector('.lg-slot--input');
+  const firstOutput = body.querySelector('.lg-slot--output');
+  const inputGroup = firstInput?.parentElement || null;
+  const outputGroup = firstOutput?.parentElement || null;
+  const inputRoot = inputGroup?.parentElement || null;
+  const outputRoot = outputGroup?.parentElement || null;
+  const root = inputRoot && (!outputRoot || inputRoot === outputRoot)
+    ? inputRoot
+    : outputRoot && !inputRoot
+      ? outputRoot
+      : inputRoot?.contains?.(outputGroup)
+        ? inputRoot
+        : outputRoot?.contains?.(inputGroup)
+          ? outputRoot
+          : null;
+
+  if (root && (inputGroup || outputGroup)) {
+    return {
+      root,
+      inputGroup,
+      outputGroup,
+      inputElements: directSlotElements(inputGroup, "input"),
+      outputElements: directSlotElements(outputGroup, "output"),
+    };
+  }
+
+  for (const candidate of Array.from(body.children || [])) {
     const groups = Array.from(candidate?.children || []);
-    const inputGroup = groups.find((group) => directSlotElements(group, "input").length > 0) || null;
-    const outputGroup = groups.find((group) => directSlotElements(group, "output").length > 0) || null;
-    if (!inputGroup && !outputGroup) continue;
-    return { root: candidate, inputGroup, outputGroup, inputElements: directSlotElements(inputGroup, "input"), outputElements: directSlotElements(outputGroup, "output") };
+    const legacyInputGroup = groups.find((group) => directSlotElements(group, "input").length > 0) || null;
+    const legacyOutputGroup = groups.find((group) => directSlotElements(group, "output").length > 0) || null;
+    if (!legacyInputGroup && !legacyOutputGroup) continue;
+    return {
+      root: candidate,
+      inputGroup: legacyInputGroup,
+      outputGroup: legacyOutputGroup,
+      inputElements: directSlotElements(legacyInputGroup, "input"),
+      outputElements: directSlotElements(legacyOutputGroup, "output"),
+    };
   }
   return null;
+}
+
+function renderedNode2Inputs(list) {
+  // The normal NodeSlots component renders non-widget inputs. Widget-backed
+  // sockets are rendered by WidgetGrid instead, where the widget row owns the
+  // socket. Keep this helper limited to the NodeSlots side of the current
+  // Nodes 2 structure.
+  return Array.from(list || []).filter((slot) => !slot?.widget);
+}
+
+function managedWidgetSocketElements(nodeElement, node, inputDefs) {
+  const widgetsRoot = nodeElement?.querySelector?.('[data-testid="node-widgets"]');
+  if (!widgetsRoot) return [];
+
+  const defsByName = new Map((inputDefs || []).map((def) => [def.key, def]));
+  const managedWidgets = [];
+  for (const widget of Array.from(node?.widgets || [])) {
+    if (!widget?.name || !defsByName.has(widget.name)) continue;
+    if (!widget.__ppSocketOnly && !widget.__ppSocketRailCandidate) continue;
+    const inputIndex = (node.inputs || []).findIndex((slot) => slot?.name === widget.name);
+    if (inputIndex < 0) continue;
+    managedWidgets.push({ widget, inputIndex, def: defsByName.get(widget.name) });
+  }
+
+  // WidgetGrid preserves node.widgets order for the rows it renders. Since
+  // Prompt Palette marks only its managed backing widgets as socket-only, the
+  // row order is enough to map the live InputSlot back to the real input index.
+  const rows = Array.from(widgetsRoot.querySelectorAll('[data-testid="node-widget"]'));
+  const visible = managedWidgets.filter(({ widget }) => widget.hidden !== true && widget.options?.hidden !== true);
+  const elements = [];
+  for (let i = 0; i < visible.length; i += 1) {
+    const row = rows[i];
+    const socket = row?.querySelector?.('.lg-slot--input');
+    if (socket) elements.push({ element: socket, row, ...visible[i] });
+  }
+  return elements;
+}
+
+function hideWidgetRowControl(row) {
+  if (!row) return;
+  for (const child of Array.from(row.children || [])) {
+    if (child.querySelector?.('.lg-slot--input')) continue;
+    child.hidden = true;
+    child.setAttribute('aria-hidden', 'true');
+    child.style.display = 'none';
+  }
+}
+
+function setWidgetSocketLabel(element, label, show) {
+  const wrapper = element?.parentElement;
+  if (!wrapper) return;
+  if (show && label) {
+    wrapper.style.position = 'relative';
+    wrapper.style.opacity = '1';
+    let labelEl = wrapper.querySelector?.('[data-pp-widget-socket-label]');
+    if (!labelEl) {
+      const doc = element?.ownerDocument || globalThis.document;
+      if (!doc?.createElement) return;
+      labelEl = doc.createElement('span');
+      labelEl.dataset.ppWidgetSocketLabel = 'true';
+      wrapper.appendChild(labelEl);
+    }
+    labelEl.textContent = label;
+    labelEl.style.position = 'absolute';
+    labelEl.style.left = '11px';
+    labelEl.style.top = '50%';
+    labelEl.style.transform = 'translateY(-50%)';
+    labelEl.style.whiteSpace = 'nowrap';
+    labelEl.style.pointerEvents = 'none';
+    labelEl.style.fontSize = '9px';
+    labelEl.style.lineHeight = '12px';
+    labelEl.style.color = 'var(--node-text, var(--fg-color, #c9c9c9))';
+  } else {
+    const labelEl = wrapper.querySelector?.('[data-pp-widget-socket-label]');
+    labelEl?.remove?.();
+  }
+}
+
+function renderedLabelText(element) {
+  return element?.querySelector?.('.text-node-component-slot-text')?.textContent ?? '';
 }
 function setVueSocketState(element, { hidden = false, showLabels = false, label = "" } = {}) {
   if (!element) return;
@@ -50,7 +168,15 @@ function setVueSocketState(element, { hidden = false, showLabels = false, label 
   element.dataset.ppSocketLabels = labelMode;
   element.hidden = hidden;
   element.setAttribute("aria-hidden", hiddenText);
-  if (label) { element.title = label; element.setAttribute("aria-label", label); }
+  if (label) {
+    element.title = label;
+    element.setAttribute("aria-label", label);
+    // V3's Nodes 2 slot labels are Vue-rendered from NodeState. Palette's
+    // classic renderer deliberately uses a zero-width compact label, so keep
+    // the mounted Vue text authoritative here without changing graph links.
+    const text = element.querySelector?.('.text-node-component-slot-text');
+    if (text && showLabels && text.textContent !== label) text.textContent = label;
+  }
   if (hidden) element.setAttribute("inert", ""); else element.removeAttribute("inert");
 }
 
@@ -147,16 +273,23 @@ export class Nodes2RendererAdapter extends RendererAdapter {
       if (!nodeElement) return false;
       const rail = findPrimarySlotRail(nodeElement, this.node);
       if (!rail) return false;
-      const inputSlots = Array.from(this.node?.inputs || []);
+      const inputSlots = renderedNode2Inputs(this.node?.inputs || []);
+      const widgetSocketEntries = managedWidgetSocketElements(nodeElement, this.node, this.inputDefs);
       const outputSlots = Array.from(this.node?.outputs || []);
-      const inputGroups = managedSocketGroups(inputSlots, this.inputDefs, "input");
+      const inputGroups = managedSocketGroups([
+        ...inputSlots,
+        ...widgetSocketEntries.map((entry) => this.node?.inputs?.[entry.inputIndex]).filter(Boolean),
+      ], this.inputDefs, "input");
       const outputGroups = managedSocketGroups(outputSlots, this.outputDefs, "output");
       const showLabels = !!this.labelsShown();
       const signature = JSON.stringify([
         showLabels,
         inputSlots.map((slot, index) => [index, slot?.name || "", inputGroups.visibleSet.has(slot), slot?.link ?? null]),
         outputSlots.map((slot, index) => [index, slot?.name || "", outputGroups.visibleSet.has(slot), Array.isArray(slot?.links) ? slot.links.length : 0]),
-        rail.inputElements.length, rail.outputElements.length,
+        rail.inputElements.length, widgetSocketEntries.length, rail.outputElements.length,
+        rail.inputElements.map((element) => renderedLabelText(element)),
+        widgetSocketEntries.map((entry) => renderedLabelText(entry.element)),
+        rail.outputElements.map((element) => renderedLabelText(element)),
       ]);
       if (this.lastSyncedVueNode === nodeElement && this.signature === signature) return false;
       this.lastSyncedVueNode = nodeElement;
@@ -167,6 +300,20 @@ export class Nodes2RendererAdapter extends RendererAdapter {
         const hidden = !slot || !inputGroups.visibleSet.has(slot);
         if (!hidden) visibleCount += 1;
         setVueSocketState(element, { hidden, showLabels, label: socketDisplayLabel(slot, this.inputDefs) });
+      });
+      widgetSocketEntries.forEach(({ element, row, widget, inputIndex, def }) => {
+        const slot = this.node?.inputs?.[inputIndex];
+        const hidden = !slot || !inputGroups.visibleSet.has(slot);
+        if (!hidden) visibleCount += 1;
+        hideWidgetRowControl(row);
+        if (row) {
+          row.hidden = hidden;
+          row.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+        }
+        widget.__ppSocketOnly = !hidden;
+        const label = def?.label || socketDisplayLabel(slot, this.inputDefs);
+        setWidgetSocketLabel(element, label, !hidden && showLabels);
+        setVueSocketState(element, { hidden, showLabels: false, label });
       });
       rail.outputElements.forEach((element, index) => {
         const slot = outputSlots[index];

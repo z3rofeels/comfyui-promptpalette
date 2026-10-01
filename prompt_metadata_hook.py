@@ -107,8 +107,30 @@ def _combinatorial_metadata_is_fresh(metadata: dict[str, Any], inputs: dict[str,
     for name, expected, default in checks:
         if not _same_text(inputs, name, expected, default):
             return False
-    for name, expected, default in (
-        ("seed", metadata.get("seed", 0), 0),
+    for input_name, metadata_name in (
+        ("prompt_prefix", "prompt_prefix"),
+        ("prompt_suffix", "prompt_suffix"),
+        ("enhancer_override", "enhancer_override"),
+        ("negative_text", "source_negative_text"),
+        ("negative_prefix", "negative_prefix"),
+        ("negative_suffix", "negative_suffix"),
+    ):
+        if not _same_text(inputs, input_name, metadata.get(metadata_name, "")):
+            return False
+    # An external seed overrides the Seed control; metadata stores the effective seed.
+    external_literal, external_seed = _literal(inputs, "external_seed", None)
+    if not external_literal:
+        return False
+    if external_seed is not None:
+        try:
+            if int(external_seed) != int(metadata.get("seed", 0)):
+                return False
+        except (TypeError, ValueError, OverflowError):
+            return False
+        seed_checks = ()
+    else:
+        seed_checks = (("seed", metadata.get("seed", 0), 0),)
+    for name, expected, default in seed_checks + (
         ("count", metadata.get("requested_count", 10), 10),
         ("max_prompts", metadata.get("max_prompts", 0), 0),
     ):

@@ -5,10 +5,11 @@ import { scheduleNodeTimer, cancelNodeTimer } from "../prompt_palette_compat.js"
 import {
   loadTheme, defaultTheme, saveTheme, loadCategoryPalettes, saveCategoryPalettes, categoryPaletteSnapshot,
   UI_THEME_KEYS, BUILTIN_UI_THEMES, THEME_PACKS, normalizeUiThemeName, loadUiThemes, saveUiThemes,
+  DEFAULT_BOORU_COLORS_DARK, DEFAULT_BOORU_COLORS_LIGHT,
   loadActiveUiThemeName, saveActiveUiThemeName,
 } from "./preferences.js";
 import {
-  hashStr, categoryOf, escapeHtml, sanitizeHexColor, contrastRatio, currentUiSurface, categoryColorFromHue,
+  hashStr, categoryOf, escapeHtml, sanitizeHexColor, contrastRatio, nudgeHexForContrast, relativeLuminance, currentUiSurface, categoryColorFromHue,
 } from "./text_utils.js";
 import { dialogPrompt, dialogConfirm, dialogChoice } from "./dialogs.js";
 import { closeInjectMenu, injectState } from "./injector.js";
@@ -151,6 +152,13 @@ export function createThemeController(ctx) {
   const categoryPresetSelect = el("categoryPresetSelect");
   const categoryPresetStatus = el("categoryPresetStatus");
   const themePackStatus = el("themePackStatus");
+  const toggleBooruAutocompleteCb = el("toggleBooruAutocomplete");
+  const booruAutocompleteMode = el("booruAutocompleteMode");
+  const booruAutocompleteMinChars = el("booruAutocompleteMinChars");
+  const booruSourceDatabase = el("booruSourceDatabase");
+  const booruSourceCustomWords = el("booruSourceCustomWords");
+  const toggleBooruPromptColorsCb = el("toggleBooruPromptColors");
+  const booruColorRoot = el("booruColors");
   let categoryFilter = "";
   let categoryPalettes = loadCategoryPalettes();
   let automaticControlOpen = false;
@@ -193,12 +201,17 @@ export function createThemeController(ctx) {
     theme.hueRotate = Math.max(0, Math.min(359, Number(saved.hueRotate) || 0));
     theme.saturation = Math.max(30, Math.min(90, Number(saved.saturation) || 58));
     theme.categoryPins = Object.fromEntries(Object.entries(saved.categoryPins || {}).map(([key, value]) => [key, sanitizeHexColor(value, automaticCategoryColor(key))]));
+    if (saved.booruColors && typeof saved.booruColors === "object") {
+      theme.booruColors = Object.fromEntries(BOORU_CATEGORY_KEYS.map((key) => [key, sanitizeHexColor(saved.booruColors[key], (theme.booruColors || {})[key] || currentBooruDefaultPalette()[key])]));
+      theme.booruColorsCustomized = saved.booruColorsCustomized !== false;
+    }
     hueRange.value = theme.hueRotate;
     hueOut.textContent = `${theme.hueRotate}°`;
     satRange.value = theme.saturation;
     satOut.textContent = `${theme.saturation}%`;
     saveTheme(theme);
     renderCatPins();
+    renderBooruColors();
     render();
     updateThemeJson();
     setCategoryPresetStatus(`Restored “${name}”.`);
@@ -308,6 +321,73 @@ export function createThemeController(ctx) {
     });
   }
 
+  const BOORU_CATEGORY_KEYS = ["general", "artist", "copyright", "character", "meta", "custom"];
+  const BOORU_CATEGORY_LABELS = {
+    general: "General", artist: "Artist", copyright: "Copyright / series",
+    character: "Character", meta: "Meta", custom: "Custom words",
+  };
+
+  function currentBooruContrastSurface() {
+    const raw = settingsRoot ? getComputedStyle(settingsRoot).backgroundColor : "";
+    const rgb = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    const panel = rgb ? `#${[rgb[1], rgb[2], rgb[3]].map(channel => Number(channel).toString(16).padStart(2, "0")).join("")}` : "";
+    return sanitizeHexColor(panel, currentUiSurface());
+  }
+
+  function currentBooruDefaultPalette() {
+    return relativeLuminance(currentBooruContrastSurface()) > 0.45 ? DEFAULT_BOORU_COLORS_LIGHT : DEFAULT_BOORU_COLORS_DARK;
+  }
+
+  function resolvedBooruColors() {
+    const defaults = currentBooruDefaultPalette();
+    const saved = theme.booruColors && typeof theme.booruColors === "object" ? theme.booruColors : {};
+    const base = theme.booruColorsCustomized ? { ...defaults, ...saved } : { ...defaults };
+    const background = currentBooruContrastSurface();
+    return Object.fromEntries(BOORU_CATEGORY_KEYS.map((key) => [
+      key, nudgeHexForContrast(sanitizeHexColor(base[key], defaults[key]), background),
+    ]));
+  }
+
+  function renderBooruColors() {
+    if (!booruColorRoot) return;
+    const colors = resolvedBooruColors();
+    booruColorRoot.innerHTML = "";
+    BOORU_CATEGORY_KEYS.forEach((key) => {
+      const row = document.createElement("div");
+      row.className = "wg-category-row";
+      const value = colors[key];
+      const adjusted = nudgeHexForContrast(sanitizeHexColor(theme.booruColors?.[key], value), currentBooruContrastSurface()) !== sanitizeHexColor(theme.booruColors?.[key], value);
+      row.innerHTML = `
+        <div class="wg-category-copy"><strong>${escapeHtml(BOORU_CATEGORY_LABELS[key])}</strong><small>${adjusted ? "Adjusted for contrast" : (theme.booruColorsCustomized ? "Custom override" : "Theme default")}</small></div>
+        <div class="wg-category-controls">
+          <button type="button" class="wg-color-chip" style="--chip:${value}" aria-label="Choose booru color for ${escapeHtml(BOORU_CATEGORY_LABELS[key])}"></button>
+          <input type="text" class="wg-hex-input" value="${value}" maxlength="7" aria-label="Hex color for ${escapeHtml(BOORU_CATEGORY_LABELS[key])}">
+          <input type="color" value="${value}" aria-label="Pick color for ${escapeHtml(BOORU_CATEGORY_LABELS[key])}">
+        </div>`;
+      const chip = row.querySelector(".wg-color-chip");
+      const hex = row.querySelector(".wg-hex-input");
+      const picker = row.querySelector('input[type="color"]');
+      const commit = (rawValue) => {
+        const safe = nudgeHexForContrast(sanitizeHexColor(rawValue, value), currentBooruContrastSurface());
+        theme.booruColors = { ...(theme.booruColors || {}), [key]: safe };
+        theme.booruColorsCustomized = true;
+        hex.value = safe;
+        picker.value = safe;
+        chip.style.setProperty("--chip", safe);
+        row.querySelector("small").textContent = safe !== sanitizeHexColor(rawValue, value) ? "Adjusted for contrast" : "Custom override";
+        saveTheme(theme);
+        render();
+        updateThemeJson();
+      };
+      chip.addEventListener("click", () => picker.click());
+      picker.addEventListener("input", e => commit(e.target.value));
+      hex.addEventListener("change", e => commit(e.target.value));
+      hex.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); hex.blur(); } });
+      booruColorRoot.appendChild(row);
+    });
+    booruColorRoot.dataset.contrast = contrastRatio(colors.general, currentBooruContrastSurface()).toFixed(2);
+  }
+
   hueRange.addEventListener("input", () => {
     const value = parseInt(hueRange.value, 10);
     if (Object.keys(theme.categoryPins || {}).length) {
@@ -364,6 +444,14 @@ export function createThemeController(ctx) {
     theme.categoryPins = {};
     saveTheme(theme); renderCatPins(); render(); updateThemeJson();
   });
+  settingsRoot.querySelector('[data-act="booruColorsReset"]')?.addEventListener("click", () => {
+    theme.booruColors = { ...currentBooruDefaultPalette() };
+    theme.booruColorsCustomized = false;
+    saveTheme(theme);
+    renderBooruColors();
+    render();
+    updateThemeJson();
+  });
 
   function buildThemePack() {
     const colors = (typeof allUiThemes === "function" ? allUiThemes()[activeUiThemeName] : null) || BUILTIN_UI_THEMES.Cinder;
@@ -377,6 +465,8 @@ export function createThemeController(ctx) {
         hueRotate: Number(theme.hueRotate) || 0,
         saturation: Number(theme.saturation) || 58,
         categoryPins: { ...(theme.categoryPins || {}) },
+        booruColors: { ...resolvedBooruColors() },
+        booruColorsCustomized: !!theme.booruColorsCustomized,
         promptTextColor: sanitizeHexColor(theme.promptTextColor, "#f1eee8"),
         promptTextColorMode: theme.promptTextColorMode === "custom" ? "custom" : "theme",
       },
@@ -388,7 +478,11 @@ export function createThemeController(ctx) {
       effects: {
         cornerRadius: Math.max(4, Math.min(18, Number(theme.cornerRadius) || 10)),
       },
-      layout: Object.fromEntries(Object.entries(theme).filter(([key]) => key.startsWith("show") || ["syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "zenMode", "layoutPreset", "dayTheme", "nightTheme"].includes(key))),
+      layout: Object.fromEntries(Object.entries(theme).filter(([key]) => key.startsWith("show") || [
+        "syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "booruAutocompleteEnabled",
+        "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors",
+        "zenMode", "layoutPreset", "dayTheme", "nightTheme",
+      ].includes(key))),
     };
   }
 
@@ -443,6 +537,11 @@ export function createThemeController(ctx) {
       if (pack.tokens.categoryPins && typeof pack.tokens.categoryPins === "object") {
         theme.categoryPins = Object.fromEntries(Object.entries(pack.tokens.categoryPins).map(([key, value]) => [key, sanitizeHexColor(value, automaticCategoryColor(key))]));
       }
+      if (pack.tokens.booruColors && typeof pack.tokens.booruColors === "object") {
+        const defaults = currentBooruDefaultPalette();
+        theme.booruColors = Object.fromEntries(BOORU_CATEGORY_KEYS.map((key) => [key, sanitizeHexColor(pack.tokens.booruColors[key], defaults[key])]));
+        theme.booruColorsCustomized = pack.tokens.booruColorsCustomized !== false;
+      }
       if (pack.tokens.promptTextColor) theme.promptTextColor = sanitizeHexColor(pack.tokens.promptTextColor, theme.promptTextColor);
       if (["theme", "custom"].includes(pack.tokens.promptTextColorMode)) theme.promptTextColorMode = pack.tokens.promptTextColorMode;
     }
@@ -459,8 +558,12 @@ export function createThemeController(ctx) {
     if (pack.layout && typeof pack.layout === "object") {
       const defaults = defaultTheme();
       for (const [key, value] of Object.entries(pack.layout)) {
-        if (!(key in defaults) || !["boolean", "string"].includes(typeof value)) continue;
-        if (key === "layoutPreset") {
+        if (!(key in defaults) || !["boolean", "string", "number"].includes(typeof value)) continue;
+        if (key === "booruAutocompleteMode") {
+          theme[key] = ["auto", "onDemand", "off"].includes(value) ? value : "auto";
+        } else if (key === "booruAutocompleteMinChars") {
+          theme[key] = Math.max(1, Math.min(12, Math.round(Number(value) || 2)));
+        } else if (key === "layoutPreset") {
           theme[key] = ["minimal", "balanced", "studio", "custom"].includes(value) ? value : "custom";
         } else {
           theme[key] = value;
@@ -481,6 +584,7 @@ export function createThemeController(ctx) {
     applyPowerToolSettings();
     applyZenMode();
     renderCatPins();
+    renderBooruColors();
     render();
     updateThemeJson();
     return pack;
@@ -514,7 +618,7 @@ export function createThemeController(ctx) {
     hueRange.value = 0; hueOut.textContent = "0°";
     satRange.value = 58; satOut.textContent = "58%";
     refreshFontControlsUI(); applyFontSettings(); refreshLibraryTypographyGeometry(); applyUiTheme(); refreshUiThemeUI();
-    applyToolbarSettings(); refreshToolbarSettingsUI(); applyStarterPacksSetting(); applyPowerToolSettings({ refreshPreview: true }); applyZenMode(); renderCatPins(); render(); updateThemeJson();
+    applyToolbarSettings(); refreshToolbarSettingsUI(); applyStarterPacksSetting(); applyPowerToolSettings({ refreshPreview: true }); applyZenMode(); renderCatPins(); renderBooruColors(); render(); updateThemeJson();
     setThemePackStatus("Preferences reset to Cinder.");
   });
 
@@ -741,7 +845,7 @@ export function createThemeController(ctx) {
     setUiThemeStatus(`${baseStatus} Text contrast ${textContrast.toFixed(1)}:1 (${contrastGrade}).`, textContrast < 4.5);
   }
 
-  function refreshUiThemeUI() { renderThemePackStrip(); renderUiThemeGallery(); renderUiThemeSwatches(); refreshDayNightSelects(); refreshAppearanceControlsUI(); updateThemeJson(); }
+  function refreshUiThemeUI() { renderThemePackStrip(); renderUiThemeGallery(); renderUiThemeSwatches(); refreshDayNightSelects(); refreshAppearanceControlsUI(); renderBooruColors(); updateThemeJson(); }
 
   function renderHelpResults() {
     const items = searchPromptPaletteHelp(helpSearch?.value || "");
@@ -885,6 +989,12 @@ export function createThemeController(ctx) {
     toggleSyntaxInjectorCb.checked = theme.syntaxInjectorEnabled !== false;
     togglePromptHistoryCb.checked = theme.promptHistoryEnabled !== false;
     toggleStarterPacksCb.checked = theme.starterPacksEnabled !== false;
+    toggleBooruAutocompleteCb.checked = theme.booruAutocompleteEnabled !== false;
+    booruAutocompleteMode.value = ["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode) ? theme.booruAutocompleteMode : "auto";
+    booruAutocompleteMinChars.value = Math.max(1, Math.min(12, Number(theme.booruAutocompleteMinChars) || 2));
+    booruSourceDatabase.checked = theme.booruSourceDatabase !== false;
+    booruSourceCustomWords.checked = theme.booruSourceCustomWords !== false;
+    toggleBooruPromptColorsCb.checked = theme.booruPromptColors !== false;
     toggleZenModeCb.checked = !!theme.zenMode;
     TOOLBAR_BTN_TOGGLES.forEach(([, key, cb]) => {
       cb.checked = theme[key] !== false;
@@ -989,6 +1099,38 @@ export function createThemeController(ctx) {
     applyStarterPacksSetting();
     updateThemeJson();
   });
+  toggleBooruAutocompleteCb.addEventListener("change", () => {
+    theme.booruAutocompleteEnabled = toggleBooruAutocompleteCb.checked;
+    if (theme.booruAutocompleteEnabled && theme.booruAutocompleteMode === "off") theme.booruAutocompleteMode = "auto";
+    if (!theme.booruAutocompleteEnabled) theme.booruAutocompleteMode = "off";
+    booruAutocompleteMode.value = theme.booruAutocompleteMode;
+    saveTheme(theme);
+    updateThemeJson();
+  });
+  booruAutocompleteMode.addEventListener("change", () => {
+    theme.booruAutocompleteMode = ["auto", "onDemand", "off"].includes(booruAutocompleteMode.value) ? booruAutocompleteMode.value : "auto";
+    theme.booruAutocompleteEnabled = theme.booruAutocompleteMode !== "off";
+    saveTheme(theme);
+    refreshToolbarSettingsUI();
+    updateThemeJson();
+  });
+  booruAutocompleteMinChars.addEventListener("change", () => {
+    theme.booruAutocompleteMinChars = Math.max(1, Math.min(12, Math.round(Number(booruAutocompleteMinChars.value) || 2)));
+    booruAutocompleteMinChars.value = theme.booruAutocompleteMinChars;
+    saveTheme(theme);
+    updateThemeJson();
+  });
+  toggleBooruPromptColorsCb.addEventListener("change", () => {
+    theme.booruPromptColors = toggleBooruPromptColorsCb.checked;
+    saveTheme(theme);
+    render();
+    updateThemeJson();
+  });
+  [booruSourceDatabase, booruSourceCustomWords].forEach((input) => input.addEventListener("change", () => {
+    theme[input === booruSourceDatabase ? "booruSourceDatabase" : "booruSourceCustomWords"] = input.checked;
+    saveTheme(theme);
+    updateThemeJson();
+  }));
   settingsRoot.querySelectorAll("[data-layout-preset]").forEach(button => {
     button.addEventListener("click", () => setLayoutPreset(button.dataset.layoutPreset));
   });

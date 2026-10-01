@@ -13,9 +13,8 @@ import {
 import {
   categoryOf, isRecipeCategory, normalizeLibraryEntryPath, escapeHtml, highlightMatch, hashStr, categoryColorFromHue,
 } from "./text_utils.js";
-import {
-  findWildcardFragment, openOrUpdateAcMenu, closeAcMenu, renderAcMenu, commitAcSelection, acState,
-} from "./autocomplete.js";
+import { getBooruAutocompleteMatches, attachAutocomplete } from "./autocomplete.js";
+import { libraryAcRows, mergeUnifiedRows } from "./autocomplete_sources.js";
 import {
   runTextareaEditCommand, insertInjectorText, openInjectMenu, closeInjectMenu, scheduleCloseInjectMenu,
   cancelScheduledCloseInjectMenu, injectState,
@@ -85,6 +84,7 @@ export function createLibraryController(ctx) {
     return idx + Math.min(col, lines[row].length);
   }
   async function showTipForName(x, y, name, known) {
+    const requestVersion = ++hoverRequestVersion;
     let lines = [];
     if (known) {
       let entry = previewCache.get(name);
@@ -96,6 +96,7 @@ export function createLibraryController(ctx) {
           entry = null;
         }
       }
+      if (requestVersion !== hoverRequestVersion || !nodeIsActive(node)) return;
       lines = (entry?.lines || []).slice(0, 4);
     } else {
       lines = closestPromptEntries(name, state.knownSet, 3).map((path) => `Did you mean ${path}?`);
@@ -108,8 +109,9 @@ export function createLibraryController(ctx) {
     hoverTip.style.top = (y + 14) + "px";
     hoverTip.style.display = "block";
   }
-  function hideTip() { hoverTip.style.display = "none"; }
+  function hideTip() { hoverRequestVersion += 1; hoverTip.style.display = "none"; }
   let hoverDebounce = null;
+  let hoverRequestVersion = 0;
   textarea.addEventListener("mousemove", (e) => {
     if (state.workspacePrefs?.disableHoverPreviews) { hideTip(); return; }
     const idx = charIndexFromEvent(e);
@@ -155,54 +157,26 @@ export function createLibraryController(ctx) {
     renderPickerList(searchInput.value);
   }
 
-  async function getAcMatches(query) {
+  async function getAcMatches(query, contextKind = "wildcard") {
     const q = String(query || "").trim().toLowerCase();
     ensureLibraryIndex();
-    const contains = (value) => !q || String(value).toLowerCase().includes(q);
-    const used = new Set();
-    const rows = [];
-    const pushLibrary = (path, group, kind = "library", favorite = false, allowFuzzy = false) => {
-      if (!path || used.has(`library:${path}`) || (!allowFuzzy && !contains(path))) return;
-      used.add(`library:${path}`);
-      rows.push({ value: path, label: path, group, kind, favorite, meta: path.split("/").slice(0, -1).join(" / ") });
-    };
+    const recents = usageStore.libraryRecent(12);
     let rankedPaths;
     if (q && state.workerClient?.shouldUseForLibrary?.()) {
-      try { rankedPaths = (await state.workerClient.search(q, 32, { pinned, recent: usageStore.libraryRecent(12) })).map((item) => item.path); } catch { rankedPaths = null; }
+      try { rankedPaths = (await state.workerClient.search(q, 32, { pinned, recent: recents })).map((item) => item.path); } catch { rankedPaths = null; }
     }
     if (!rankedPaths) {
-      const options = { limit: 32, pinned, recent: usageStore.libraryRecent(12) };
+      const options = { limit: 32, pinned, recent: recents };
       rankedPaths = profiler?.measure("library.search", () => libraryIndex.search(q, options).map((item) => item.path))
         || libraryIndex.search(q, options).map((item) => item.path);
     }
-
-    [...pinned].filter(contains).slice(0, 6).forEach((path) => pushLibrary(path, "Favorites", "favorite", true));
-    usageStore.libraryRecent(12).filter(contains).forEach((path) => pushLibrary(path, "Recent", "recent"));
-    rankedPaths.slice(0, 16).forEach((path) => pushLibrary(path, "My Library", "library", false, true));
-
-    if (q.length >= 2 && state.starterAutocompleteRows.length) {
-      const starterMatches = state.starterAutocompleteRows
-        .filter((entry) => `${entry.title} ${entry.categoryName} ${entry.modelName} ${entry.note} ${entry.prompt}`.toLowerCase().includes(q))
-        .sort((a, b) => {
-          const at = a.title.toLowerCase();
-          const bt = b.title.toLowerCase();
-          const ar = at.startsWith(q) ? 0 : 1;
-          const br = bt.startsWith(q) ? 0 : 1;
-          return ar - br || a.modelName.localeCompare(b.modelName) || a.title.localeCompare(b.title);
-        })
-        .slice(0, 6);
-      starterMatches.forEach((entry) => rows.push({
-        value: entry.id,
-        label: entry.title,
-        group: "Starter Packs",
-        kind: "starter",
-        meta: `${entry.modelName} · ${entry.categoryName}`,
-        insertText: entry.prompt,
-        selectInserted: true,
-        starterEntry: entry,
-      }));
-    }
-    return rows.slice(0, 28);
+    // Prompts, wildcards, recipes, favorites and recents, colored like the library itself.
+    // (Starter Packs stay in the Prompt Library only, so autocomplete stays focused on prompt text.)
+    const libraryRows = libraryAcRows(q, { rankedPaths, pinned, recents, theme, limit: contextKind === "booru" ? 24 : 28 })
+      .filter((item) => item?.kind !== "starter");
+    if (contextKind !== "booru") return libraryRows;
+    const tagRows = await getBooruAutocompleteMatches(q);
+    return mergeUnifiedRows(tagRows, libraryRows);
   }
 
   function commitAcItem(item) {
@@ -212,52 +186,18 @@ export function createLibraryController(ctx) {
         usageStore.recordStarter(entry);
         state.starterSaveSuggestion = normalizeLibraryEntryPath(`${entry.modelName}/${entry.categoryName}/${entry.title}`);
       }
-    } else if (item?.value) {
+    } else if (item?.value && item.kind !== "booru" && item.kind !== "custom" && item.kind !== "syntax") {
       usageStore.recordLibrary(item.value);
       state.recentList = usageStore.libraryRecent(12);
       renderPickerList(searchInput.value);
     }
   }
 
-  textarea.addEventListener("input", () => {
-    const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
-    if (!fragment) return closeAcMenu();
-    openOrUpdateAcMenu(textarea, fragment, getAcMatches, commitAcItem);
+  const cleanupAutocompleteBinding = attachAutocomplete(textarea, {
+    getMatches: getAcMatches,
+    onCommit: commitAcItem,
+    syntax: true,
   });
-
-  textarea.addEventListener("keydown", (e) => {
-    if (state.workspacePrefs?.keyboardNavigation === false) return;
-    if (!acState || acState.textarea !== textarea) return;
-    const count = acState.items.length;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      acState.activeIndex = count ? (acState.activeIndex + 1) % count : 0;
-      renderAcMenu();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      acState.activeIndex = count ? (acState.activeIndex - 1 + count) % count : 0;
-      renderAcMenu();
-    } else if (e.key === "Enter" || e.key === "Tab") {
-      if (!count) return;
-      e.preventDefault();
-      e.stopPropagation();
-      commitAcSelection(acState.activeIndex);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      closeAcMenu();
-    }
-  });
-
-  function recheckAcOnCaretMove() {
-    if (!acState || acState.textarea !== textarea) return;
-    const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
-    if (!fragment || fragment.start !== acState.start) closeAcMenu();
-  }
-  textarea.addEventListener("keyup", (e) => {
-    if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) recheckAcOnCaretMove();
-  });
-  textarea.addEventListener("click", recheckAcOnCaretMove);
 
   const WRAP_SYNTAX = {
     Digit1: { open: "[color1]", close: "[/color1]" },
@@ -820,6 +760,41 @@ export function createLibraryController(ctx) {
     notify("success", "Saved to My Library", `${label} \u2192 __${slug}__`);
   }
 
+  async function promptSaveSelectionAsList(start, end) {
+    const selectedText = textarea.value.slice(start, end);
+    const values = selectedText
+      .split(/[\r\n,]+/)
+      .map(value => value.trim())
+      .filter(Boolean);
+    if (!values.length) return;
+    const raw = await dialogPrompt({
+      title: "Save as list",
+      message: "Choose a My Library path for this tag list:",
+      defaultValue: "lists/new_list",
+    });
+    if (raw === null || raw === undefined) return;
+    const slug = normalizeLibraryEntryPath(raw);
+    if (!slug) {
+      notify("error", "List not saved", "Enter a valid path using letters, numbers, - _ or /.");
+      return;
+    }
+    if (state.knownSet.has(slug)) {
+      const overwrite = await dialogConfirm({ title: "Overwrite list", message: `"${slug}" already exists — overwrite it?` });
+      if (!overwrite) return;
+    }
+    const res = await API.save(slug, values.join("\n"));
+    if (!res.ok) {
+      notify("error", "List not saved", res.error || "save failed");
+      return;
+    }
+    previewCache.delete(slug);
+    await refreshLibrary();
+    renderPickerList(searchInput.value);
+    notify("success", "Saved list", `${values.length} tag${values.length === 1 ? "" : "s"} → __${slug}__`);
+  }
+
+  textarea.__ppSaveSelectionAsList = promptSaveSelectionAsList;
+
   const editName = el("editName");
   const editContent = el("editContent");
   const editStatus = el("editStatus");
@@ -1136,6 +1111,10 @@ export function createLibraryController(ctx) {
         indexEntries: libraryIndex.size(),
       };
     },
-    cleanup() { virtualManager.cleanup(); starterPackController.cleanup(); },
+    cleanup() {
+      cleanupAutocompleteBinding?.();
+      virtualManager.cleanup();
+      starterPackController.cleanup();
+    },
   };
 }

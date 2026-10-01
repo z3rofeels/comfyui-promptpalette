@@ -76,6 +76,34 @@ function contrastRatio(a, b) {
   const first = relativeLuminance(a), second = relativeLuminance(b);
   return (Math.max(first, second) + .05) / (Math.min(first, second) + .05);
 }
+function hexToRgb(hex) {
+  const value = sanitizeHexColor(hex, "#000000").slice(1);
+  return [0, 2, 4].map(index => parseInt(value.slice(index, index + 2), 16));
+}
+function rgbToHex(rgb) {
+  return `#${rgb.map((channel) => {
+    const safe = Math.max(0, Math.min(255, Math.round(channel)));
+    return safe.toString(16).padStart(2, "0");
+  }).join("")}`;
+}
+function nudgeHexForContrast(value, background, minimum = 4.5) {
+  const original = sanitizeHexColor(value);
+  const bg = sanitizeHexColor(background, "#121417");
+  if (contrastRatio(original, bg) >= minimum) return original;
+  const base = hexToRgb(original);
+  const candidates = [];
+  for (const target of [[0, 0, 0], [255, 255, 255]]) {
+    for (let step = 1; step <= 40; step += 1) {
+      const amount = step / 40;
+      const color = rgbToHex(base.map((channel, index) => channel + (target[index] - channel) * amount));
+      const ratio = contrastRatio(color, bg);
+      candidates.push({ color, ratio, amount });
+      if (ratio >= minimum) return color;
+    }
+  }
+  candidates.sort((a, b) => b.ratio - a.ratio || a.amount - b.amount);
+  return candidates[0]?.color || original;
+}
 function currentUiSurface() {
   const name = loadActiveUiThemeName();
   const colors = loadUiThemes()[name] || BUILTIN_UI_THEMES[name] || BUILTIN_UI_THEMES.Cinder;
@@ -98,5 +126,5 @@ function categoryColorFromHue(hue, saturation, surface = currentUiSurface(), sha
 
 export {
   hashStr, canonicalRecipeCategory, categoryOf, slugifyRecipeName, normalizeLibraryEntryPath, isRecipeCategory,
-  escapeHtml, highlightMatch, sanitizeHexColor, hslToHex, relativeLuminance, contrastRatio, currentUiSurface, categoryColorFromHue,
+  escapeHtml, highlightMatch, sanitizeHexColor, hslToHex, relativeLuminance, contrastRatio, nudgeHexForContrast, currentUiSurface, categoryColorFromHue,
 };

@@ -305,8 +305,13 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Copy</strong><small>Copy prompt text.</small></div><input type="checkbox" data-el="toggleCopyBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Clear</strong><small>Clear the editor.</small></div><input type="checkbox" data-el="toggleClearBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Seed controls</strong><small>Seed, mode, line handling.</small></div><input type="checkbox" data-el="toggleSeedControls"></label>
-                <label class="wg-toggle-card"><div><strong>Syntax injector</strong><small>Contextual wildcard syntax.</small></div><input type="checkbox" data-el="toggleSyntaxInjector"></label>
+                <label class="wg-toggle-card"><div><strong>Syntax injector</strong><small>Contextual wildcard syntax, plus a menu when you type { (or press Ctrl+Space).</small></div><input type="checkbox" data-el="toggleSyntaxInjector"></label>
                 <label class="wg-toggle-card"><div><strong>Automatic history</strong><small>Keep local recovery checkpoints after editing pauses and queues.</small></div><input type="checkbox" data-el="togglePromptHistory"></label>
+                <label class="wg-toggle-card"><div><strong>Booru autocomplete</strong><small>Suggest database tags while typing ordinary prompt words. Wildcard name autocomplete is unaffected.</small></div><input type="checkbox" data-el="toggleBooruAutocomplete"></label>
+                <label class="wg-toggle-card"><div><strong>Booru trigger</strong><small>Auto opens while typing, or only when you press Ctrl+Space.</small></div><select data-el="booruAutocompleteMode" aria-label="Booru autocomplete trigger"><option value="off">Off</option><option value="auto">Auto</option><option value="onDemand">On demand (Ctrl+Space)</option></select></label>
+                <label class="wg-toggle-card"><div><strong>Minimum characters</strong><small>Wait for this many characters before booru lookup.</small></div><input type="number" data-el="booruAutocompleteMinChars" min="1" max="12" step="1" inputmode="numeric"></label>
+                <label class="wg-toggle-card"><div><strong>Booru sources</strong><small>Choose which local sources feed the same autocomplete menu.</small></div><span class="wg-inline-checks"><label><input type="checkbox" data-el="booruSourceDatabase"> Database</label><label><input type="checkbox" data-el="booruSourceCustomWords"> Custom words</label></span></label>
+                <label class="wg-toggle-card"><div><strong>Color tags in prompt</strong><small>Keep booru and custom-word tags in their category color after you insert them, so the whole prompt stays easy to scan. Wildcard colors are unaffected.</small></div><input type="checkbox" data-el="toggleBooruPromptColors"></label>
               </div>
             </section>
   
@@ -348,7 +353,7 @@ export function createEditorShell() {
 
             <section role="tabpanel" class="wg-settings-panel" data-settings-panel="colors">
               <div class="wg-panel-title"><div><h3>Category color manager</h3><p>Search, preview, pin, or return categories to automatic color assignment.</p></div><span class="wg-badge" data-el="categoryCount">0</span></div>
-              <div class="wg-inline-note">Wildcard text and legend markers use your library category colors. This stays inside Prompt Palette.</div>
+              <div class="wg-inline-note">Wildcard text and legend markers use your library category colors. This stays inside Prompt Palette. Booru tag colors below are kept in a separate palette so folders named character or artist cannot collide with them.</div>
               <div class="wg-search-field"><input type="search" data-el="categoryColorSearch" placeholder="Search category names…"></div>
               <div class="wg-field-row">
                 <select class="wg-theme-select" data-el="categoryPresetSelect" aria-label="Saved category palette"></select>
@@ -362,6 +367,12 @@ export function createEditorShell() {
               </div>
               <div class="wg-status" data-el="categoryPresetStatus"></div>
               <div class="wg-category-manager" data-el="catPins"></div>
+
+              <div class="wg-section-divider"></div>
+              <div class="wg-panel-title"><div><h3>Booru tag colors</h3><p>These are separate from wildcard folder colors. One editable color per tag category is nudged for readable contrast on the current theme.</p></div><span class="wg-badge">Booru only</span></div>
+              <div class="wg-inline-note">Saved palettes and theme packs carry these colors separately under <code>booruColors</code>. They are applied only as inline <code>--pp-booru-*</code> variables on the autocomplete menu.</div>
+              <div class="wg-button-row"><button class="wg-button" data-act="booruColorsReset">Use theme defaults</button></div>
+              <div class="wg-category-manager" data-el="booruColors"></div>
             </section>
   
   

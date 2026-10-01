@@ -800,6 +800,9 @@ class WildcardIndex:
             raise ValueError("path is required")
         raw = os.path.expanduser(os.path.expandvars(path.strip()))
         abs_path = os.path.abspath(raw)
+        reason = _unsafe_root_reason(abs_path)
+        if reason:
+            raise ValueError(f"{abs_path} can't be used as a wildcard folder: {reason}")
         if os.path.exists(abs_path):
             if not os.path.isdir(abs_path):
                 raise ValueError(f"{abs_path} exists but is not a directory")
@@ -837,6 +840,36 @@ class WildcardIndex:
 
         self._switch_root(os.path.abspath(fallback))
         return self.get_root_dir()
+
+
+def _unsafe_root_reason(abs_path: str) -> str:
+    """Why a folder must not become the wildcard root ('' when it is fine).
+
+    The root is where wildcard files are read, saved and deleted, so filesystem
+    roots, the home folder itself and operating-system folders are refused.
+    """
+    try:
+        real = os.path.normcase(os.path.realpath(abs_path))
+    except (OSError, ValueError):
+        return "the path could not be resolved"
+    if os.path.dirname(real) == real:
+        return "it is a filesystem root"
+    home = os.path.normcase(os.path.realpath(os.path.expanduser("~")))
+    if real == home:
+        return "it is your home folder; pick a subfolder"
+    protected = [
+        "/etc", "/bin", "/sbin", "/usr", "/lib", "/lib64", "/boot", "/dev", "/proc", "/sys",
+        "/System", "/Library", "/Applications", "/private/etc",
+    ]
+    for var in ("WINDIR", "SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramData"):
+        value = os.environ.get(var)
+        if value:
+            protected.append(value)
+    for entry in protected:
+        base = os.path.normcase(os.path.realpath(entry))
+        if real == base or real.startswith(base.rstrip(os.sep) + os.sep):
+            return "it is an operating-system folder"
+    return ""
 
 
 _shared_index: WildcardIndex | None = None

@@ -5,7 +5,8 @@ import {
 } from "./prompt_palette_shared.js";
 import { bindSuiteAppearance } from "./editor/suite_appearance.js";
 import {
-  escapeHtml, isDialogOpen, editorStylesReady,
+  API, escapeHtml, isDialogOpen, editorStylesReady, normalizeLibraryEntryPath,
+  getBooruAutocompleteMatches, attachAutocomplete, dialogPrompt, dialogConfirm, notify,
   ensureNodeLifecycle, nodeIsActive,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
   ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs,
@@ -29,12 +30,16 @@ const IO_OUTPUT_DEFS = [
   { key: "conditioning", slotIndex: 3, type: "CONDITIONING", label: "Conditioning", default: true, desc: "Encoded conditioning when CLIP is connected." },
   { key: "model", slotIndex: 4, type: "MODEL", label: "Model", default: false, desc: "Model passthrough." },
   { key: "clip", slotIndex: 5, type: "CLIP", label: "CLIP", default: false, desc: "CLIP passthrough." },
-  { key: "clip_token_count", slotIndex: 6, type: "INT", label: "CLIP tokens", default: true, desc: "CLIP-L token count, or -1 when unavailable." },
+  { key: "clip_token_count", slotIndex: 6, type: "INT", label: "CLIP tokens", default: true, desc: "CLIP-L token count, or -1 when unavailable or the connected text encoder is not CLIP-based." },
 ];
 
 function applyVisibility(node) {
   for (const name of CONTROLLER_WIDGET_NAMES) {
-    hideNativeWidget(node.widgets?.find((widget) => widget.name === name));
+    const widget = node.widgets?.find((candidate) => candidate?.name === name);
+    if (widget) {
+      widget.__ppOwnerNode = node;
+      hideNativeWidget(widget);
+    }
   }
   node._ppwcSyncControls?.();
   scheduleDomWidgetRemeasure(node);
@@ -167,6 +172,76 @@ function setupSettingsUI(node) {
   }
   node._ppwcSyncControls = syncControls;
 
+  let autocompleteLibraryCache = new Map();
+  let autocompleteLibraryRevision = 0;
+  async function getAcMatches(query, contextKind = "wildcard") {
+    const q = String(query || "").trim().toLowerCase();
+    const cacheKey = `${autocompleteLibraryRevision}:${q}`;
+    let libraryRows = autocompleteLibraryCache.get(cacheKey);
+    if (!libraryRows) {
+      try {
+        const result = await API.search(q);
+        libraryRows = (Array.isArray(result) ? result : []).map((item) => ({
+          value: String(item?.path || ""),
+          label: String(item?.path || ""),
+          group: "My Library",
+          kind: "library",
+          count: Number(item?.count) || 0,
+        })).filter((item) => item.value).slice(0, 28);
+      } catch {
+        libraryRows = [];
+      }
+      autocompleteLibraryCache.set(cacheKey, libraryRows);
+      if (autocompleteLibraryCache.size > 96) {
+        const first = autocompleteLibraryCache.keys().next().value;
+        if (first) autocompleteLibraryCache.delete(first);
+      }
+    }
+    if (contextKind === "booru") {
+      const tags = await getBooruAutocompleteMatches(q);
+      return [...tags, ...libraryRows.slice(0, Math.max(0, 12 - tags.length))];
+    }
+    return libraryRows;
+  }
+
+  async function saveSelectionAsList(start, end) {
+    const selectedText = textInput.value.slice(start, end);
+    const values = selectedText.split(/[\r\n,]+/).map((value) => value.trim()).filter(Boolean);
+    if (!values.length) return;
+    const raw = await dialogPrompt({
+      title: "Save as list",
+      message: "Choose a My Library path for this tag list:",
+      defaultValue: "lists/new_list",
+    });
+    if (raw === null || raw === undefined) return;
+    const slug = normalizeLibraryEntryPath(raw);
+    if (!slug) {
+      notify("error", "List not saved", "Enter a valid path using letters, numbers, - _ or /.");
+      return;
+    }
+    let existing = false;
+    try {
+      existing = (await API.search(slug)).some((item) => String(item?.path || "") === slug);
+    } catch { /* the save endpoint will report a concrete failure */ }
+    if (existing) {
+      const overwrite = await dialogConfirm({ title: "Overwrite list", message: `"${slug}" already exists — overwrite it?` });
+      if (!overwrite) return;
+    }
+    const result = await API.save(slug, values.join("\n"));
+    if (!result.ok) {
+      notify("error", "List not saved", result.error || "save failed");
+      return;
+    }
+    autocompleteLibraryRevision += 1;
+    autocompleteLibraryCache.clear();
+    notify("success", "Saved list", `${values.length} tag${values.length === 1 ? "" : "s"} → __${slug}__`);
+  }
+
+  textInput.__ppSaveSelectionAsList = saveSelectionAsList;
+  const cleanupAutocompleteBinding = attachAutocomplete(textInput, {
+    getMatches: getAcMatches,
+  });
+
   textInput.addEventListener("input", () => commitWidget(textWidget, textInput.value));
   modeSelect.addEventListener("change", () => commitWidget(modeWidget, modeSelect.value));
   advancedToggle.addEventListener("change", () => {
@@ -232,6 +307,8 @@ function setupSettingsUI(node) {
     surface,
     reapplyTheme: appearanceBinding.apply,
     cleanup() {
+      cleanupAutocompleteBinding?.();
+      delete textInput.__ppSaveSelectionAsList;
       delete node._wgBeforeIoRailOpen;
       ioRail.cleanup();
       settingsDrawer.unregister();

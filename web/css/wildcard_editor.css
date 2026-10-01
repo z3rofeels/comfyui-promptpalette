@@ -1,11 +1,5 @@
-@import url("./editor/00-base.css");
-@import url("./editor/10-polish.css");
-@import url("./editor/20-nodes2-io.css");
-@import url("./editor/30-workspace.css");
-@import url("./editor/40-horizontal-layout.css");
-@import url("./editor/50-autocomplete.css");
-@import url("./editor/60-library.css");
-
-@import url("./editor/70-performance.css");
-
-@import url("./editor/80-v4.css");
+/* Intentionally empty.
+   The editor stylesheets (css/editor/00-base.css ... 80-v4.css) are loaded one by
+   one, in order, by web/editor/styles.js with a build-id cache-buster. They are no
+   longer @import-ed from here, because @import targets can't be cache-busted and
+   could be served stale. */

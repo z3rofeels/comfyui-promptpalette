@@ -215,6 +215,24 @@ function cancelScheduledCloseInjectMenu() {
 
 
 
+// Rows for the typing-triggered syntax menu ("{" opens it). Only templates that stand alone
+// (no wildcard name needed) are offered; `typed` is what the user already typed ("{", "{*", "${").
+export function syntaxSnippetRows(typed = "") {
+  const wanted = String(typed || "");
+  const rows = [];
+  for (const tpl of INJECT_TEMPLATES) {
+    const { prefix, editable, suffix } = tpl.build("name");
+    if (!/^\$?\{/.test(prefix) || /__name__/.test(suffix)) continue;
+    if (wanted && !prefix.startsWith(wanted)) continue;
+    const code = prefix + editable + suffix;
+    rows.push({
+      value: code, label: tpl.label, meta: tpl.desc, code, kind: "syntax", group: "Syntax",
+      insertText: code, selectRange: [prefix.length, prefix.length + editable.length],
+    });
+  }
+  return rows;
+}
+
 export function cleanupInjector() {
   closeInjectMenu();
   document.removeEventListener("mousedown", handleInjectDocumentMouseDown);

@@ -58,7 +58,7 @@ export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPal
         configurable: true,
       });
 
-      hideNativeWidget(hiddenWidget);
+      hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
       installPromptStateGuard(node, hiddenWidget);
       installPromptMetadataCapture(node);
       node.resizable = true;
@@ -93,6 +93,7 @@ export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPal
         // not change. This is paint/state synchronization, not node sizing.
         node._wgReassertHiddenWidgets?.();
         node._wgReapplyTheme?.();
+        node._wgRefreshVisuals?.();
         scheduleDomWidgetRemeasure(node);
       };
       livePromptPaletteNodes.add(node);

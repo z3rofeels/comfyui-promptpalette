@@ -26,6 +26,8 @@ async function fetchApiResult(path, options) {
   }
 }
 
+let booruTagsAbort = null;
+
 const API = {
   thumbnailUrl(file, suffix = "") {
     return promptPaletteUrl(`/prompt_palette/thumb?file=${encodeURIComponent(file)}${suffix}`);
@@ -38,6 +40,51 @@ const API = {
   },
   async search(q) {
     return (await readApiJson(await api.fetchApi(`/prompt_palette/search?q=${encodeURIComponent(q)}`))).items || [];
+  },
+  async booruTags(q) {
+    // Latest query wins: a keystroke supersedes the previous lookup instead of queueing behind it,
+    // so fast typing can never pile requests up against the browser's per-host connection limit.
+    booruTagsAbort?.abort();
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    booruTagsAbort = controller;
+    try {
+      const response = await api.fetchApi(`/prompt_palette/booru_tags?q=${encodeURIComponent(q)}`, controller ? { signal: controller.signal } : undefined);
+      return (await readApiJson(response)).items || [];
+    } finally {
+      if (booruTagsAbort === controller) booruTagsAbort = null;
+    }
+  },
+  async booruLookup(tags) {
+    const result = await fetchApiResult("/prompt_palette/booru_lookup", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    if (!result || result.error) throw new Error(result?.error || "booru lookup failed");
+    return result.categories && typeof result.categories === "object" ? result.categories : {};
+  },
+  async customWords() {
+    return String((await readApiJson(await api.fetchApi("/prompt_palette/custom_words"))).text || "");
+  },
+  async addCustomWord(word, trigger = "", category = "") {
+    return await fetchApiResult("/prompt_palette/custom_words/add", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ word, trigger, category }),
+    });
+  },
+  async customWordRows() {
+    return await fetchApiResult("/prompt_palette/custom_words/manage");
+  },
+  async removeCustomWords(ids) {
+    return await fetchApiResult("/prompt_palette/custom_words/remove", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  },
+  async importCustomWords(text, mode = "merge") {
+    return await fetchApiResult("/prompt_palette/custom_words/import", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, mode }),
+    });
   },
   async preview(name) {
     return await readApiJson(await api.fetchApi(`/prompt_palette/preview?name=${encodeURIComponent(name)}`));

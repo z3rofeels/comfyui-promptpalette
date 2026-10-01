@@ -16,10 +16,10 @@ export {
   loadPickerView, savePickerView,
 } from "./editor/preferences.js";
 export {
-  escapeHtml, highlightMatch, categoryOf, hashStr,
+  escapeHtml, highlightMatch, categoryOf, hashStr, normalizeLibraryEntryPath,
   sanitizeHexColor, hslToHex, categoryColorFromHue, currentUiSurface,
 } from "./editor/text_utils.js";
-export { findWildcardFragment, getCaretCoords, openOrUpdateAcMenu, closeAcMenu, acState } from "./editor/autocomplete.js";
+export { findWildcardFragment, getCaretCoords, openOrUpdateAcMenu, closeAcMenu, acState, shouldOpenBooruAutocomplete, getBooruAutocompleteMatches, attachAutocomplete } from "./editor/autocomplete.js";
 export { openCtxMenu, closeCtxMenu, ctxMenuOpen } from "./editor/context_menu.js";
 export { pickThumbnailFile, thumbnailFileError } from "./editor/thumbnails.js";
 export { openInjectMenu, openInjectMenuAtPoint, closeInjectMenu, scheduleCloseInjectMenu, injectState } from "./editor/injector.js";

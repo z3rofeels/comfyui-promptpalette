@@ -7,11 +7,38 @@ function loadTheme() {
   // v2 briefly exposed experimental finish/glow controls. Drop those legacy fields
   // on load so an old local preference cannot keep repainting the suite differently.
   const { surfaceFinish: _legacySurfaceFinish, accentGlow: _legacyAccentGlow, ...clean } = saved;
-  return { ...defaultTheme(), ...clean };
+  const theme = { ...defaultTheme(), ...clean };
+  theme.booruColors = { ...DEFAULT_BOORU_COLORS_DARK, ...(clean.booruColors && typeof clean.booruColors === "object" ? clean.booruColors : {}) };
+  if (!["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode)) theme.booruAutocompleteMode = "auto";
+  theme.booruAutocompleteMinChars = Math.max(1, Math.min(12, Math.round(Number(theme.booruAutocompleteMinChars) || 2)));
+  theme.booruAutocompleteEnabled = theme.booruAutocompleteMode !== "off" && theme.booruAutocompleteEnabled !== false;
+  if (!theme.booruAutocompleteEnabled) theme.booruAutocompleteMode = "off";
+  return theme;
 }
+const DEFAULT_BOORU_COLORS_DARK = Object.freeze({
+  general: "#009be6",
+  artist: "#ff8a8b",
+  copyright: "#c797ff",
+  character: "#35c64a",
+  meta: "#ead084",
+  custom: "#82c6a2",
+});
+
+const DEFAULT_BOORU_COLORS_LIGHT = Object.freeze({
+  general: "#0075f8",
+  artist: "#c00004",
+  copyright: "#a800aa",
+  character: "#00891f",
+  meta: "#b86a00",
+  custom: "#3b8f60",
+});
+
 function defaultTheme() {
   return {
     hueRotate: 0, saturation: 58, categoryPins: {},
+    booruColors: { ...DEFAULT_BOORU_COLORS_DARK },
+    booruColorsCustomized: false,
+
 
     fontFamily: "",
     editorFontSize: 12.5,
@@ -40,6 +67,13 @@ function defaultTheme() {
     syntaxInjectorEnabled: true,
     promptHistoryEnabled: true,
     starterPacksEnabled: true,
+
+    booruAutocompleteEnabled: true,
+    booruAutocompleteMode: "auto",
+    booruAutocompleteMinChars: 2,
+    booruSourceDatabase: true,
+    booruSourceCustomWords: true,
+    booruPromptColors: true,
     zenMode: false,
     layoutPreset: "balanced",
     compactOutputLabels: true,
@@ -61,6 +95,8 @@ function categoryPaletteSnapshot(theme) {
     hueRotate: Number(theme.hueRotate) || 0,
     saturation: Number(theme.saturation) || 58,
     categoryPins: { ...(theme.categoryPins || {}) },
+    booruColors: { ...(theme.booruColors || {}) },
+    booruColorsCustomized: !!theme.booruColorsCustomized,
   };
 }
 function loadPinned() {
@@ -715,5 +751,6 @@ export {
   loadPinned, savePinned, loadExpandedCats, saveExpandedCats, loadCatOrder, saveCatOrder,
   loadPickerView, savePickerView, loadLibraryDensity, saveLibraryDensity,
   UI_THEME_KEYS, BUILTIN_UI_THEMES, THEME_PACKS, normalizeUiThemeName,
+  DEFAULT_BOORU_COLORS_DARK, DEFAULT_BOORU_COLORS_LIGHT,
   loadUiThemes, saveUiThemes, loadActiveUiThemeName, saveActiveUiThemeName,
 };

@@ -59,6 +59,8 @@
 .pp-mode-btn + .pp-mode-btn { border-left: 1px solid var(--wg-border-strong, #3a4048); }
 .pp-mode-btn:not(.pp-active):hover { background: color-mix(in srgb, var(--wg-panel-bg, #1c1f23), white 8%); color: var(--wg-text, #fff); }
 .pp-mode-btn.pp-active { background: var(--wg-accent, #d49a52); color: var(--wg-accent-text, #16191c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d49a52) 60%, transparent); }
+.pp-mode-btn:disabled { opacity: .48; cursor: not-allowed; filter: saturate(.5); }
+.pp-row input[type=number]:disabled, .pp-row select:disabled { opacity: .48; cursor: not-allowed; }
 
 .pp-controls { flex: none; display: flex; flex-direction: column; gap: 7px; padding: 8px 2px 2px; margin-top: 6px; border-top: 1px solid var(--wg-border, #2a2e34); }
 .pp-row { display: flex; align-items: center; gap: 8px; }

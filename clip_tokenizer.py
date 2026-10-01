@@ -28,6 +28,21 @@ def _get_clip_l_tokenizer():
     return _tokenizer
 
 
+def clip_counting_applies(clip):
+    """True when a CLIP-L style token count is meaningful for this text encoder.
+
+    With no CLIP connected there is nothing to contradict the count, so it stays
+    available. For a connected CLIP, only tokenizers built on the CLIP BPE vocab
+    (SD1/SDXL/SD3/Flux-style) qualify; Qwen/T5/LLM-style encoders do not.
+    """
+    if clip is None:
+        return True
+    tokenizer = getattr(clip, "tokenizer", None)
+    if tokenizer is None:
+        return False
+    return any(hasattr(tokenizer, name) for name in ("clip_l", "clip_g", "clip_h"))
+
+
 def count_clip_tokens(text):
     tok = _get_clip_l_tokenizer()
     if tok is None:

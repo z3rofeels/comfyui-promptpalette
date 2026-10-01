@@ -1,7 +1,7 @@
 [project]
 name = "zf-prompt-palette"
-version = "2.0.1"
-description = "A colorful wildcard editor, batch prompt generator, prompt library, and backend-aware weight controller for ComfyUI."
+version = "2.0.2"
+description = "A colorful wildcard editor, conditional prompt resolver, local booru tag autocomplete, batch prompt generator, prompt library, and backend-aware weight controller for ComfyUI."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }

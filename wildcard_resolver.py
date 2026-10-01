@@ -13,6 +13,11 @@ VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 COMBO_SCAN_RE = re.compile(r"(__%[A-Za-z0-9_\-\/]+__)|(\{%[^{}]*\})")
 
+# Native Prompt Palette conditionals.  Square-bracket syntax is deliberately
+# distinct from existing wildcard/variable/choice syntax.
+CONDITIONAL_TAG_RE = re.compile(r"\[(if|elif|else|/if)(?:\s+([^\]]+))?\]", re.IGNORECASE)
+
+
 SINGLE_PICK_MODES = ("+", "-", "*", "~", "@", "%")
 
 _ZW = "\u2060"
@@ -418,6 +423,105 @@ class WildcardResolver:
             re.sub(r"(\d+)#([A-Za-z0-9_\-\/*+]+)", repl, self._check_size(text))
         )
 
+    def _condition_value(self, name, env=None, rng=None, combo_map=None, depth=0):
+        name = name.strip()
+        if env is not None and name in env:
+            kind, value = env[name]
+            if kind == "resolved":
+                return str(value)
+            return self._run_passes(str(value), rng, combo_map, depth + 1).strip()
+        if name in self.variables:
+            kind, value = self.variables[name]
+            if kind == "resolved":
+                return str(value)
+            return self._run_passes(str(value), rng, combo_map, depth + 1).strip()
+        # Allow literal quoted strings/numbers/bools in expressions.
+        if (len(name) >= 2 and name[0] == name[-1] and name[0] in "\"'"):
+            return name[1:-1]
+        return name
+
+    def _eval_condition(self, expression, env=None, rng=None, combo_map=None, depth=0):
+        expression = str(expression or "").strip()
+        if not expression:
+            return False
+        # Small deterministic expression grammar: comparisons, membership,
+        # truthiness, and/or/not. No Python eval and no executable expressions.
+        parts = re.split(r"\s+(or)\s+", expression, flags=re.IGNORECASE)
+        if len(parts) > 1:
+            return any(self._eval_condition(part, env, rng, combo_map, depth + 1) for part in parts[::2])
+        parts = re.split(r"\s+(and)\s+", expression, flags=re.IGNORECASE)
+        if len(parts) > 1:
+            return all(self._eval_condition(part, env, rng, combo_map, depth + 1) for part in parts[::2])
+        if re.match(r"^not\s+", expression, re.IGNORECASE):
+            return not self._eval_condition(re.sub(r"^not\s+", "", expression, flags=re.IGNORECASE), env, rng, combo_map, depth + 1)
+        m = re.match(r"^(.+?)\s*(==|!=|>=|<=|>|<|\bin\b)\s*(.+)$", expression, re.IGNORECASE)
+        if m:
+            left = self._condition_value(m.group(1), env, rng, combo_map, depth)
+            op = m.group(2).lower()
+            right_raw = m.group(3).strip()
+            if op == "in":
+                candidates = [x.strip() for x in self._split_top_level(right_raw, sep="|")]
+                return left in [self._condition_value(x, env, rng, combo_map, depth) for x in candidates]
+            right = self._condition_value(right_raw, env, rng, combo_map, depth)
+            if op in (">", ">=", "<", "<="):
+                try:
+                    a, b = float(left), float(right)
+                except (TypeError, ValueError):
+                    a, b = left, right
+            else:
+                a, b = left, right
+            return {"==": a == b, "!=": a != b, ">": a > b, ">=": a >= b, "<": a < b, "<=": a <= b}[op]
+        value = self._condition_value(expression, env, rng, combo_map, depth)
+        return str(value).strip().lower() not in {"", "0", "false", "none", "null", "no"}
+
+    def _resolve_conditionals(self, text, rng, combo_map=None, env=None, depth=0):
+        """Resolve native [if]/[elif]/[else]/[/if] blocks without executing code."""
+        tokens = list(CONDITIONAL_TAG_RE.finditer(text))
+        if not tokens:
+            return text
+        output = []
+        cursor = 0
+        stack = []
+        active = True
+        for token in tokens:
+            output.append(text[cursor:token.start()] if active else "")
+            kind = token.group(1).lower()
+            expr = (token.group(2) or "").strip()
+            if kind == "if":
+                if len(stack) >= MAX_NESTED_RESOLUTION_DEPTH:
+                    raise ValueError("prompt conditional nesting is too deep")
+                parent_active = active
+                branch_active = parent_active and self._eval_condition(expr, env, rng, combo_map, depth + 1)
+                stack.append((parent_active, branch_active, branch_active))
+                active = branch_active
+            elif kind == "elif":
+                if not stack:
+                    raise ValueError("[elif] has no matching [if]")
+                parent_active, _current_active, any_taken = stack[-1]
+                if any_taken:
+                    active = False
+                else:
+                    branch_active = parent_active and self._eval_condition(expr, env, rng, combo_map, depth + 1)
+                    stack[-1] = (parent_active, branch_active, any_taken or branch_active)
+                    active = branch_active
+            elif kind == "else":
+                if not stack:
+                    raise ValueError("[else] has no matching [if]")
+                parent_active, _current_active, any_taken = stack[-1]
+                active = parent_active and not any_taken
+                stack[-1] = (parent_active, active, True)
+            elif kind == "/if":
+                if not stack:
+                    raise ValueError("[/if] has no matching [if]")
+                parent_frame = stack[-2] if len(stack) > 1 else None
+                stack.pop()
+                active = parent_frame[1] if parent_frame else True
+            cursor = token.end()
+        output.append(text[cursor:] if active else "")
+        if stack:
+            raise ValueError("[if] is missing a closing [/if]")
+        return "".join(output)
+
     def _run_passes(self, text, rng, combo_map=None, depth=0):
 
         if depth > MAX_NESTED_RESOLUTION_DEPTH:
@@ -431,6 +535,7 @@ class WildcardResolver:
                 break
             prev = text
             text = self._check_size(self._resolve_variables(text, rng, combo_map, depth))
+            text = self._check_size(self._resolve_conditionals(text, rng, combo_map, depth=depth))
             text = self._check_size(self._resolve_param_wildcards(text, rng, combo_map, depth))
             text = self._check_size(self._resolve_braces(text, rng, combo_map))
             text = self._check_size(self._resolve_wildcards(text, rng, combo_map))
@@ -505,7 +610,15 @@ class WildcardResolver:
         kind, obj = found
         branches = None
 
-        if kind == "wc":
+        if kind == "conditional":
+            # Conditional filtering is branch-aware; reuse the same canonical
+            # expansion path so count and generation agree on which branches exist.
+            generated = []
+            self._expand_combinatorial(s, dict(env), rng, min(limit, self.MAX_COMBINATORIAL_PROMPTS), generated, depth + 1)
+            counter[0] += min(len(generated), max(0, limit - counter[0]))
+            return counter[0] >= limit
+
+        elif kind == "wc":
             m = obj
             start, end = m.start(), m.end()
             mode, name = m.group(1), m.group(2)
@@ -669,6 +782,9 @@ class WildcardResolver:
         dollar_spans = self._find_dollar_spans(s)
         if dollar_spans:
             candidates.append((dollar_spans[0][0], "var", dollar_spans[0]))
+        conditional = CONDITIONAL_TAG_RE.search(s)
+        if conditional:
+            candidates.append((conditional.start(), "conditional", conditional))
         if not candidates:
             return None
         candidates.sort(key=lambda c: c[0])
@@ -692,7 +808,32 @@ class WildcardResolver:
         kind, obj = found
         branches = None
 
-        if kind == "wc":
+        if kind == "conditional":
+            # Conditions may depend on a variable whose value is itself a
+            # combinatorial expression (for example ${style={anime|realistic}}).
+            # Materialize those environment values before evaluating the branch,
+            # otherwise a random resolution would collapse the combinations.
+            pending = [(s, dict(env))]
+            for name, (value_kind, value) in list(env.items()):
+                if value_kind != "raw" or self._leftmost_combinatorial_group(str(value)) is None:
+                    continue
+                expanded_values = []
+                self._expand_combinatorial(str(value), dict(env), rng, limit, expanded_values, depth + 1)
+                if not expanded_values:
+                    expanded_values = [(str(value), dict(env))]
+                next_pending = []
+                for current_s, current_env in pending:
+                    for expanded_value, _ in expanded_values:
+                        branch_env = dict(current_env)
+                        branch_env[name] = ("resolved", expanded_value)
+                        next_pending.append((current_s, branch_env))
+                pending = next_pending
+            branches = [
+                (self._resolve_conditionals(current_s, rng, {}, env=current_env, depth=depth), current_env)
+                for current_s, current_env in pending
+            ]
+
+        elif kind == "wc":
             m = obj
             start, end = m.start(), m.end()
             mode, name = m.group(1), m.group(2)

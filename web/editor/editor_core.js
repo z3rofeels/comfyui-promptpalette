@@ -5,7 +5,7 @@ import { API } from "../prompt_palette_api.js";
 import { createPromptUsageStore, createPromptHistoryStore, closestPromptEntries } from "../prompt_quickness.js";
 import { installPromptPaletteKeyboardBoundary } from "../prompt_palette_shared.js";
 import {
-  hideNativeWidget, installPromptStateGuard, nodeIsActive, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers,
+  hideNativeWidget, installPromptStateGuard, nodeIsActive, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
   ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, setupIoRail, installSocketRailLayout,
 } from "../prompt_palette_compat.js";
 import { dialogConfirm, isDialogOpen, cleanupDialogOverlays } from "./dialogs.js";
@@ -31,6 +31,7 @@ import { EditorUndoManager } from "./undo_manager.js";
 import { PromptLibraryModel } from "../library/library_model.js";
 import { upgradeEditorSurface } from "./editor_surface.js";
 import { createSyntaxHighlighter } from "./syntax_highlighter.js";
+import { createTagPainter, onTagColorsChanged, TAG_CATEGORY_KEYS, TAG_CATEGORY_LABELS } from "./booru_tag_colors.js";
 
 function buildWildcardWidget(node, hiddenWidget) {
   const promptState = installPromptStateGuard(node, hiddenWidget);
@@ -193,11 +194,11 @@ function buildWildcardWidget(node, hiddenWidget) {
     (seedWidget && seedWidget.linkedWidgets && seedWidget.linkedWidgets[0]) ||
     node.widgets.find(w => w !== seedWidget && /control.*generate/i.test(w.name || ""));
   const modeWidget = node.widgets.find(w => w.name === "processing_mode");
-  [seedWidget, controlWidget, modeWidget].forEach(hideNativeWidget);
+  [seedWidget, controlWidget, modeWidget].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
 
   function reassertHiddenWidgets() {
-    hideNativeWidget(hiddenWidget);
-    [seedWidget, controlWidget, modeWidget].forEach(hideNativeWidget);
+    hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
+    [seedWidget, controlWidget, modeWidget].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
   }
   if (modeWidget) {
     processingModeSelect.addEventListener("change", () => {
@@ -284,7 +285,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     { key: "raw_text", slotIndex: 8, type: "STRING", label: "Raw text (unresolved)", desc: "Exactly what is typed into this node before wildcard resolution." },
     { key: "wildcards_used_count", slotIndex: 9, type: "INT", label: "Wildcards used (count)", desc: "How many distinct wildcard files were picked this run." },
     { key: "used_enhancer", slotIndex: 10, type: "BOOLEAN", label: "Used enhancer override", desc: "True if the enhancer override replaced the wildcard-resolved prompt." },
-    { key: "clip_token_count", slotIndex: 11, type: "INT", label: "CLIP token count", default: true, desc: "Real CLIP-L token count of the prompt output. -1 if the tokenizer is unavailable." },
+    { key: "clip_token_count", slotIndex: 11, type: "INT", label: "CLIP token count", default: true, desc: "Real CLIP-L token count of the prompt output. -1 if the tokenizer is unavailable or the connected text encoder is not CLIP-based." },
     { key: "prompt_metadata_json", slotIndex: 12, type: "STRING", label: "Prompt metadata (JSON)", default: false, desc: "Final and source prompts plus seed, wildcard, LoRA, and execution metadata for asset tools." },
   ];
 
@@ -312,13 +313,11 @@ function buildWildcardWidget(node, hiddenWidget) {
     ioRail.render();
   };
 
-  let hoverTip = document.querySelector('.wg-tip[data-prompt-palette-global="true"]');
-  if (!hoverTip) {
-    hoverTip = document.createElement("div");
-    hoverTip.className = "wg-tip";
-    hoverTip.dataset.promptPaletteGlobal = "true";
-    document.body.appendChild(hoverTip);
-  }
+  const hoverTip = document.createElement("div");
+  hoverTip.className = "wg-tip";
+  hoverTip.dataset.promptPaletteHover = "true";
+  hoverTip.dataset.promptPaletteOwner = String(node.id ?? "node");
+  document.body.appendChild(hoverTip);
 
   function buildCategoryColorMap(categoriesInUse) {
     const hues = {};
@@ -356,6 +355,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       categoryOf,
       buildCategoryColorMap,
       colorForToken,
+      tagPainter: createTagPainter(theme),
     }));
     tokenRanges = result.ranges;
     profiler.gauge("parserCacheLines", syntaxCache.stats().cachedLines);
@@ -480,12 +480,14 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   function renderVisualsFromParsed(parsedOverride = null, sourceText = textarea.value) {
-    let names = [], categoriesInUse = [], categoryHueMap = {};
+    let names = [], categoriesInUse = [], categoryHueMap = {}, tagCategoriesInUse = [], tagPalette = null;
     try {
       const result = highlightText(sourceText, parsedOverride);
       names = result.names;
       categoriesInUse = result.categoriesInUse;
       categoryHueMap = result.categoryHueMap;
+      tagCategoriesInUse = result.tagCategoriesInUse || [];
+      tagPalette = result.tagPalette || null;
       profiler.measure("editor.dom", () => {
         if (!syntaxHighlighter.render(result.decorations, sourceText)) syncHighlightDom(result.lineHtml, sourceText);
       });
@@ -499,7 +501,10 @@ function buildWildcardWidget(node, hiddenWidget) {
 
     profiler.measure("editor.legend", () => {
       const legendItems = categoriesInUse.map((cat) => [cat, theme.categoryPins[cat] || categoryColorFromHue(categoryHueMap[cat], theme.saturation)]);
-      const signature = legendItems.map(([cat, color]) => `${cat}:${color}`).join("|");
+      // Booru / custom tag categories present in the prompt get their own chips (square swatch,
+      // so they read as tags rather than wildcard categories).
+      const tagItems = TAG_CATEGORY_KEYS.filter((key) => tagPalette && tagCategoriesInUse.includes(key)).map((key) => [key, tagPalette[key]]);
+      const signature = legendItems.map(([cat, color]) => `${cat}:${color}`).join("|") + "||" + tagItems.map(([key, color]) => `${key}:${color}`).join("|");
       if (signature === lastLegendSignature) return;
       lastLegendSignature = signature;
       const fragment = document.createDocumentFragment();
@@ -507,6 +512,12 @@ function buildWildcardWidget(node, hiddenWidget) {
         const chip = document.createElement("div");
         chip.className = "wg-chip";
         chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>${escapeHtml(cat)}`;
+        fragment.appendChild(chip);
+      });
+      tagItems.forEach(([key, color]) => {
+        const chip = document.createElement("div");
+        chip.className = "wg-chip wg-chip-tag";
+        chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:3px;"></span>${escapeHtml(TAG_CATEGORY_LABELS[key] || key)}`;
         fragment.appendChild(chip);
       });
       legend.replaceChildren(fragment);
@@ -736,6 +747,16 @@ function buildWildcardWidget(node, hiddenWidget) {
     render({ asyncVisual: true, refreshPreview: true, refreshDoctor: true });
     scheduleHistorySnapshot();
   });
+  const repaintEditorHighlights = () => {
+    scheduleNodeFrame(node, () => {
+      if (!nodeIsActive(node) || !textarea.isConnected) return;
+      renderVisualsFromParsed(lastParsedPrompt, textarea.value);
+    });
+  };
+  textarea.addEventListener("focus", repaintEditorHighlights);
+  textarea.addEventListener("blur", repaintEditorHighlights);
+  // Tag categories arrive asynchronously (offline database lookup), so repaint when they do.
+  const unsubscribeTagColors = onTagColorsChanged(repaintEditorHighlights);
   textarea.addEventListener("scroll", () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });
 
   textarea.addEventListener("keydown", (e) => {
@@ -1133,6 +1154,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       root.removeEventListener("keydown", handleEscapeKey);
       document.removeEventListener("keydown", handleEscapeKey);
       if (acState && acState.textarea === textarea) closeAcMenu();
+      hoverTip.remove();
       if (injectState && injectState.textarea === textarea) closeInjectMenu();
       if (ctxMenuOpen) closeCtxMenu();
       powerToolsController?.cleanup();
@@ -1141,6 +1163,9 @@ function buildWildcardWidget(node, hiddenWidget) {
       cleanupKeyboardBoundary();
       undoManager.cleanup();
       syntaxHighlighter.clear();
+      textarea.removeEventListener("focus", repaintEditorHighlights);
+      textarea.removeEventListener("blur", repaintEditorHighlights);
+      unsubscribeTagColors();
       editorSurface.cleanup();
       performanceDiagnosticsController.cleanup();
       cleanupSettingsKeyboardBoundary();
@@ -1163,7 +1188,7 @@ function cleanupSharedPromptPaletteDom() {
   cleanupInjector();
   cleanupContextMenu();
   cleanupThumbnailPicker();
-  document.querySelectorAll('.wg-tip[data-prompt-palette-global="true"]').forEach((element) => element.remove());
+  document.querySelectorAll('.wg-tip[data-prompt-palette-hover="true"]').forEach((element) => element.remove());
 }
 
 export { buildWildcardWidget, livePromptPaletteNodes, cleanupSharedPromptPaletteDom };

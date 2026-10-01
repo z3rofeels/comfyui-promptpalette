@@ -7,13 +7,16 @@ import { bindSuiteAppearance } from "./editor/suite_appearance.js";
 import { readCombinatorialPreference, writeCombinatorialPreference } from "./prompt_palette_state.js";
 import { upgradeEditorSurface } from "./editor/editor_surface.js";
 import { createSyntaxHighlighter } from "./editor/syntax_highlighter.js";
+import { libraryAcRows, mergeUnifiedRows, rankLibraryPaths } from "./editor/autocomplete_sources.js";
+import { createPromptUsageStore } from "./prompt_quickness.js";
+import { createTagPainter, onTagColorsChanged, TAG_CATEGORY_KEYS, TAG_CATEGORY_LABELS } from "./editor/booru_tag_colors.js";
 import {
-  API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
+  API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr, normalizeLibraryEntryPath,
   editorStylesReady,
   sanitizeHexColor, categoryColorFromHue, currentUiSurface,
-  findWildcardFragment, openOrUpdateAcMenu, closeAcMenu, acState,
+  getBooruAutocompleteMatches, attachAutocomplete,
   loadPinned, savePinned, loadExpandedCats, saveExpandedCats, loadCatOrder, saveCatOrder,
-  notify, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
+  notify, dialogPrompt, dialogConfirm, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
 
   loadPickerView, savePickerView, openCtxMenu, closeCtxMenu, ctxMenuOpen,
   pickThumbnailFile, thumbnailFileError,
@@ -70,9 +73,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
         <button type="button" class="wg-icon-btn wg-settings-anchor" data-act="settings" title="Settings">${svgIcon("settings")}</button>
       </div>
     </div>
-    <div class="pp-fanout-banner" data-el="fanoutBanner" title="This node's outputs are lists, one entry per generated prompt. Anything wired to model / clip / conditioning / prompt / seed_out / wildcards_used runs once per prompt in that list, not once per queue run.">
+    <div class="pp-fanout-banner" data-el="fanoutBanner" title="The list outputs (Model list, CLIP list, Conditioning list, Prompt list, Seed list, Wildcards used, metadata list) hold one entry per generated prompt. Anything wired to one of those runs once per prompt, not once per queue run. The single-value outputs (passthrough, first, negative, count, raw text, ...) run once.">
       <span class="pp-fanout-icon">${svgIcon("branch", 14)}</span>
-      <span>Fans out into <span class="pp-fanout-count" data-el="fanoutCount">1</span> prompt<span data-el="fanoutPlural"></span> \u2014 every wired output fires once per prompt.</span>
+      <span>Fans out into <span class="pp-fanout-count" data-el="fanoutCount">1</span> prompt<span data-el="fanoutPlural"></span> \u2014 every wired list output fires once per prompt.</span>
     </div>
     <div class="wg-settings-popup wg-settings-pro pp-combo-settings" data-el="settingsPopup" role="dialog" aria-label="Combinatorial settings" aria-hidden="true" hidden inert>
       <div class="wg-settings-head wg-settings-head-pro">
@@ -207,11 +210,43 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const seedModeWidget = node.widgets.find(w => w.name === "seed_mode");
   const maxPromptsWidget = node.widgets.find(w => w.name === "max_prompts");
   const nativeBackingWidgets = [modeWidget, countWidget, seedWidget, controlWidget, seedModeWidget, maxPromptsWidget];
-  nativeBackingWidgets.forEach(hideNativeWidget);
+  nativeBackingWidgets.forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); });
+
+  const externalControlDefs = [
+    { key: "mode", widgets: [modeWidget], elements: [...Array.from(modeButtons || []), settingsModeSelect] },
+    { key: "count", widgets: [countWidget], elements: [countInput, settingsCountInput] },
+    { key: "seed", widgets: [seedWidget], elements: [seedInput] },
+    { key: "seed_mode", widgets: [seedModeWidget], elements: [seedModeSelect, settingsSeedModeSelect] },
+    { key: "max_prompts", widgets: [maxPromptsWidget], elements: [maxPromptsInput, settingsMaxPromptsInput] },
+  ];
+
+  function inputSocketLinked(key) {
+    const slot = (node.inputs || []).find((candidate) => candidate?.name === key);
+    return slot?.link != null;
+  }
+
+  function syncExternalControlState() {
+    for (const def of externalControlDefs) {
+      const linked = inputSocketLinked(def.key);
+      for (const element of def.elements || []) {
+        if (!element) continue;
+        if (!element.dataset.ppExternalBaseDisabled) {
+          element.dataset.ppExternalBaseDisabled = element.disabled ? "true" : "false";
+        }
+        element.disabled = element.dataset.ppExternalBaseDisabled === "true" || linked;
+        element.toggleAttribute("data-external-input", linked);
+        if (linked) element.title = `${def.key.replace(/_/g, " ")} is driven by an external ComfyUI input.`;
+      }
+      for (const widget of def.widgets || []) {
+        if (widget) widget.__ppExternallyDriven = linked;
+      }
+    }
+    updateModeUI();
+  }
 
   function reassertHiddenWidgets() {
-    hideNativeWidget(hiddenWidget);
-    nativeBackingWidgets.forEach(hideNativeWidget);
+    hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
+    nativeBackingWidgets.forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); });
   }
 
   function buildSeedModeOptions() {
@@ -225,15 +260,16 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   buildSeedModeOptions();
 
   function syncControlsFromWidgets() {
-    if (countWidget) countInput.value = countWidget.value; else countInput.disabled = true;
-    if (maxPromptsWidget) maxPromptsInput.value = maxPromptsWidget.value; else maxPromptsInput.disabled = true;
-    if (seedWidget) seedInput.value = seedWidget.value; else seedInput.disabled = true;
-    if (seedModeWidget) seedModeSelect.value = seedModeWidget.value; else seedModeSelect.disabled = true;
+    if (countWidget) countInput.value = countWidget.value;
+    if (maxPromptsWidget) maxPromptsInput.value = maxPromptsWidget.value;
+    if (seedWidget) seedInput.value = seedWidget.value;
+    if (seedModeWidget) seedModeSelect.value = seedModeWidget.value;
     if (settingsModeSelect) settingsModeSelect.value = modeWidget?.value || "random";
-    if (settingsCountInput) { settingsCountInput.value = countWidget?.value ?? 1; settingsCountInput.disabled = !countWidget; }
-    if (settingsMaxPromptsInput) { settingsMaxPromptsInput.value = maxPromptsWidget?.value ?? 0; settingsMaxPromptsInput.disabled = !maxPromptsWidget; }
-    if (settingsSeedModeSelect) { settingsSeedModeSelect.value = seedModeWidget?.value || "sequential"; settingsSeedModeSelect.disabled = !seedModeWidget; }
+    if (settingsCountInput) settingsCountInput.value = countWidget?.value ?? 1;
+    if (settingsMaxPromptsInput) settingsMaxPromptsInput.value = maxPromptsWidget?.value ?? 0;
+    if (settingsSeedModeSelect) settingsSeedModeSelect.value = seedModeWidget?.value || "sequential";
     updateModeUI();
+    syncExternalControlState();
   }
 
   countInput.addEventListener("input", () => {
@@ -303,8 +339,21 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   });
 
   const IO_INPUT_DEFS = [
+    { key: "mode", type: "COMBO", label: "Mode", default: true, desc: "Drive Random vs Combinatorial generation from another node. The local control remains available when this socket is unlinked." },
+    { key: "count", type: "INT", label: "Count", default: true, desc: "Externally drive how many random prompts to generate. The local Count control remains available when this socket is unlinked." },
+    { key: "seed", type: "INT", label: "Seed", default: true, desc: "Externally drive the base wildcard-resolution seed. The local Seed control remains available when this socket is unlinked." },
+    { key: "seed_mode", type: "COMBO", label: "Seed mode", default: true, desc: "Externally drive sequential, fixed, or randomized per-prompt seed behavior." },
+    { key: "max_prompts", type: "INT", label: "Max prompts", default: true, desc: "Externally drive the combinatorial safety cap. 0 uses the resolver default." },
     { key: "clip", type: "CLIP", label: "CLIP", default: true, desc: "Optional CLIP input used to encode every generated prompt." },
     { key: "model", type: "MODEL", label: "Model", default: true, desc: "Optional Model input used when applying per-prompt LoRA tags." },
+    // Prompt Palette's remaining sockets. Link-only (no widget), hidden until enabled, so saved workflows look the same.
+    { key: "prompt_prefix", type: "STRING", label: "Prompt prefix", default: false, desc: "Prepend externally-supplied text (resolved for wildcards too) to every generated prompt." },
+    { key: "prompt_suffix", type: "STRING", label: "Prompt suffix", default: false, desc: "Append externally-supplied text (resolved for wildcards too) to every generated prompt." },
+    { key: "enhancer_override", type: "STRING", label: "LLM / enhancer override", default: false, desc: "If connected and non-empty, replaces every generated prompt. The batch keeps its length and seeds." },
+    { key: "external_seed", type: "INT", label: "External seed", default: false, desc: "Drive wildcard resolution from another node's seed instead of this node's own Seed control." },
+    { key: "negative_text", type: "STRING", label: "Negative prompt (text)", default: false, desc: "A wildcard-aware negative prompt, resolved once for the whole batch and returned on the Negative prompt / Negative conditioning outputs." },
+    { key: "negative_prefix", type: "STRING", label: "Negative prefix", default: false, desc: "Prepend externally-supplied text (resolved for wildcards too) before the negative prompt." },
+    { key: "negative_suffix", type: "STRING", label: "Negative suffix", default: false, desc: "Append externally-supplied text (resolved for wildcards too) after the negative prompt." },
   ];
 
   const IO_OUTPUT_DEFS = [
@@ -315,6 +364,22 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     { key: "seed_out", slotIndex: 4, type: "INT", label: "Seed list", default: true, desc: "The resolve seed used for each generated prompt." },
     { key: "wildcards_used", slotIndex: 5, type: "STRING", label: "Wildcards used", default: true, desc: "The wildcard files used during this batch, repeated for list-compatible fan-out." },
     { key: "prompt_metadata_json", slotIndex: 6, type: "STRING", label: "Prompt metadata (JSON) list", default: false, desc: "One resolved/source metadata record per generated prompt." },
+    // Single-value outputs: not lists, so whatever they feed runs once per queue, not once per prompt.
+    // They follow the seven list outputs so saved links keep their slot index. Slot order matches nodes.py.
+    { key: "model_passthrough", slotIndex: 7, type: "MODEL", label: "Model (passthrough)", default: false, desc: "The connected Model, unchanged. Per-prompt LoRA-patched models are on Model list." },
+    { key: "clip_passthrough", slotIndex: 8, type: "CLIP", label: "CLIP (passthrough)", default: false, desc: "The connected CLIP, unchanged. Per-prompt LoRA-patched CLIPs are on CLIP list." },
+    { key: "first_conditioning", slotIndex: 9, type: "CONDITIONING", label: "Conditioning (first)", default: false, desc: "Conditioning for the first generated prompt. None unless a CLIP input is connected. Use Conditioning list for every prompt." },
+    { key: "negative_conditioning", slotIndex: 10, type: "CONDITIONING", label: "Negative conditioning", default: false, desc: "The resolved negative prompt encoded once with the connected CLIP (unpatched). None unless a CLIP input is connected." },
+    { key: "first_prompt", slotIndex: 11, type: "STRING", label: "Prompt (first)", default: false, desc: "The first generated prompt. Use Prompt list for every prompt." },
+    { key: "negative_prompt", slotIndex: 12, type: "STRING", label: "Negative prompt", default: false, desc: "Resolved text from the Negative prompt inputs, resolved once for the whole batch." },
+    { key: "first_seed", slotIndex: 13, type: "INT", label: "Seed used (first)", default: false, desc: "Seed used for the first generated prompt. Use Seed list for every prompt." },
+    { key: "wildcards_used_json", slotIndex: 14, type: "STRING", label: "Wildcards used (JSON)", default: false, desc: "A JSON list of every wildcard file picked during this batch, as one value." },
+    { key: "raw_text", slotIndex: 15, type: "STRING", label: "Raw text (unresolved)", default: false, desc: "Exactly what is typed into this node before wildcard resolution." },
+    { key: "wildcards_used_count", slotIndex: 16, type: "INT", label: "Wildcards used (count)", default: false, desc: "How many distinct wildcard files were picked during this batch." },
+    { key: "used_enhancer", slotIndex: 17, type: "BOOLEAN", label: "Used enhancer override", default: false, desc: "True if the enhancer override replaced the generated prompts." },
+    { key: "clip_token_count", slotIndex: 18, type: "INT", label: "CLIP token count (max)", default: false, desc: "Highest CLIP-L token count across the batch. -1 if unavailable or the connected text encoder is not CLIP-based." },
+    { key: "batch_metadata_json", slotIndex: 19, type: "STRING", label: "Batch metadata (JSON)", default: false, desc: "One JSON record for the whole batch, including every generated prompt's metadata." },
+    { key: "prompt_count", slotIndex: 20, type: "INT", label: "Prompt count", default: false, desc: "How many prompts this batch generated." },
   ];
 
   node.properties = node.properties || {};
@@ -328,6 +393,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     migrateIoState(node, "output", IO_OUTPUT_DEFS);
     IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
     IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    syncExternalControlState();
     ioRail.render();
   }, 0);
   node._wgRefreshIoToggles = function () {
@@ -336,8 +402,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     migrateIoState(node, "output", IO_OUTPUT_DEFS);
     IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
     IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    syncExternalControlState();
     ioRail.render();
   };
+  node._wgSyncExternalControlState = syncExternalControlState;
 
   const settingsPopup = el("settingsPopup");
   detachedSettingsPopup = settingsPopup;
@@ -463,6 +531,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function updateEstimate() {
+    if (["mode", "count", "seed", "seed_mode", "max_prompts"].some(inputSocketLinked)) {
+      estimateSeq++;
+      cancelNodeTimer(node, estimateDebounceTimer);
+      estimateDebounceTimer = null;
+      estimateCount.textContent = "runtime inputs";
+      estimateWarning.textContent = "Generation controls are driven by connected inputs; exact fan-out is resolved when the workflow executes.";
+      estimateBox.classList.remove("pp-warning", "pp-loading");
+      fanoutCount.textContent = "—";
+      fanoutPlural.textContent = "";
+      fanoutBanner.classList.remove("pp-warning");
+      return;
+    }
     cancelNodeTimer(node, estimateDebounceTimer);
     const mode = modeWidget ? modeWidget.value : "random";
     if (mode === "random") {
@@ -507,10 +587,27 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const categoriesInUse = Array.from(new Set(names.map(categoryOf)));
     const categoryHueMap = buildCategoryColorMap(categoriesInUse);
     let out = ""; let i = 0; const ranges = []; const decorations = [];
+    // Plain text between tokens is where booru / custom-word tags live; known ones keep their
+    // category color, like wildcards do.
+    const tagPainter = createTagPainter(theme);
+    let plain = ""; let plainStart = 0;
+    const flushPlain = () => {
+      if (!plain) return;
+      let cursor = 0;
+      for (const hit of tagPainter ? tagPainter.paint(plain, plainStart) : []) {
+        const from = hit.start - plainStart, to = hit.end - plainStart;
+        if (from > cursor) out += escapeHtml(plain.slice(cursor, from));
+        out += `<span class="wg-token wg-token-booru" data-tag-category="${hit.category}" style="color:${hit.color}; text-shadow:0 0 0.35px currentColor;">${escapeHtml(plain.slice(from, to))}</span>`;
+        decorations.push({ start: hit.start, end: hit.end, kind: "booru", color: hit.color });
+        cursor = to;
+      }
+      out += escapeHtml(plain.slice(cursor));
+      plain = "";
+    };
     while (i < text.length) {
       const rest = text.slice(i);
       const wildcardMatch = rest.match(/^__[+\-*%~@]?[A-Za-z0-9_\-\/]+__/);
-      if (wildcardMatch) {
+      if (wildcardMatch) { flushPlain();
         const token = wildcardMatch[0];
         const innerName = token.replace(/^__[+\-*%~@]?/, "").replace(/__$/, "");
         const start = i, end = i + token.length;
@@ -526,22 +623,30 @@ function buildCombinatorialWidget(node, hiddenWidget) {
         }
         i = end; continue;
       }
+      const conditionalMatch = rest.match(/^\[(?:if|elif|else|\/if)(?:\s+[^\]]+)?\]/i);
+      if (conditionalMatch) { flushPlain(); const start = i; out += `<span class="wg-tok-conditional">${escapeHtml(conditionalMatch[0])}</span>`; i += conditionalMatch[0].length; decorations.push({ start, end: i, kind: "conditional" }); continue; }
       const weightMatch = rest.match(/^\d+::/);
-      if (weightMatch) { const start = i; out += `<span class="wg-tok-weight">${escapeHtml(weightMatch[0])}</span>`; i += weightMatch[0].length; decorations.push({ start, end: i, kind: "weight" }); continue; }
+      if (weightMatch) { flushPlain(); const start = i; out += `<span class="wg-tok-weight">${escapeHtml(weightMatch[0])}</span>`; i += weightMatch[0].length; decorations.push({ start, end: i, kind: "weight" }); continue; }
       const quantMatch = rest.match(/^(\d+(-\d+)?\$\$[^$]*\$\$|\d+#)/);
-      if (quantMatch) { const start = i; out += `<span class="wg-tok-mod">${escapeHtml(quantMatch[0])}</span>`; i += quantMatch[0].length; decorations.push({ start, end: i, kind: "modifier" }); continue; }
+      if (quantMatch) { flushPlain(); const start = i; out += `<span class="wg-tok-mod">${escapeHtml(quantMatch[0])}</span>`; i += quantMatch[0].length; decorations.push({ start, end: i, kind: "modifier" }); continue; }
       const ch = text[i];
-      if (ch === "{" || ch === "}") { const start = i; out += `<span class="wg-tok-bracket">${ch}</span>`; i++; decorations.push({ start, end: i, kind: "bracket" }); continue; }
-      if (ch === "|") { const start = i; out += `<span class="wg-tok-pipe">|</span>`; i++; decorations.push({ start, end: i, kind: "pipe" }); continue; }
+      if (ch === "{" || ch === "}") { flushPlain(); const start = i; out += `<span class="wg-tok-bracket">${ch}</span>`; i++; decorations.push({ start, end: i, kind: "bracket" }); continue; }
+      if (ch === "|") { flushPlain(); const start = i; out += `<span class="wg-tok-pipe">|</span>`; i++; decorations.push({ start, end: i, kind: "pipe" }); continue; }
       if (ch === "#" && (i === 0 || text[i - 1] === "\n")) {
+        flushPlain();
         const lineEnd = text.indexOf("\n", i);
         const line = lineEnd === -1 ? text.slice(i) : text.slice(i, lineEnd);
         const start = i; out += `<span class="wg-tok-comment">${escapeHtml(line)}</span>`; i += line.length; decorations.push({ start, end: i, kind: "comment" }); continue;
       }
-      out += escapeHtml(ch); i++;
+      if (!plain) plainStart = i;
+      plain += ch; i++;
     }
+    flushPlain();
     tokenRanges = ranges;
-    return { html: out, names, categoriesInUse, categoryHueMap, decorations };
+    return {
+      html: out, names, categoriesInUse, categoryHueMap, decorations,
+      tagCategoriesInUse: tagPainter ? Array.from(tagPainter.used) : [], tagPalette: tagPainter?.palette || null,
+    };
   }
 
   function syncHiddenWidget() {
@@ -551,7 +656,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function render() {
-    const { html, names, categoriesInUse, categoryHueMap, decorations } = highlightText(textarea.value);
+    const { html, names, categoriesInUse, categoryHueMap, decorations, tagCategoriesInUse, tagPalette } = highlightText(textarea.value);
     if (!syntaxHighlighter.render(decorations, textarea.value)) highlight.innerHTML = html + "\n";
     legend.innerHTML = "";
     categoriesInUse.forEach(cat => {
@@ -559,6 +664,12 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       const chip = document.createElement("div");
       chip.className = "wg-chip";
       chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>${escapeHtml(cat)}`;
+      legend.appendChild(chip);
+    });
+    TAG_CATEGORY_KEYS.filter(key => tagPalette && tagCategoriesInUse.includes(key)).forEach(key => {
+      const chip = document.createElement("div");
+      chip.className = "wg-chip wg-chip-tag";
+      chip.innerHTML = `<span class="wg-sw" style="background:${tagPalette[key]}; border-radius:3px;"></span>${escapeHtml(TAG_CATEGORY_LABELS[key] || key)}`;
       legend.appendChild(chip);
     });
     const knownCount = names.filter(isKnown).length;
@@ -579,30 +690,45 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     syncControlsFromWidgets();
   }
 
-  function getAcMatches(query) {
-    const q = query.toLowerCase();
-    return libraryCache.map(i => i.path).filter(p => p.toLowerCase().includes(q)).slice(0, 20);
+  // Same provider the main Prompt Palette node uses: the library is already cached locally, so no
+  // request goes to the server per keystroke. Recents are shared between nodes through the same
+  // stored usage list.
+  const usageStore = createPromptUsageStore();
+  async function getAcMatches(query, contextKind = "wildcard") {
+    const q = String(query || "").trim().toLowerCase();
+    const recents = usageStore.libraryRecent(12);
+    const libraryRows = libraryAcRows(q, {
+      rankedPaths: rankLibraryPaths(libraryCache, q, 32), pinned, recents, theme,
+      limit: contextKind === "booru" ? 24 : 28,
+    });
+    if (contextKind !== "booru") return libraryRows;
+    const tagRows = await getBooruAutocompleteMatches(q);
+    return mergeUnifiedRows(tagRows, libraryRows);
   }
-  function recheckAcOnCaretMove() {
-    const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
-    if (!fragment) { closeAcMenu(); return; }
-    openOrUpdateAcMenu(textarea, fragment, getAcMatches, () => render());
-  }
-  textarea.addEventListener("input", () => { render(); recheckAcOnCaretMove(); });
-  textarea.addEventListener("keyup", (e) => {
-    if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End") recheckAcOnCaretMove();
+  const cleanupAutocompleteBinding = attachAutocomplete(textarea, {
+    getMatches: getAcMatches,
+    onCommit: (item) => {
+      if (item && item.kind !== "booru" && item.kind !== "custom" && item.kind !== "syntax" && item.value) {
+        try { usageStore.recordLibrary(item.value); } catch { /* recents are a convenience */ }
+      }
+      render();
+    },
+    onInput: () => render(),
+    syntax: true,
   });
-  textarea.addEventListener("click", recheckAcOnCaretMove);
-  textarea.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { closeAcMenu(); closeInjectMenu(); }
+  // Tag categories arrive asynchronously (offline database lookup): repaint the overlay when they do.
+  const unsubscribeTagColors = onTagColorsChanged(() => {
+    if (!textarea.isConnected) return;
+    const { html, decorations } = highlightText(textarea.value);
+    if (!syntaxHighlighter.render(decorations, textarea.value)) highlight.innerHTML = html + "\n";
   });
 
-  let hoverTip = document.querySelector(".wg-tip");
-  if (!hoverTip) {
-    hoverTip = document.createElement("div");
-    hoverTip.className = "wg-tip";
-    document.body.appendChild(hoverTip);
-  }
+  const hoverTip = document.createElement("div");
+  hoverTip.className = "wg-tip";
+  hoverTip.dataset.promptPaletteHover = "true";
+  hoverTip.dataset.promptPaletteOwner = String(node.id ?? "node");
+  document.body.appendChild(hoverTip);
+  let hoverRequestVersion = 0;
   function charIndexFromEvent(e) {
     const cs = getComputedStyle(textarea);
     const lineH = parseFloat(cs.lineHeight) || 20;
@@ -621,12 +747,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     return idx + Math.min(col, lines[row].length);
   }
   async function showTipForName(x, y, name, known) {
+    const requestVersion = ++hoverRequestVersion;
     let entry = previewCache.get(name);
-    if (!entry) {
-      entry = await API.preview(name);
-      previewCache.set(name, entry);
+    if (!entry && known) {
+      try {
+        entry = await API.preview(name);
+        previewCache.set(name, entry);
+      } catch {
+        entry = null;
+      }
     }
-    const lines = (entry.lines || []).slice(0, 4);
+    if (requestVersion !== hoverRequestVersion || !nodeIsActive(node)) return;
+    const lines = (entry?.lines || []).slice(0, 4);
     copyPromptPaletteThemeScope(root, hoverTip);
     hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(known ? name : name + " (not found)")}</div>` +
       (lines.length ? lines.map(l => `<div class="wg-tip-line">${escapeHtml(l)}</div>`).join("") :
@@ -635,7 +767,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     hoverTip.style.top = (y + 14) + "px";
     hoverTip.style.display = "block";
   }
-  function hideTip() { hoverTip.style.display = "none"; }
+  function hideTip() { hoverRequestVersion += 1; hoverTip.style.display = "none"; }
   let hoverDebounce = null;
   textarea.addEventListener("mousemove", (e) => {
     const idx = charIndexFromEvent(e);
@@ -1015,6 +1147,37 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     renderPickerList(searchInput.value);
     return true;
   }
+  async function promptSaveSelectionAsList(start, end) {
+    const selectedText = textarea.value.slice(start, end);
+    const values = selectedText
+      .split(/[\r\n,]+/)
+      .map(value => value.trim())
+      .filter(Boolean);
+    if (!values.length) return;
+    const raw = await dialogPrompt({
+      title: "Save as list",
+      message: "Choose a My Library path for this tag list:",
+      defaultValue: "lists/new_list",
+    });
+    if (raw === null || raw === undefined) return;
+    const slug = normalizeLibraryEntryPath(raw);
+    if (!slug) {
+      notify("error", "List not saved", "Enter a valid path using letters, numbers, - _ or /.");
+      return;
+    }
+    if (knownSet.has(slug)) {
+      const overwrite = await dialogConfirm({ title: "Overwrite list", message: `"${slug}" already exists — overwrite it?` });
+      if (!overwrite) return;
+    }
+    const res = await API.save(slug, values.join("\n"));
+    if (!res.ok) {
+      notify("error", "List not saved", res.error || "save failed");
+      return;
+    }
+    await refreshLibrary();
+    notify("success", "Saved list", `${values.length} tag${values.length === 1 ? "" : "s"} → __${slug}__`);
+  }
+  textarea.__ppSaveSelectionAsList = promptSaveSelectionAsList;
   node._wgRefreshLibrary = refreshLibrary;
 
   action("refresh").addEventListener("click", async (e) => {
@@ -1033,6 +1196,16 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   // The settings coordinator owns the viewport portal mount; library/editor/picker remain inside the node.
   const cleanupSettingsKeyboardBoundary = installPromptPaletteKeyboardBoundary(settingsPopup);
+
+  const repaintEditorHighlights = () => {
+    const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
+    raf(() => {
+      if (!nodeIsActive(node) || !textarea.isConnected) return;
+      render();
+    });
+  };
+  textarea.addEventListener("focus", repaintEditorHighlights);
+  textarea.addEventListener("blur", repaintEditorHighlights);
 
   syncControlsFromWidgets();
   render();
@@ -1066,8 +1239,13 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       delete node._wgBeforeIoRailOpen;
       ioRail.cleanup();
       syntaxHighlighter.clear();
+      textarea.removeEventListener("focus", repaintEditorHighlights);
+      textarea.removeEventListener("blur", repaintEditorHighlights);
       editorSurface.cleanup();
-      if (acState && acState.textarea === textarea) closeAcMenu();
+      cleanupAutocompleteBinding?.();
+      unsubscribeTagColors();
+      hoverRequestVersion += 1;
+      hoverTip.remove();
       root.removeEventListener("keydown", handleWorkspaceEscape);
       document.removeEventListener("keydown", handleWorkspaceEscape);
       document.removeEventListener("mousemove", handlePickerResizeMove);
@@ -1105,7 +1283,7 @@ app.registerExtension({
       return;
     }
 
-    hideNativeWidget(hiddenWidget);
+    hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
     installPromptStateGuard(node, hiddenWidget);
     installPromptMetadataCapture(node);
     node.resizable = true;
@@ -1146,6 +1324,7 @@ app.registerExtension({
       node._wgRendererModeChanged = () => {
         node._wgReassertHiddenWidgets?.();
         node._wgReapplyTheme?.();
+        node._wgRefreshVisuals?.();
         scheduleDomWidgetRemeasure(node);
       };
       livePromptPaletteNodes.add(node);

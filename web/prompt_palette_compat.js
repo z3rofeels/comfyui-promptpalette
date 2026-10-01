@@ -95,19 +95,50 @@ function scheduleNodeFrame(node, callback) {
   return handle;
 }
 
-function hideNativeWidget(widget) {
+function nodeIsActuallyNodes2(node) {
+  // `LiteGraph.vueNodesMode` is a global renderer capability flag, not a
+  // reliable per-node ownership signal. ComfyUI can keep it true while a
+  // node is still mounted through the legacy canvas renderer. Prompt Palette
+  // must follow the renderer that actually owns this node.
+  try {
+    const snapshot = node?._ppRendererAdapter?.snapshot?.();
+    if (snapshot?.mode === "nodes2") return true;
+    if (snapshot?.mode === "classic") return false;
+  } catch {}
+  const nodeId = node?.id;
+  if (nodeId != null && typeof document !== "undefined") {
+    try {
+      const escaped = String(nodeId).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      if (document.querySelector?.(`.lg-node[data-node-id="${escaped}"]`)) return true;
+    } catch {}
+  }
+  // Before the Nodes 2 DOM mount exists, prefer the safe classic path. The
+  // shared Nodes 2 renderer will call _wgRendererModeChanged after mounting
+  // and reassert the widget-backed sockets from the real renderer state.
+  return false;
+}
+
+function hideNativeWidget(widget, { keepSocketForNodes2 = false } = {}) {
   if (!widget) return;
-  widget.hidden = true;
+  const node = widget?.__ppOwnerNode || widget?.node || widget?._node || null;
   widget.options ||= {};
-  widget.options.hidden = true;
+  if (keepSocketForNodes2 && node) widget.__ppSocketRailCandidate = true;
+  const keepNodes2Socket = !!keepSocketForNodes2 && !!node && nodeIsActuallyNodes2(node);
+  widget.__ppSocketOnly = keepNodes2Socket ? true : !!widget.__ppSocketOnly;
+  widget.hidden = !keepNodes2Socket;
+  widget.options.hidden = !keepNodes2Socket;
   widget.options.canvasOnly = true;
+  if (keepNodes2Socket) {
+    widget.options.disabled = true;
+    return;
+  }
 
   // Nodes 2 honors canvasOnly/hidden in the Vue widget renderer. Classic
   // LiteGraph still lays out and draws native widgets from widget.type/draw/
   // computeSize, so keep the long-standing zero-size fallback there only.
   // Without it the hidden backing controls reappear above the themed DOM UI
   // and consume most of the node body (especially Combinatorial).
-  if (!globalThis.LiteGraph?.vueNodesMode) {
+  if (!nodeIsActuallyNodes2(node)) {
     if (!widget._ppClassicHiddenState) {
       widget._ppClassicHiddenState = {
         type: widget.type,
@@ -179,7 +210,7 @@ function installResponsiveDomWidgetWidth(node, widget) {
     vueWidth = undefined;
   }
 
-  const inVueNodesMode = () => !!globalThis.LiteGraph?.vueNodesMode;
+  const inVueNodesMode = () => nodeIsActuallyNodes2(node);
   Object.defineProperty(widget, "width", {
     configurable: true,
     enumerable: original?.enumerable ?? true,
@@ -519,6 +550,11 @@ function canonicalizeOutputs(node, defs) {
     if (!slot) continue;
     slot.name = def.key;
     slot.type ||= def.type;
+    // Keep the schema-facing label authoritative for Nodes 2. The classic
+    // renderer may temporarily use its compact zero-width label, but the Vue
+    // slot component needs a real name/label to render its output text.
+    slot.label = def.label || def.key;
+    slot.localized_name = def.label || def.key;
     if (Number.isInteger(def.slotIndex)) slot.slot_index = def.slotIndex;
   }
   queueSocketRailLayout(node);
@@ -668,6 +704,7 @@ function setupIoRail(node, root, inputDefs, outputDefs) {
 
 export {
   HIDDEN_SOCKET_LABEL,
+  nodeIsActuallyNodes2,
   ensureNodeLifecycle, nodeIsActive,
   scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight,
