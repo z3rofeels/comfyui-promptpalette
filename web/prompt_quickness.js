@@ -24,26 +24,46 @@ function makeId(prefix = "item") {
 
 export function createPromptUsageStore() {
   let libraryRecent = readJson("library-recent", []);
+  let autocompleteRecent = readJson("autocomplete-recent", []);
   let starterRecent = readJson("starter-recent", []);
   let usage = readJson("usage", {});
   let starterFavorites = new Set(readJson("starter-favorites", []));
+  let autocompleteFavorites = readJson("autocomplete-favorites", []);
+
+  const TAG_CATEGORIES = ["general", "artist", "copyright", "character", "meta", "custom"];
+  const normalizeTagFavorite = (item) => {
+    if (!item || typeof item !== "object") return null;
+    const kind = String(item.kind) === "custom" ? "custom" : String(item.kind) === "booru" ? "booru" : "";
+    const value = String(item.value || "").trim();
+    if (!kind || !value) return null;
+    const category = TAG_CATEGORIES.includes(String(item.category)) ? String(item.category) : kind === "custom" ? "custom" : "general";
+    return { kind, value, category };
+  };
 
   const refresh = () => {
     const nextLibraryRecent = readJson("library-recent", []);
+    const nextAutocompleteRecent = readJson("autocomplete-recent", []);
     const nextStarterRecent = readJson("starter-recent", []);
     const nextUsage = readJson("usage", {});
     const nextFavorites = readJson("starter-favorites", []);
     libraryRecent = Array.isArray(nextLibraryRecent) ? nextLibraryRecent.filter((item) => typeof item === "string" && item) : [];
+    autocompleteRecent = Array.isArray(nextAutocompleteRecent)
+      ? nextAutocompleteRecent.filter((item) => item && typeof item === "object" && ["library", "booru", "custom"].includes(String(item.kind)) && String(item.value || "").trim())
+      : [];
     starterRecent = Array.isArray(nextStarterRecent) ? nextStarterRecent.filter((item) => item && typeof item === "object" && typeof item.id === "string") : [];
     usage = nextUsage && typeof nextUsage === "object" && !Array.isArray(nextUsage) ? nextUsage : {};
     starterFavorites = new Set(Array.isArray(nextFavorites) ? nextFavorites.map(String).filter(Boolean) : []);
+    const nextTagFavorites = readJson("autocomplete-favorites", []);
+    autocompleteFavorites = Array.isArray(nextTagFavorites) ? nextTagFavorites.map(normalizeTagFavorite).filter(Boolean) : [];
   };
 
   const persist = () => {
     writeJson("library-recent", libraryRecent.slice(0, 24));
+    writeJson("autocomplete-recent", autocompleteRecent.slice(0, 32));
     writeJson("starter-recent", starterRecent.slice(0, 24));
     writeJson("usage", usage);
     writeJson("starter-favorites", [...starterFavorites]);
+    writeJson("autocomplete-favorites", autocompleteFavorites.slice(0, 200));
   };
 
   return {
@@ -52,7 +72,27 @@ export function createPromptUsageStore() {
       const key = String(path || "").trim();
       if (!key) return;
       libraryRecent = [key, ...libraryRecent.filter((item) => item !== key)].slice(0, 24);
+      autocompleteRecent = [
+        { kind: "library", value: key, insertMode: "library", usedAt: Date.now() },
+        ...autocompleteRecent.filter((item) => !(String(item?.kind) === "library" && String(item?.value) === key)),
+      ].slice(0, 32);
       usage[`library:${key}`] = (Number(usage[`library:${key}`]) || 0) + 1;
+      persist();
+    },
+    recordTag(value, kind = "booru", category = "") {
+      refresh();
+      const tag = String(value || "").trim();
+      const source = kind === "custom" ? "custom" : "booru";
+      if (!tag) return;
+      const validCategory = ["general", "artist", "copyright", "character", "meta", "custom"].includes(String(category))
+        ? String(category)
+        : source === "custom" ? "custom" : "general";
+      const key = `${source}:${tag}`;
+      autocompleteRecent = [
+        { kind: source, value: tag, category: validCategory, insertMode: "plain", usedAt: Date.now() },
+        ...autocompleteRecent.filter((item) => `${String(item?.kind)}:${String(item?.value || "")}` !== key),
+      ].slice(0, 32);
+      usage[`tag:${key}`] = (Number(usage[`tag:${key}`]) || 0) + 1;
       persist();
     },
     recordStarter(entry) {
@@ -76,6 +116,25 @@ export function createPromptUsageStore() {
       persist();
     },
     libraryRecent(limit = 12) { refresh(); return libraryRecent.slice(0, Math.max(0, limit)); },
+    recentEntries(limit = 12) {
+      refresh();
+      const seen = new Set();
+      const out = [];
+      for (const item of autocompleteRecent) {
+        const key = `${String(item?.kind)}:${String(item?.value || "")}`;
+        if (!key.endsWith(":")) { seen.add(key); out.push({ ...item }); }
+      }
+      // Older installs only have the legacy library-recent list. Keep those entries visible
+      // without rewriting the stored format until the user uses them again.
+      for (const path of libraryRecent) {
+        const key = `library:${path}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ kind: "library", value: path, insertMode: "library", usedAt: 0 });
+      }
+      out.sort((a, b) => Number(b?.usedAt || 0) - Number(a?.usedAt || 0));
+      return out.slice(0, Math.max(0, limit));
+    },
     starterRecent(limit = 12) { refresh(); return starterRecent.slice(0, Math.max(0, limit)); },
     libraryUsage(path) { refresh(); return Number(usage[`library:${path}`]) || 0; },
     starterUsage(id) { refresh(); return Number(usage[`starter:${id}`]) || 0; },
@@ -102,8 +161,49 @@ export function createPromptUsageStore() {
     clearRecent() {
       refresh();
       libraryRecent = [];
+      autocompleteRecent = [];
       starterRecent = [];
       persist();
+    },
+    // Autocomplete-only controls. Starter-pack history is left alone; library entries are cleared
+    // from the shared library-recent list too, because recentEntries() merges that list back in.
+    clearAutocompleteRecent() {
+      refresh();
+      libraryRecent = [];
+      autocompleteRecent = [];
+      persist();
+    },
+    removeRecent(kind, value) {
+      refresh();
+      const source = String(kind) === "custom" ? "custom" : String(kind) === "booru" ? "booru" : "library";
+      const key = String(value || "").trim();
+      if (!key) return;
+      autocompleteRecent = autocompleteRecent.filter((item) => !(String(item?.kind) === source && String(item?.value || "") === key));
+      if (source === "library") libraryRecent = libraryRecent.filter((item) => item !== key);
+      persist();
+    },
+    // Starred booru tags / custom words. Library favorites are the existing pinned set.
+    tagFavorites() { refresh(); return autocompleteFavorites.map((item) => ({ ...item })); },
+    isTagFavorite(kind, value) {
+      refresh();
+      const source = String(kind) === "custom" ? "custom" : "booru";
+      const key = String(value || "").trim();
+      return autocompleteFavorites.some((item) => item.kind === source && item.value === key);
+    },
+    toggleTagFavorite(kind, value, category = "") {
+      refresh();
+      const source = String(kind) === "custom" ? "custom" : "booru";
+      const key = String(value || "").trim();
+      if (!key) return false;
+      const exists = autocompleteFavorites.some((item) => item.kind === source && item.value === key);
+      if (exists) {
+        autocompleteFavorites = autocompleteFavorites.filter((item) => !(item.kind === source && item.value === key));
+      } else {
+        const entry = normalizeTagFavorite({ kind: source, value: key, category });
+        if (entry) autocompleteFavorites = [entry, ...autocompleteFavorites];
+      }
+      persist();
+      return !exists;
     },
   };
 }

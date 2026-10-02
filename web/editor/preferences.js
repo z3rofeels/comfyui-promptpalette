@@ -9,10 +9,13 @@ function loadTheme() {
   const { surfaceFinish: _legacySurfaceFinish, accentGlow: _legacyAccentGlow, ...clean } = saved;
   const theme = { ...defaultTheme(), ...clean };
   theme.booruColors = { ...DEFAULT_BOORU_COLORS_DARK, ...(clean.booruColors && typeof clean.booruColors === "object" ? clean.booruColors : {}) };
-  if (!["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode)) theme.booruAutocompleteMode = "auto";
+  // Booru/custom-word autocomplete is opt-in (off unless the user turned it on).
+  const booruWanted = theme.booruAutocompleteEnabled === true;
+  if (!["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode)) theme.booruAutocompleteMode = booruWanted ? "auto" : "off";
   theme.booruAutocompleteMinChars = Math.max(1, Math.min(12, Math.round(Number(theme.booruAutocompleteMinChars) || 2)));
-  theme.booruAutocompleteEnabled = theme.booruAutocompleteMode !== "off" && theme.booruAutocompleteEnabled !== false;
+  theme.booruAutocompleteEnabled = theme.booruAutocompleteMode !== "off" && booruWanted;
   if (!theme.booruAutocompleteEnabled) theme.booruAutocompleteMode = "off";
+  theme.autocompleteRecentLimit = Math.max(5, Math.min(10, Math.round(Number(theme.autocompleteRecentLimit) || 5)));
   return theme;
 }
 const DEFAULT_BOORU_COLORS_DARK = Object.freeze({
@@ -68,8 +71,9 @@ function defaultTheme() {
     promptHistoryEnabled: true,
     starterPacksEnabled: true,
 
-    booruAutocompleteEnabled: true,
-    booruAutocompleteMode: "auto",
+    autocompleteRecentLimit: 5,
+    booruAutocompleteEnabled: false,
+    booruAutocompleteMode: "off",
     booruAutocompleteMinChars: 2,
     booruSourceDatabase: true,
     booruSourceCustomWords: true,

@@ -72,7 +72,9 @@ function handleInjectDocumentMouseDown(event) {
 function ensureInjectMenu() {
   if (injectMenu) return injectMenu;
   injectMenu = document.createElement("div");
-  injectMenu.className = "wg-inject-menu wg-root";
+  // Use the same visual primitives as the shared autocomplete popup so wildcard
+  // injection, syntax suggestions, and booru/tag autocomplete feel like one system.
+  injectMenu.className = "wg-inject-menu wg-ac-menu wg-root";
   injectMenu.dataset.promptPaletteGlobal = "true";
   document.body.appendChild(injectMenu);
 
@@ -129,28 +131,28 @@ function renderInjectMenu(cat) {
   const menu = ensureInjectMenu();
   const scope = injectState?.textarea?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface");
   if (scope) copyPromptPaletteThemeScope(scope, menu);
-  const modRows = INJECT_MODIFIERS.map((m, i) => `
-      <div class="wg-inject-item" data-kind="mod" data-index="${i}" title="${escapeHtml(m.desc)}">
-        <span class="wg-inject-item-label">${escapeHtml(m.label)}</span>
-        <span class="wg-inject-item-code">${escapeHtml(m.build(cat))}</span>
-      </div>`).join("");
+
+  const row = (kind, index, label, code, desc) => `
+    <div class="wg-ac-item wg-inject-item" data-kind="${kind}" data-index="${index}" title="${escapeHtml(desc)}">
+      <span class="wg-ac-copy wg-inject-copy">
+        <strong>${escapeHtml(label)}</strong>
+        ${desc ? `<small>${escapeHtml(desc)}</small>` : ""}
+      </span>
+      ${code ? `<span class="wg-ac-metrics"><span class="wg-ac-pill wg-ac-code">${escapeHtml(code)}</span></span>` : ""}
+    </div>`;
+
+  const modRows = INJECT_MODIFIERS.map((m, i) => row("mod", i, m.label, m.build(cat), m.desc)).join("");
   const tplRows = INJECT_TEMPLATES.map((t, i) => {
     const { prefix, editable, suffix } = t.build(cat);
-    return `
-      <div class="wg-inject-item" data-kind="tpl" data-index="${i}" title="${escapeHtml(t.desc)}">
-        <span class="wg-inject-item-label">${escapeHtml(t.label)}</span>
-        <span class="wg-inject-item-code">${escapeHtml(prefix + editable + suffix)}</span>
-      </div>`;
+    return row("tpl", i, t.label, prefix + editable + suffix, t.desc);
   }).join("");
-  const editRows = INJECT_EDIT_ACTIONS.map((a, i) => `
-      <div class="wg-inject-item" data-kind="edit" data-index="${i}" title="${escapeHtml(a.desc)}">
-        <span class="wg-inject-item-label">${escapeHtml(a.label)}</span>
-      </div>`).join("");
+  const editRows = INJECT_EDIT_ACTIONS.map((a, i) => row("edit", i, a.label, "", a.desc)).join("");
+
   menu.innerHTML =
-    `<div class="wg-inject-head">${escapeHtml(cat)}</div>` +
-    `<div class="wg-inject-section-label">Wildcard</div>` + modRows +
-    `<div class="wg-inject-section-label">Template</div>` + tplRows +
-    `<div class="wg-inject-section-label">Edit</div>` + editRows;
+    `<div class="wg-ac-group wg-inject-head" data-ac-section="context">${escapeHtml(cat)}</div>` +
+    `<div class="wg-ac-group" data-ac-section="wildcard">Wildcard</div>` + modRows +
+    `<div class="wg-ac-group" data-ac-section="template">Template</div>` + tplRows +
+    `<div class="wg-ac-group" data-ac-section="edit">Edit</div>` + editRows;
 }
 
 function positionInjectMenu(trigger) {

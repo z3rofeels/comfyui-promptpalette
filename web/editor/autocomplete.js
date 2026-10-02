@@ -1,6 +1,6 @@
 import { getSharedWildcardEngine } from "../engine/wildcard_engine.js";
 import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
-import { escapeHtml, sanitizeHexColor, nudgeHexForContrast, currentUiSurface } from "./text_utils.js";
+import { escapeHtml, sanitizeHexColor, nudgeHexForContrast, currentUiSurface, categoryOf, hashStr, categoryColorFromHue } from "./text_utils.js";
 import { createDomRangeForOffsets } from "./editor_surface.js";
 import { API } from "../prompt_palette_api.js";
 import { loadCustomWords, filterCustomWords, resetCustomWords } from "./custom_words.js";
@@ -9,6 +9,8 @@ import { notify } from "./notifications.js";
 import { panelToneFor } from "./panel_tone.js";
 import { openCustomWordsManager } from "./custom_words_manager.js";
 import { syntaxSnippetRows } from "./injector.js";
+import { createPromptUsageStore } from "../prompt_quickness.js";
+import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import {
   loadTheme, DEFAULT_BOORU_COLORS_DARK, DEFAULT_BOORU_COLORS_LIGHT,
 } from "./preferences.js";
@@ -94,7 +96,35 @@ function ensureAcMenu() {
   document.body.appendChild(acMenu);
 
   acMenu.addEventListener("mousedown", (e) => {
-    const row = e.target.closest("[data-ac-index]");
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    // Controls inside the menu act on mousedown (like the rows) and never steal focus from the editor.
+    if (target.closest("[data-ac-clear-recents]")) {
+      e.preventDefault();
+      e.stopPropagation();
+      clearAcRecents();
+      return;
+    }
+    const rowIndex = () => Number(target.closest("[data-ac-index]")?.dataset.acIndex);
+    if (target.closest("[data-ac-star]")) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleAcFavorite(rowIndex());
+      return;
+    }
+    if (target.closest("[data-ac-remove]")) {
+      e.preventDefault();
+      e.stopPropagation();
+      removeAcRecent(rowIndex());
+      return;
+    }
+    const head = target.closest("[data-ac-toggle]");
+    if (head) {
+      e.preventDefault();
+      toggleAcSection(head.dataset.acToggle);
+      return;
+    }
+    const row = target.closest("[data-ac-index]");
     if (!row) return;
     e.preventDefault();
     commitAcSelection(Number(row.dataset.acIndex));
@@ -126,8 +156,9 @@ const BOORU_CATEGORY_TITLES = {
 
 function booruSettings() {
   const theme = loadTheme();
-  let enabled = theme.booruAutocompleteEnabled !== false;
-  let mode = ["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode) ? theme.booruAutocompleteMode : "auto";
+  // Booru/custom-word autocomplete is opt-in: it stays off until the user enables it in Options.
+  let enabled = theme.booruAutocompleteEnabled === true;
+  let mode = ["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode) ? theme.booruAutocompleteMode : (enabled ? "auto" : "off");
   if (!enabled) mode = "off";
   if (mode === "off") enabled = false;
   return {
@@ -195,6 +226,27 @@ function shouldOpenBooruAutocomplete(fragment, { onDemand = false } = {}) {
   return String(fragment.query || "").length >= settings.minChars;
 }
 
+function expandAutocompleteReplacementRange(text, fragment, caret) {
+  if (!fragment) return fragment;
+  const source = String(text || "");
+  let end = Math.max(fragment.end ?? caret, caret);
+  const isBooruChar = (char) => /[A-Za-z0-9_+():'\/\-]/.test(char || "");
+  const isWildcardNameChar = (char) => /[A-Za-z0-9_\-/]/.test(char || "");
+
+  if (fragment.kind === "booru") {
+    while (end < source.length && isBooruChar(source[end])) end += 1;
+    return { ...fragment, end };
+  }
+
+  if (fragment.kind === "wildcard") {
+    const closing = source.indexOf("__", caret);
+    if (closing >= 0) return { ...fragment, end: closing + 2 };
+    while (end < source.length && isWildcardNameChar(source[end])) end += 1;
+    return { ...fragment, end };
+  }
+  return fragment;
+}
+
 function compactCount(value) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) return "";
@@ -259,16 +311,181 @@ function applyBooruMenuColors(menu) {
   Object.entries(colors).forEach(([key, value]) => menu.style.setProperty(`--pp-booru-${key}`, value));
 }
 
+// ---- Recents, favorites and collapsible sections --------------------------------------------
+let acStoreInstance = null;
+function acStore() {
+  if (!acStoreInstance) acStoreInstance = createPromptUsageStore();
+  return acStoreInstance;
+}
+
+// Recents stay short so the menu never turns into a history list (5-10, default 5).
+function acRecentLimit() {
+  const value = Math.round(Number(loadTheme().autocompleteRecentLimit));
+  return Number.isFinite(value) ? Math.max(5, Math.min(10, value)) : 5;
+}
+
+let acCollapsed = null;
+function collapsedSections() {
+  if (!acCollapsed) {
+    let saved = null;
+    try { saved = readEditorPreference("acCollapsed", {}); } catch { /* collapse state is a convenience */ }
+    acCollapsed = saved && typeof saved === "object" && !Array.isArray(saved) ? { ...saved } : {};
+  }
+  return acCollapsed;
+}
+function toggleAcSection(section) {
+  if (!section || acState?.kind === "syntax") return;
+  const collapsed = collapsedSections();
+  if (collapsed[section]) delete collapsed[section]; else collapsed[section] = true;
+  try { writeEditorPreference("acCollapsed", { ...collapsed }); } catch { /* collapse state is a convenience */ }
+  if (acState) renderAcMenu();
+}
+
+let acFavorites = new Map();
+function tagFavoriteKey(kind, value) {
+  return `${kind === "custom" ? "custom" : "booru"}\u0000${String(value || "").trim().toLowerCase()}`;
+}
+function loadAcFavorites() {
+  try {
+    acFavorites = new Map(acStore().tagFavorites().map((entry) => [tagFavoriteKey(entry.kind, entry.value), entry]));
+  } catch { acFavorites = new Map(); }
+}
+function rawTagKind(item) {
+  if (!item || typeof item !== "object") return "";
+  if (item.group === "Booru Tags" || item.kind === "booru") return "booru";
+  if (item.group === "Custom Words" || item.kind === "custom") return "custom";
+  return "";
+}
+function acItemKey(item) {
+  return `${item?.kind || ""}\u0000${String(item?.value ?? item?.label ?? "")}`;
+}
+
+// Runs a source lookup, then applies the shared menu rules every editor relies on:
+//  - after "__": library/wildcard rows stay first and matching tags follow;
+//  - starred tags/custom words are flagged (and surfaced even when the lookup missed them);
+//  - Recents are capped.
+async function resolveAcItems(getMatches, query, kind) {
+  const items = await withLookupTimeout(Promise.resolve(getMatches(query, kind)));
+  return decorateAcItems(Array.isArray(items) ? items : [], query, kind);
+}
+
+async function decorateAcItems(items, query, kind) {
+  if (kind !== "booru" && kind !== "wildcard") return items;
+  const q = String(query || "").trim().toLowerCase();
+  const settings = booruSettings();
+  const tagsEnabled = settings.enabled && (settings.database || settings.customWords);
+  let rows = items.slice();
+
+  if (kind === "wildcard" && tagsEnabled) {
+    try {
+      const tags = await withLookupTimeout(getBooruAutocompleteMatches(q));
+      rows = rows.concat(tags.slice(0, 16));
+    } catch { /* tags are optional; the library rows stand on their own */ }
+  }
+
+  if (tagsEnabled) {
+    loadAcFavorites();
+    if (acFavorites.size) {
+      const present = new Set();
+      rows = rows.map((item) => {
+        const tagKind = rawTagKind(item);
+        if (!tagKind) return item;
+        const key = tagFavoriteKey(tagKind, item.value);
+        if (!acFavorites.has(key)) return item;
+        present.add(key);
+        return { ...item, favorite: true };
+      });
+      const extra = [];
+      for (const [key, entry] of acFavorites) {
+        if (present.has(key)) continue;
+        if (q && !entry.value.toLowerCase().includes(q)) continue;
+        const hasCategory = !(entry.kind === "custom" && entry.category === "custom");
+        extra.push({
+          value: entry.value, label: entry.value, kind: entry.kind, group: entry.kind === "custom" ? "Custom Words" : "Booru Tags",
+          category: entry.category, hasCategory, favorite: true, insertMode: "plain", priority: 2,
+        });
+        if (extra.length >= 12) break;
+      }
+      rows = extra.concat(rows);
+    }
+  }
+
+  const limit = acRecentLimit();
+  let recents = 0;
+  return rows.filter((item) => {
+    if (!item || typeof item !== "object" || !item.recent) return true;
+    if (item.favorite && rawTagKind(item)) return true; // shown under Favorite Tags, not Recents
+    recents += 1;
+    return recents <= limit;
+  });
+}
+
+async function refreshAcItems(keepKey = null) {
+  const state = acState;
+  if (!state?.getMatches) return;
+  const version = ++acRequestVersion;
+  try {
+    const items = await resolveAcItems(state.getMatches, state.query, state.kind);
+    if (version !== acRequestVersion || acState !== state) return;
+    state.items = items;
+    state.keepActiveKey = keepKey;
+  } catch { /* keep the list that is already showing */ }
+  if (acState === state) renderAcMenu();
+}
+
+function activeKeyExcept(raw) {
+  const active = acState?.items?.[acState.activeIndex];
+  return active && active !== raw ? acItemKey(normalizeAcItem(active)) : null;
+}
+
+function toggleAcFavorite(index) {
+  const raw = acState?.items?.[index];
+  if (raw == null) return;
+  const item = normalizeAcItem(raw);
+  if (item.kind !== "booru" && item.kind !== "custom") return;
+  try {
+    acStore().toggleTagFavorite(item.kind, item.value, item.hasCategory ? item.category : "");
+  } catch { return; }
+  refreshAcItems(acItemKey(item));
+}
+
+function removeAcRecent(index) {
+  const raw = acState?.items?.[index];
+  if (raw == null) return;
+  const item = normalizeAcItem(raw);
+  if (!item.recent) return;
+  const keep = activeKeyExcept(raw);
+  const textarea = acState.textarea;
+  try {
+    acStore().removeRecent(item.kind === "booru" || item.kind === "custom" ? item.kind : "library", item.value);
+    textarea?.__ppAcRecentsChanged?.();
+  } catch { return; }
+  refreshAcItems(keep);
+}
+
+function clearAcRecents() {
+  if (!acState) return;
+  const textarea = acState.textarea;
+  try {
+    acStore().clearAutocompleteRecent();
+    textarea?.__ppAcRecentsChanged?.();
+  } catch { return; }
+  refreshAcItems(null);
+}
+
 function insertBooruValue(value) {
   let text = String(value || "").trim();
+  // Booru/custom entries are plain prompt text, not Prompt Palette library wildcards.
+  // Preserve the source tag verbatim so tags such as saber_(fate) stay real tags rather
+  // than being transformed into wildcard syntax or an escaped variant of the tag.
   if (booruInsertOptions.spaces) text = text.replace(/_/g, " ");
-  // Escape literal parentheses so ComfyUI's prompt-weight syntax cannot reinterpret a database tag.
-  text = text.replace(/([()])/g, "\\$1");
   if (booruInsertOptions.appendComma) text += ",";
   return text;
 }
 
 function sectionForItem(item) {
+  if (item.favorite && (item.kind === "booru" || item.kind === "custom" || item.group === "Booru Tags" || item.group === "Custom Words")) return "Favorite Tags";
+  if (item.recent) return "Recents";
   if (item.kind === "booru") return "Booru Tags";
   if (item.kind === "custom") return "Custom Words";
   if (item.kind === "syntax") return "Syntax";
@@ -287,12 +504,18 @@ function normalizeAcItem(item) {
   };
   const count = Number(item?.count);
   const priority = Number(item?.priority);
+  const group = String(item?.group || "My Library");
+  // Keep the source boundary explicit: booru/custom rows are plain prompt tags, while
+  // library/favorite/recent rows are the only rows allowed to become __library__ tokens.
+  let kind = String(item?.kind || "library");
+  if (group === "Booru Tags") kind = "booru";
+  else if (group === "Custom Words") kind = "custom";
   return {
     value: String(item?.value ?? item?.label ?? ""),
     label: String(item?.label ?? item?.value ?? ""),
-    group: String(item?.group || "My Library"),
+    group,
     meta: String(item?.meta || ""),
-    kind: String(item?.kind || "library"),
+    kind,
     category: String(item?.category || "general").toLowerCase(),
     hasCategory: !!item?.category,
     count: Number.isFinite(count) && count > 0 ? count : 0,
@@ -301,6 +524,7 @@ function normalizeAcItem(item) {
     insertText: item?.insertText == null ? null : String(item.insertText),
     selectInserted: !!item?.selectInserted,
     selectRange: Array.isArray(item?.selectRange) && item.selectRange.length === 2 ? item.selectRange.map(Number) : null,
+    insertMode: item?.insertMode === "plain" ? "plain" : item?.insertMode === "library" ? "library" : ((kind === "booru" || kind === "custom") ? "plain" : "library"),
     favorite: !!item?.favorite,
     recent: !!item?.recent,
     recipe: !!item?.recipe,
@@ -386,7 +610,7 @@ async function saveAcCustomWord() {
   // Re-run the current lookup so the new word appears in the list right away.
   const version = ++acRequestVersion;
   try {
-    const items = await state.getMatches?.(state.query, state.kind);
+    const items = state.getMatches ? await resolveAcItems(state.getMatches, state.query, state.kind) : null;
     if (Array.isArray(items) && version === acRequestVersion && acState === state) state.items = items;
   } catch { /* the saved word will show on the next keystroke */ }
   if (acState === state) renderAcMenu();
@@ -538,6 +762,7 @@ function appendAcFooter(menu) {
 function renderAcMenu() {
   if (!acState) return;
   const menu = ensureAcMenu();
+  const theme = loadTheme();
   const scope = acState?.textarea?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface");
   if (scope) copyPromptPaletteThemeScope(scope, menu);
   menu.dataset.acTone = panelToneFor(menu);
@@ -550,47 +775,57 @@ function renderAcMenu() {
     ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
   menu.innerHTML = "";
 
-  const groupOrder = ["Exact Custom", "Booru Tags", "Custom Words", "Favorites", "Recents", "Recipes", "Library Prompts", "Syntax"];
-  const libraryGroups = new Set(["Favorites", "Recents", "Recipes", "Library Prompts"]);
+  // Section order follows what was typed: "__" lists the library/wildcards first and tags after;
+  // an ordinary word lists tags/custom words first and the relevant library entries after.
+  const groupOrder = acState.kind === "wildcard"
+    ? ["Favorites", "Recents", "Recipes", "Library Prompts", "Favorite Tags", "Exact Custom", "Booru Tags", "Custom Words", "Syntax"]
+    : ["Favorite Tags", "Exact Custom", "Booru Tags", "Custom Words", "Recents", "Favorites", "Recipes", "Library Prompts", "Syntax"];
   const promptText = acState?.textarea?.value || "";
   const grouped = new Map();
   acState.items.forEach((rawItem, index) => {
     const item = normalizeAcItem(rawItem);
     const isExactCustom = item.kind === "custom" && String(item.label || "").trim().toLocaleLowerCase() === String(acState.query || "").trim().toLocaleLowerCase();
     if (isExactCustom) item.exactCustom = true;
-    const section = isExactCustom ? "Exact Custom" : (item.section || sectionForItem(item));
+    const section = item.section === "Favorite Tags" ? "Favorite Tags" : isExactCustom ? "Exact Custom" : (item.section || sectionForItem(item));
     if (!grouped.has(section)) grouped.set(section, []);
     grouped.get(section).push({ item, index });
   });
-  // Library groups normally follow the tag groups, but jump ahead when the typed word is the
-  // start of one of the user's own cards/favorites: their own names beat a generic tag.
-  const promoted = new Set();
-  for (const [section, entries] of grouped) {
-    if (libraryGroups.has(section) && entries.some(({ item }) => item.priority >= 2)) promoted.add(section);
-  }
   const rank = (section) => {
     const base = groupOrder.indexOf(section);
-    if (base === -1) return 100;
-    return promoted.has(section) ? 0.5 + base / 100 : base;
+    return base === -1 ? 100 : base;
   };
-  const groups = Array.from(grouped.entries()).sort(([a], [b]) => {
-    const ai = rank(a) === 100 ? -1 : rank(a);
-    const bi = rank(b) === 100 ? -1 : rank(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  const groups = Array.from(grouped.entries()).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
 
-  // Keyboard order must match what is drawn. Groups can be re-ranked (a strong library match is
-  // promoted above the tag groups), so put the items in display order once, then render again.
+  // Keyboard order must match what is drawn, so put the items in display order once, then render again.
   const displayOrder = groups.flatMap(([, entries]) => entries.map(({ index }) => index));
   if (displayOrder.some((value, position) => value !== position)) {
+    const keepKey = acState.keepActiveKey;
     acState.items = displayOrder.map((index) => acState.items[index]);
-    acState.activeIndex = 0; // a fresh list always starts on its first visible row
+    acState.activeIndex = 0; // a fresh list starts on its first visible row...
+    if (keepKey) { // ...unless the caller (star/remove/clear) wants the same row kept active
+      const kept = acState.items.findIndex((raw) => acItemKey(normalizeAcItem(raw)) === keepKey);
+      if (kept >= 0) acState.activeIndex = kept;
+    }
+    acState.keepActiveKey = null;
     renderAcMenu();
     return;
   }
+  if (acState.keepActiveKey) {
+    const kept = acState.items.findIndex((raw) => acItemKey(normalizeAcItem(raw)) === acState.keepActiveKey);
+    if (kept >= 0) acState.activeIndex = kept;
+    acState.keepActiveKey = null;
+  }
+
+  // Collapsed sections hide their rows, so the keyboard only walks the rows that are showing.
+  const canCollapse = acState.kind !== "syntax";
+  const collapsedMap = collapsedSections();
+  const isCollapsed = (section) => canCollapse && !!collapsedMap[section];
+  const visible = [];
+  for (const [section, entries] of groups) {
+    if (!isCollapsed(section)) entries.forEach(({ index }) => visible.push(index));
+  }
+  acState.visible = visible;
+  if (!visible.includes(acState.activeIndex)) acState.activeIndex = visible.length ? visible[0] : -1;
 
   if (!acState.items.length) {
     const empty = document.createElement("div");
@@ -598,17 +833,60 @@ function renderAcMenu() {
     empty.textContent = acState.kind === "syntax" ? "No syntax matches" : "No matches — keep typing or open Library";
     menu.appendChild(empty);
   } else {
-    // Booru tags are what this menu is for, so they never get a header. The other sources
-    // get a plain label, and only when results from several sources are mixed.
-    const labelSections = groups.length > 1;
+    // Every source gets an explicit section label, even when it is the only source.
+    // This keeps Tags / Recent / Library / Syntax visually distinct instead of making
+    // the menu's meaning depend on what happened to match the current query.
+    const sectionLabels = {
+      "Exact Custom": "Exact",
+      "Favorite Tags": "Favorite tags",
+      "Booru Tags": "Tags",
+      "Custom Words": "Custom",
+      "Favorites": "Favorites",
+      "Recents": "Recent",
+      "Recipes": "Recipes",
+      "Library Prompts": "Library",
+      "Syntax": "Syntax",
+    };
     for (const [section, entries] of groups) {
-      if (labelSections && section !== "Booru Tags") {
-        const heading = document.createElement("div");
-        heading.className = "wg-ac-group";
-        heading.dataset.acSection = section.toLowerCase().replace(/\s+/g, "-");
-        heading.textContent = section;
-        menu.appendChild(heading);
+      const collapsed = isCollapsed(section);
+      const heading = document.createElement("div");
+      heading.className = "wg-ac-group" + (canCollapse ? " collapsible" : "") + (collapsed ? " collapsed" : "");
+      heading.dataset.acSection = section.toLowerCase().replace(/\s+/g, "-");
+      const title = document.createElement("span");
+      title.className = "wg-ac-group-title";
+      if (canCollapse) {
+        heading.dataset.acToggle = section;
+        heading.setAttribute("role", "button");
+        heading.setAttribute("aria-expanded", String(!collapsed));
+        heading.title = collapsed ? "Expand section" : "Collapse section";
+        const caret = document.createElement("span");
+        caret.className = "wg-ac-caret";
+        caret.setAttribute("aria-hidden", "true");
+        caret.textContent = collapsed ? "\u25b8" : "\u25be";
+        title.appendChild(caret);
       }
+      const label = document.createElement("span");
+      label.textContent = sectionLabels[section] || section;
+      title.appendChild(label);
+      // A collapsed section shows how much it is hiding; an open one stays free of counts.
+      if (collapsed) {
+        const hidden = document.createElement("span");
+        hidden.className = "wg-ac-group-count";
+        hidden.textContent = String(entries.length);
+        title.appendChild(hidden);
+      }
+      heading.appendChild(title);
+      if (section === "Recents") {
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "wg-ac-clear";
+        clear.dataset.acClearRecents = "true";
+        clear.title = "Clear all recents (use \u00d7 on a row to remove just that one)";
+        clear.textContent = "Clear";
+        heading.appendChild(clear);
+      }
+      menu.appendChild(heading);
+      if (collapsed) continue;
 
       for (const { item, index } of entries) {
         const row = document.createElement("div");
@@ -639,16 +917,24 @@ function renderAcMenu() {
         } else if (item.kind === "syntax") {
           row.title = item.meta || "Inline syntax";
         } else {
-          // Library card: prompt, wildcard list, recipe, favorite or recent. Its category color
-          // is the same one the library sidebar and the editor use.
+          // Library card: prompt, wildcard list, recipe, favorite or recent. These are all
+          // library-backed rows, so their source color must remain attached to the item even
+          // when it is surfaced through Recents or Favorites.
           if (item.favorite) row.dataset.acFavorite = "true";
           if (item.recent) row.dataset.acRecent = "true";
           if (item.recipe) row.dataset.acRecipe = "true";
-          if (item.swatch) {
-            row.dataset.acLibrary = "true";
-            // Same hue as the library sidebar, nudged only as far as needed to stay readable here.
-            row.style.setProperty("--pp-ac-lib", nudgeHexForContrast(sanitizeHexColor(item.swatch, "#b4aea5"), panelHex));
-          }
+          row.dataset.acLibrary = "true";
+          const libraryCategory = categoryOf(item.value);
+          const automaticLibraryColor = theme?.categoryPins?.[libraryCategory]
+            || categoryColorFromHue(((hashStr(libraryCategory) % 360) + (Number(theme?.hueRotate) || 0)) % 360, Number(theme?.saturation) || 58, currentUiSurface());
+          const sourceColor = sanitizeHexColor(item.swatch, automaticLibraryColor);
+          const libraryColor = nudgeHexForContrast(sourceColor, panelHex);
+          row.style.setProperty("--pp-ac-lib", libraryColor);
+          row.style.setProperty("--pp-ac-source", sourceColor);
+          row.style.setProperty("--pp-ac-bar", libraryColor);
+          // Explicit color binding prevents a theme accent or section-specific rule from
+          // turning a Recent row into a generic red item. The prompt itself keeps sourceColor.
+          row.style.color = libraryColor;
           row.title = item.recipe ? "Palette Recipe" : item.favorite ? "Favorite" : item.recent ? "Recently used" : "Library";
         }
 
@@ -667,13 +953,34 @@ function renderAcMenu() {
         metrics.className = "wg-ac-metrics";
         if (item.kind === "syntax" && item.code) appendPill(metrics, item.code, "wg-ac-code");
         if (item.recipe) appendPill(metrics, "recipe", "wg-ac-source wg-ac-recipe");
-        else if (item.favorite) appendPill(metrics, "\u2605", "wg-ac-source wg-ac-fav");
+        else if (item.favorite && item.kind !== "booru" && item.kind !== "custom") appendPill(metrics, "\u2605", "wg-ac-source wg-ac-fav");
         else if (item.recent) appendPill(metrics, "recent", "wg-ac-source");
         if (item.count) appendPill(metrics, compactCount(item.count), "wg-ac-count");
         if (item.alias && item.alias !== item.label) appendPill(metrics, item.alias, "wg-ac-alias");
         if (item.exactCustom) appendPill(metrics, "exact", "wg-ac-source");
         else if (inPrompt) appendPill(metrics, "✓", "wg-ac-present");
         if (!item.count && !item.alias && item.kind === "custom" && !item.exactCustom) appendPill(metrics, "custom", "wg-ac-source");
+
+        if (item.kind === "booru" || item.kind === "custom") {
+          const star = document.createElement("button");
+          star.type = "button";
+          star.className = "wg-ac-star" + (item.favorite ? " on" : "");
+          star.dataset.acStar = "true";
+          star.setAttribute("aria-pressed", String(!!item.favorite));
+          star.title = item.favorite ? "Remove from favorites" : "Add to favorites";
+          star.textContent = item.favorite ? "\u2605" : "\u2606";
+          metrics.appendChild(star);
+        }
+        if (item.recent) {
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "wg-ac-remove";
+          remove.dataset.acRemove = "true";
+          remove.title = "Remove from recents";
+          remove.setAttribute("aria-label", "Remove from recents");
+          remove.textContent = "\u00d7";
+          metrics.appendChild(remove);
+        }
 
         row.append(textWrap, metrics);
         menu.appendChild(row);
@@ -689,7 +996,7 @@ function renderAcMenu() {
 
   // Size and place the menu: as wide as its longest row (CSS max-width applies) and as
   // tall as the results need, using whichever side of the caret has more room.
-  const coords = getCaretCoords(acState.textarea, acState.end);
+  const coords = getCaretCoords(acState.textarea, acState.anchor ?? acState.end);
   const margin = 8;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -736,7 +1043,7 @@ async function openOrUpdateAcMenu(textarea, fragment, getMatches, onCommit, { fo
   const query = fragment.query;
   let items;
   try {
-    items = await withLookupTimeout(Promise.resolve(getMatches(query, fragment.kind)));
+    items = await resolveAcItems(getMatches, query, fragment.kind);
   } catch (error) {
     console.warn("Prompt Palette: autocomplete lookup failed", error);
     if (requestVersion === acRequestVersion && acOwner === textarea) closeAcMenu();
@@ -748,8 +1055,9 @@ async function openOrUpdateAcMenu(textarea, fragment, getMatches, onCommit, { fo
     ? (textarea.selectionStart === fragment.end && textarea.selectionEnd === fragment.end ? fragment : null)
     : findWildcardFragment(textarea.value, textarea.selectionStart);
   if (!stillValid || stillValid.start !== fragment.start || stillValid.end !== textarea.selectionStart || stillValid.query !== query) return;
+  const replacementFragment = expandAutocompleteReplacementRange(textarea.value, stillValid, textarea.selectionStart);
   acState = {
-    textarea, items, activeIndex: 0, start: stillValid.start, end: stillValid.end,
+    textarea, items, activeIndex: 0, start: replacementFragment.start, end: replacementFragment.end, anchor: textarea.selectionStart,
     kind: stillValid.kind || "wildcard", modifier: stillValid.modifier || "", query, onCommit, getMatches,
   };
   renderAcMenu();
@@ -765,12 +1073,15 @@ function commitAcSelection(index) {
   const rawItem = items[index];
   if (rawItem == null) return closeAcMenu();
   const item = normalizeAcItem(rawItem);
-  // What gets inserted follows the picked row, not the fragment that opened the menu: a library
-  // card picked while typing an ordinary word must still become __name__, not bare text.
-  const isTagRow = item.kind === "booru" || item.kind === "custom";
-  const replacement = item.insertText == null
-    ? (isTagRow ? insertBooruValue(item.value) : `__${acState.kind === "wildcard" ? (acState.modifier || "") : ""}${item.value}__`)
-    : item.insertText;
+  // The row's explicit insertion mode is the source of truth. Plain tags/custom words are
+  // inserted byte-for-byte from their stored value (subject only to the existing user toggles);
+  // only a verified library row may become __name__.
+  const isPlainTag = item.insertMode === "plain" || item.kind === "booru" || item.kind === "custom";
+  const replacement = isPlainTag
+    ? (item.insertText == null ? insertBooruValue(item.value) : item.insertText)
+    : (item.insertText == null
+      ? `__${acState.kind === "wildcard" ? (acState.modifier || "") : ""}${item.value}__`
+      : item.insertText);
   textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
   // A picked tag keeps its category color in the prompt. Register it before the input event
   // below triggers the repaint, so it never flashes uncolored while the lookup catches up.
@@ -797,10 +1108,12 @@ function commitAcSelection(index) {
   if (onCommit) onCommit(item);
 }
 
-function attachAutocomplete(textarea, { getMatches, onCommit, onInput, syntax = false } = {}) {
+function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecentsChanged, syntax = false } = {}) {
   if (!textarea || typeof getMatches !== "function") return () => {};
   const previousCleanup = textarea.__ppAutocompleteCleanup;
   if (typeof previousCleanup === "function") previousCleanup();
+  // Lets the menu tell the owning editor that Recents were cleared/removed (its library list may mirror them).
+  textarea.__ppAcRecentsChanged = typeof onRecentsChanged === "function" ? onRecentsChanged : null;
 
   const syntaxMatches = async (query) => syntaxSnippetRows(query);
   // Only editors whose text is resolved as inline syntax opt in (Prompt Palette, Combinatorial).
@@ -881,14 +1194,16 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, syntax = 
       }
     }
     if (!acState || acState.textarea !== textarea) return;
-    const count = acState.items.length;
+    const visibleRows = acState.visible || acState.items.map((_, index) => index);
+    const count = visibleRows.length;
+    const position = visibleRows.indexOf(acState.activeIndex);
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      acState.activeIndex = count ? (acState.activeIndex + 1) % count : 0;
+      if (count) acState.activeIndex = visibleRows[(position + 1) % count];
       renderAcMenu();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      acState.activeIndex = count ? (acState.activeIndex - 1 + count) % count : 0;
+      if (count) acState.activeIndex = visibleRows[position < 0 ? count - 1 : (position - 1 + count) % count];
       renderAcMenu();
     } else if (event.key === "Enter" || event.key === "Tab") {
       if (!count) return;
@@ -922,7 +1237,10 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, syntax = 
     textarea.removeEventListener("keydown", onKeydown);
     textarea.removeEventListener("blur", onBlur);
     if (acOwner === textarea || acState?.textarea === textarea) closeAcMenu();
-    if (textarea.__ppAutocompleteCleanup === cleanup) delete textarea.__ppAutocompleteCleanup;
+    if (textarea.__ppAutocompleteCleanup === cleanup) {
+      delete textarea.__ppAutocompleteCleanup;
+      textarea.__ppAcRecentsChanged = null;
+    }
   };
   Object.defineProperty(textarea, "__ppAutocompleteCleanup", { value: cleanup, configurable: true });
   return cleanup;

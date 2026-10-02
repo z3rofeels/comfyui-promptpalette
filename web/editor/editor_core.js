@@ -333,10 +333,11 @@ function buildWildcardWidget(node, hiddenWidget) {
   function colorForToken(name, categoryHueMap) {
     const cat = categoryOf(name);
     if (theme.categoryPins[cat]) return theme.categoryPins[cat];
-    const hue = categoryHueMap[cat] !== undefined ? categoryHueMap[cat] : (hashStr(cat) % 360 + theme.hueRotate) % 360;
-    const leaf = name.split("/").pop();
-    const shadeShift = (hashStr(leaf) % 20) - 10;
-    return categoryColorFromHue(hue, theme.saturation, currentUiSurface(), shadeShift);
+    // Library entries use the same category color in the autocomplete/library UI and in the
+    // prompt itself. Keep the token color tied to the entry category rather than a per-leaf
+    // shade so selecting a Recent/Library row preserves the exact visual identity of the source.
+    const hue = (hashStr(cat) % 360 + theme.hueRotate) % 360;
+    return categoryColorFromHue(hue, theme.saturation, currentUiSurface());
   }
   function rebuildKnownLeafSet() {
     knownLeafSet = new Set(Array.from(knownSet, (name) => String(name).split("/").pop()));
@@ -500,7 +501,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
 
     profiler.measure("editor.legend", () => {
-      const legendItems = categoriesInUse.map((cat) => [cat, theme.categoryPins[cat] || categoryColorFromHue(categoryHueMap[cat], theme.saturation)]);
+      const legendItems = categoriesInUse.map((cat) => [cat, theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation, currentUiSurface())]);
       // Booru / custom tag categories present in the prompt get their own chips (square swatch,
       // so they read as tags rather than wildcard categories).
       const tagItems = TAG_CATEGORY_KEYS.filter((key) => tagPalette && tagCategoriesInUse.includes(key)).map((key) => [key, tagPalette[key]]);

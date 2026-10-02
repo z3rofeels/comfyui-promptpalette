@@ -33,7 +33,7 @@ export function rankLibraryPaths(items, query, limit = 32) {
 
 // Library rows (prompts, wildcards, recipes, favorites, recents) with the same category
 // color the library sidebar and the editor use, so a card looks the same everywhere.
-export function libraryAcRows(query, { rankedPaths = [], pinned = new Set(), recents = [], theme = {}, limit = 28 } = {}) {
+export function libraryAcRows(query, { rankedPaths = [], pinned = new Set(), recents = [], excludePaths = new Set(), theme = {}, limit = 28 } = {}) {
   const q = String(query || "").trim().toLowerCase();
   const matches = (path) => !q || String(path).toLowerCase().includes(q);
   const colors = new Map();
@@ -47,7 +47,7 @@ export function libraryAcRows(query, { rankedPaths = [], pinned = new Set(), rec
   const seen = new Set();
   const rows = [];
   const push = (path, { favorite = false, recent = false, fuzzy = false } = {}) => {
-    if (!path || seen.has(path) || (!fuzzy && !matches(path))) return;
+    if (!path || seen.has(path) || excludePaths.has(path) || (!fuzzy && !matches(path))) return;
     seen.add(path);
     const cat = categoryOf(path);
     const recipe = isRecipeCategory(cat);
@@ -57,7 +57,7 @@ export function libraryAcRows(query, { rankedPaths = [], pinned = new Set(), rec
       value: path, label: path, meta: path.split("/").slice(0, -1).join(" / "),
       kind: recipe ? "recipe" : favorite ? "favorite" : recent ? "recent" : "library",
       group: recipe ? "Recipes" : favorite ? "Favorites" : recent ? "Recents" : "My Library",
-      favorite, recent, recipe, swatch: colorFor(cat), priority: strong || (favorite && q) ? 2 : 1,
+      favorite, recent, recipe, insertMode: "library", swatch: colorFor(cat), priority: strong || (favorite && q) ? 2 : 1,
     });
   };
   [...pinned].filter(matches).slice(0, 6).forEach((path) => push(path, { favorite: true }));
@@ -68,6 +68,64 @@ export function libraryAcRows(query, { rankedPaths = [], pinned = new Set(), rec
 
 // Booru/custom rows first-class, library guaranteed a slice of the list (the booru source can
 // return dozens of rows and used to crowd the library out completely).
+
+// Unified autocomplete history. Library entries remain library/wildcard items; booru and
+// custom entries remain plain prompt tags. The row kind is the source of truth when selected.
+export function recentAcRows(query, { entries = [], pinned = new Set(), theme = {}, limit = 12, contextKind = "booru", isLibraryPath = null } = {}) {
+  const q = String(query || "").trim().toLowerCase();
+  const rows = [];
+  const seen = new Set();
+  const colorFor = (cat) => {
+    const key = String(cat || "misc");
+    const pin = theme?.categoryPins?.[key];
+    return pin || categoryColorFromHue(((hashStr(key) % 360) + (Number(theme?.hueRotate) || 0)) % 360, Number(theme?.saturation) || 58);
+  };
+  const matches = (value) => !q || String(value || "").toLowerCase().includes(q);
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const storedKind = String(entry?.kind || "");
+    const value = String(entry?.value || "").trim();
+    if (!value || seen.has(`${storedKind}:${value}`) || !matches(value)) continue;
+
+    if (storedKind === "library") {
+      const verifiedLibrary = typeof isLibraryPath === "function" ? !!isLibraryPath(value) : true;
+      if (!verifiedLibrary) {
+        // Older broken recent records could have been stored as "library" even though
+        // they were ordinary tags. In an ordinary prompt context never let that stale
+        // classification create __...__. Surface it as a plain tag instead.
+        if (contextKind !== "booru") continue;
+        const fallbackCategory = ["general", "artist", "copyright", "character", "meta", "custom"].includes(String(entry?.category))
+          ? String(entry.category) : "general";
+        const fallbackKind = fallbackCategory === "custom" ? "custom" : "booru";
+        rows.push({
+          value, label: value, meta: fallbackKind === "custom" ? "Custom word" : "Recently used tag",
+          kind: fallbackKind, group: "Recents", recent: true, category: fallbackCategory, hasCategory: true,
+          insertMode: "plain", priority: 2,
+        });
+      } else {
+        if (pinned.has(value)) continue;
+        const cat = categoryOf(value);
+        const recipe = isRecipeCategory(cat);
+        rows.push({
+          value, label: value, meta: value.split("/").slice(0, -1).join(" / "),
+          kind: recipe ? "recipe" : "recent", group: "Recents", recent: true, recipe,
+          insertMode: "library", swatch: colorFor(cat), priority: 2,
+        });
+      }
+    } else if (storedKind === "booru" || storedKind === "custom") {
+      const category = ["general", "artist", "copyright", "character", "meta", "custom"].includes(String(entry?.category))
+        ? String(entry.category) : storedKind === "custom" ? "custom" : "general";
+      rows.push({
+        value, label: value, meta: storedKind === "custom" ? "Custom word" : "Recently used tag",
+        kind: storedKind, group: "Recents", recent: true, category, hasCategory: true,
+        insertMode: "plain", priority: 2,
+      });
+    }
+    seen.add(`${storedKind}:${value}`);
+    if (rows.length >= Math.max(0, limit)) break;
+  }
+  return rows;
+}
+
 export function mergeUnifiedRows(tagRows, libraryRows, { tagLimit = 44, libraryLimit = 24 } = {}) {
   const tags = Array.isArray(tagRows) ? tagRows : [];
   const lib = Array.isArray(libraryRows) ? libraryRows : [];

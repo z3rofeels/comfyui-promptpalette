@@ -96,6 +96,11 @@
   transition: opacity 90ms ease, transform 120ms ease;
   pointer-events: none;
 }
+.wg-ac-item:hover::before {
+  opacity: .72;
+  transform: translateY(-50%) scaleY(.9);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--pp-ac-bar, var(--wg-accent, #d49a52)) 52%, transparent);
+}
 .wg-ac-item.active::before {
   opacity: 1;
   transform: translateY(-50%) scaleY(1);
@@ -181,11 +186,18 @@
 .wg-ac-item[data-ac-booru="artist"] { color: var(--pp-booru-artist); }
 .wg-ac-item[data-ac-booru="meta"] { color: var(--pp-booru-meta); }
 .wg-ac-item[data-ac-booru="custom"] { color: var(--pp-booru-custom); }
+.wg-ac-item[data-ac-booru] {
+  background: color-mix(in srgb, currentColor 4%, var(--pp-ac-row));
+}
 
 /* Library cards (prompts, wildcard lists, recipes, favorites, recents) share the category color the
    library sidebar and the editor use. A dot (or the recipe book) and a small badge carry the same
    meaning without relying on color alone. */
-.wg-ac-item[data-ac-library] { color: var(--pp-ac-lib); --pp-ac-bar: var(--pp-ac-lib); }
+.wg-ac-item[data-ac-library] {
+  color: var(--pp-ac-lib);
+  --pp-ac-bar: var(--pp-ac-lib);
+  background: color-mix(in srgb, var(--pp-ac-lib) 4%, var(--pp-ac-row));
+}
 .wg-ac-item[data-ac-library] .wg-ac-copy strong::before {
   content: "";
   display: inline-block;
@@ -206,6 +218,7 @@
   vertical-align: baseline;
 }
 .wg-ac-item[data-ac-library] .wg-ac-copy small { color: color-mix(in srgb, var(--wg-text-dim, #b4aea5) 82%, var(--pp-ac-lib)); }
+.wg-ac-item[data-ac-library] .wg-ac-match { color: var(--pp-ac-lib); }
 .wg-ac-item[data-ac-library] .wg-ac-pill {
   border-radius: 999px;
   padding: 0 7px;
@@ -381,10 +394,12 @@
 .wg-ac-add-note.error { color: var(--wg-danger, #e0787a); }
 
 .wg-ac-item[data-ac-section="recents"] {
-  background: color-mix(in srgb, var(--wg-accent, #d49a52) 3%, var(--pp-ac-row));
+  color: var(--pp-ac-lib, var(--wg-text, #f1eee8));
+  --pp-ac-bar: var(--pp-ac-lib, var(--wg-accent, #d49a52));
+  background: color-mix(in srgb, var(--pp-ac-lib, var(--wg-text, #f1eee8)) 5%, var(--pp-ac-row));
 }
 .wg-ac-item[data-ac-section="library-prompts"] {
-  background: var(--pp-ac-row);
+  background: color-mix(in srgb, var(--pp-ac-lib, var(--wg-border, #2a2e34)) 3%, var(--pp-ac-row));
 }
 .wg-ac-item[data-ac-section="custom-words"] {
   color: var(--wg-success, #82c6a2);
@@ -431,6 +446,50 @@
   .wg-ac-item.active::before { background: Highlight; }
   .wg-ac-item.active, .wg-ac-item:hover { background: Canvas; color: CanvasText; border-color: Highlight; }
   .wg-ac-pill { border-color: CanvasText; background: Canvas; color: CanvasText; }
+}
+
+/*
+ * Wildcard injection popup: it uses the same visual language as autocomplete.
+ * Keep the injector-specific rules here (rather than duplicating the entire menu
+ * component in 00-base.css) so both popups stay in lockstep as the theme evolves.
+ */
+.wg-ac-menu.wg-inject-menu {
+  z-index: 10000;
+  min-width: min(380px, calc(100vw - 16px));
+  max-width: min(620px, calc(100vw - 16px));
+  max-height: min(640px, calc(100vh - 16px));
+  padding: 4px;
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-head {
+  color: var(--wg-accent, #d49a52);
+  background: var(--pp-ac-panel);
+  border-top-color: transparent;
+  font-size: 7px;
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-copy small {
+  white-space: normal;
+  max-width: 44ch;
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-item {
+  align-items: flex-start;
+  min-height: 29px;
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-item[data-kind="mod"] {
+  --pp-ac-bar: var(--wg-accent, #d49a52);
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-item[data-kind="tpl"] {
+  --pp-ac-bar: var(--wg-accent, #d49a52);
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-item[data-kind="edit"] {
+  --pp-ac-bar: var(--wg-text-dim, #b4aea5);
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-item:hover .wg-inject-item-label,
+.wg-ac-menu.wg-inject-menu .wg-inject-item:hover .wg-inject-item-code {
+  color: inherit;
+}
+.wg-ac-menu.wg-inject-menu .wg-inject-item-code {
+  color: var(--wg-accent, #d49a52);
+  opacity: 1;
 }
 
 /* Custom words manager (opened from "Manage" in the autocomplete footer). */
@@ -566,3 +625,40 @@
   .wg-cw-search { flex-basis: 100%; }
   .wg-cw-foot { flex-wrap: wrap; }
 }
+
+/* ---- Collapsible, labeled sections; favorite stars; recents controls ---- */
+.wg-ac-group { font-size: 9px; min-height: 22px; gap: 8px; }
+.wg-ac-group.collapsible { cursor: pointer; user-select: none; }
+.wg-ac-group.collapsible:hover { background: color-mix(in srgb, var(--pp-ac-panel) 88%, var(--wg-text, #f1eee8) 12%); }
+.wg-ac-group-title { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.wg-ac-caret { display: inline-block; width: 8px; font-size: 9px; text-align: center; opacity: .75; }
+.wg-ac-group-count {
+  display: inline-flex; align-items: center; height: 13px; padding: 0 5px;
+  border-radius: 999px; background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: 8px; letter-spacing: 0; font-variant-numeric: tabular-nums;
+}
+.wg-ac-group[data-ac-section="favorite-tags"] { color: var(--wg-accent, #d49a52); }
+.wg-ac-group[data-ac-section="booru-tags"] { color: var(--wg-text-dim, #b4aea5); }
+.wg-ac-clear {
+  flex: 0 0 auto; margin: 0; padding: 2px 6px; border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 4px; background: transparent; color: inherit; font: inherit; font-size: 8px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase; line-height: 1; cursor: pointer; opacity: .8;
+}
+.wg-ac-clear:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
+
+.wg-ac-star,
+.wg-ac-remove {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin: 0; padding: 0; border: 0; border-radius: 4px;
+  background: transparent; color: inherit; font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+}
+.wg-ac-star { opacity: .4; }
+.wg-ac-star.on { opacity: 1; color: var(--wg-accent, #d49a52); }
+.wg-ac-item:hover .wg-ac-star,
+.wg-ac-item.active .wg-ac-star { opacity: .85; }
+.wg-ac-item .wg-ac-star.on { opacity: 1; }
+.wg-ac-remove { opacity: 0; font-size: 14px; }
+.wg-ac-item:hover .wg-ac-remove,
+.wg-ac-item.active .wg-ac-remove { opacity: .7; }
+.wg-ac-star:hover,
+.wg-ac-remove:hover { opacity: 1 !important; background: color-mix(in srgb, currentColor 16%, transparent); }

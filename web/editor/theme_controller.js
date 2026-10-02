@@ -152,6 +152,7 @@ export function createThemeController(ctx) {
   const categoryPresetSelect = el("categoryPresetSelect");
   const categoryPresetStatus = el("categoryPresetStatus");
   const themePackStatus = el("themePackStatus");
+  const autocompleteRecentLimit = el("autocompleteRecentLimit");
   const toggleBooruAutocompleteCb = el("toggleBooruAutocomplete");
   const booruAutocompleteMode = el("booruAutocompleteMode");
   const booruAutocompleteMinChars = el("booruAutocompleteMinChars");
@@ -481,7 +482,7 @@ export function createThemeController(ctx) {
       layout: Object.fromEntries(Object.entries(theme).filter(([key]) => key.startsWith("show") || [
         "syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "booruAutocompleteEnabled",
         "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors",
-        "zenMode", "layoutPreset", "dayTheme", "nightTheme",
+        "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme",
       ].includes(key))),
     };
   }
@@ -560,7 +561,9 @@ export function createThemeController(ctx) {
       for (const [key, value] of Object.entries(pack.layout)) {
         if (!(key in defaults) || !["boolean", "string", "number"].includes(typeof value)) continue;
         if (key === "booruAutocompleteMode") {
-          theme[key] = ["auto", "onDemand", "off"].includes(value) ? value : "auto";
+          theme[key] = ["auto", "onDemand", "off"].includes(value) ? value : "off";
+        } else if (key === "autocompleteRecentLimit") {
+          theme[key] = Math.max(5, Math.min(10, Math.round(Number(value) || 5)));
         } else if (key === "booruAutocompleteMinChars") {
           theme[key] = Math.max(1, Math.min(12, Math.round(Number(value) || 2)));
         } else if (key === "layoutPreset") {
@@ -989,8 +992,9 @@ export function createThemeController(ctx) {
     toggleSyntaxInjectorCb.checked = theme.syntaxInjectorEnabled !== false;
     togglePromptHistoryCb.checked = theme.promptHistoryEnabled !== false;
     toggleStarterPacksCb.checked = theme.starterPacksEnabled !== false;
-    toggleBooruAutocompleteCb.checked = theme.booruAutocompleteEnabled !== false;
-    booruAutocompleteMode.value = ["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode) ? theme.booruAutocompleteMode : "auto";
+    autocompleteRecentLimit.value = String(Math.max(5, Math.min(10, Math.round(Number(theme.autocompleteRecentLimit) || 5))));
+    toggleBooruAutocompleteCb.checked = theme.booruAutocompleteEnabled === true;
+    booruAutocompleteMode.value = ["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode) ? theme.booruAutocompleteMode : "off";
     booruAutocompleteMinChars.value = Math.max(1, Math.min(12, Number(theme.booruAutocompleteMinChars) || 2));
     booruSourceDatabase.checked = theme.booruSourceDatabase !== false;
     booruSourceCustomWords.checked = theme.booruSourceCustomWords !== false;
@@ -1097,6 +1101,12 @@ export function createThemeController(ctx) {
     theme.starterPacksEnabled = toggleStarterPacksCb.checked;
     saveTheme(theme);
     applyStarterPacksSetting();
+    updateThemeJson();
+  });
+  autocompleteRecentLimit.addEventListener("change", () => {
+    theme.autocompleteRecentLimit = Math.max(5, Math.min(10, Math.round(Number(autocompleteRecentLimit.value) || 5)));
+    autocompleteRecentLimit.value = String(theme.autocompleteRecentLimit);
+    saveTheme(theme);
     updateThemeJson();
   });
   toggleBooruAutocompleteCb.addEventListener("change", () => {

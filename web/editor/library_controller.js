@@ -14,7 +14,7 @@ import {
   categoryOf, isRecipeCategory, normalizeLibraryEntryPath, escapeHtml, highlightMatch, hashStr, categoryColorFromHue,
 } from "./text_utils.js";
 import { getBooruAutocompleteMatches, attachAutocomplete } from "./autocomplete.js";
-import { libraryAcRows, mergeUnifiedRows } from "./autocomplete_sources.js";
+import { libraryAcRows, recentAcRows, mergeUnifiedRows } from "./autocomplete_sources.js";
 import {
   runTextareaEditCommand, insertInjectorText, openInjectMenu, closeInjectMenu, scheduleCloseInjectMenu,
   cancelScheduledCloseInjectMenu, injectState,
@@ -160,7 +160,13 @@ export function createLibraryController(ctx) {
   async function getAcMatches(query, contextKind = "wildcard") {
     const q = String(query || "").trim().toLowerCase();
     ensureLibraryIndex();
-    const recents = usageStore.libraryRecent(12);
+    const recentEntries = usageStore.recentEntries(16);
+    const recentRows = recentAcRows(q, {
+      entries: contextKind === "booru" ? recentEntries : recentEntries.filter((entry) => entry?.kind === "library"),
+      pinned, theme, contextKind, isLibraryPath: (path) => !!libraryIndex.get(path), limit: 12,
+    });
+    const recentLibraryPaths = new Set(recentRows.filter((item) => item.kind !== "booru" && item.kind !== "custom").map((item) => item.value));
+    const recents = recentEntries.filter((entry) => entry?.kind === "library").map((entry) => entry.value);
     let rankedPaths;
     if (q && state.workerClient?.shouldUseForLibrary?.()) {
       try { rankedPaths = (await state.workerClient.search(q, 32, { pinned, recent: recents })).map((item) => item.path); } catch { rankedPaths = null; }
@@ -172,15 +178,19 @@ export function createLibraryController(ctx) {
     }
     // Prompts, wildcards, recipes, favorites and recents, colored like the library itself.
     // (Starter Packs stay in the Prompt Library only, so autocomplete stays focused on prompt text.)
-    const libraryRows = libraryAcRows(q, { rankedPaths, pinned, recents, theme, limit: contextKind === "booru" ? 24 : 28 })
-      .filter((item) => item?.kind !== "starter");
-    if (contextKind !== "booru") return libraryRows;
+    const libraryRows = libraryAcRows(q, {
+      rankedPaths, pinned, recents, excludePaths: recentLibraryPaths, theme,
+      limit: contextKind === "booru" ? 24 : 28,
+    }).filter((item) => item?.kind !== "starter");
+    if (contextKind !== "booru") return [...recentRows, ...libraryRows];
     const tagRows = await getBooruAutocompleteMatches(q);
-    return mergeUnifiedRows(tagRows, libraryRows);
+    return mergeUnifiedRows(tagRows, [...recentRows, ...libraryRows]);
   }
 
   function commitAcItem(item) {
-    if (item?.kind === "starter") {
+    if (item?.kind === "booru" || item?.kind === "custom") {
+      usageStore.recordTag(item.value, item.kind, item.category);
+    } else if (item?.kind === "starter") {
       const entry = state.starterAutocompleteRows.find((row) => row.id === item.value);
       if (entry) {
         usageStore.recordStarter(entry);
@@ -196,6 +206,11 @@ export function createLibraryController(ctx) {
   const cleanupAutocompleteBinding = attachAutocomplete(textarea, {
     getMatches: getAcMatches,
     onCommit: commitAcItem,
+    // Clearing/removing a recent in the menu also updates the sidebar's Recent list.
+    onRecentsChanged: () => {
+      state.recentList = usageStore.libraryRecent(12);
+      renderPickerList(searchInput.value);
+    },
     syntax: true,
   });
 

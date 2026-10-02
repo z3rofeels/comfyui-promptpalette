@@ -7,7 +7,7 @@ import { bindSuiteAppearance } from "./editor/suite_appearance.js";
 import { readCombinatorialPreference, writeCombinatorialPreference } from "./prompt_palette_state.js";
 import { upgradeEditorSurface } from "./editor/editor_surface.js";
 import { createSyntaxHighlighter } from "./editor/syntax_highlighter.js";
-import { libraryAcRows, mergeUnifiedRows, rankLibraryPaths } from "./editor/autocomplete_sources.js";
+import { libraryAcRows, recentAcRows, mergeUnifiedRows, rankLibraryPaths } from "./editor/autocomplete_sources.js";
 import { createPromptUsageStore } from "./prompt_quickness.js";
 import { createTagPainter, onTagColorsChanged, TAG_CATEGORY_KEYS, TAG_CATEGORY_LABELS } from "./editor/booru_tag_colors.js";
 import {
@@ -577,10 +577,11 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   function colorForToken(name, categoryHueMap) {
     const cat = categoryOf(name);
     if (theme.categoryPins[cat]) return theme.categoryPins[cat];
-    const hue = categoryHueMap[cat] !== undefined ? categoryHueMap[cat] : (hashStr(cat) % 360 + theme.hueRotate) % 360;
-    const leaf = name.split("/").pop();
-    const shadeShift = (hashStr(leaf) % 20) - 10;
-    return categoryColorFromHue(hue, theme.saturation, currentUiSurface(), shadeShift);
+    // Library entries use the same category color in the autocomplete/library UI and in the
+    // prompt itself. Keep the token color tied to the entry category rather than a per-leaf
+    // shade so selecting a Recent/Library row preserves the exact visual identity of the source.
+    const hue = (hashStr(cat) % 360 + theme.hueRotate) % 360;
+    return categoryColorFromHue(hue, theme.saturation, currentUiSurface());
   }
   function highlightText(text) {
     const names = extractWildcardNames(text);
@@ -660,7 +661,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (!syntaxHighlighter.render(decorations, textarea.value)) highlight.innerHTML = html + "\n";
     legend.innerHTML = "";
     categoriesInUse.forEach(cat => {
-      const color = theme.categoryPins[cat] || categoryColorFromHue(categoryHueMap[cat], theme.saturation);
+      const color = theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation, currentUiSurface());
       const chip = document.createElement("div");
       chip.className = "wg-chip";
       chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>${escapeHtml(cat)}`;
@@ -696,19 +697,27 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const usageStore = createPromptUsageStore();
   async function getAcMatches(query, contextKind = "wildcard") {
     const q = String(query || "").trim().toLowerCase();
-    const recents = usageStore.libraryRecent(12);
+    const recentEntries = usageStore.recentEntries(16);
+    const recentRows = recentAcRows(q, {
+      entries: contextKind === "booru" ? recentEntries : recentEntries.filter((entry) => entry?.kind === "library"),
+      pinned, theme, limit: 12,
+    });
+    const recentLibraryPaths = new Set(recentRows.filter((item) => item.kind !== "booru" && item.kind !== "custom").map((item) => item.value));
     const libraryRows = libraryAcRows(q, {
-      rankedPaths: rankLibraryPaths(libraryCache, q, 32), pinned, recents, theme,
+      rankedPaths: rankLibraryPaths(libraryCache, q, 32), pinned, recents: [],
+      excludePaths: recentLibraryPaths, theme,
       limit: contextKind === "booru" ? 24 : 28,
     });
-    if (contextKind !== "booru") return libraryRows;
+    if (contextKind !== "booru") return [...recentRows, ...libraryRows];
     const tagRows = await getBooruAutocompleteMatches(q);
-    return mergeUnifiedRows(tagRows, libraryRows);
+    return mergeUnifiedRows(tagRows, [...recentRows, ...libraryRows]);
   }
   const cleanupAutocompleteBinding = attachAutocomplete(textarea, {
     getMatches: getAcMatches,
     onCommit: (item) => {
-      if (item && item.kind !== "booru" && item.kind !== "custom" && item.kind !== "syntax" && item.value) {
+      if (item?.kind === "booru" || item?.kind === "custom") {
+        try { usageStore.recordTag(item.value, item.kind, item.category); } catch { /* recents are a convenience */ }
+      } else if (item && item.kind !== "syntax" && item.value) {
         try { usageStore.recordLibrary(item.value); } catch { /* recents are a convenience */ }
       }
       render();
