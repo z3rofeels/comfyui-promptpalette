@@ -29,7 +29,7 @@ export { livePromptPaletteNodes, cleanupSharedPromptPaletteDom } from "./editor/
 export {
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
   ensureNodeLifecycle, nodeIsActive, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
-  installPromptStateGuard, installPromptMetadataCapture,
+  installPromptStateGuard, installPromptMetadataCapture, installNodeGeometryGuard, preparePromptBackingWidgets,
   ioState, ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, setupIoRail,
   installSocketRailLayout, cleanupSocketRailLayout, queueSocketRailLayout,
 } from "./prompt_palette_compat.js";

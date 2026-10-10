@@ -92,8 +92,19 @@ export function canonicalSchemaSockets(list, defs, kind) {
   const sockets = [];
   const used = new Set();
   for (const def of defs || []) {
-    const matches = (list || []).filter((slot) => slot?.name === def.key && !used.has(slot));
-    const slot = matches.find((candidate) => socketConnected(kind, candidate)) || matches[0] || null;
+    let slot = null;
+    // Output links are indexed by their schema position. A legacy/localized name
+    // must never make us select a different output slot just because it happens to
+    // share the same visible name. Inputs remain name-based because their widget
+    // identities are not positional in the same way.
+    if (kind === "output" && Number.isInteger(def?.slotIndex)) {
+      const indexed = list?.[def.slotIndex];
+      if (indexed && !used.has(indexed)) slot = indexed;
+    }
+    if (!slot) {
+      const matches = (list || []).filter((candidate) => candidate?.name === def.key && !used.has(candidate));
+      slot = matches.find((candidate) => socketConnected(kind, candidate)) || matches[0] || null;
+    }
     if (!slot) continue;
     used.add(slot);
     sockets.push(slot);

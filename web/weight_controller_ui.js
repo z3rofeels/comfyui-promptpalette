@@ -1,15 +1,20 @@
+import { saveEditorSelection } from "./editor/selection_library.js";
+import { attachEditorContextMenu } from "./editor/context_menu.js";
+import { openInjectMenuAtPoint, closeInjectMenu } from "./editor/injector.js";
+import { loadTheme } from "./editor/preferences.js";
+import { bindEditorWildcardHover } from "./editor/editor_hover.js";
 import { app } from "../../scripts/app.js";
 import {
-  loadExtensionStylesheet, svgIcon,
+  loadExtensionStylesheet, svgIcon, copyPromptPaletteThemeScope, positionPromptPaletteTip,
   installPromptPaletteKeyboardBoundary, registerPromptPaletteSettingsDrawer,
 } from "./prompt_palette_shared.js";
 import { bindSuiteAppearance } from "./editor/suite_appearance.js";
 import {
-  API, escapeHtml, isDialogOpen, editorStylesReady, normalizeLibraryEntryPath,
-  getBooruAutocompleteMatches, attachAutocomplete, dialogPrompt, dialogConfirm, notify,
-  ensureNodeLifecycle, nodeIsActive,
+  API, escapeHtml, isDialogOpen, editorStylesReady,
+  getBooruAutocompleteMatches, attachAutocomplete,
+  ensureNodeLifecycle, nodeIsActive, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
-  ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs,
+  ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, installNodeGeometryGuard,
   setupIoRail, installSocketRailLayout, cleanupSocketRailLayout, queueSocketRailLayout,
 } from "./wildcard_editor.js";
 
@@ -58,12 +63,9 @@ function buildSettingsPopup() {
       <button type="button" class="wg-close-btn" data-act="close" title="Close settings" aria-label="Close Weight Controller settings">${svgIcon("close", 15)}</button>
     </div>
     <div class="wg-settings-shell ppwc-settings-shell">
-      <nav class="wg-settings-nav" aria-label="Settings sections">
-        <button type="button" class="active" aria-current="page"><span>Weighting</span><small>Mode &amp; routing</small></button>
-      </nav>
       <div class="wg-settings-body">
         <section class="wg-settings-panel active">
-          <div class="wg-panel-title"><div><h3>Weight Controller behavior</h3><p>These controls mirror the node. Suite themes, fonts, colors, and surfaces live in the main Prompt Palette settings.</p></div></div>
+          <div class="wg-panel-title"><div><h3>Weighting</h3><p>Choose the format expected by your model. Themes and fonts are shared from Prompt Palette.</p></div></div>
           <div class="wg-settings-card-grid">
             <section class="wg-settings-card">
               <label class="wg-field"><span>Weighting mode</span><select class="wg-theme-select" data-el="settingsModeSelect"></select></label>
@@ -74,9 +76,11 @@ function buildSettingsPopup() {
               <label class="wg-field"><span>Negative routing</span><select class="wg-theme-select" data-el="settingsRoutingSelect"></select></label>
             </section>
           </div>
+          <details class="ppwc-guide"><summary>Weighting guide</summary>
           <div class="ppwc-help-card"><strong>Advanced controls</strong><span>When off, Weight Controller executes with None clamping and Direct routing.</span></div>
           <div class="ppwc-help-card"><strong>Soft Safety Clamp</strong><span>Compresses weights toward 1.0 as they move farther away, while barely touching values close to neutral.</span></div>
           <div class="ppwc-help-card"><strong>Zero Inversion Null</strong><span>For plain-prose model output, suppressed phrases are removed instead of rendered without their negative multiplier.</span></div>
+          </details>
         </section>
       </div>
     </div>
@@ -103,7 +107,7 @@ function setupSettingsUI(node) {
     <div class="ppwc-settings-row">
       <div class="ppwc-title-wrap">
         <span class="ppwc-title-mark" aria-hidden="true"></span>
-        <div><strong>Weight Controller</strong><small>Phrase weighting without leaving Prompt Palette</small></div>
+        <div><strong>Weight Controller</strong></div>
       </div>
       <div class="ppwc-row-actions">
         <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Manage inputs, outputs, and socket labels" aria-label="Manage inputs, outputs, and socket labels">${svgIcon("io", 13)}<span class="wg-io-button-label">I/O</span><span data-io-count></span></button>
@@ -111,11 +115,11 @@ function setupSettingsUI(node) {
       </div>
     </div>
     <div class="ppwc-main">
-      <div class="ppwc-editor-head"><span>Weighted prompt</span><small>Use (phrase:weight), for example (portrait lighting:1.2)</small></div>
+      <div class="ppwc-editor-head"><span>Prompt</span><small title="Weight a phrase with parentheses: (portrait lighting:1.2)">(phrase:1.2)</small></div>
       <div class="ppwc-editor-wrap"><textarea class="ppwc-textarea" data-el="textInput" spellcheck="true" aria-label="Weighted prompt text"></textarea></div>
       <div class="ppwc-controls">
         <label class="ppwc-field ppwc-mode-field"><span>Weighting mode</span><select data-el="modeSelect" aria-label="Weighting mode"></select></label>
-        <label class="ppwc-toggle-card"><div><strong>Advanced controls</strong><small>Optional clamping and negative routing</small></div><input type="checkbox" data-el="advancedToggle"></label>
+        <label class="ppwc-toggle-card" title="Show clamping and negative routing options"><div><strong>Advanced</strong></div><input type="checkbox" data-el="advancedToggle" aria-label="Show advanced weighting controls"></label>
         <div class="ppwc-advanced" data-el="advancedPanel" hidden>
           <label class="ppwc-field"><span>Weight clamping</span><select data-el="clampSelect" aria-label="Weight clamping"></select></label>
           <label class="ppwc-field"><span>Negative routing</span><select data-el="routingSelect" aria-label="Negative routing"></select></label>
@@ -204,40 +208,50 @@ function setupSettingsUI(node) {
     return libraryRows;
   }
 
-  async function saveSelectionAsList(start, end) {
-    const selectedText = textInput.value.slice(start, end);
-    const values = selectedText.split(/[\r\n,]+/).map((value) => value.trim()).filter(Boolean);
-    if (!values.length) return;
-    const raw = await dialogPrompt({
-      title: "Save as list",
-      message: "Choose a My Library path for this tag list:",
-      defaultValue: "lists/new_list",
-    });
-    if (raw === null || raw === undefined) return;
-    const slug = normalizeLibraryEntryPath(raw);
-    if (!slug) {
-      notify("error", "List not saved", "Enter a valid path using letters, numbers, - _ or /.");
-      return;
-    }
-    let existing = false;
-    try {
-      existing = (await API.search(slug)).some((item) => String(item?.path || "") === slug);
-    } catch { /* the save endpoint will report a concrete failure */ }
-    if (existing) {
-      const overwrite = await dialogConfirm({ title: "Overwrite list", message: `"${slug}" already exists — overwrite it?` });
-      if (!overwrite) return;
-    }
-    const result = await API.save(slug, values.join("\n"));
-    if (!result.ok) {
-      notify("error", "List not saved", result.error || "save failed");
-      return;
-    }
-    autocompleteLibraryRevision += 1;
-    autocompleteLibraryCache.clear();
-    notify("success", "Saved list", `${values.length} tag${values.length === 1 ? "" : "s"} → __${slug}__`);
-  }
-
-  textInput.__ppSaveSelectionAsList = saveSelectionAsList;
+  const hoverTip = document.createElement("div"), previewCache = new Map();
+  hoverTip.className = "wg-tip";
+  hoverTip.dataset.promptPaletteHover = "true";
+  hoverTip.dataset.promptPaletteOwner = String(node.id ?? "node");
+  document.body.appendChild(hoverTip);
+  let hoverVersion = 0;
+  const hideTip = () => { hoverVersion++; hoverTip.style.display = "none"; };
+  const wildcardRanges = () => [...textInput.value.matchAll(/__([+\-*%~@]?)([A-Za-z0-9_\-\/]+)__/g)]
+    .map(match => ({ start: match.index, end: match.index + match[0].length, name: match[2] }));
+  const cleanupEditorHover = bindEditorWildcardHover({ node, editor: textInput, getRanges: wildcardRanges, hide: hideTip,
+    show: async (x, y, name) => {
+      const version = ++hoverVersion;
+      let entry = previewCache.get(name);
+      if (!entry) { try { entry = await API.preview(name); if (version === hoverVersion && nodeIsActive(node)) previewCache.set(name, entry); } catch { entry = null; } }
+      if (version !== hoverVersion || !nodeIsActive(node)) return;
+      copyPromptPaletteThemeScope(surface, hoverTip);
+      const lines = (entry?.lines || []).slice(0, 4);
+      hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(name)}</div>` +
+        (lines.length ? lines.map(line => `<div class="wg-tip-line">${escapeHtml(line)}</div>`).join("") : '<div class="wg-tip-line">no preview available</div>');
+      positionPromptPaletteTip(hoverTip, x, y);
+    },
+  });
+  const selectionSaved = path => { autocompleteLibraryRevision += 1; autocompleteLibraryCache.clear(); previewCache.delete(path); };
+  node._wgRefreshLibrary = async () => { hideTip(); autocompleteLibraryRevision++; autocompleteLibraryCache.clear(); previewCache.clear(); };
+  const cleanupLibrarySubscription = API.onLibraryChanged(() => node._wgRefreshLibrary?.());
+  textInput.__ppSaveSelectionAsList = (start, end) => saveEditorSelection(textInput, start, end, { list: true, onSaved: selectionSaved });
+  textInput.__ppExtractSelectionToWildcard = (start, end) => saveEditorSelection(textInput, start, end, { onSaved: selectionSaved });
+  const cleanupEditorContext = attachEditorContextMenu(textInput, {
+    beforeOpen: () => { hideTip(); closeInjectMenu(); },
+    promptTools: { node, canResolve: false },
+    syntaxEnabled: () => loadTheme().syntaxInjectorEnabled !== false,
+    tokenContext: (event, selection, handle) => {
+      if (loadTheme().syntaxInjectorEnabled === false) return false;
+      const match = [...textInput.value.matchAll(/__([+\-*%~@]?)([A-Za-z0-9_\-\/]+)__/g)].find(m => m.index <= selection.start && selection.start < m.index + m[0].length);
+      if (!match) return false;
+      handle(); textInput.setSelectionRange(match.index, match.index + match[0].length);
+      openInjectMenuAtPoint(event.clientX, event.clientY, match[2], textInput, () => { textInput.dispatchEvent(new Event("input", { bubbles: true })); }, { start: match.index, end: match.index + match[0].length });
+      return true;
+    },
+    syntaxAction: (event, selection) => {
+      if (loadTheme().syntaxInjectorEnabled === false) return;
+      openInjectMenuAtPoint(event.clientX, event.clientY, "", textInput, () => { textInput.dispatchEvent(new Event("input", { bubbles: true })); }, selection.start === selection.end ? null : selection);
+    },
+  });
   const cleanupAutocompleteBinding = attachAutocomplete(textInput, {
     getMatches: getAcMatches,
   });
@@ -290,6 +304,7 @@ function setupSettingsUI(node) {
     ioRail.close();
     syncControls();
     settingsDrawer.open();
+    settingsModeSelect?.focus({ preventScroll: true });
   }
   function closePopup(options = {}) {
     settingsDrawer.close(options);
@@ -307,9 +322,15 @@ function setupSettingsUI(node) {
     surface,
     reapplyTheme: appearanceBinding.apply,
     cleanup() {
+      cleanupLibrarySubscription();
+      hideTip(); previewCache.clear(); autocompleteLibraryCache.clear();
       cleanupAutocompleteBinding?.();
+      cleanupEditorContext();
+      cleanupEditorHover(); hoverTip.remove();
+      delete textInput.__ppExtractSelectionToWildcard;
       delete textInput.__ppSaveSelectionAsList;
       delete node._wgBeforeIoRailOpen;
+      delete node._wgRefreshLibrary;
       ioRail.cleanup();
       settingsDrawer.unregister();
       appearanceBinding.cleanup();
@@ -324,77 +345,101 @@ app.registerExtension({
   name: "PromptPalette.WeightControllerUI",
   async nodeCreated(node) {
     if (node.comfyClass !== "PromptPaletteWeightController") return;
-    if (node.__promptPaletteWeightControllerUiInitialized) return;
+    if (node.__promptPaletteWeightControllerUiInitialized || node.__promptPaletteWeightControllerUiInitializing) return;
     const lifecycle = ensureNodeLifecycle(node);
-    await Promise.all([editorStylesReady, weightControllerStylesReady]);
-    if (!nodeIsActive(node)) return;
-
     const advancedWidget = node.widgets?.find((w) => w.name === "advanced_controls");
     if (!advancedWidget) return;
-    Object.defineProperty(node, "__promptPaletteWeightControllerUiInitialized", {
-      value: true,
-      configurable: true,
-    });
-
+    Object.defineProperty(node, "__promptPaletteWeightControllerUiInitializing", { value: true, configurable: true });
     applyVisibility(node);
-
+    installNodeGeometryGuard(node);
     const origCallback = advancedWidget.callback;
-    advancedWidget.callback = (...args) => {
-      const result = origCallback ? origCallback.apply(advancedWidget, args) : undefined;
-      applyVisibility(node);
-      return result;
-    };
-
-    node.properties ||= {};
-    node.properties.wg_io ||= { inputs: {}, outputs: {} };
-    migrateIoState(node, "input", IO_INPUT_DEFS);
-    migrateIoState(node, "output", IO_OUTPUT_DEFS);
-    canonicalizeOutputs(node, IO_OUTPUT_DEFS);
-    IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
-    IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
-
-    const { surface, reapplyTheme, cleanup } = setupSettingsUI(node);
-    installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, surface);
-    node._wgRefreshIoToggles = function () {
-      canonicalizeOutputs(this, IO_OUTPUT_DEFS);
-      IO_INPUT_DEFS.forEach((def) => syncIoSocket(this, "input", def, ioEnabled(this, "input", def)));
-      IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(this, "output", def, ioEnabled(this, "output", def)));
-      this._wgRenderIoRail?.();
-    };
-
-    node.resizable = true;
-    let domWidget;
-    domWidget = node.addDOMWidget("ppwc_settings_row", "div", surface, {
-      serialize: false,
-      hideOnZoom: false,
-      getMinHeight: () => 0,
-      getMaxHeight: () => getDomWidgetAvailableHeight(node, domWidget),
-      getHeight: () => getDomWidgetAvailableHeight(node, domWidget),
-      afterResize: () => scheduleDomWidgetRemeasure(node),
-    });
-    installResponsiveDomWidgetWidth(node, domWidget);
-    node._wgIoRailVisibilityChanged = () => scheduleDomWidgetRemeasure(node);
-    node._ppwcReapplyTheme = reapplyTheme;
-    const reassertSurface = () => {
+    let callback = null, built = null;
+    try {
+      await Promise.all([editorStylesReady, weightControllerStylesReady]);
       if (!nodeIsActive(node)) return;
       applyVisibility(node);
-      node._ppwcReapplyTheme?.();
+
+      callback = advancedWidget.callback = (...args) => {
+        const result = origCallback ? origCallback.apply(advancedWidget, args) : undefined;
+        applyVisibility(node);
+        return result;
+      };
+
+      node.properties ||= {};
+      node.properties.wg_io ||= { inputs: {}, outputs: {} };
+      migrateIoState(node, "input", IO_INPUT_DEFS);
+      migrateIoState(node, "output", IO_OUTPUT_DEFS);
+      canonicalizeOutputs(node, IO_OUTPUT_DEFS);
+      IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+      IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+
+      built = setupSettingsUI(node);
+      const { surface, reapplyTheme, cleanup } = built;
+      installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, surface);
+      node._wgRefreshIoToggles = function () {
+        canonicalizeOutputs(this, IO_OUTPUT_DEFS);
+        IO_INPUT_DEFS.forEach((def) => syncIoSocket(this, "input", def, ioEnabled(this, "input", def)));
+        IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(this, "output", def, ioEnabled(this, "output", def)));
+        this._wgRenderIoRail?.();
+      };
+
+      node.resizable = true;
+      let domWidget;
+      domWidget = node.addDOMWidget("ppwc_settings_row", "div", surface, {
+        serialize: false,
+        hideOnZoom: false,
+        getMinHeight: () => 0,
+        getMaxHeight: () => getDomWidgetAvailableHeight(node, domWidget),
+        getHeight: () => getDomWidgetAvailableHeight(node, domWidget),
+        afterResize: () => scheduleDomWidgetRemeasure(node),
+      });
+      installResponsiveDomWidgetWidth(node, domWidget);
+      node._ppNodeGeometry?.mounted(surface);
+      Object.defineProperty(node, "__promptPaletteWeightControllerUiInitialized", { value: true, configurable: true });
+      livePromptPaletteNodes.add(node);
+      node._wgIoRailVisibilityChanged = () => scheduleDomWidgetRemeasure(node);
+      node._ppwcReapplyTheme = reapplyTheme;
+      const reassertSurface = () => {
+        if (!nodeIsActive(node)) return;
+        applyVisibility(node);
+        node._ppwcReapplyTheme?.();
+        scheduleDomWidgetRemeasure(node);
+      };
+      const priorRendererModeChanged = node._wgRendererModeChanged;
+      const rendererModeChanged = node._wgRendererModeChanged = () => {
+        priorRendererModeChanged?.call(node);
+        node._ppNodeGeometry?.remount();
+        reassertSurface();
+      };
+      queueMicrotask(reassertSurface);
+      const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
+      raf(reassertSurface);
+
       scheduleDomWidgetRemeasure(node);
-    };
-    queueMicrotask(reassertSurface);
-    const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
-    raf(reassertSurface);
 
-    scheduleDomWidgetRemeasure(node);
-
-    lifecycle.add(() => {
-      node._ppwcRemoved = true;
+      lifecycle.add(() => {
+        node._ppwcRemoved = true;
+        cleanupSocketRailLayout(node);
+        delete node._wgIoRailVisibilityChanged;
+        delete node._ppwcReapplyTheme;
+        delete node._ppwcSyncControls;
+        if (advancedWidget.callback === callback) advancedWidget.callback = origCallback;
+        if (node._wgRendererModeChanged === rendererModeChanged) {
+          if (priorRendererModeChanged) node._wgRendererModeChanged = priorRendererModeChanged;
+          else delete node._wgRendererModeChanged;
+        }
+        cleanup();
+        livePromptPaletteNodes.delete(node);
+        if (livePromptPaletteNodes.size === 0) cleanupSharedPromptPaletteDom();
+      });
+    } catch (error) {
+      try { built?.cleanup?.(); } catch {}
+      livePromptPaletteNodes.delete(node);
       cleanupSocketRailLayout(node);
-      delete node._wgIoRailVisibilityChanged;
-      delete node._ppwcReapplyTheme;
-      delete node._ppwcSyncControls;
-      cleanup();
-    });
+      if (advancedWidget.callback === callback) advancedWidget.callback = origCallback;
+      delete node.__promptPaletteWeightControllerUiInitialized;
+      console.error("Prompt Palette: Weight Controller initialization failed", error);
+    } finally { delete node.__promptPaletteWeightControllerUiInitializing; }
   },
 
   loadedGraphNode(node) {

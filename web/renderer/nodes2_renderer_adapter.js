@@ -88,30 +88,64 @@ function renderedNode2Inputs(list) {
   return Array.from(list || []).filter((slot) => !slot?.widget);
 }
 
+function slotIndexFromVueSocket(element, nodeId) {
+  const keyed = element?.querySelector?.('[data-slot-key]')?.dataset?.slotKey;
+  if (!keyed) return -1;
+  const parts = String(keyed).split(":");
+  if (parts.length < 3 || parts[0] !== String(nodeId) || parts[1] !== "input") return -1;
+  const index = Number(parts[2]);
+  return Number.isInteger(index) && index >= 0 ? index : -1;
+}
+
 function managedWidgetSocketElements(nodeElement, node, inputDefs) {
   const widgetsRoot = nodeElement?.querySelector?.('[data-testid="node-widgets"]');
   if (!widgetsRoot) return [];
 
   const defsByName = new Map((inputDefs || []).map((def) => [def.key, def]));
-  const managedWidgets = [];
-  for (const widget of Array.from(node?.widgets || [])) {
-    if (!widget?.name || !defsByName.has(widget.name)) continue;
-    if (!widget.__ppSocketOnly && !widget.__ppSocketRailCandidate) continue;
-    const inputIndex = (node.inputs || []).findIndex((slot) => slot?.name === widget.name);
-    if (inputIndex < 0) continue;
-    managedWidgets.push({ widget, inputIndex, def: defsByName.get(widget.name) });
+  const widgetsByName = new Map(Array.from(node?.widgets || []).filter((widget) => widget?.name).map((widget) => [widget.name, widget]));
+  const managedByInputIndex = new Map();
+  for (let inputIndex = 0; inputIndex < (node?.inputs || []).length; inputIndex += 1) {
+    const slot = node.inputs[inputIndex];
+    if (!slot?.name || !defsByName.has(slot.name)) continue;
+    const widget = slot.widget || widgetsByName.get(slot.name);
+    if (!widget || (!widget.__ppSocketOnly && !widget.__ppSocketRailCandidate)) continue;
+    managedByInputIndex.set(inputIndex, { widget, inputIndex, def: defsByName.get(slot.name) });
   }
 
-  // WidgetGrid preserves node.widgets order for the rows it renders. Since
-  // Prompt Palette marks only its managed backing widgets as socket-only, the
-  // row order is enough to map the live InputSlot back to the real input index.
-  const rows = Array.from(widgetsRoot.querySelectorAll('[data-testid="node-widget"]'));
-  const visible = managedWidgets.filter(({ widget }) => widget.hidden !== true && widget.options?.hidden !== true);
+  // Current ComfyUI Nodes 2 exposes the real widget-input index on data-slot-key.
+  // Use it as the identity instead of assuming the first rendered row is our first
+  // managed widget; ordinary widgets, suppressed widgets, and converted widgets can
+  // all change the rendered row count/order.
+  const socketRoots = Array.from(widgetsRoot.querySelectorAll('.lg-slot--input'));
   const elements = [];
-  for (let i = 0; i < visible.length; i += 1) {
-    const row = rows[i];
-    const socket = row?.querySelector?.('.lg-slot--input');
-    if (socket) elements.push({ element: socket, row, ...visible[i] });
+  const consumed = new Set();
+  for (const element of socketRoots) {
+    const inputIndex = slotIndexFromVueSocket(element, node?.id);
+    const entry = managedByInputIndex.get(inputIndex);
+    if (!entry || consumed.has(inputIndex)) continue;
+    const row = element.closest?.('[data-testid="node-widget"]') || element.parentElement?.parentElement || null;
+    elements.push({ element, row, ...entry });
+    consumed.add(inputIndex);
+  }
+
+  // Older Nodes 2 builds did not expose data-slot-key consistently. Preserve a
+  // conservative fallback for those versions, but only among rows whose socket
+  // label matches a managed widget name/label.
+  if (!elements.length) {
+    const rows = Array.from(widgetsRoot.querySelectorAll('[data-testid="node-widget"]'));
+    for (const row of rows) {
+      const socket = row?.querySelector?.('.lg-slot--input');
+      if (!socket) continue;
+      const renderedLabel = String(socket.querySelector?.('.text-node-component-slot-text')?.textContent || '').trim();
+      const entry = Array.from(managedByInputIndex.values()).find(({ inputIndex, def }) => {
+        if (consumed.has(inputIndex)) return false;
+        const slot = node?.inputs?.[inputIndex];
+        return renderedLabel === String(def?.label || slot?.label || slot?.name || '').trim();
+      });
+      if (!entry) continue;
+      elements.push({ element: socket, row, ...entry });
+      consumed.add(entry.inputIndex);
+    }
   }
   return elements;
 }

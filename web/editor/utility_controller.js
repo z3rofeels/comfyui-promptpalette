@@ -1,6 +1,6 @@
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { scheduleDomWidgetRemeasure, scheduleNodeTimer } from "../prompt_palette_compat.js";
-import { registerPromptPaletteSettingsDrawer } from "../prompt_palette_shared.js";
+import { registerPromptPaletteSettingsDrawer, navigatePromptPaletteTabs } from "../prompt_palette_shared.js";
 import { escapeHtml } from "./text_utils.js";
 import { dialogConfirm, isDialogOpen } from "./dialogs.js";
 import { notify } from "./notifications.js";
@@ -48,6 +48,7 @@ export function createUtilityController(ctx) {
     if (target === "guide") getThemeController()?.renderHelpResults?.();
   }
   settingsTabs.forEach((tab) => tab.addEventListener("click", () => activateSettingsTab(tab.dataset.settingsTab)));
+  settingsTabs.forEach(tab => tab.addEventListener("keydown", event => navigatePromptPaletteTabs(event, settingsTabs, next => activateSettingsTab(next.dataset.settingsTab))));
 
   const popupIdBase = `prompt-palette-${String(node.id ?? "node")}`;
   settingsPopup.id = `${popupIdBase}-settings`;
@@ -58,6 +59,13 @@ export function createUtilityController(ctx) {
   recipeBuilderPopup.id = `${popupIdBase}-recipe-builder`;
   pickerDrawer.id = `${popupIdBase}-library`;
   settingsBtn.setAttribute("aria-controls", settingsPopup.id);
+  settingsTabs.forEach(tab => {
+    const panel = settingsPanels.find(item => item.dataset.settingsPanel === tab.dataset.settingsTab);
+    if (!panel) return;
+    tab.id = `${settingsPopup.id}-tab-${tab.dataset.settingsTab}`;
+    panel.id = `${settingsPopup.id}-panel-${tab.dataset.settingsTab}`;
+    tab.setAttribute("aria-controls", panel.id); panel.setAttribute("aria-labelledby", tab.id);
+  });
   stashBtn.setAttribute("aria-controls", stashPopup.id);
   doctorChip.setAttribute("aria-controls", doctorPopup.id);
   btnVariations.setAttribute("aria-controls", variationPopup.id);
@@ -113,6 +121,7 @@ export function createUtilityController(ctx) {
     if (root.querySelector('[data-drawer="edit"]')?.classList.contains("open")) closeEditDrawer();
     settingsDrawer.open();
     activateSettingsTab(settingsPopup.dataset.activeTab || "appearance");
+    settingsTabs.find(tab => tab.classList.contains("active"))?.focus({ preventScroll: true });
     updateThemeJson();
   }
 
@@ -143,6 +152,7 @@ export function createUtilityController(ctx) {
       const selected = tab.dataset.stashTab === next;
       tab.classList.toggle("active", selected);
       tab.setAttribute("aria-selected", String(selected));
+      tab.tabIndex = selected ? 0 : -1;
       if (selected && focus) tab.focus({ preventScroll: true });
     });
     stashPanels.forEach((panel) => {
@@ -154,6 +164,14 @@ export function createUtilityController(ctx) {
     else renderStashList();
   }
   stashTabs.forEach((tab) => tab.addEventListener("click", () => activateStashTab(tab.dataset.stashTab)));
+  stashTabs.forEach(tab => {
+    const panel = stashPanels.find(item => item.dataset.stashPanel === tab.dataset.stashTab);
+    if (panel) {
+      tab.id = `${stashPopup.id}-tab-${tab.dataset.stashTab}`; panel.id = `${stashPopup.id}-panel-${tab.dataset.stashTab}`;
+      tab.setAttribute("aria-controls", panel.id); panel.setAttribute("aria-labelledby", tab.id);
+    }
+    tab.addEventListener("keydown", event => navigatePromptPaletteTabs(event, stashTabs, next => activateStashTab(next.dataset.stashTab)));
+  });
 
   function openStash() {
     ioRail.close();
@@ -223,6 +241,7 @@ export function createUtilityController(ctx) {
         textarea.value = source;
         state.lastHistorySource = source;
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        node._ppRecipeWorkspace?.showEditor();
         textarea.focus();
         closeStash();
       });
@@ -269,10 +288,12 @@ export function createUtilityController(ctx) {
         </div>`;
       row.querySelector('[data-act="load"]').addEventListener("click", () => {
         addHistorySnapshot({ reason: "Before draft restore", force: true });
+        node._ppRecipeWorkspace?.restore(entry.workspace || null, { commit: false });
         textarea.value = entry.text;
         state.lastHistorySource = entry.text;
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
-        textarea.focus();
+        if (node._ppRecipeWorkspace?.focusEditingSurface) node._ppRecipeWorkspace.focusEditingSurface();
+        else textarea.focus();
         closeStash();
       });
       row.querySelector('[data-act="copy"]').addEventListener("click", async (event) => {
@@ -300,7 +321,7 @@ export function createUtilityController(ctx) {
       return;
     }
     state.stash = [
-      { id: `s${Date.now()}${Math.random().toString(36).slice(2, 7)}`, text, savedAt: Date.now() },
+      { id: `s${Date.now()}${Math.random().toString(36).slice(2, 7)}`, text, workspace: node._ppRecipeWorkspace?.snapshot() || null, savedAt: Date.now() },
       ...state.stash,
     ].slice(0, STASH_LIMIT);
     saveStash(state.stash);

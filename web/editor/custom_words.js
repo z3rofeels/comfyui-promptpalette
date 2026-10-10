@@ -151,9 +151,17 @@ function parseCustomWords(text) {
 
 async function loadCustomWords() {
   if (!customWordsPromise) {
-    customWordsPromise = API.customWords()
+    const loading = API.customWords()
       .then((text) => parseCustomWords(text))
-      .catch(() => [])
+      .catch(() => {
+        // A temporary server failure must not cache an empty list until reload.
+        // Do not invalidate a newer request started after resetCustomWords().
+        if (customWordsPromise === loading) {
+          customWordsPromise = null;
+          customWordsGeneration += 1;
+        }
+        return [];
+      })
       .then((words) => {
         // Keep the first definition for identical label/value pairs, matching the
         // object-key overwrite semantics of the source implementation closely.
@@ -165,6 +173,7 @@ async function loadCustomWords() {
           return true;
         });
       });
+    customWordsPromise = loading;
   }
   return customWordsPromise;
 }
@@ -172,48 +181,86 @@ async function loadCustomWords() {
 function filterCustomWords(words, term, limit = 20) {
   const q = String(term || "").toLocaleLowerCase();
   if (!q) return [];
-  // Every typed term must appear somewhere in the word, in any order
-  // ("dark_saber" and "saber_dark" both find "dark saber").
   const tokens = q.split(/[_\s]+/).filter(Boolean);
-  const priorityMatches = [];
-  const prefixMatches = [];
-  const includesMatches = [];
+  const grouped = new Map();
+
+  // A custom word may be indexed under several aliases, but the autocomplete table
+  // should contain one canonical row. Keep whichever matching definition gives the
+  // strongest result; aliases remain searchable without becoming duplicate rows.
   for (const word of words) {
-    const lowerWord = word.text.toLocaleLowerCase();
-    // Exact custom definitions are intentionally retained. The autocomplete surface
-    // promotes exact custom matches ahead of database results.
-    if (!tokens.every((token) => lowerWord.includes(token))) continue;
-    let pos = lowerWord.indexOf(q);
-    if (pos === -1) pos = Math.max(1, lowerWord.indexOf(tokens[0]));
-    if (word.priority) {
-      priorityMatches.push({ pos, word });
-    } else if (pos) {
-      includesMatches.push({ pos, word });
-    } else {
-      prefixMatches.push({ pos, word });
-    }
+    const label = String(word?.text || "").trim();
+    const value = String(word?.value || "").trim();
+    if (!label || !value) continue;
+    const lowerLabel = label.toLocaleLowerCase();
+    const lowerValue = value.toLocaleLowerCase();
+    const labelMatches = tokens.every((token) => lowerLabel.includes(token));
+    const valueMatches = tokens.every((token) => lowerValue.includes(token));
+    if (!labelMatches && !valueMatches) continue;
+
+    const exact = lowerLabel === q || lowerValue === q;
+    let pos = lowerLabel.indexOf(q);
+    if (pos === -1) pos = lowerValue.indexOf(q);
+    if (pos === -1) pos = Math.max(1, lowerLabel.indexOf(tokens[0]));
+    const prefix = lowerLabel.startsWith(q) || lowerValue.startsWith(q) || tokens.some((token) => lowerLabel.startsWith(token));
+    const definition = {
+      value,
+      category: word.category || "",
+      priority: Number(word.priority) || 0,
+      count: Number(word.count) || 0,
+      matchedAlias: label !== value ? label : "",
+      exact,
+      prefix,
+      pos,
+      labelLength: label.length,
+    };
+    const key = lowerValue;
+    const old = grouped.get(key);
+    const rank = (candidate) => [
+      candidate.exact ? 0 : 1,
+      candidate.prefix ? 0 : candidate.pos ? 2 : 1,
+      -(candidate.priority || 0),
+      candidate.labelLength,
+      candidate.matchedAlias ? 1 : 0,
+      candidate.matchedAlias.toLocaleLowerCase(),
+    ];
+    const compare = (a, b) => {
+      const ar = rank(a);
+      const br = rank(b);
+      for (let i = 0; i < ar.length; i += 1) {
+        if (ar[i] < br[i]) return -1;
+        if (ar[i] > br[i]) return 1;
+      }
+      return 0;
+    };
+    if (!old || compare(definition, old) < 0) grouped.set(key, definition);
   }
-  priorityMatches.sort((a, b) =>
-    b.word.priority - a.word.priority ||
-    a.word.text.length - b.word.text.length ||
-    a.word.text.localeCompare(b.word.text)
-  );
-  const top = Math.floor(priorityMatches.length * 0.2);
-  return priorityMatches.slice(0, top)
-    .concat(prefixMatches, priorityMatches.slice(top), includesMatches)
-    .slice(0, limit)
-    .map(({ word }) => ({
-      value: word.value,
-      label: word.text,
-      group: "Custom Words",
-      kind: "custom",
-      priority: word.priority,
-      ...(word.category ? { category: word.category } : {}),
-      ...(word.count ? { count: word.count } : {}),
-      alias: word.text === word.value ? "" : word.value,
-      insertText: word.value,
-      selectInserted: false,
-    }));
+
+  const matches = Array.from(grouped.values());
+  const priorityMatches = matches.filter((item) => item.priority > 0);
+  const prefixMatches = matches.filter((item) => item.priority <= 0 && item.prefix);
+  const includesMatches = matches.filter((item) => item.priority <= 0 && !item.prefix);
+  priorityMatches.sort((a, b) => b.priority - a.priority || a.labelLength - b.labelLength || a.value.localeCompare(b.value));
+  prefixMatches.sort((a, b) => a.pos - b.pos || a.labelLength - b.labelLength || a.value.localeCompare(b.value));
+  includesMatches.sort((a, b) => a.pos - b.pos || a.labelLength - b.labelLength || a.value.localeCompare(b.value));
+
+  const ordered = priorityMatches.slice(0, Math.floor(priorityMatches.length * 0.2))
+    .concat(prefixMatches, priorityMatches.slice(Math.floor(priorityMatches.length * 0.2)), includesMatches)
+    .slice(0, limit);
+
+  return ordered.map((item) => ({
+    value: item.value,
+    label: item.value,
+    group: "Custom Words",
+    kind: "custom",
+    priority: item.priority,
+    ...(item.category ? { category: item.category } : {}),
+    ...(item.count ? { count: item.count } : {}),
+    alias: "",
+    matchedAlias: item.matchedAlias,
+    exactCustomMatch: item.exact,
+    insertText: item.value,
+    selectInserted: false,
+  }));
 }
 
 // Drop the cached list so words saved from the autocomplete menu show up immediately.

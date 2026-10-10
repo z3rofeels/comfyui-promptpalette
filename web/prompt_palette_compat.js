@@ -251,11 +251,221 @@ function installResponsiveDomWidgetWidth(node, widget) {
 }
 
 function getDomWidgetAvailableHeight(node, domWidget) {
-  const bodyHeight = Number(node?.size?.[1]) || 0;
+  const bodyHeight = Number(node?._ppNodeGeometry?.restoringSize()?.[1] ?? node?.size?.[1]) || 0;
   const widgetY = Number.isFinite(domWidget?.y)
     ? Number(domWidget.y)
     : (Number(node?.widgets_start_y) || 0);
   return Math.max(0, bodyHeight - widgetY);
+}
+
+function numericNodeSize(value) {
+  if (!value || typeof value.length !== "number" || value.length < 2) return null;
+  const size = [Number(value[0]), Number(value[1])];
+  return size.every(n => Number.isFinite(n) && n > 0) ? size : null;
+}
+
+// Keep a serialized size authoritative while its DOM widget is mounting. No
+// ResizeObserver writes geometry, and no saved-height band is migrated. Outside
+// configure/remount the frontend's live size remains the only source of truth.
+function installNodeGeometryGuard(node) {
+  if (!node || node._ppNodeGeometry) return node?._ppNodeGeometry;
+  const lifecycle = ensureNodeLifecycle(node);
+  const originals = { computeSize: node.computeSize, onConfigure: node.onConfigure, onSerialize: node.onSerialize };
+  let target = null, surface = null, restoring = false, generation = 0, disposed = false;
+  const frames = new Set();
+  const stop = () => {
+    restoring = false; generation++;
+    for (const handle of frames) { cancelFrame(handle); node._ppLifecycleFrames?.delete(handle); }
+    frames.clear();
+    if (typeof document !== "undefined") {
+      document.removeEventListener("pointerdown", stop, true);
+      document.removeEventListener("keydown", stop, true);
+    }
+  };
+  function queue(callback) {
+    const handle = scheduleNodeFrame(node, () => { frames.delete(handle); callback(); });
+    frames.add(handle);
+  }
+  function settle() {
+    if (!surface || !restoring || disposed) return;
+    const token = generation;
+    queue(() => queue(() => {
+      if (disposed || !nodeIsActive(node) || token !== generation || !restoring) return;
+      try {
+        const live = numericNodeSize(node.size);
+        if (target && live && target.some((value, i) => Math.abs(value - live[i]) > 0.75)) {
+          if (typeof node.setSize === "function") node.setSize([...target]);
+          else node.size = [...target];
+          node.graph?.setDirtyCanvas?.(true, true);
+        }
+      } finally { stop(); }
+    }));
+  }
+  function restore(size) {
+    const saved = numericNodeSize(size);
+    if (!saved || disposed) return;
+    stop(); target = saved; restoring = true;
+    // Any user interaction ends restoration before a drag/key resize. A late
+    // mount must never undo a user's intentional size change.
+    if (typeof document !== "undefined") {
+      document.addEventListener("pointerdown", stop, true);
+      document.addEventListener("keydown", stop, true);
+    }
+    settle();
+  }
+  function naturalHeight() {
+    const kind = node.comfyClass || node.type;
+    const fallback = kind === "PromptPaletteCombinatorial" ? 240 : kind === "PromptPaletteWeightController" ? 180 : 140;
+    const sockets = [...(node.inputs || []), ...(node.outputs || [])].filter(slot => !slot.ppHidden);
+    const socketFloor = sockets.reduce((max, slot) => Math.max(max, Number(slot.pos?.[1]) + IO_SLOT_HEIGHT || 0), 0);
+    const railHeight = Math.max(socketFloor, Number(node.widgets_start_y) || 0);
+    const body = surface?.querySelector?.(".wg-body");
+    if (!surface || typeof getComputedStyle !== "function") return Math.ceil(railHeight + fallback);
+    const height = el => {
+      if (!el || el.hidden || getComputedStyle(el).display === "none") return 0;
+      const css = getComputedStyle(el);
+      return el.offsetHeight + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
+    };
+    if (!body) {
+      const main = surface.querySelector?.(".ppwc-main");
+      if (!main) return Math.ceil(railHeight + fallback);
+      const css = getComputedStyle(main);
+      const controls = Array.from(main.children).filter(el => !el.matches(".ppwc-editor-wrap"));
+      const chrome = controls.reduce((sum, el) => sum + height(el), height(surface.querySelector(".ppwc-settings-row")) + height(surface.querySelector(".wg-io-rail")));
+      const padding = (parseFloat(css.paddingTop) || 0) + (parseFloat(css.paddingBottom) || 0);
+      const gaps = (parseFloat(css.rowGap) || 0) * controls.length;
+      const textCSS = getComputedStyle(main.querySelector(".ppwc-textarea"));
+      const line = parseFloat(textCSS.lineHeight) || 20;
+      const textPadding = (parseFloat(textCSS.paddingTop) || 0) + (parseFloat(textCSS.paddingBottom) || 0);
+      return Math.ceil(railHeight + chrome + padding + gaps + Math.max(40, line * 2 + textPadding) + 8);
+    }
+    const shell = surface.matches?.(".wg-root") ? surface : surface.querySelector(".wg-root");
+    const topChrome = Array.from(shell?.children || []).filter(el => el !== body.parentElement && !el.matches(".wg-status-measure")).reduce((sum, el) => sum + height(el), 0);
+    const chrome = Array.from(body.children).filter(el => !el.matches(".wg-editor-wrap, .pp-recipe-workspace")).reduce((sum, el) => sum + height(el), topChrome);
+    const workspace = body.querySelector(".pp-recipe-workspace");
+    const text = body.querySelector(".wg-textarea");
+    const textCSS = text ? getComputedStyle(text) : null;
+    const line = parseFloat(textCSS?.lineHeight) || 20;
+    const textPadding = (parseFloat(textCSS?.paddingTop) || 0) + (parseFloat(textCSS?.paddingBottom) || 0);
+    const readingSpace = workspace && !workspace.hidden ? Math.max(120, line * 4) : Math.max(40, line * 2 + textPadding);
+    // Labeled/connected sockets still need their real vertical rail space.
+    return Math.ceil(railHeight + chrome + readingSpace + 8);
+  }
+  const computeSize = function (...args) {
+    const natural = originals.computeSize?.apply(this, args);
+    const size = numericNodeSize(natural);
+    if (disposed || !size) return natural;
+    return [restoring && target ? Math.min(size[0], target[0]) : size[0],
+      restoring && target ? Math.min(size[1], target[1]) : naturalHeight()];
+  };
+  const onConfigure = function (info) {
+    // Arm before chained callbacks can trigger a content-fit measurement.
+    restore(info?.size ?? info?.node?.size);
+    return originals.onConfigure?.apply(this, arguments);
+  };
+  const onSerialize = function (data) {
+    const result = originals.onSerialize?.apply(this, arguments);
+    if (!disposed && restoring && target) data.size = [...target];
+    return result;
+  };
+  node.computeSize = computeSize; node.onConfigure = onConfigure; node.onSerialize = onSerialize;
+  const guard = {
+    restoringSize: () => restoring && target ? [...target] : null,
+    mounted(frame) { surface = frame; settle(); },
+    remount() { restore(restoring && target ? target : node.size); },
+  };
+  Object.defineProperty(node, "_ppNodeGeometry", { configurable: true, value: guard });
+  lifecycle.add(() => {
+    disposed = true; stop(); surface = null;
+    for (const [key, wrapper] of Object.entries({ computeSize, onConfigure, onSerialize })) {
+      if (node[key] === wrapper) node[key] = originals[key];
+    }
+    delete node._ppNodeGeometry;
+  });
+  return guard;
+}
+
+function preparePromptBackingWidgets(node) {
+  installNegativePromptState(node);
+  const combinatorial = (node.comfyClass || node.type) === "PromptPaletteCombinatorial";
+  const names = combinatorial
+    ? new Set(["text", "mode", "count", "seed", "seed_mode", "max_prompts", "prepared_batch"])
+    : new Set(["text", "seed", "processing_mode", "prepared_batch"]);
+  const socketWidgets = new Set(["mode", "count", "seed", "seed_mode", "max_prompts"]);
+  for (const widget of node.widgets || []) {
+    if (!names.has(widget.name) && !widget.__ppRecipeNegative && !/control.*generate/i.test(widget.name || "")) continue;
+    widget.__ppOwnerNode = node;
+    hideNativeWidget(widget, { keepSocketForNodes2: combinatorial && socketWidgets.has(widget.name) });
+  }
+  const seed = node.widgets?.find(w => w.name === "seed");
+  for (const widget of seed?.linkedWidgets || []) {
+    widget.__ppOwnerNode = node;
+    hideNativeWidget(widget, { keepSocketForNodes2: combinatorial });
+  }
+  installNodeGeometryGuard(node);
+}
+
+// negative_text is a force-input socket. Locally compiled negatives need a
+// named, persistent backing value because the schema does not recreate a widget.
+function installNegativePromptState(node) {
+  if (node._ppNegativePromptState) return node._ppNegativePromptState;
+  const key = "prompt_palette_negative_text_v1";
+  node.properties ||= {};
+  let widget = node.widgets?.find(w => w.name === "negative_text");
+  let nativeSetter = null;
+  let current = typeof node.properties[key] === "string" ? node.properties[key] : String(widget?.value || "");
+  function attach() {
+    if (!widget && current) {
+      if (typeof node.addWidget !== "function") throw new Error("This node cannot retain a local negative prompt.");
+      widget = node.addWidget("text", "negative_text", current, () => {}, { serialize: true });
+    }
+    if (!widget) return;
+    widget.__ppRecipeNegative = true;
+    widget.__ppOwnerNode = node;
+    hideNativeWidget(widget);
+    widget.serializeValue = () => current;
+    const descriptor = Object.getOwnPropertyDescriptor(widget, "value");
+    if (!widget.__ppNegativeStateBound && descriptor?.configurable !== false) {
+      nativeSetter = descriptor?.set ? descriptor.set.bind(widget) : null;
+      Object.defineProperty(widget, "value", { configurable: true, enumerable: true,
+        get: () => current,
+        set: value => { if (typeof value === "string" && (value || !current)) write(value); },
+      });
+      widget.__ppNegativeStateBound = true;
+    }
+  }
+  function write(value) {
+    if (typeof value !== "string") return current;
+    current = value;
+    node.properties ||= {};
+    node.properties[key] = current;
+    attach();
+    nativeSetter?.(current);
+    if (widget && !widget.__ppNegativeStateBound) widget.value = current;
+    return current;
+  }
+  write(current);
+  const configured = node.onConfigure;
+  node.onConfigure = function (info) {
+    const result = configured?.apply(this, arguments);
+    const saved = info?.properties?.[key];
+    const named = info?.widgets_values_named?.negative_text;
+    const index = widget ? this.widgets?.indexOf(widget) : -1;
+    const positional = index >= 0 ? info?.widgets_values?.[index] : undefined;
+    write(typeof saved === "string" ? saved : typeof named === "string" ? named : typeof positional === "string" ? positional : "");
+    return result;
+  };
+  const serialized = node.onSerialize;
+  node.onSerialize = function (data) {
+    const result = serialized?.apply(this, arguments);
+    data.properties ||= {};
+    data.properties[key] = current;
+    if (data.widgets_values_named && widget) data.widgets_values_named.negative_text = current;
+    return result;
+  };
+  const guard = { commit: write, current: () => current };
+  node._ppNegativePromptState = guard;
+  return guard;
 }
 
 function scheduleDomWidgetRemeasure(node) {
@@ -353,7 +563,8 @@ function installPromptStateGuard(node, hiddenWidget) {
       value = state.source_text;
     } else {
       const index = node.widgets?.indexOf(hiddenWidget) ?? -1;
-      const widgetValue = index >= 0 && Array.isArray(info?.widgets_values)
+      const namedValue = info?.widgets_values_named?.[hiddenWidget.name];
+      const widgetValue = typeof namedValue === "string" ? namedValue : index >= 0 && Array.isArray(info?.widgets_values)
         ? info.widgets_values[index]
         : undefined;
       if (typeof widgetValue === "string") {
@@ -394,6 +605,7 @@ function installPromptStateGuard(node, hiddenWidget) {
       data.properties ||= {};
       data.properties[PROMPT_STATE_KEY] = { version: PROMPT_STATE_VERSION, source_text: value };
       data.properties.wg_text = value;
+      if (data.widgets_values_named) data.widgets_values_named[guard.widget.name] = value;
       const index = this.widgets?.indexOf(guard.widget) ?? -1;
       if (index >= 0 && Array.isArray(data.widgets_values) && index < data.widgets_values.length) {
         data.widgets_values[index] = value;
@@ -708,7 +920,7 @@ export {
   ensureNodeLifecycle, nodeIsActive,
   scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight,
-  installPromptStateGuard, installPromptMetadataCapture,
+  installPromptStateGuard, installNegativePromptState, installPromptMetadataCapture, installNodeGeometryGuard, preparePromptBackingWidgets,
   scheduleDomWidgetRemeasure,
   ioState,
   ioLabelsShown,

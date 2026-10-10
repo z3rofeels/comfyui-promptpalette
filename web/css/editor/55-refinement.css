@@ -1,0 +1,34 @@
+/* Refinement stays within the suite palette. Content categories retain their own colors. */
+.wg-root .pp-refine-bar {
+  display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; flex: 0 0 auto;
+  margin: 5px 0; padding: 5px 7px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--wg-accent, #d49a52) 10%, var(--wg-panel-bg, #1c1f23)), var(--wg-panel-bg, #1c1f23));
+  border: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 22%, var(--wg-border, #3a4048));
+  border-radius: var(--wg-corner-radius, 7px); color: var(--wg-text, #f1eee8);
+}
+.wg-root .pp-refine-actions, .wg-root .pp-refine-saved { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.wg-root .pp-refine-label { color: var(--wg-text-dim, #b4aea5); font-size: 9px; font-weight: 700; margin-right: 3px; }
+.wg-root .pp-refine-bar .wg-button { min-height: 23px; padding: 3px 6px; font-size: 9px; }
+.wg-root .pp-refine-panel { padding: 10px; margin-bottom: 12px; border: 1px solid var(--wg-border, #3a4048); border-radius: var(--wg-corner-radius, 7px); background: var(--wg-panel-bg, #1c1f23); color: var(--wg-text, #f1eee8); }
+.wg-root .pp-refine-panel h3 { font-size: 13px; margin: 0 0 5px; color: var(--wg-text, #f1eee8); }
+.wg-root .pp-refine-note { font-size: 10px; line-height: 1.45; margin: 0 0 9px; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-refine-field { display: flex; flex-direction: column; gap: 4px; margin: 9px 0; font-size: 10px; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-refine-field .wg-theme-select { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; padding: 7px; }
+.wg-root .pp-refine-field textarea { min-height: 74px; resize: vertical; font-family: var(--wg-font-family, monospace); }
+.wg-root .pp-refine-preview { margin: 8px 0; padding: 7px; border-radius: 5px; background: var(--wg-surface, #121417); border: 1px solid var(--wg-border, #3a4048); }
+.wg-root .pp-refine-preview strong { font-size: 9px; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-refine-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.5; margin-top: 3px; max-height: 160px; overflow: auto; }
+.wg-root .pp-refine-selected { color: var(--wg-accent, #d49a52); }
+.wg-root .pp-refine-results { margin-top: 9px; }
+.wg-root .pp-refine-results .wg-variation-card { min-width: 0; }
+.wg-root .pp-refine-results .wg-variation-card > strong { display: block; font-size: 10px; overflow-wrap: anywhere; color: var(--wg-accent, #d49a52); }
+.wg-root .pp-refine-skipped { opacity: .55; }
+.wg-root .pp-refine-status { overflow-wrap: anywhere; }
+.wg-root .pp-refine-bar[hidden], .wg-root .pp-refine-actions[hidden], .wg-root .pp-refine-panel[hidden], .wg-root .pp-refine-drawer[hidden] { display: none !important; }
+.wg-root .pp-refine-drawer { z-index: 40; max-width: calc(100% - 8px); }
+.wg-root .pp-refine-bar button:focus-visible, .wg-root .pp-refine-panel button:focus-visible { outline: 2px solid var(--wg-accent, #d49a52); outline-offset: 2px; }
+@media (forced-colors: active) {
+  .wg-root .pp-refine-bar, .wg-root .pp-refine-panel, .wg-root .pp-refine-preview { background: Canvas; color: CanvasText; border-color: CanvasText; }
+}
+
+.wg-root .wg-settings-body.pp-refine-active > :not(.pp-refine-panel) { display: none !important; }

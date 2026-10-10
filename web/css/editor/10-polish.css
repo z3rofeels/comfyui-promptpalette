@@ -86,7 +86,7 @@
 .wg-settings-head-pro .wg-close-btn { width: 28px; height: 28px; border-radius: 7px; }
 .wg-settings-shell {
   display: grid;
-  grid-template-columns: 176px minmax(0, 1fr);
+  grid-template-columns: 152px minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
@@ -148,7 +148,7 @@
 .wg-settings-disclosure > summary b { flex:none; padding:3px 7px; border:1px solid var(--wg-border-strong,#3a4048); border-radius:999px; color:var(--wg-text-faint,#8f887e); font-size:7.5px; font-weight:650; }
 .wg-settings-disclosure[open] > summary { border-bottom:1px solid var(--wg-border,#2a2e34); background:color-mix(in srgb,var(--wg-accent,#d49a52) 5%,transparent); }
 .wg-settings-disclosure-body { padding:10px 12px 12px; }
-.wg-settings-pro .wg-settings-body { padding: 20px 22px 28px; scrollbar-gutter: stable; }
+.wg-settings-pro .wg-settings-body { padding: 16px 18px 22px; scrollbar-gutter: stable; }
 .wg-settings-panel { display: none; }
 .wg-settings-panel.active { display: block; animation: wg-panel-in 130ms ease-out; }
 @keyframes wg-panel-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
@@ -464,7 +464,6 @@
 .wg-settings-footer { min-height: 31px; justify-content: flex-start; padding: 5px 12px; background: color-mix(in srgb, var(--wg-bg, #17191c) 74%, var(--wg-panel-bg, #1c1f23)); }
 .wg-credit-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
 
-.wg-node.wg-zen .wg-toolbar { grid-template-columns: 1fr auto; }
 .wg-node.wg-zen .wg-toolbar-group.left,
 .wg-node.wg-zen .wg-pill-resolve,
 .wg-node.wg-zen .wg-toolbar-extra,
@@ -476,7 +475,6 @@
 .wg-node.wg-zen [data-el="btnClear"],
 .wg-node.wg-zen .wg-legend,
 .wg-node.wg-zen .wg-footer { display: none !important; }
-.wg-node.wg-zen .wg-toolbar-group.right { grid-column: 2; justify-self: end; }
 .wg-node.wg-zen [data-el="zenBtn"],
 .wg-node.wg-zen [data-el="settingsBtn"] { display: flex !important; }
 .wg-node.wg-zen .wg-body { padding: 5px; }
@@ -502,11 +500,18 @@
 }
 
 .wg-inline-note { margin: 6px 0 10px; padding: 7px 9px; border: 1px solid var(--wg-border, #2a2e34); border-radius: 7px; background: color-mix(in srgb, var(--wg-surface, #121417) 84%, transparent); color: var(--wg-text-faint, #8f887e); font-size: 8.5px; line-height: 1.45; }
-.wg-choice-backdrop { position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.48); backdrop-filter: blur(2px); }
-.wg-choice-dialog { width: min(360px, 92vw); padding: 16px; border: 1px solid var(--wg-border-strong, #3a4048); border-radius: 12px; background: var(--wg-panel-bg, #1c1f23); color: var(--wg-text, #f1eee8); box-shadow: 0 18px 50px rgba(0,0,0,.42); }
-.wg-choice-dialog > strong { display: block; margin-bottom: 6px; font-size: 12px; }
-.wg-choice-dialog > p { margin: 0; color: var(--wg-text-dim, #b8b0a4); font-size: 10px; line-height: 1.5; }
-.wg-choice-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; margin-top: 14px; }
+/* Native modal stacking keeps graph shortcuts and focus outside the decision. */
+.wg-choice-backdrop { position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.38); backdrop-filter: blur(3px); }
+dialog.wg-choice-backdrop { position: fixed; inset: 0; margin: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; box-sizing: border-box; padding: 16px; border: 0; background: transparent; backdrop-filter: none; color: var(--wg-text); }
+dialog.wg-choice-backdrop[open] { display: grid; place-items: center; }
+.wg-choice-backdrop::backdrop { background: rgba(0,0,0,.38); backdrop-filter: blur(3px); }
+.wg-choice-dialog { width: min(420px, 100%); max-height: 100%; box-sizing: border-box; overflow: auto; padding: 18px; border: 1px solid var(--wg-border); border-top: 2px solid var(--wg-accent); border-radius: var(--wg-corner-radius, 10px); background: var(--wg-panel-bg); color: var(--wg-text); box-shadow: var(--wg-popup-shadow, 0 18px 50px rgba(0,0,0,.3)); font-family: var(--wg-font-family, system-ui); overflow-wrap: anywhere; }
+.wg-choice-dialog > strong { display: block; margin-bottom: 8px; font-size: calc(14px * var(--wg-ui-font-scale, 1)); line-height: 1.35; }
+.wg-choice-dialog > p { margin: 0; color: var(--wg-text-dim); font-size: calc(12px * var(--wg-ui-font-scale, 1)); line-height: 1.5; }
+.wg-choice-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 16px; }
+.wg-choice-actions .wg-button { min-height: 30px; font-size: calc(11px * var(--wg-ui-font-scale, 1)); padding: 5px 10px; }
+@media (prefers-reduced-motion: reduce) { .wg-choice-backdrop::backdrop { backdrop-filter: none; } }
+
 
 
 

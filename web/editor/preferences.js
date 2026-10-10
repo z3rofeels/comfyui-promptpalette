@@ -1,5 +1,6 @@
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { notifyPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
+import { TOOLBAR_BUTTONS, normalizeToolbarPreferences } from "./toolbar.js";
 
 function loadTheme() {
   const saved = readEditorPreference("theme", null);
@@ -8,7 +9,11 @@ function loadTheme() {
   // on load so an old local preference cannot keep repainting the suite differently.
   const { surfaceFinish: _legacySurfaceFinish, accentGlow: _legacyAccentGlow, ...clean } = saved;
   const theme = { ...defaultTheme(), ...clean };
-  theme.booruColors = { ...DEFAULT_BOORU_COLORS_DARK, ...(clean.booruColors && typeof clean.booruColors === "object" ? clean.booruColors : {}) };
+  Object.assign(theme, normalizeToolbarPreferences(theme));
+  if (!Object.hasOwn(clean, "showImportImageBtn") && (clean.layoutPreset === "minimal" || TOOLBAR_BUTTONS.filter(([, key]) => key !== "showImportImageBtn").every(([, key]) => clean[key] === false))) theme.showImportImageBtn = false;
+  theme.booruColors = theme.booruColorsCustomized === true
+    ? { ...DEFAULT_BOORU_COLORS_DARK, ...(clean.booruColors && typeof clean.booruColors === "object" ? clean.booruColors : {}) }
+    : { ...DEFAULT_BOORU_COLORS_DARK };
   // Booru/custom-word autocomplete is opt-in (off unless the user turned it on).
   const booruWanted = theme.booruAutocompleteEnabled === true;
   if (!["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode)) theme.booruAutocompleteMode = booruWanted ? "auto" : "off";
@@ -53,6 +58,7 @@ function defaultTheme() {
 
     showGalleryBtn: true,
     showEditBtn: true,
+    showImportImageBtn: true,
     showRecipesBtn: true,
     showStashBtn: true,
     showRefreshBtn: true,
@@ -80,6 +86,7 @@ function defaultTheme() {
     booruPromptColors: true,
     zenMode: false,
     layoutPreset: "balanced",
+    ...normalizeToolbarPreferences(),
     compactOutputLabels: true,
   };
 }

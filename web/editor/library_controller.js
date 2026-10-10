@@ -1,5 +1,9 @@
-import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
+import { bindEditorWildcardHover } from "./editor_hover.js";
+import { saveEditorSelection } from "./selection_library.js";
+import { dialogConfirm } from "./dialogs.js";
+import { copyPromptPaletteThemeScope, positionPromptPaletteTip } from "../prompt_palette_shared.js";
 import { API } from "../prompt_palette_api.js";
+import { tagSearch } from "./tag_search.js";
 import { createStarterPackController, loadStarterPackCatalog, flattenStarterPackCatalog } from "../prompt_library.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { closestPromptEntries, detectPromptModelProfile } from "../prompt_quickness.js";
@@ -16,12 +20,11 @@ import {
 import { getBooruAutocompleteMatches, attachAutocomplete } from "./autocomplete.js";
 import { libraryAcRows, recentAcRows, mergeUnifiedRows } from "./autocomplete_sources.js";
 import {
-  runTextareaEditCommand, insertInjectorText, openInjectMenu, closeInjectMenu, scheduleCloseInjectMenu,
+  openInjectMenu, closeInjectMenu, scheduleCloseInjectMenu,
   cancelScheduledCloseInjectMenu, injectState,
 } from "./injector.js";
 import { openCtxMenu, closeCtxMenu, ctxMenuOpen } from "./context_menu.js";
 import { pickThumbnailFile, thumbnailFileError } from "./thumbnails.js";
-import { dialogPrompt, dialogConfirm } from "./dialogs.js";
 import { notify } from "./notifications.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
 
@@ -66,23 +69,6 @@ export function createLibraryController(ctx) {
     return starterAutocompleteLoad;
   }
 
-  function charIndexFromEvent(e) {
-    const cs = getComputedStyle(textarea);
-    const lineH = parseFloat(cs.lineHeight) || 20;
-    const padT = parseFloat(cs.paddingTop) || 8;
-    const padL = parseFloat(cs.paddingLeft) || 10;
-    const charW = 7.4;
-    const rect = textarea.getBoundingClientRect();
-    const x = e.clientX - rect.left + textarea.scrollLeft - padL;
-    const y = e.clientY - rect.top + textarea.scrollTop - padT;
-    const row = Math.max(0, Math.floor(y / lineH));
-    const col = Math.max(0, Math.round(x / charW));
-    const lines = textarea.value.split("\n");
-    if (row >= lines.length) return -1;
-    let idx = 0;
-    for (let i = 0; i < row; i++) idx += lines[i].length + 1;
-    return idx + Math.min(col, lines[row].length);
-  }
   async function showTipForName(x, y, name, known) {
     const requestVersion = ++hoverRequestVersion;
     let lines = [];
@@ -91,7 +77,7 @@ export function createLibraryController(ctx) {
       if (!entry) {
         try {
           entry = await API.preview(name);
-          previewCache.set(name, entry);
+          if (requestVersion === hoverRequestVersion && nodeIsActive(node)) previewCache.set(name, entry);
         } catch {
           entry = null;
         }
@@ -105,23 +91,16 @@ export function createLibraryController(ctx) {
     hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(known ? name : name + " (not found)")}</div>` +
       (lines.length ? lines.map(l => `<div class="wg-tip-line">${escapeHtml(l)}</div>`).join("") :
         `<div class="wg-tip-line">${known ? "no preview available" : "file missing"}</div>`);
-    hoverTip.style.left = (x + 14) + "px";
-    hoverTip.style.top = (y + 14) + "px";
-    hoverTip.style.display = "block";
+    positionPromptPaletteTip(hoverTip, x, y);
   }
   function hideTip() { hoverRequestVersion += 1; hoverTip.style.display = "none"; }
-  let hoverDebounce = null;
   let hoverRequestVersion = 0;
-  textarea.addEventListener("mousemove", (e) => {
-    if (state.workspacePrefs?.disableHoverPreviews) { hideTip(); return; }
-    const idx = charIndexFromEvent(e);
-    const tok = state.tokenRanges.find(t => idx >= t.start && idx < t.end);
-    cancelNodeTimer(node, hoverDebounce);
-    if (tok) {
-      hoverDebounce = scheduleNodeTimer(node, () => showTipForName(e.clientX, e.clientY, tok.name, tok.known), 120);
-    } else hideTip();
-  });
-  textarea.addEventListener("mouseleave", hideTip);
+  function bindEditorHover(editor, getRanges, focusedOnly = false) {
+    return bindEditorWildcardHover({ node, editor, getRanges, show: showTipForName, hide: hideTip,
+      disabled: () => state.workspacePrefs?.disableHoverPreviews || (focusedOnly && document.activeElement !== editor) });
+  }
+  const cleanupEditorHover = bindEditorHover(textarea, () => state.tokenRanges);
+
 
   const searchInput = el("search");
   const pickerList = el("pickerList");
@@ -141,24 +120,29 @@ export function createLibraryController(ctx) {
   }
 
   function insertWildcard(path) {
+    const editor = node._ppActiveRecipeEditor?.isConnected ? node._ppActiveRecipeEditor : textarea;
+    if (node._ppInsertAdjustableRecipe?.(path, {
+      fallback: /^\s*,/.test(editor.value.slice(editor.selectionEnd)) ? `__${path}__` : `__${path}__, `,
+    })) return;
     const tag = `__${path}__`;
-    const pos = textarea.selectionStart ?? textarea.value.length;
-    const before = textarea.value.slice(0, pos);
-    const after = textarea.value.slice(pos);
+    const pos = editor.selectionStart ?? editor.value.length;
+    const before = editor.value.slice(0, pos);
+    const after = editor.value.slice(editor.selectionEnd ?? pos);
 
     const alreadySeparated = /^\s*,/.test(after);
     const insertText = alreadySeparated ? tag : tag + ", ";
-    textarea.value = before + insertText + after;
-    textarea.focus();
-    textarea.selectionStart = textarea.selectionEnd = pos + insertText.length;
+    editor.value = before + insertText + after;
+    if (editor === textarea) node._ppRecipeWorkspace?.showEditor();
+    editor.focus();
+    editor.selectionStart = editor.selectionEnd = pos + insertText.length;
     usageStore.recordLibrary(path);
     state.recentList = usageStore.libraryRecent(12);
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
     renderPickerList(searchInput.value);
   }
 
   async function getAcMatches(query, contextKind = "wildcard") {
-    const q = String(query || "").trim().toLowerCase();
+    const q = String(contextKind === "booru" ? tagSearch(query).query : query || "").trim().toLowerCase();
     ensureLibraryIndex();
     const recentEntries = usageStore.recentEntries(16);
     const recentRows = recentAcRows(q, {
@@ -183,7 +167,7 @@ export function createLibraryController(ctx) {
       limit: contextKind === "booru" ? 24 : 28,
     }).filter((item) => item?.kind !== "starter");
     if (contextKind !== "booru") return [...recentRows, ...libraryRows];
-    const tagRows = await getBooruAutocompleteMatches(q);
+    const tagRows = await getBooruAutocompleteMatches(query);
     return mergeUnifiedRows(tagRows, [...recentRows, ...libraryRows]);
   }
 
@@ -313,12 +297,12 @@ export function createLibraryController(ctx) {
     const hasThumb = !!state.thumbMap[path];
     closeInjectMenu();
     openCtxMenu(event.clientX, event.clientY, [
-      { label: "Edit", onSelect: () => openEditForItem(path) },
-      { label: "Copy path", onSelect: () => copyLibraryPath(path) },
-      { label: nowPinned ? "Unpin" : "Pin", onSelect: () => { if (pinned.has(path)) pinned.delete(path); else pinned.add(path); savePinned(pinned); renderPickerList(searchInput.value); } },
-      { label: hasThumb ? "Change Thumbnail…" : "Set Thumbnail…", onSelect: () => setThumbnailForItem(path) },
-      ...(hasThumb ? [{ label: "Remove Thumbnail", onSelect: () => removeThumbnailForItem(path) }] : []),
-      { label: `Jump to "${cat}"`, onSelect: () => jumpToCategory(cat) },
+      { label: "Edit", icon: "edit", group: "item", onSelect: () => openEditForItem(path) },
+      { label: "Copy path", icon: "path", group: "item", onSelect: () => copyLibraryPath(path) },
+      { label: nowPinned ? "Unpin" : "Pin", icon: "pin", group: "item", onSelect: () => { if (pinned.has(path)) pinned.delete(path); else pinned.add(path); savePinned(pinned); renderPickerList(searchInput.value); } },
+      { label: hasThumb ? "Change Thumbnail…" : "Set Thumbnail…", icon: "image", group: "thumb", onSelect: () => setThumbnailForItem(path) },
+      ...(hasThumb ? [{ label: "Remove Thumbnail", icon: "trash", group: "thumb", danger: true, onSelect: () => removeThumbnailForItem(path) }] : []),
+      { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
     ]);
   }
 
@@ -348,7 +332,11 @@ export function createLibraryController(ctx) {
       event.stopPropagation();
       const trigger = event.target.closest(".wg-inject-trigger");
       if (injectState && injectState.trigger === trigger) closeInjectMenu();
-      else openInjectMenu(trigger, path, textarea, render);
+      else {
+        const editor = node._ppActiveRecipeEditor?.isConnected ? node._ppActiveRecipeEditor : textarea;
+        if (editor === textarea) node._ppRecipeWorkspace?.showEditor();
+        openInjectMenu(trigger, path, editor, editor === textarea ? render : () => editor.dispatchEvent(new Event("input", { bubbles: true })));
+      }
       return;
     }
     if (event.target.closest(".wg-pin, .wg-thumb-pin")) {
@@ -377,8 +365,7 @@ export function createLibraryController(ctx) {
   pickerList.addEventListener("mousemove", (event) => {
     const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
     if (!host) return;
-    hoverTip.style.left = `${event.clientX + 14}px`;
-    hoverTip.style.top = `${event.clientY + 14}px`;
+    if (hoverTip.style.display === "block") positionPromptPaletteTip(hoverTip, event.clientX, event.clientY);
   });
   pickerList.addEventListener("mouseover", (event) => {
     if (state.workspacePrefs?.disableHoverPreviews) return;
@@ -672,16 +659,21 @@ export function createLibraryController(ctx) {
     }
   });
 
-  async function refreshLibrary() {
-    const nextLibrary = await API.list();
-    if (!nodeIsActive(node)) return false;
+  let libraryRequestVersion = 0;
+  let libraryDisposed = false;
+  async function refreshLibrary(data = null) {
+    const requestVersion = ++libraryRequestVersion;
+    hideTip();
+    previewCache.clear();
+    const nextLibrary = Array.isArray(data?.items) ? data.items : await API.list();
+    if (libraryDisposed || requestVersion !== libraryRequestVersion || !nodeIsActive(node)) return false;
     let nextThumbMap = state.thumbMap;
     try {
       nextThumbMap = await API.categories();
     } catch (error) {
       console.error("Prompt Palette: thumbnail refresh failed", error);
     }
-    if (!nodeIsActive(node)) return false;
+    if (libraryDisposed || requestVersion !== libraryRequestVersion || !nodeIsActive(node)) return false;
     state.libraryCache = nextLibrary;
     state.knownSet = new Set(nextLibrary.map((item) => item.path));
     state.thumbMap = nextThumbMap;
@@ -732,97 +724,46 @@ export function createLibraryController(ctx) {
   }
 
   node._wgRefreshLibrary = refreshLibrary;
+  const cleanupLibrarySubscription = API.onLibraryChanged(refreshLibrary);
 
-  async function promptExtractSelectionToWildcard(start, end) {
-    const selectedText = textarea.value.slice(start, end);
-    const trimmed = selectedText.trim();
-    if (!trimmed) return;
-    const raw = await dialogPrompt({
-      title: "Save to My Library",
-      message: 'Choose a My Library path (for example, "poses/playful_foxes"):',
-      defaultValue: state.starterSaveSuggestion,
-    });
-    if (raw === null || raw === undefined) return;
-    const slug = normalizeLibraryEntryPath(raw);
-    if (!slug) {
-      notify("error", "Library entry not saved", "Enter a valid path using letters, numbers, - _ or /.");
-      return;
-    }
-    if (state.knownSet.has(slug)) {
-      const overwrite = await dialogConfirm({
-        title: "Overwrite Library Entry",
-        message: `"${slug}" already exists \u2014 overwrite it?`,
-      });
-      if (!overwrite) return;
-    }
-    const res = await API.save(slug, trimmed);
-    if (!res.ok) {
-      notify("error", "Library entry not saved", res.error || "save failed");
-      return;
-    }
-    previewCache.delete(slug);
-    state.starterSaveSuggestion = "";
-
+  async function selectionSaved(path) {
+    previewCache.delete(path); state.starterSaveSuggestion = "";
     await refreshLibrary();
-    insertInjectorText(textarea, render, `__${slug}__`, null, null, { start, end });
-    const cat = categoryOf(slug);
-    if (!expandedCats.has(cat)) {
-      expandedCats.add(cat);
-      saveExpandedCats(expandedCats);
-    }
+    const cat = categoryOf(path);
+    if (!expandedCats.has(cat)) { expandedCats.add(cat); saveExpandedCats(expandedCats); }
     renderPickerList(searchInput.value);
-    const label = trimmed.length > 40 ? trimmed.slice(0, 40) + "\u2026" : trimmed;
-    notify("success", "Saved to My Library", `${label} \u2192 __${slug}__`);
   }
-
-  async function promptSaveSelectionAsList(start, end) {
-    const selectedText = textarea.value.slice(start, end);
-    const values = selectedText
-      .split(/[\r\n,]+/)
-      .map(value => value.trim())
-      .filter(Boolean);
-    if (!values.length) return;
-    const raw = await dialogPrompt({
-      title: "Save as list",
-      message: "Choose a My Library path for this tag list:",
-      defaultValue: "lists/new_list",
+  function promptExtractSelectionToWildcard(start, end) {
+    return saveEditorSelection(textarea, start, end, {
+      defaultValue: state.starterSaveSuggestion, hasPath: path => state.knownSet.has(path), onSaved: selectionSaved,
     });
-    if (raw === null || raw === undefined) return;
-    const slug = normalizeLibraryEntryPath(raw);
-    if (!slug) {
-      notify("error", "List not saved", "Enter a valid path using letters, numbers, - _ or /.");
-      return;
-    }
-    if (state.knownSet.has(slug)) {
-      const overwrite = await dialogConfirm({ title: "Overwrite list", message: `"${slug}" already exists — overwrite it?` });
-      if (!overwrite) return;
-    }
-    const res = await API.save(slug, values.join("\n"));
-    if (!res.ok) {
-      notify("error", "List not saved", res.error || "save failed");
-      return;
-    }
-    previewCache.delete(slug);
-    await refreshLibrary();
-    renderPickerList(searchInput.value);
-    notify("success", "Saved list", `${values.length} tag${values.length === 1 ? "" : "s"} → __${slug}__`);
   }
-
+  function promptSaveSelectionAsList(start, end) {
+    return saveEditorSelection(textarea, start, end, {
+      list: true, hasPath: path => state.knownSet.has(path), onSaved: selectionSaved,
+    });
+  }
+  textarea.__ppExtractSelectionToWildcard = promptExtractSelectionToWildcard;
   textarea.__ppSaveSelectionAsList = promptSaveSelectionAsList;
 
   const editName = el("editName");
   const editContent = el("editContent");
   const editStatus = el("editStatus");
+  let editLoadVersion = 0, loadedEditPath = null;
 
   async function loadIntoEditDrawer(name) {
+    const request = ++editLoadVersion;
     editName.value = name;
     let data;
     try { data = await API.content(name); }
     catch (error) {
+      if (libraryDisposed || request !== editLoadVersion) return;
       editStatus.textContent = error?.message || "couldn't load library entry";
       editStatus.className = "wg-status err";
       return;
     }
+    if (libraryDisposed || request !== editLoadVersion || editName.value !== name) return;
+    loadedEditPath = data?.found ? name : null;
     if (data && data.found) {
       editContent.value = data.content;
       editContent.disabled = !data.editable;
@@ -847,19 +788,25 @@ export function createLibraryController(ctx) {
   }
 
   async function saveEditDrawer() {
-    const name = editName.value.trim();
+    const name = editName.value.trim().replace(/\.txt$/i, "").replace(/\\/g, "/");
     if (!name) { editStatus.textContent = "enter a name/path first"; editStatus.className = "wg-status err"; return; }
-    const res = await API.save(name, editContent.value);
-    if (res.ok) {
-      editStatus.textContent = "saved.";
-      editStatus.className = "wg-status";
-      previewCache.delete(name);
-      await refreshLibrary();
-      renderPickerList(searchInput.value);
-    } else {
-      editStatus.textContent = res.error || "save failed";
-      editStatus.className = "wg-status err";
-    }
+    if (editContent.disabled) { editStatus.textContent = "This entry is read-only; edit its source file or create a TXT copy."; editStatus.className = "wg-status err"; return; }
+    try {
+      if (name !== loadedEditPath && (await API.content(name, { fresh: true }))?.found
+        && !await dialogConfirm({ title: "Overwrite Library Entry", message: `Overwrite "${name}"?` })) return;
+      const res = await API.save(name, editContent.value);
+      if (res.ok) {
+        loadedEditPath = name;
+        editStatus.textContent = "saved.";
+        editStatus.className = "wg-status";
+        previewCache.delete(name);
+        await refreshLibrary();
+        renderPickerList(searchInput.value);
+      } else {
+        editStatus.textContent = res.error || "save failed";
+        editStatus.className = "wg-status err";
+      }
+    } catch (error) { editStatus.textContent = error?.message || "save failed"; editStatus.className = "wg-status err"; }
   }
   root.querySelector('[data-act="save"]').addEventListener("click", saveEditDrawer);
 
@@ -995,8 +942,6 @@ export function createLibraryController(ctx) {
     performanceRuntime?.cancelTimer("library-worker-search");
     cancelNodeTimer(node, searchDebounce);
     searchDebounce = null;
-    cancelNodeTimer(node, hoverDebounce);
-    hoverDebounce = null;
     cancelNodeTimer(node, delegatedInjectTimer);
     delegatedInjectTimer = null;
     hideTip();
@@ -1101,6 +1046,7 @@ export function createLibraryController(ctx) {
     }
   });
   return {
+    getAcMatches, commitAcItem, bindEditorHover, selectionSaved,
     refreshLibrary,
     refreshThumbMap,
     renderPickerList,
@@ -1127,6 +1073,12 @@ export function createLibraryController(ctx) {
       };
     },
     cleanup() {
+      libraryDisposed = true;
+      libraryRequestVersion++;
+      cleanupLibrarySubscription();
+      if (node._wgRefreshLibrary === refreshLibrary) delete node._wgRefreshLibrary;
+      hideTip(); previewCache.clear();
+      cleanupEditorHover();
       cleanupAutocompleteBinding?.();
       virtualManager.cleanup();
       starterPackController.cleanup();

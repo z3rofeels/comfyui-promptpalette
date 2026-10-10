@@ -1,5 +1,30 @@
 import { BUILTIN_UI_THEMES, loadUiThemes, loadActiveUiThemeName } from "./preferences.js";
 
+// Keep invalid intermediate typing out of the serialized seed and resolver.
+// Number-based ComfyUI widgets cannot represent uint64's upper endpoint exactly.
+export function bindPromptSeedInput(input, widget, commit) {
+  if (!input || !widget) return () => {};
+  function edit() {
+    if (input.value === "") { input.removeAttribute("aria-invalid"); return; }
+    const value = Number(input.value);
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value >= 2 ** 64) {
+      input.setAttribute("aria-invalid", "true");
+      return;
+    }
+    input.removeAttribute("aria-invalid");
+    commit(value);
+  }
+  function finish() {
+    if (input.value === "" || input.getAttribute("aria-invalid") === "true") {
+      input.value = widget.value;
+      input.removeAttribute("aria-invalid");
+    }
+  }
+  input.addEventListener("input", edit);
+  input.addEventListener("blur", finish);
+  return () => { input.removeEventListener("input", edit); input.removeEventListener("blur", finish); };
+}
+
 function hashStr(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;

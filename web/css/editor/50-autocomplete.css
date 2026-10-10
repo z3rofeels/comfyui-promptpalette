@@ -393,16 +393,15 @@
 .wg-ac-add-note { margin-top: 4px; line-height: 1.3; white-space: normal; }
 .wg-ac-add-note.error { color: var(--wg-danger, #e0787a); }
 
-.wg-ac-item[data-ac-section="recents"] {
+/* Sections group sources; they must never redefine a tag's category color.
+   Keep these defaults below category specificity, even if moved in the file. */
+.wg-ac-item:where([data-ac-section="recents"][data-ac-library]:not([data-ac-booru])) {
   color: var(--pp-ac-lib, var(--wg-text, #f1eee8));
   --pp-ac-bar: var(--pp-ac-lib, var(--wg-accent, #d49a52));
   background: color-mix(in srgb, var(--pp-ac-lib, var(--wg-text, #f1eee8)) 5%, var(--pp-ac-row));
 }
-.wg-ac-item[data-ac-section="library-prompts"] {
+.wg-ac-item:where([data-ac-section="library-prompts"][data-ac-library]:not([data-ac-booru])) {
   background: color-mix(in srgb, var(--pp-ac-lib, var(--wg-border, #2a2e34)) 3%, var(--pp-ac-row));
-}
-.wg-ac-item[data-ac-section="custom-words"] {
-  color: var(--wg-success, #82c6a2);
 }
 
 .wg-ac-empty {
@@ -429,7 +428,7 @@
   .wg-ac-add-form { flex-wrap: wrap; }
   .wg-ac-add-input { flex-basis: 100%; }
   .wg-ac-menu {
-    min-width: 260px;
+    min-width: min(260px, calc(100vw - 16px));
     max-width: calc(100vw - 16px);
   }
   .wg-ac-metrics { max-width: 44%; }
@@ -442,9 +441,11 @@
 }
 
 @media (forced-colors: active) {
-  .wg-ac-item[data-ac-booru] { color: CanvasText; }
+  .wg-ac-item[data-ac-booru],
+  .wg-ac-item[data-ac-library] { color: CanvasText !important; }
   .wg-ac-item.active::before { background: Highlight; }
-  .wg-ac-item.active, .wg-ac-item:hover { background: Canvas; color: CanvasText; border-color: Highlight; }
+  .wg-ac-item.active, .wg-ac-item:hover { background: Canvas !important; color: CanvasText !important; border-color: Highlight !important; }
+  .wg-ac-item .wg-ac-match { color: inherit !important; }
   .wg-ac-pill { border-color: CanvasText; background: Canvas; color: CanvasText; }
 }
 

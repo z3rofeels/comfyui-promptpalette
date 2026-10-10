@@ -43,7 +43,7 @@ def clip_counting_applies(clip):
     return any(hasattr(tokenizer, name) for name in ("clip_l", "clip_g", "clip_h"))
 
 
-def count_clip_tokens(text):
+def count_clip_tokens(text, *, include_layout=False):
     tok = _get_clip_l_tokenizer()
     if tok is None:
         return None
@@ -67,9 +67,27 @@ def count_clip_tokens(text):
     if not per_chunk or sum(per_chunk) == 0:
         return {"tokens": 0, "chunks": 0, "per_chunk": [], "limit_per_chunk": TOKENS_PER_CHUNK}
 
-    return {
+    result = {
         "tokens": sum(per_chunk),
         "chunks": len(per_chunk),
         "per_chunk": per_chunk,
         "limit_per_chunk": TOKENS_PER_CHUNK,
     }
+    if include_layout:
+        layout = []
+        decoder = getattr(getattr(tok, "tokenizer", None), "decode", None)
+        for chunk, batch in enumerate(batches):
+            for item in batch:
+                if len(item) < 3 or item[2] == 0:
+                    continue
+                if len(layout) >= 512:
+                    break
+                token = item[0]
+                try:
+                    label = decoder([token]) if decoder and isinstance(token, int) else str(token)
+                except Exception:
+                    label = str(token)
+                layout.append({"text": label[:80], "weight": float(item[1]), "chunk": chunk + 1})
+        result["layout"] = layout
+        result["layout_omitted"] = max(0, result["tokens"] - len(layout))
+    return result

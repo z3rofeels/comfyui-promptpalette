@@ -1,22 +1,40 @@
+import { bindEditorWildcardHover } from "./editor/editor_hover.js";
+import { saveEditorSelection } from "./editor/selection_library.js";
+import { attachEditorContextMenu } from "./editor/context_menu.js";
 import { app } from "../../scripts/app.js";
 import {
-  loadExtensionStylesheet, svgIcon, copyPromptPaletteThemeScope,
-  installPromptPaletteKeyboardBoundary, registerPromptPaletteSettingsDrawer,
+  loadExtensionStylesheet, svgIcon, copyPromptPaletteThemeScope, positionPromptPaletteTip,
+  installPromptPaletteKeyboardBoundary, registerPromptPaletteSettingsDrawer, navigatePromptPaletteTabs,
 } from "./prompt_palette_shared.js";
 import { bindSuiteAppearance } from "./editor/suite_appearance.js";
+import { applyToolbarVisibility } from "./editor/toolbar.js";
+import { bindPromptSeedInput } from "./editor/text_utils.js";
+import { saveTheme } from "./editor/preferences.js";
 import { readCombinatorialPreference, writeCombinatorialPreference } from "./prompt_palette_state.js";
 import { upgradeEditorSurface } from "./editor/editor_surface.js";
+import { createRefinementController } from "./editor/refinement_controller.js";
+import { createRecipeWorkspaceController } from "./editor/recipe_workspace_controller.js";
+import { WORKSPACE_KEY } from "./editor/recipe_workspace_model.js";
+import { installPreparedBatchState } from "./editor/prompt_refinement.js";
+import { mountCombinatorialTools, createCombinatorialTools } from "./editor/combinatorial_tools.js";
+import { attachImageImport } from "./editor/image_import.js";
+import { editCompiledPrompt } from "./editor/recipe_text_edit.js";
+import { tagSearch } from "./editor/tag_search.js";
+import { EditorUndoManager } from "./editor/undo_manager.js";
 import { createSyntaxHighlighter } from "./editor/syntax_highlighter.js";
+import { PromptSyntaxCache, renderPromptSyntax } from "./editor/prompt_parser.js";
+import { createLibraryLookup } from "./engine/library_lookup.js";
 import { libraryAcRows, recentAcRows, mergeUnifiedRows, rankLibraryPaths } from "./editor/autocomplete_sources.js";
 import { createPromptUsageStore } from "./prompt_quickness.js";
-import { createTagPainter, onTagColorsChanged, TAG_CATEGORY_KEYS, TAG_CATEGORY_LABELS } from "./editor/booru_tag_colors.js";
+import { createTagPainter, onTagColorsChanged } from "./editor/booru_tag_colors.js";
+import { createStatusBar, statusBarMarkup, wildcardStatusText } from "./editor/status_bar.js";
 import {
-  API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr, normalizeLibraryEntryPath,
+  API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
   editorStylesReady,
   sanitizeHexColor, categoryColorFromHue, currentUiSurface,
   getBooruAutocompleteMatches, attachAutocomplete,
   loadPinned, savePinned, loadExpandedCats, saveExpandedCats, loadCatOrder, saveCatOrder,
-  notify, dialogPrompt, dialogConfirm, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
+  notify, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
 
   loadPickerView, savePickerView, openCtxMenu, closeCtxMenu, ctxMenuOpen,
   pickThumbnailFile, thumbnailFileError,
@@ -24,7 +42,7 @@ import {
   openInjectMenu, openInjectMenuAtPoint, closeInjectMenu, scheduleCloseInjectMenu, injectState,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
   ensureNodeLifecycle, nodeIsActive, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
-  installPromptStateGuard, installPromptMetadataCapture,
+  installPromptStateGuard, installPromptMetadataCapture, preparePromptBackingWidgets,
 
   ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, setupIoRail,
   installSocketRailLayout, cleanupSocketRailLayout, queueSocketRailLayout,
@@ -37,9 +55,9 @@ const combinatorialStylesReady = loadExtensionStylesheet(CSS_HREF, "prompt-palet
   throw error;
 });
 const SEED_MODE_INFO = {
-  sequential: { label: "Sequential", desc: "Steps to the next seed value each run \u2014 paired with Combinatorial mode, walks every combination in order without repeats." },
-  fixed: { label: "Fixed", desc: "Reuses the same seed for every run \u2014 re-running reproduces the exact same prompt(s)." },
-  random: { label: "Random", desc: "Rolls a fresh random seed every run." },
+  sequential: { label: "Sequential", desc: "Adds one to the base seed for each prompt in the batch, wrapping at the 64-bit limit." },
+  fixed: { label: "Fixed", desc: "Uses the base seed for every prompt in the batch. Seeded wildcards repeat in Random mode." },
+  random: { label: "Random", desc: "Derives reproducible randomized per-prompt seeds from the base seed. Change the base seed for a new batch." },
 };
 
 const ESTIMATE_DEBOUNCE_MS = 350;
@@ -54,6 +72,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   let libraryCache = [];
   let knownSet = new Set();
+  let lookupWildcard = createLibraryLookup([]);
+  const syntaxCache = new PromptSyntaxCache();
   let thumbMap = {};
   let thumbBust = {};
   let pickerViewMode = loadPickerView();
@@ -70,12 +90,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
         <button type="button" class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="My Library \u2014 browse and insert reusable entries" aria-label="Open My Library">${svgIcon("gallery")}</button>
         <button type="button" class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Rescan My Library files" aria-label="Rescan My Library">${svgIcon("refresh")}</button>
         <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Manage inputs, outputs, and socket labels" aria-label="Manage inputs, outputs, and socket labels">${svgIcon("io", 13)}<span class="wg-io-button-label">I/O</span><span data-io-count></span></button>
-        <button type="button" class="wg-icon-btn wg-settings-anchor" data-act="settings" title="Settings">${svgIcon("settings")}</button>
+        <button type="button" class="wg-icon-btn wg-settings-anchor" data-act="settings" title="Combinatorial settings" aria-label="Open Combinatorial settings">${svgIcon("settings")}</button>
       </div>
-    </div>
-    <div class="pp-fanout-banner" data-el="fanoutBanner" title="The list outputs (Model list, CLIP list, Conditioning list, Prompt list, Seed list, Wildcards used, metadata list) hold one entry per generated prompt. Anything wired to one of those runs once per prompt, not once per queue run. The single-value outputs (passthrough, first, negative, count, raw text, ...) run once.">
-      <span class="pp-fanout-icon">${svgIcon("branch", 14)}</span>
-      <span>Fans out into <span class="pp-fanout-count" data-el="fanoutCount">1</span> prompt<span data-el="fanoutPlural"></span> \u2014 every wired list output fires once per prompt.</span>
     </div>
     <div class="wg-settings-popup wg-settings-pro pp-combo-settings" data-el="settingsPopup" role="dialog" aria-label="Combinatorial settings" aria-hidden="true" hidden inert>
       <div class="wg-settings-head wg-settings-head-pro">
@@ -125,36 +141,32 @@ function buildCombinatorialWidget(node, hiddenWidget) {
             <textarea class="wg-editor-layer wg-textarea" data-el="textarea" spellcheck="true"></textarea>
           </div>
         </div>
-        <div class="wg-legend" data-el="legend" title="Wildcard colors follow your My Library category palette."></div>
-        <div class="wg-footer">
-          <span class="wg-hint" data-el="charCount"></span>
-          <span class="wg-hint" data-el="hintRight"></span>
-        </div>
+        ${statusBarMarkup({ doctor: true })}
         <div class="pp-controls">
           <div class="pp-mode-toggle" data-el="modeToggle">
             <button type="button" class="pp-mode-btn" data-mode="random" title="Produces \u2018count\u2019 prompts, each an independent random pick.">Random</button>
-            <button type="button" class="pp-mode-btn" data-mode="combinatorial" title="Produces every combination of the text\u2019s wildcard/brace groups, up to \u2018max_prompts\u2019.">Combinatorial</button>
+            <button type="button" class="pp-mode-btn" data-mode="combinatorial" title="Produces every combination of the text\u2019s wildcard/brace groups, up to \u2018max_prompts\u2019.">All combinations</button>
           </div>
           <div class="pp-row" data-el="countRow">
             <label>Count</label>
-            <input type="number" min="1" step="1" data-el="countInput" title="How many random prompts to generate this run. Ignored in Combinatorial mode.">
+            <input type="number" min="1" step="1" data-el="countInput" aria-label="Number of random prompts" title="How many random prompts to generate this run. Ignored in Combinatorial mode.">
           </div>
           <div class="pp-row" data-el="maxPromptsRow">
             <label>Max prompts</label>
-            <input type="number" min="0" step="1" placeholder="5000 (default)" data-el="maxPromptsInput" title="Safety cap on the combinatorial expansion. 0 = default cap (5000). Ignored in Random mode.">
+            <input type="number" min="0" step="1" placeholder="5000 (default)" data-el="maxPromptsInput" aria-label="Maximum prompts" title="Safety cap on the combinatorial expansion. 0 = default cap (5000). Ignored in Random mode.">
           </div>
           <div class="pp-row">
             <label>Seed</label>
-            <input type="number" min="0" step="1" data-el="seedInput" title="Prompt seed.">
-            <button type="button" class="wg-icon-btn" data-act="seedRandomizeNow" title="Roll a new random seed now">&#127922;</button>
+            <input type="number" min="0" step="1" data-el="seedInput" aria-label="Prompt seed" title="Prompt seed.">
+            <button type="button" class="wg-icon-btn" data-act="seedRandomizeNow" title="Roll a new random seed now" aria-label="Randomize seed">${svgIcon("dice", 13)}</button>
           </div>
           <div class="pp-row">
             <label>Seed mode</label>
-            <select data-el="seedModeSelect"></select>
+            <select data-el="seedModeSelect" aria-label="Seed behavior"></select>
           </div>
-          <div class="pp-estimate" data-el="estimateBox">
+          <div class="pp-estimate" data-el="estimateBox" title="Estimated batch size. Each list output contains one item per generated prompt; single-value outputs run once.">
             <div class="pp-estimate-main">
-              <span>Estimated output</span>
+              <span class="pp-output-label">${svgIcon("branch", 13)} Output</span>
               <span class="pp-estimate-count" data-el="estimateCount">1 prompt</span>
             </div>
             <div class="pp-estimate-warning-text" data-el="estimateWarning"></div>
@@ -164,6 +176,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     </div>
   `;
 
+  mountCombinatorialTools(root, root.querySelector('[data-el="settingsPopup"]'));
   let detachedSettingsPopup = null;
   // Settings is portaled out of `root` immediately. Every lookup that can belong
   // to that drawer must continue to resolve after the reparent, otherwise setup
@@ -176,16 +189,13 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   textarea.value = promptState.restore();
   const highlight = el("highlight");
   const syntaxHighlighter = createSyntaxHighlighter(textarea, highlight);
-  const legend = el("legend");
+  const statusBar = createStatusBar(root);
   const hintRight = el("hintRight");
   const charCount = el("charCount");
   const pickerDrawer = root.querySelector('[data-drawer="picker"]');
   const searchInput = el("search");
   const pickerList = el("pickerList");
   const pickerViewToggleBtn = el("pickerViewToggle");
-  const fanoutBanner = el("fanoutBanner");
-  const fanoutCount = el("fanoutCount");
-  const fanoutPlural = el("fanoutPlural");
   const modeButtons = Array.from(root.querySelectorAll(".pp-mode-btn"));
   const countRow = el("countRow");
   const countInput = el("countInput");
@@ -209,6 +219,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     node.widgets.find(w => w !== seedWidget && /control.*generate/i.test(w.name || ""));
   const seedModeWidget = node.widgets.find(w => w.name === "seed_mode");
   const maxPromptsWidget = node.widgets.find(w => w.name === "max_prompts");
+  const preparedWidget = node.widgets.find(w => w.name === "prepared_batch");
   const nativeBackingWidgets = [modeWidget, countWidget, seedWidget, controlWidget, seedModeWidget, maxPromptsWidget];
   nativeBackingWidgets.forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); });
 
@@ -245,6 +256,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function reassertHiddenWidgets() {
+    if (preparedWidget) hideNativeWidget(preparedWidget);
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
     nativeBackingWidgets.forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); });
   }
@@ -262,7 +274,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   function syncControlsFromWidgets() {
     if (countWidget) countInput.value = countWidget.value;
     if (maxPromptsWidget) maxPromptsInput.value = maxPromptsWidget.value;
-    if (seedWidget) seedInput.value = seedWidget.value;
+    if (seedWidget) {
+      seedInput.value = seedWidget.value;
+      seedInput.removeAttribute("aria-invalid");
+    }
     if (seedModeWidget) seedModeSelect.value = seedModeWidget.value;
     if (settingsModeSelect) settingsModeSelect.value = modeWidget?.value || "random";
     if (settingsCountInput) settingsCountInput.value = countWidget?.value ?? 1;
@@ -286,9 +301,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     node.graph?.setDirtyCanvas(true, true);
     updateEstimate();
   });
-  seedInput.addEventListener("input", () => {
-    if (!seedWidget || seedInput.value === "") return;
-    seedWidget.value = Number(seedInput.value);
+  const cleanupSeedInput = bindPromptSeedInput(seedInput, seedWidget, value => {
+    seedWidget.value = value;
     if (typeof seedWidget.callback === "function") seedWidget.callback(seedWidget.value, node.graph?.canvas, node);
     node.graph?.setDirtyCanvas(true, true);
     updateEstimate();
@@ -431,6 +445,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     settingsPopup.dataset.activeTab = name;
   }
   settingsTabs.forEach((button) => button.addEventListener("click", () => activateSettingsTab(button.dataset.settingsTab)));
+  settingsTabs.forEach(button => {
+    const panel = settingsPanels.find(item => item.dataset.settingsPanel === button.dataset.settingsTab);
+    if (panel) {
+      button.id = `${settingsPopup.id}-tab-${button.dataset.settingsTab}`; panel.id = `${settingsPopup.id}-panel-${button.dataset.settingsTab}`;
+      button.setAttribute("aria-controls", panel.id); panel.setAttribute("aria-labelledby", button.id);
+    }
+    button.addEventListener("keydown", event => navigatePromptPaletteTabs(event, settingsTabs, next => activateSettingsTab(next.dataset.settingsTab)));
+  });
   const settingsDrawer = registerPromptPaletteSettingsDrawer({
     popup: settingsPopup,
     trigger: settingsBtn,
@@ -441,6 +463,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     closePickerDrawer();
     settingsDrawer.open();
     activateSettingsTab("behavior");
+    settingsTabs.find(button => button.classList.contains("active"))?.focus({ preventScroll: true });
     syncControlsFromWidgets();
   }
   function closeSettings(options = {}) {
@@ -458,22 +481,30 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   settingsPopup.querySelectorAll('[data-act="closeSettings"]').forEach(btn => btn.addEventListener("click", closeSettings));
 
   const handleWorkspaceEscape = (event) => {
-    if (event.key !== "Escape" || isDialogOpen()) return;
+    if (event.key !== "Escape" || event.defaultPrevented || isDialogOpen() || !root.contains(event.target)) return;
     if (node._wgIoRailOpen) ioRail.close();
-    else if (pickerDrawer.classList.contains("open")) closePickerDrawer();
+    else if (pickerDrawer.classList.contains("open")) { closePickerDrawer(); root.querySelector('[data-act="picker"]')?.focus({ preventScroll: true }); }
+    else return;
+    event.preventDefault(); event.stopPropagation();
   };
   root.addEventListener("keydown", handleWorkspaceEscape);
   document.addEventListener("keydown", handleWorkspaceEscape);
 
-  // Combinatorial consumes the suite appearance but never writes it. All presentation
-  // controls live in the main Prompt Palette Settings > Appearance surface.
+  // Reuse suite toolbar preferences. Themes and full toolbar controls remain in
+  // main Settings; the import shortcut can also be toggled here.
   const appearanceBinding = bindSuiteAppearance({
     node,
     targets: [root, settingsPopup],
     onApplied(snapshot, { initial }) {
       Object.assign(theme, snapshot.theme);
+      applyToolbarVisibility(root, theme);
+      el("toggleImportImageBtn").checked = theme.showImportImageBtn !== false;
       if (!initial) render();
     },
+  });
+
+  el("toggleImportImageBtn").addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), showImportImageBtn: event.target.checked, layoutPreset: "custom" });
   });
 
   let estimateDebounceTimer = null;
@@ -491,7 +522,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   function updateModeUI() {
     const mode = modeWidget ? modeWidget.value : "random";
-    modeButtons.forEach(b => b.classList.toggle("pp-active", b.dataset.mode === mode));
+    modeButtons.forEach(b => {
+      b.classList.toggle("pp-active", b.dataset.mode === mode);
+      b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+    });
     countRow.classList.toggle("pp-hidden", mode !== "random");
     maxPromptsRow.classList.toggle("pp-hidden", mode !== "combinatorial");
     updateEstimate();
@@ -506,9 +540,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       ? `Hits the ${cap.toLocaleString()}-prompt cap \u2014 only the first ${cap.toLocaleString()} combinations will run this queue.`
       : "";
     const fanoutN = willCap ? cap : count;
-    fanoutCount.textContent = fanoutN.toLocaleString();
-    fanoutPlural.textContent = fanoutN === 1 ? "" : "s";
-    fanoutBanner.classList.toggle("pp-warning", willCap);
+    estimateBox.dataset.estimateKind = willCap ? "capped" : "ready";
+    estimateBox.title = `${fanoutN.toLocaleString()} prompts will run. Each list output contains one item per prompt; single-value outputs run once.`;
   }
 
   async function runCombinatorialEstimate() {
@@ -531,16 +564,25 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function updateEstimate() {
+    if (preparedWidget?.value) {
+      try {
+        const batch = JSON.parse(preparedWidget.value);
+        if (batch.source === textarea.value && Array.isArray(batch.prompts)) {
+          estimateSeq++; cancelNodeTimer(node, estimateDebounceTimer); estimateDebounceTimer = null;
+          estimateBox.classList.remove("pp-loading");
+          renderEstimate(batch.prompts.length, false, batch.prompts.length); return;
+        }
+      } catch { /* normal estimate below */ }
+    }
     if (["mode", "count", "seed", "seed_mode", "max_prompts"].some(inputSocketLinked)) {
       estimateSeq++;
       cancelNodeTimer(node, estimateDebounceTimer);
       estimateDebounceTimer = null;
-      estimateCount.textContent = "runtime inputs";
-      estimateWarning.textContent = "Generation controls are driven by connected inputs; exact fan-out is resolved when the workflow executes.";
+      estimateCount.textContent = "Connected inputs";
+      estimateWarning.textContent = "Batch size is set by connected controls.";
       estimateBox.classList.remove("pp-warning", "pp-loading");
-      fanoutCount.textContent = "—";
-      fanoutPlural.textContent = "";
-      fanoutBanner.classList.remove("pp-warning");
+      estimateBox.dataset.estimateKind = "connected";
+      estimateBox.title = estimateWarning.textContent;
       return;
     }
     cancelNodeTimer(node, estimateDebounceTimer);
@@ -556,12 +598,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function isKnown(name) {
-    return knownSet.has(name) || Array.from(knownSet).some(n => n.split("/").pop() === name.split("/").pop());
-  }
-  function extractWildcardNames(text) {
-    const names = new Set(); const re = /__[+\-*%~@]?([A-Za-z0-9_\-\/]+)__/g; let m;
-    while ((m = re.exec(text))) names.add(m[1]);
-    return Array.from(names);
+    return lookupWildcard(String(name || "")).length > 0;
   }
   function buildCategoryColorMap(categoriesInUse) {
     const hues = {};
@@ -584,70 +621,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     return categoryColorFromHue(hue, theme.saturation, currentUiSurface());
   }
   function highlightText(text) {
-    const names = extractWildcardNames(text);
-    const categoriesInUse = Array.from(new Set(names.map(categoryOf)));
-    const categoryHueMap = buildCategoryColorMap(categoriesInUse);
-    let out = ""; let i = 0; const ranges = []; const decorations = [];
-    // Plain text between tokens is where booru / custom-word tags live; known ones keep their
-    // category color, like wildcards do.
-    const tagPainter = createTagPainter(theme);
-    let plain = ""; let plainStart = 0;
-    const flushPlain = () => {
-      if (!plain) return;
-      let cursor = 0;
-      for (const hit of tagPainter ? tagPainter.paint(plain, plainStart) : []) {
-        const from = hit.start - plainStart, to = hit.end - plainStart;
-        if (from > cursor) out += escapeHtml(plain.slice(cursor, from));
-        out += `<span class="wg-token wg-token-booru" data-tag-category="${hit.category}" style="color:${hit.color}; text-shadow:0 0 0.35px currentColor;">${escapeHtml(plain.slice(from, to))}</span>`;
-        decorations.push({ start: hit.start, end: hit.end, kind: "booru", color: hit.color });
-        cursor = to;
-      }
-      out += escapeHtml(plain.slice(cursor));
-      plain = "";
-    };
-    while (i < text.length) {
-      const rest = text.slice(i);
-      const wildcardMatch = rest.match(/^__[+\-*%~@]?[A-Za-z0-9_\-\/]+__/);
-      if (wildcardMatch) { flushPlain();
-        const token = wildcardMatch[0];
-        const innerName = token.replace(/^__[+\-*%~@]?/, "").replace(/__$/, "");
-        const start = i, end = i + token.length;
-        if (isKnown(innerName)) {
-          const color = colorForToken(innerName, categoryHueMap);
-          out += `<span class="wg-token" style="color:${color}; font-weight:600;">${escapeHtml(token)}</span>`;
-          ranges.push({ start, end, name: innerName, known: true });
-          decorations.push({ start, end, kind: "wildcard", color });
-        } else {
-          out += `<span class="wg-tok-error">${escapeHtml(token)}</span>`;
-          ranges.push({ start, end, name: innerName, known: false });
-          decorations.push({ start, end, kind: "error" });
-        }
-        i = end; continue;
-      }
-      const conditionalMatch = rest.match(/^\[(?:if|elif|else|\/if)(?:\s+[^\]]+)?\]/i);
-      if (conditionalMatch) { flushPlain(); const start = i; out += `<span class="wg-tok-conditional">${escapeHtml(conditionalMatch[0])}</span>`; i += conditionalMatch[0].length; decorations.push({ start, end: i, kind: "conditional" }); continue; }
-      const weightMatch = rest.match(/^\d+::/);
-      if (weightMatch) { flushPlain(); const start = i; out += `<span class="wg-tok-weight">${escapeHtml(weightMatch[0])}</span>`; i += weightMatch[0].length; decorations.push({ start, end: i, kind: "weight" }); continue; }
-      const quantMatch = rest.match(/^(\d+(-\d+)?\$\$[^$]*\$\$|\d+#)/);
-      if (quantMatch) { flushPlain(); const start = i; out += `<span class="wg-tok-mod">${escapeHtml(quantMatch[0])}</span>`; i += quantMatch[0].length; decorations.push({ start, end: i, kind: "modifier" }); continue; }
-      const ch = text[i];
-      if (ch === "{" || ch === "}") { flushPlain(); const start = i; out += `<span class="wg-tok-bracket">${ch}</span>`; i++; decorations.push({ start, end: i, kind: "bracket" }); continue; }
-      if (ch === "|") { flushPlain(); const start = i; out += `<span class="wg-tok-pipe">|</span>`; i++; decorations.push({ start, end: i, kind: "pipe" }); continue; }
-      if (ch === "#" && (i === 0 || text[i - 1] === "\n")) {
-        flushPlain();
-        const lineEnd = text.indexOf("\n", i);
-        const line = lineEnd === -1 ? text.slice(i) : text.slice(i, lineEnd);
-        const start = i; out += `<span class="wg-tok-comment">${escapeHtml(line)}</span>`; i += line.length; decorations.push({ start, end: i, kind: "comment" }); continue;
-      }
-      if (!plain) plainStart = i;
-      plain += ch; i++;
-    }
-    flushPlain();
-    tokenRanges = ranges;
-    return {
-      html: out, names, categoriesInUse, categoryHueMap, decorations,
-      tagCategoriesInUse: tagPainter ? Array.from(tagPainter.used) : [], tagPalette: tagPainter?.palette || null,
-    };
+    return renderPromptSyntax(syntaxCache.parse(text), {
+      isKnown, categoryOf, buildCategoryColorMap, colorForToken, tagPainter: createTagPainter(theme),
+    });
   }
 
   function syncHiddenWidget() {
@@ -656,37 +632,75 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     }
   }
 
+  let refinementController = null, recipeWorkspace = null, powerTools = null, refinementUndo = null;
+  const preparedState = installPreparedBatchState(node, preparedWidget);
+  function historyValue() {
+    const workspace = node.properties?.[WORKSPACE_KEY];
+    return JSON.stringify({ text: textarea.value, negative: node._ppNegativePromptState?.current() || "",
+      prepared: preparedState?.current() || "", workspace: workspace ? { ...workspace, view: "workspace" } : null });
+  }
+  function restoreHistory(value) {
+    const active = document.activeElement;
+    const fieldId = root.contains(active) ? active.closest?.('[data-field-id]')?.dataset.fieldId : null;
+    const saved = JSON.parse(value);
+    if (saved.workspace) saved.workspace.view = fieldId ? "workspace" : "editor";
+    textarea.value = saved.text;
+    node._ppNegativePromptState?.commit(saved.negative || "");
+    preparedState?.commit(saved.prepared || "");
+    recipeWorkspace?.restore(saved.workspace, { commit: false });
+    render();
+    if (fieldId && saved.workspace) recipeWorkspace.focusField(fieldId);
+    else { textarea.focus({ preventScroll: true }); textarea.setSelectionRange(textarea.value.length, textarea.value.length); }
+  }
+  function performUndo() { const value = refinementUndo.undo(historyValue()); if (value !== null) restoreHistory(value); }
+  function performRedo() { const value = refinementUndo.redo(historyValue()); if (value !== null) restoreHistory(value); }
+  function atomicEdit(text, start = text.length, end = start) {
+    refinementUndo.note(historyValue()); refinementUndo.flush();
+    textarea.value = text; textarea.setSelectionRange(start, end); render(); refinementUndo.flush();
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  const cleanupImageImport = attachImageImport({ node, root, getState: historyValue, apply: ({ positive, negative, hasNegative }) => {
+    const saved = recipeWorkspace?.snapshot();
+    if (saved) {
+      saved.recipe = editCompiledPrompt(saved.recipe, positive);
+      if (hasNegative) saved.recipe = editCompiledPrompt(saved.recipe, negative, { channel: "negative" });
+    }
+    refinementUndo.note(historyValue()); refinementUndo.flush();
+    preparedState?.commit("");
+    if (saved) recipeWorkspace.restore(saved);
+    else { textarea.value = positive; if (hasNegative) node._ppNegativePromptState.commit(negative); render(); }
+    textarea.setSelectionRange(positive.length, positive.length);
+    refinementUndo.note(historyValue()); refinementUndo.flush();
+  } });
   function render() {
-    const { html, names, categoriesInUse, categoryHueMap, decorations, tagCategoriesInUse, tagPalette } = highlightText(textarea.value);
+    recipeWorkspace?.reconcile(); recipeWorkspace?.contextChanged();
+    refinementController?.sourceChanged();
+    const { html, names, categoriesInUse, decorations, ranges } = highlightText(textarea.value);
+    tokenRanges = ranges;
     if (!syntaxHighlighter.render(decorations, textarea.value)) highlight.innerHTML = html + "\n";
-    legend.innerHTML = "";
-    categoriesInUse.forEach(cat => {
+    statusBar.renderLegend(categoriesInUse.map(cat => {
       const color = theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation, currentUiSurface());
-      const chip = document.createElement("div");
-      chip.className = "wg-chip";
-      chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>${escapeHtml(cat)}`;
-      legend.appendChild(chip);
-    });
-    TAG_CATEGORY_KEYS.filter(key => tagPalette && tagCategoriesInUse.includes(key)).forEach(key => {
-      const chip = document.createElement("div");
-      chip.className = "wg-chip wg-chip-tag";
-      chip.innerHTML = `<span class="wg-sw" style="background:${tagPalette[key]}; border-radius:3px;"></span>${escapeHtml(TAG_CATEGORY_LABELS[key] || key)}`;
-      legend.appendChild(chip);
-    });
+      return [cat, color];
+    }));
     const knownCount = names.filter(isKnown).length;
     const missingCount = names.length - knownCount;
-    hintRight.textContent = `${knownCount} resolved-ready \u00b7 ${missingCount} missing`;
+    hintRight.textContent = wildcardStatusText(knownCount, missingCount);
     const len = textarea.value.length;
     charCount.textContent = `${len.toLocaleString()} char${len === 1 ? "" : "s"}`;
+    statusBar.refresh();
     syncHiddenWidget();
+    refinementUndo?.note(historyValue());
+    powerTools?.refresh();
     updateEstimate();
   }
 
   function refreshFromHidden() {
-    const restored = promptState.restore();
+    recipeWorkspace?.refresh();
+    const restored = recipeWorkspace?.snapshot() ? textarea.value : promptState.restore();
     if (restored !== textarea.value) {
       textarea.value = restored;
       render();
+      refinementUndo?.reset(historyValue());
     }
     syncControlsFromWidgets();
   }
@@ -694,9 +708,29 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   // Same provider the main Prompt Palette node uses: the library is already cached locally, so no
   // request goes to the server per keystroke. Recents are shared between nodes through the same
   // stored usage list.
+  refinementUndo = new EditorUndoManager({ initialValue: historyValue() });
+  refinementController = createRefinementController({
+    node, root, textarea, render, preparedWidget,
+    onOpenWorkspace: (...args) => recipeWorkspace.open(...args),
+    variationGuard: () => { if (recipeWorkspace?.isActive()) throw new Error("Use Selection in a workspace field or choose a workspace Variation Lab scope."); },
+    host: el("variationPopup").querySelector(".wg-settings-body"), openHost: () => powerTools.openSelectionLab(),
+    getSeed: () => seedWidget?.value ?? 0,
+    getLibrary: () => libraryCache, refreshLibrary,
+    atomicEdit,
+  });
+  const noteRefinementInput = () => refinementUndo.note(historyValue());
+  const undoRefinementKey = event => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    const key = event.key.toLowerCase();
+    if (key !== "z" && key !== "y") return;
+    event.preventDefault(); event.stopPropagation();
+    if (key === "y" || event.shiftKey) performRedo(); else performUndo();
+  };
+  textarea.addEventListener("input", noteRefinementInput);
+  textarea.addEventListener("keydown", undoRefinementKey);
   const usageStore = createPromptUsageStore();
   async function getAcMatches(query, contextKind = "wildcard") {
-    const q = String(query || "").trim().toLowerCase();
+    const q = String(contextKind === "booru" ? tagSearch(query).query : query || "").trim().toLowerCase();
     const recentEntries = usageStore.recentEntries(16);
     const recentRows = recentAcRows(q, {
       entries: contextKind === "booru" ? recentEntries : recentEntries.filter((entry) => entry?.kind === "library"),
@@ -709,7 +743,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       limit: contextKind === "booru" ? 24 : 28,
     });
     if (contextKind !== "booru") return [...recentRows, ...libraryRows];
-    const tagRows = await getBooruAutocompleteMatches(q);
+    const tagRows = await getBooruAutocompleteMatches(query);
     return mergeUnifiedRows(tagRows, [...recentRows, ...libraryRows]);
   }
   const cleanupAutocompleteBinding = attachAutocomplete(textarea, {
@@ -738,30 +772,13 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   hoverTip.dataset.promptPaletteOwner = String(node.id ?? "node");
   document.body.appendChild(hoverTip);
   let hoverRequestVersion = 0;
-  function charIndexFromEvent(e) {
-    const cs = getComputedStyle(textarea);
-    const lineH = parseFloat(cs.lineHeight) || 20;
-    const padT = parseFloat(cs.paddingTop) || 8;
-    const padL = parseFloat(cs.paddingLeft) || 10;
-    const charW = 7.4;
-    const rect = textarea.getBoundingClientRect();
-    const x = e.clientX - rect.left + textarea.scrollLeft - padL;
-    const y = e.clientY - rect.top + textarea.scrollTop - padT;
-    const row = Math.max(0, Math.floor(y / lineH));
-    const col = Math.max(0, Math.round(x / charW));
-    const lines = textarea.value.split("\n");
-    if (row >= lines.length) return -1;
-    let idx = 0;
-    for (let i = 0; i < row; i++) idx += lines[i].length + 1;
-    return idx + Math.min(col, lines[row].length);
-  }
   async function showTipForName(x, y, name, known) {
     const requestVersion = ++hoverRequestVersion;
     let entry = previewCache.get(name);
     if (!entry && known) {
       try {
         entry = await API.preview(name);
-        previewCache.set(name, entry);
+        if (requestVersion === hoverRequestVersion && nodeIsActive(node)) previewCache.set(name, entry);
       } catch {
         entry = null;
       }
@@ -772,36 +789,52 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(known ? name : name + " (not found)")}</div>` +
       (lines.length ? lines.map(l => `<div class="wg-tip-line">${escapeHtml(l)}</div>`).join("") :
         `<div class="wg-tip-line">${known ? "no preview available" : "file missing"}</div>`);
-    hoverTip.style.left = (x + 14) + "px";
-    hoverTip.style.top = (y + 14) + "px";
-    hoverTip.style.display = "block";
+    positionPromptPaletteTip(hoverTip, x, y);
   }
   function hideTip() { hoverRequestVersion += 1; hoverTip.style.display = "none"; }
-  let hoverDebounce = null;
-  textarea.addEventListener("mousemove", (e) => {
-    const idx = charIndexFromEvent(e);
-    const tok = tokenRanges.find(t => idx >= t.start && idx < t.end);
-    cancelNodeTimer(node, hoverDebounce);
-    if (tok) hoverDebounce = scheduleNodeTimer(node, () => showTipForName(e.clientX, e.clientY, tok.name, tok.known), 120);
-    else hideTip();
+  const cleanupEditorHover = bindEditorWildcardHover({ node, editor: textarea, getRanges: () => tokenRanges,
+    show: showTipForName, hide: hideTip });
+  powerTools = createCombinatorialTools({
+    node, root, settingsPopup, el, textarea, seedWidget, ioRail, previewCache, expandedCats, searchInput,
+    getLibrary: () => libraryCache, getKnown: () => knownSet, getSourcePaths: () => tokenRanges.flatMap(t => lookupWildcard(t.name).map(entry => entry.path)),
+    closeSettings, closePickerDrawer, openPickerDrawer, syncControlsFromWidgets, refreshLibrary, renderPickerList,
+    applyEdit: atomicEdit, undo: performUndo, redo: performRedo, canUndo: () => refinementUndo.canUndo(), canRedo: () => refinementUndo.canRedo(),
   });
-  textarea.addEventListener("mouseleave", hideTip);
-  textarea.addEventListener("scroll", () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });
+  recipeWorkspace = createRecipeWorkspaceController({
+    node, root, textarea, render, flushHistory: () => refinementUndo.flush(), onUndo: performUndo, onRedo: performRedo,
+    onShowEditor: powerTools.showEditor,
+    host: el("variationPopup").querySelector(".wg-settings-body"), openHost: () => powerTools.openSelectionLab(),
+    openVariations: scope => powerTools.openVariations(scope),
+    bindHover: (editor, getRanges) => bindEditorWildcardHover({ node, editor, getRanges, show: showTipForName, hide: hideTip }),
+    onLibrarySaved: async path => { previewCache.delete(path); await refreshLibrary(); },
+    getMatches: getAcMatches, onCommit: item => { if (item?.kind === "booru" || item?.kind === "custom") usageStore.recordTag(item.value, item.kind, item.category); else if (item?.value && item.kind !== "syntax") usageStore.recordLibrary(item.value); },
+    paintSyntax: highlightText, getSeed: () => seedWidget?.value ?? 0, getMode: () => "entire text as one",
+    getLibrary: () => libraryCache, refreshLibrary,
+  });
+  node._ppRecipeWorkspace = recipeWorkspace;
+  const syncHighlightScroll = () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; };
+  textarea.addEventListener("scroll", syncHighlightScroll);
 
-  textarea.addEventListener("contextmenu", (e) => {
-    if (theme.syntaxInjectorEnabled === false) return;
-    const idx = textarea.selectionStart;
-    const tok = tokenRanges.find(t => t.start <= idx && t.end >= idx);
-    if (!tok) return;
-    e.preventDefault();
-    hideTip();
-    if (ctxMenuOpen) closeCtxMenu();
-    textarea.selectionStart = tok.start;
-    textarea.selectionEnd = tok.end;
-    openInjectMenuAtPoint(e.clientX, e.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
+  const cleanupEditorContext = attachEditorContextMenu(textarea, {
+    render, beforeOpen: () => { hideTip(); closeInjectMenu(); },
+    promptTools: { node, apply: atomicEdit },
+    syntaxEnabled: () => theme.syntaxInjectorEnabled !== false,
+    tokenContext: (event, selection, handle) => {
+      if (theme.syntaxInjectorEnabled === false) return false;
+      const tok = tokenRanges.find(t => t.start <= selection.start && selection.start < t.end);
+      if (!tok) return false;
+      handle(); closeCtxMenu(); textarea.setSelectionRange(tok.start, tok.end);
+      openInjectMenuAtPoint(event.clientX, event.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
+      return true;
+    },
+    syntaxAction: (event, selection) => {
+      if (theme.syntaxInjectorEnabled === false) return;
+      openInjectMenuAtPoint(event.clientX, event.clientY, "", textarea, render, selection.start === selection.end ? null : selection);
+    },
   });
 
   function insertWildcard(path) {
+    if (node._ppInsertAdjustableRecipe?.(path)) return;
     const start = textarea.selectionStart, end = textarea.selectionEnd;
     const tag = `__${path}__`;
     textarea.value = textarea.value.slice(0, start) + tag + textarea.value.slice(end);
@@ -863,18 +896,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       const nowPinned = pinned.has(item.path);
       const hasThumb = !!thumbMap[item.path];
       openCtxMenu(e.clientX, e.clientY, [
-        { label: "Copy path", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
+        { label: "Copy path", icon: "path", group: "item", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
         {
-          label: nowPinned ? "Unpin" : "Pin",
+          label: nowPinned ? "Unpin" : "Pin", icon: "pin", group: "item",
           onSelect: () => {
             if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
             savePinned(pinned);
             renderPickerList(searchInput.value);
           },
         },
-        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", onSelect: () => setThumbnailForItem(item.path) },
-        ...(hasThumb ? [{ label: "Remove Thumbnail", onSelect: () => removeThumbnailForItem(item.path) }] : []),
-        { label: `Jump to "${cat}"`, onSelect: () => jumpToCategory(cat) },
+        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", icon: "image", group: "thumb", onSelect: () => setThumbnailForItem(item.path) },
+        ...(hasThumb ? [{ label: "Remove Thumbnail", icon: "trash", group: "thumb", danger: true, onSelect: () => removeThumbnailForItem(item.path) }] : []),
+        { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
       ]);
     });
     row.addEventListener("mousemove", (e) => showTipForName(e.clientX, e.clientY, item.path, true));
@@ -916,18 +949,18 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       const nowPinned = pinned.has(item.path);
       const hasThumb = !!thumbMap[item.path];
       openCtxMenu(e.clientX, e.clientY, [
-        { label: "Copy path", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
+        { label: "Copy path", icon: "path", group: "item", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
         {
-          label: nowPinned ? "Unpin" : "Pin",
+          label: nowPinned ? "Unpin" : "Pin", icon: "pin", group: "item",
           onSelect: () => {
             if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
             savePinned(pinned);
             renderPickerList(searchInput.value);
           },
         },
-        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", onSelect: () => setThumbnailForItem(item.path) },
-        ...(hasThumb ? [{ label: "Remove Thumbnail", onSelect: () => removeThumbnailForItem(item.path) }] : []),
-        { label: `Jump to "${cat}"`, onSelect: () => jumpToCategory(cat) },
+        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", icon: "image", group: "thumb", onSelect: () => setThumbnailForItem(item.path) },
+        ...(hasThumb ? [{ label: "Remove Thumbnail", icon: "trash", group: "thumb", danger: true, onSelect: () => removeThumbnailForItem(item.path) }] : []),
+        { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
       ]);
     });
     tile.addEventListener("mousemove", (e) => showTipForName(e.clientX, e.clientY, item.path, true));
@@ -1133,73 +1166,58 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     renderPickerList(searchInput.value);
   });
 
-  async function refreshLibrary() {
+  let libraryRequestVersion = 0;
+  let libraryDisposed = false;
+  async function refreshLibrary(data = null) {
+    const requestVersion = ++libraryRequestVersion;
+    hideTip(); previewCache.clear();
     let nextLibrary;
     try {
-      nextLibrary = await API.list();
+      nextLibrary = Array.isArray(data?.items) ? data.items : await API.list();
     } catch (error) {
       console.error("Prompt Palette: wildcard refresh failed", error);
-      return false;
+      throw error;
     }
-    if (!nodeIsActive(node)) return false;
+    if (libraryDisposed || requestVersion !== libraryRequestVersion || !nodeIsActive(node)) return false;
     let nextThumbMap = thumbMap;
     try {
       nextThumbMap = await API.categories();
     } catch (error) {
       console.error("Prompt Palette: thumbnail refresh failed", error);
     }
-    if (!nodeIsActive(node)) return false;
+    if (libraryDisposed || requestVersion !== libraryRequestVersion || !nodeIsActive(node)) return false;
     libraryCache = nextLibrary;
     knownSet = new Set(nextLibrary.map((item) => item.path));
+    lookupWildcard = createLibraryLookup(nextLibrary);
     thumbMap = nextThumbMap;
+    recipeWorkspace?.refresh();
     render();
     renderPickerList(searchInput.value);
     return true;
   }
-  async function promptSaveSelectionAsList(start, end) {
-    const selectedText = textarea.value.slice(start, end);
-    const values = selectedText
-      .split(/[\r\n,]+/)
-      .map(value => value.trim())
-      .filter(Boolean);
-    if (!values.length) return;
-    const raw = await dialogPrompt({
-      title: "Save as list",
-      message: "Choose a My Library path for this tag list:",
-      defaultValue: "lists/new_list",
-    });
-    if (raw === null || raw === undefined) return;
-    const slug = normalizeLibraryEntryPath(raw);
-    if (!slug) {
-      notify("error", "List not saved", "Enter a valid path using letters, numbers, - _ or /.");
-      return;
-    }
-    if (knownSet.has(slug)) {
-      const overwrite = await dialogConfirm({ title: "Overwrite list", message: `"${slug}" already exists — overwrite it?` });
-      if (!overwrite) return;
-    }
-    const res = await API.save(slug, values.join("\n"));
-    if (!res.ok) {
-      notify("error", "List not saved", res.error || "save failed");
-      return;
-    }
-    await refreshLibrary();
-    notify("success", "Saved list", `${values.length} tag${values.length === 1 ? "" : "s"} → __${slug}__`);
+  function promptSaveSelectionAsList(start, end) {
+    return saveEditorSelection(textarea, start, end, { list: true, hasPath: path => knownSet.has(path), onSaved: async path => { previewCache.delete(path); await refreshLibrary(); } });
   }
   textarea.__ppSaveSelectionAsList = promptSaveSelectionAsList;
+  textarea.__ppExtractSelectionToWildcard = (start, end) => saveEditorSelection(textarea, start, end, {
+    hasPath: path => knownSet.has(path), onSaved: async path => { previewCache.delete(path); await refreshLibrary(); },
+  });
   node._wgRefreshLibrary = refreshLibrary;
+  const cleanupLibrarySubscription = API.onLibraryChanged(refreshLibrary);
 
   action("refresh").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     btn.classList.add("active");
+    btn.disabled = true;
     try {
-      await API.refreshWildcards();
-      await refreshLibrary();
+      const data = await API.refreshWildcards();
+      await refreshLibrary(data);
       notify("success", "Wildcards refreshed", "");
     } catch (err) {
       notify("error", "Refresh failed", String(err));
     } finally {
       btn.classList.remove("active");
+      btn.disabled = false;
     }
   });
 
@@ -1245,15 +1263,30 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     reassertHiddenWidgets,
     reapplyTheme: appearanceBinding.apply,
     cleanup: () => {
+      cleanupImageImport();
+      libraryDisposed = true; libraryRequestVersion++;
+      cleanupLibrarySubscription();
+      if (node._wgRefreshLibrary === refreshLibrary) delete node._wgRefreshLibrary;
+      hideTip(); previewCache.clear();
+      cleanupSeedInput();
+      refinementController.cleanup(); refinementUndo.cleanup();
+      recipeWorkspace?.cleanup(); powerTools?.cleanup();
+      if (node._ppRecipeWorkspace === recipeWorkspace) delete node._ppRecipeWorkspace;
+      textarea.removeEventListener("input", noteRefinementInput); textarea.removeEventListener("keydown", undoRefinementKey);
       delete node._wgBeforeIoRailOpen;
       ioRail.cleanup();
       syntaxHighlighter.clear();
       textarea.removeEventListener("focus", repaintEditorHighlights);
       textarea.removeEventListener("blur", repaintEditorHighlights);
       editorSurface.cleanup();
+      statusBar.cleanup();
+      cleanupEditorContext();
+      delete textarea.__ppExtractSelectionToWildcard;
+      delete textarea.__ppSaveSelectionAsList;
       cleanupAutocompleteBinding?.();
       unsubscribeTagColors();
-      hoverRequestVersion += 1;
+      cleanupEditorHover();
+      textarea.removeEventListener("scroll", syncHighlightScroll);
       hoverTip.remove();
       root.removeEventListener("keydown", handleWorkspaceEscape);
       document.removeEventListener("keydown", handleWorkspaceEscape);
@@ -1280,12 +1313,9 @@ app.registerExtension({
 
   async nodeCreated(node) {
     if (node.comfyClass !== "PromptPaletteCombinatorial") return;
-    if (node.__promptPaletteCombinatorialInitialized) return;
+    if (node.__promptPaletteCombinatorialInitialized || node.__promptPaletteCombinatorialInitializing) return;
 
     const lifecycle = ensureNodeLifecycle(node);
-    await Promise.all([editorStylesReady, combinatorialStylesReady]);
-    if (!nodeIsActive(node) || node.__promptPaletteCombinatorialInitialized) return;
-
     const hiddenWidget = node.widgets?.find((widget) => widget.name === "text");
     if (!hiddenWidget) {
       console.error("Prompt Palette: Combinatorial UI could not find the V3 text widget.");
@@ -1295,10 +1325,13 @@ app.registerExtension({
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
     installPromptStateGuard(node, hiddenWidget);
     installPromptMetadataCapture(node);
+    preparePromptBackingWidgets(node);
     node.resizable = true;
-
+    Object.defineProperty(node, "__promptPaletteCombinatorialInitializing", { value: true, configurable: true });
     let built = null;
     try {
+      await Promise.all([editorStylesReady, combinatorialStylesReady]);
+      if (!nodeIsActive(node)) return;
       built = buildCombinatorialWidget(node, hiddenWidget);
       const {
         root: container,
@@ -1325,12 +1358,14 @@ app.registerExtension({
         afterResize: () => scheduleDomWidgetRemeasure(node),
       });
       installResponsiveDomWidgetWidth(node, domWidget);
+      node._ppNodeGeometry?.mounted(container);
 
       node._wgRefreshFromHidden = refreshFromHidden;
       node._wgRefreshVisuals = refreshVisuals;
       node._wgReassertHiddenWidgets = reassertHiddenWidgets;
       node._wgReapplyTheme = reapplyTheme;
       node._wgRendererModeChanged = () => {
+        node._ppNodeGeometry?.remount();
         node._wgReassertHiddenWidgets?.();
         node._wgReapplyTheme?.();
         node._wgRefreshVisuals?.();
@@ -1383,10 +1418,11 @@ app.registerExtension({
       });
     } catch (error) {
       try { built?.cleanup?.(); } catch {}
+      livePromptPaletteNodes.delete(node);
       cleanupSocketRailLayout(node);
       delete node.__promptPaletteCombinatorialInitialized;
       console.error("Prompt Palette: Combinatorial UI initialization failed", error);
-    }
+    } finally { delete node.__promptPaletteCombinatorialInitializing; }
   },
 
   loadedGraphNode(node) {
@@ -1412,4 +1448,3 @@ app.registerExtension({
     });
   },
 });
-

@@ -1,7 +1,7 @@
 .ppwc-surface {
   width:100%; height:100%; min-width:0; min-height:0;
   display:flex; flex-direction:column; overflow:hidden;
-  border-radius:8px; border:1px solid var(--wg-border,#2a2e34);
+  border-radius:0 0 8px 8px; border:0;
   background:var(--wg-bg,#17191c); color:var(--wg-text,#f1eee8);
   box-sizing:border-box;
   font-family:var(--wg-font-family,inherit);
@@ -34,12 +34,12 @@
 .ppwc-editor-head > span { color:var(--wg-text-dim,#b8b0a4); font-size:calc(9px * var(--wg-ui-font-scale,1)); font-weight:700; letter-spacing:.035em; text-transform:uppercase; }
 .ppwc-editor-head > small { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text-faint,#8f887e); font-size:calc(8px * var(--wg-ui-font-scale,1)); }
 .ppwc-editor-wrap {
-  flex:1 1 130px; min-height:110px; overflow:hidden; display:flex;
-  border:1px solid var(--wg-border,#2a2e34); border-radius:7px;
+  flex:1 1 130px; min-height:40px; overflow:hidden; display:flex;
+  border:0; border-radius:0;
   background:var(--wg-surface,#121417);
-  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--wg-text,#f1eee8) 3%,transparent);
+  box-shadow:none;
 }
-.ppwc-editor-wrap:focus-within { border-color:color-mix(in srgb,var(--wg-accent,#d77768) 64%,var(--wg-border,#2a2e34)); box-shadow:0 0 0 1px color-mix(in srgb,var(--wg-accent,#d77768) 20%,transparent); }
+.ppwc-editor-wrap:focus-within { box-shadow:inset 2px 0 var(--wg-accent,#d77768); }
 .ppwc-textarea {
   width:100%; height:100%; min-width:0; min-height:0; margin:0; padding:10px 11px;
   resize:none; border:0; outline:0; box-sizing:border-box; overflow:auto;
@@ -64,7 +64,7 @@
 .ppwc-toggle-card {
   min-width:0; display:flex; align-items:center; justify-content:space-between; gap:10px;
   min-height:50px; padding:7px 9px; box-sizing:border-box; cursor:pointer;
-  border:1px solid var(--wg-border,#2a2e34); border-radius:7px; background:var(--wg-panel-bg,#1c1f23);
+  border:0; border-radius:4px; background:var(--wg-panel-bg,#1c1f23);
 }
 .ppwc-toggle-card > div { min-width:0; display:grid; gap:2px; }
 .ppwc-toggle-card strong { color:var(--wg-text-dim,#b8b0a4); font-size:calc(9px * var(--wg-ui-font-scale,1)); }

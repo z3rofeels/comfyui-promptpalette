@@ -1,0 +1,130 @@
+/* Shared prompt tools and syntax surfaces. Palette tokens provide every accent. */
+dialog.pp-prompt-tools.pp-image-import.wg-root { width: min(680px, calc(100vw - 24px)); padding: 0; gap: 0; overflow: hidden; }
+.pp-image-import .pp-tool-header { align-items: center; }
+.pp-image-import .pp-tool-note { margin: 0 0 12px; overflow-wrap: anywhere; }
+.pp-image-import .pp-tool-field { margin-bottom: 0; }
+.pp-image-import .pp-image-preview { margin: 0; padding: 10px; border: 1px solid var(--wg-border); border-radius: 8px; background: var(--wg-bg); color: var(--wg-text); white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; max-height: 180px; min-height: 48px; flex-shrink: 0; font: inherit; }
+.pp-image-import .pp-image-negative { display: flex; align-items: center; gap: 8px; }
+.pp-image-import .pp-image-negative input { accent-color: var(--wg-accent); }
+.pp-image-import .is-error { color: var(--wg-danger); }
+[data-syntax-tone] { --pp-syntax-color: var(--wg-accent); }
+[data-syntax-tone="variable"] { --pp-syntax-color: color-mix(in srgb, var(--wg-success, var(--wg-accent)) 75%, var(--wg-text)); }
+[data-syntax-tone="logic"] { --pp-syntax-color: color-mix(in srgb, var(--wg-accent) 80%, var(--wg-text)); }
+[data-syntax-tone="weight"] { --pp-syntax-color: color-mix(in srgb, var(--wg-warning, var(--wg-accent)) 75%, var(--wg-text)); }
+[data-syntax-tone="note"] { --pp-syntax-color: var(--wg-text-dim); }
+.wg-ac-menu [data-syntax-tone] { --pp-ac-bar: var(--pp-syntax-color) !important; }
+.wg-ac-menu .wg-ac-item[data-syntax-tone] { border-left: 2px solid color-mix(in srgb, var(--pp-syntax-color) 65%, transparent); padding-left: 11px; }
+.wg-ac-menu .wg-ac-item[data-syntax-tone]:is(:hover, .active) { background: color-mix(in srgb, var(--pp-syntax-color) 12%, var(--pp-ac-panel)); }
+.wg-ac-menu .wg-ac-item[data-syntax-tone] .wg-ac-copy strong { color: var(--pp-syntax-color); }
+.wg-ac-menu .wg-ac-item[data-syntax-tone] .wg-ac-code { color: var(--wg-text); background: color-mix(in srgb, var(--pp-syntax-color) 8%, var(--pp-ac-panel)); }
+.wg-ac-menu .pp-syntax-group { color: var(--pp-syntax-color); padding: 10px 9px 5px; letter-spacing: .09em; border: 0; }
+.wg-ac-menu.wg-inject-menu .wg-inject-copy small { display: block; color: var(--wg-text-dim); font-size: calc(10px * var(--wg-ui-font-scale, 1)); line-height: 1.35; }
+.wg-ac-menu.wg-inject-menu { font-family: var(--wg-font-family, system-ui); }
+.wg-ac-menu.wg-inject-menu .wg-inject-copy strong { font-size: calc(12px * var(--wg-ui-font-scale, 1)); font-weight: 600; }
+.wg-ac-menu.wg-inject-menu .wg-inject-copy small { font-size: calc(11px * var(--wg-ui-font-scale, 1)); font-weight: 400; }
+.wg-ac-menu.wg-inject-menu .wg-ac-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+.wg-ac-menu.wg-inject-menu .wg-inject-item { min-height: calc(42px * var(--wg-ui-font-scale, 1)); align-items: center; gap: 10px; margin-bottom: 2px; }
+.wg-ac-menu.wg-inject-menu .wg-inject-head { font-size: calc(10px * var(--wg-ui-font-scale, 1)); padding: 9px; text-transform: none; letter-spacing: 0; }
+.wg-ac-menu.wg-inject-menu .wg-inject-item[data-kind="tool"] { background: color-mix(in srgb, var(--wg-accent) 6%, var(--pp-ac-panel)); }
+.wg-ac-menu .pp-syntax-delimiter, .pp-tool-code .pp-syntax-delimiter { color: var(--wg-accent); font-weight: 700; }
+.wg-ac-menu .pp-syntax-variable, .pp-tool-code .pp-syntax-variable { color: color-mix(in srgb, var(--wg-success, var(--wg-accent)) 78%, var(--wg-text)); }
+.wg-ac-menu .pp-syntax-logic, .pp-tool-code .pp-syntax-logic { color: var(--wg-accent); font-weight: 600; }
+.wg-ac-menu .pp-syntax-weight, .pp-tool-code .pp-syntax-weight { color: color-mix(in srgb, var(--wg-warning, var(--wg-accent)) 80%, var(--wg-text)); }
+
+dialog.pp-prompt-tools.wg-root {
+  --pp-tool-surface: color-mix(in srgb, var(--wg-panel-bg) 90%, var(--wg-bg));
+  position: fixed; inset: 0; margin: auto; width: min(720px, calc(100vw - 24px)); height: fit-content;
+  min-height: 0; min-width: 0;
+  max-height: calc(100dvh - 32px); padding: 0; box-sizing: border-box; overflow: hidden;
+  border: 1px solid var(--wg-border); border-radius: var(--wg-corner-radius, 10px);
+  background: var(--pp-tool-surface); color: var(--wg-text); box-shadow: var(--wg-popup-shadow, 0 20px 80px rgb(0 0 0 / .3));
+  font-family: var(--wg-font-family, system-ui); font-size: calc(12px * var(--wg-ui-font-scale, 1)); line-height: 1.5;
+}
+dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
+.pp-prompt-tools::backdrop { background: rgb(0 0 0 / .38); backdrop-filter: blur(3px); }
+.pp-prompt-tools *, .pp-prompt-tools *::before, .pp-prompt-tools *::after { box-sizing: border-box; }
+.pp-prompt-tools [hidden] { display: none !important; }
+.pp-tool-header { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 16px 20px 12px; flex: none; background: linear-gradient(125deg, color-mix(in srgb, var(--wg-accent) 9%, transparent), transparent 65%); }
+.pp-tool-eyebrow { color: var(--wg-accent); font-size: calc(9px * var(--wg-ui-font-scale, 1)); font-weight: 700; letter-spacing: .14em; }
+.pp-tool-title h2 { color: var(--wg-text); font-size: calc(18px * var(--wg-ui-font-scale, 1)); line-height: 1.25; font-weight: 600; letter-spacing: -.02em; margin: 6px 0 0; }
+.pp-tool-close { background: transparent; border: 0; color: var(--wg-text-dim); width: 32px; height: 32px; padding: 0; font-size: 24px; cursor: pointer; border-radius: 8px; }
+.pp-tool-close:hover { background: color-mix(in srgb, var(--wg-accent) 12%, transparent); color: var(--wg-text); }
+.pp-tool-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 20px; padding-bottom: 10px; flex: none; border-bottom: 1px solid var(--wg-border); }
+.pp-tool-tabs button { background: transparent; border: 0; border-radius: 6px; padding: 6px 12px; color: var(--wg-text-dim); font: inherit; cursor: pointer; }
+.pp-tool-tabs button[aria-selected="true"] { color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 12%, transparent); }
+.pp-tool-body { min-height: 0; overflow: auto; padding: 14px 20px 16px; scrollbar-width: thin; }
+.pp-tool-intro { color: var(--wg-text-dim); margin: 0 0 18px; max-width: 65ch; }
+.pp-tool-grid { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(160px, 1.2fr); gap: 14px; }
+.pp-tool-field { display: flex; flex-direction: column; min-width: 0; gap: 5px; color: var(--wg-text-dim); font-size: inherit; margin: 0 0 12px; }
+.pp-tool-field > span { font-weight: 600; }
+.pp-prompt-tools input:not([type="checkbox"]), .pp-prompt-tools select, .pp-prompt-tools textarea {
+  display: block; width: 100%; min-width: 0; color: var(--wg-text); background: color-mix(in srgb, var(--wg-bg) 65%, var(--wg-panel-bg));
+  border: 1px solid var(--wg-border); border-radius: 7px; padding: 8px 10px; font: inherit; line-height: 1.4; outline: none;
+}
+.pp-prompt-tools textarea { resize: vertical; min-height: 70px; max-height: 240px; }
+.pp-prompt-tools input:focus, .pp-prompt-tools select:focus, .pp-prompt-tools textarea:focus { border-color: var(--wg-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--wg-accent) 14%, transparent); }
+.pp-prompt-tools select option { background: var(--wg-panel-bg); color: var(--wg-text); }
+.pp-prompt-tools input::placeholder { color: var(--wg-text-faint, var(--wg-text-dim)); }
+.pp-tool-field small, .pp-tool-note { font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.45; color: var(--wg-text-dim); }
+.pp-tool-note { margin: 12px 0; }
+.pp-tool-subtitle, .pp-inspect-section h3 { font-size: inherit; color: var(--wg-text); margin: 16px 0 8px; font-weight: 600; }
+.pp-rule-mappings { display: grid; gap: 3px; }
+.pp-rule-row { display: grid; grid-template-columns: minmax(100px, .7fr) 18px minmax(0, 1.3fr); gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--wg-border); }
+.pp-rule-key { display: flex; flex-direction: column; min-width: 0; }
+.pp-rule-key small { color: var(--wg-text-dim); font-size: calc(9px * var(--wg-ui-font-scale, 1)); }
+.pp-rule-key strong { color: var(--wg-accent); font-weight: 600; overflow-wrap: anywhere; }
+.pp-rule-arrow { color: var(--wg-text-dim); }
+.pp-prompt-tools .pp-rule-row input { background: transparent; border-color: transparent; border-radius: 5px; }
+.pp-prompt-tools .pp-rule-row input:is(:hover, :focus) { background: color-mix(in srgb, var(--wg-accent) 4%, transparent); border-color: var(--wg-border); }
+.pp-tool-check { display: flex; align-items: center; gap: 8px; color: var(--wg-text); margin-top: 14px; cursor: pointer; }
+.pp-tool-check input { accent-color: var(--wg-accent); width: 16px; height: 16px; flex: none; }
+.pp-tool-details { margin: 12px 0; }
+.pp-tool-details summary { color: var(--wg-text-dim); cursor: pointer; padding: 4px 0; }
+.pp-tool-details summary:hover { color: var(--wg-accent); }
+.pp-tool-details[open] summary { margin-bottom: 8px; }
+.pp-tool-code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; font-family: var(--wg-editor-font-family, monospace); font-size: calc(11px * var(--wg-ui-font-scale, 1)); padding: 8px 12px; border-left: 2px solid var(--wg-accent); color: var(--wg-text); }
+.pp-tool-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.pp-prompt-tools .wg-button { font: inherit; padding: 8px 14px; border-radius: 7px; min-height: 36px; height: auto; cursor: pointer; }
+.pp-prompt-tools .pp-tool-primary { color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 16%, var(--wg-panel-bg)); border-color: color-mix(in srgb, var(--wg-accent) 40%, var(--wg-border)); }
+.pp-prompt-tools button:disabled { opacity: .45; cursor: default; }
+.pp-prompt-tools button:focus-visible, .pp-prompt-tools summary:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 2px; }
+.pp-tool-status { padding: 8px 20px; color: var(--wg-text-dim); font-size: calc(11px * var(--wg-ui-font-scale, 1)); flex: none; border-top: 1px solid var(--wg-border); overflow-wrap: anywhere; }
+.pp-tool-status.is-error { color: var(--wg-danger); }
+.pp-rule-preview { margin-top: 14px; border-left: 2px solid var(--wg-accent); padding-left: 12px; }
+.pp-rule-preview > strong { color: var(--wg-accent); font-size: calc(11px * var(--wg-ui-font-scale, 1)); font-weight: 600; }
+.pp-tool-preview { white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; color: var(--wg-text); font: inherit; max-height: 200px; overflow: auto; margin: 10px 0; }
+.pp-tool-encoder { border-left: 2px solid var(--wg-accent); padding: 0 0 0 12px; margin-bottom: 16px; display: grid; gap: 5px; }
+.pp-tool-encoder strong { color: var(--wg-accent); }
+.pp-tool-encoder small { color: var(--wg-text-dim); }
+.pp-inspect-section { padding: 8px 0 14px; border-bottom: 1px solid var(--wg-border); }
+.pp-inspect-section:last-child { border: 0; padding-bottom: 0; }
+.pp-inspect-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 6px 0; }
+.pp-inspect-term, .pp-inspect-row code { min-width: 0; overflow-wrap: anywhere; }
+.pp-weight-value { color: var(--wg-accent); flex: none; font-variant-numeric: tabular-nums; }
+.pp-embedding-status { color: var(--wg-text-dim); flex: none; }
+[data-embedding-status="found"] .pp-embedding-status { color: var(--wg-success, var(--wg-accent)); }
+[data-embedding-status="missing"] .pp-embedding-status { color: var(--wg-danger); }
+.pp-tool-empty { color: var(--wg-text-dim); margin: 6px 0; }
+.pp-token-chunks, .pp-token-layout { display: flex; gap: 5px; flex-wrap: wrap; margin: 10px 0; }
+.pp-token-chunk { background: color-mix(in srgb, var(--wg-accent) 8%, transparent); color: var(--wg-text); padding: 4px 8px; border-radius: 5px; font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.pp-token { color: var(--wg-text-dim); background: color-mix(in srgb, var(--wg-bg) 60%, var(--wg-panel-bg)); padding: 3px 6px; border-radius: 4px; white-space: pre-wrap; font-family: var(--wg-editor-font-family, monospace); }
+.pp-token[data-weighted="true"] { color: var(--wg-accent); box-shadow: inset 0 -2px color-mix(in srgb, var(--wg-accent) 50%, transparent); }
+@media (max-width: 540px) {
+  .pp-tool-header { padding: 16px 16px 12px; }
+  .pp-tool-tabs { margin: 0 16px; }
+  .pp-tool-body { padding: 14px 16px; }
+  .pp-tool-status { padding: 10px 16px; }
+  .pp-tool-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .pp-rule-row { grid-template-columns: minmax(70px, .65fr) 14px minmax(0, 1.35fr); gap: 4px; }
+  .pp-tool-title h2 { font-size: calc(18px * var(--wg-ui-font-scale, 1)); }
+  .pp-inspect-row { flex-wrap: wrap; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .pp-prompt-tools::backdrop { backdrop-filter: none; } }
+@media (forced-colors: active) { .pp-prompt-tools, .pp-prompt-tools input, .pp-prompt-tools select, .pp-prompt-tools textarea { border-color: CanvasText; } }
+
+.pp-tool-status:empty { display: none; }
+.pp-tool-footer { flex: none; margin: 0; padding: 10px 20px; border-top: 1px solid var(--wg-border); background: var(--wg-panel-bg); }
+.pp-image-import .pp-tool-status { margin: 0; }
+.pp-image-import .pp-tool-grid { margin-bottom: 12px; }
+.pp-image-import .pp-tool-body { overscroll-behavior: contain; }
+@media (max-width: 540px) { .pp-tool-footer { padding: 10px 16px; } }

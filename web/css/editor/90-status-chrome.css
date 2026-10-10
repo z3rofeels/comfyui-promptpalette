@@ -1,0 +1,359 @@
+/* A node is already a frame. Keep separators where they explain structure,
+   rather than drawing a second container around each editor and color key. */
+.wg-node-frame.wg-node-frame, .pp-node-frame.pp-node-frame { padding: 0; }
+.wg-node-frame > .wg-node.wg-root,
+.pp-node-frame > .pp-node.wg-root {
+  box-sizing: border-box; border: 0; box-shadow: none;
+  border-radius: 0 0 var(--wg-corner-radius, 8px) var(--wg-corner-radius, 8px);
+}
+.wg-node > .wg-main > .wg-body,
+.pp-node > .wg-main > .wg-body { padding: 0; overflow-y: auto; overflow-x: hidden; }
+.wg-root .wg-editor-wrap {
+  border: 0; border-radius: 0; box-shadow: none;
+  background: var(--wg-surface, #121417);
+  /* Revealing selection controls must never collapse the live drag surface.
+     A previously saved short node scrolls its body rather than losing text. */
+  min-height: calc(var(--wg-editor-font-size, 12px) * 3.2 + 20px);
+}
+.wg-root .wg-editor-layer { padding: 10px 12px; }
+.wg-root .wg-editor-wrap:focus-within { box-shadow: inset 2px 0 var(--wg-accent, #d49a52); }
+.wg-node > .wg-toolbar { min-height: 34px; padding: 4px; gap: 4px; }
+.wg-node > .wg-toolbar .wg-pill-resolve {
+  border: 0; box-shadow: none; border-radius: 5px;
+  padding: 4px 10px; background: color-mix(in srgb, var(--wg-accent, #d49a52) 10%, transparent);
+  color: var(--wg-text, #f1eee8);
+}
+.wg-node > .wg-toolbar .wg-pill-resolve:hover,
+.wg-node > .wg-toolbar .wg-pill-resolve.on {
+  background: color-mix(in srgb, var(--wg-accent, #d49a52) 22%, var(--wg-bg, #17191c));
+}
+.wg-root .wg-statusbar {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; gap: 6px; flex: 0 0 auto; min-width: 0;
+  box-sizing: border-box; min-height: 28px; margin: 0; padding: 3px 8px;
+  background: var(--wg-surface, #121417);
+  border-top: 1px solid color-mix(in srgb, var(--wg-border, #2a2e34) 60%, transparent);
+}
+.wg-root .wg-statusbar[data-has-doctor="false"] { grid-template-columns: minmax(0, 1fr) 0 auto; }
+.wg-status-left { min-width: 0; overflow: hidden; }
+.wg-statusbar .wg-legend {
+  display: flex; align-items: center; flex-wrap: nowrap; gap: 7px;
+  width: max-content; max-width: 100%; min-width: 0;
+  margin: 0; max-height: none; overflow: hidden;
+}
+.wg-statusbar .wg-legend:empty { display: none; }
+.wg-statusbar .wg-chip {
+  flex: 0 0 auto; display: inline-flex; gap: 4px; align-items: center;
+  padding: 0; border: 0; border-radius: 0; background: transparent;
+  font-size: calc(9px * var(--wg-ui-font-scale, 1)); line-height: 1.35;
+  color: var(--wg-text-dim, #b8b0a4); white-space: nowrap;
+}
+.wg-statusbar .wg-sw { width: 6px; height: 6px; border-radius: 1px; }
+.wg-statusbar[data-legend-mode="medium"] .wg-chip-label { display: none; }
+.wg-statusbar[data-legend-mode="medium"] .wg-legend { gap: 6px; }
+.wg-statusbar[data-legend-mode="minimal"] .wg-legend { position: relative; width: 18px; height: 18px; }
+.wg-statusbar[data-legend-mode="minimal"] .wg-legend:not(:empty)::before { content: "…"; color: var(--wg-text-faint, #8f887e); }
+.wg-statusbar[data-legend-mode="minimal"] .wg-chip { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.wg-root .wg-statusbar .wg-doctor-chip {
+  position: static; justify-self: center; box-sizing: border-box; min-height: 24px;
+  padding: 2px 7px; gap: 5px; font-size: calc(9px * var(--wg-ui-font-scale, 1));
+  white-space: nowrap; box-shadow: none;
+}
+.wg-doctor-icon { display: inline-flex; }
+.wg-status-metrics { display: flex; justify-content: flex-end; align-items: center; gap: 7px; min-width: 0; overflow: hidden; }
+.wg-statusbar .wg-hint { flex: 0 0 auto; white-space: nowrap; font-size: calc(9px * var(--wg-ui-font-scale, 1)); }
+.wg-statusbar .wg-hint:empty { display: none; }
+.wg-statusbar button.wg-hint {
+  appearance: none; font-family: inherit; line-height: 1.35; background: transparent;
+  border: 0; margin: 0; padding: 2px 0; color: var(--wg-text-faint, #8f887e);
+}
+.wg-statusbar button.wg-hint:disabled { opacity: 1; cursor: default; }
+.wg-statusbar button.wg-hint.wg-hint-clickable { color: var(--wg-danger, #d86f70); cursor: pointer; }
+.wg-statusbar[data-metrics-mode="trim"] [data-el="charCount"],
+.wg-statusbar[data-metrics-mode="compact"] [data-el="charCount"],
+.wg-statusbar[data-metrics-mode="compact"] [data-el="tokenCount"]:not(.wg-token-warn):not(.wg-token-danger) { display: none; }
+.wg-statusbar[data-metrics-mode="compact"] [data-el="hintRight"] { font-size: 0; }
+.wg-statusbar[data-metrics-mode="compact"] [data-el="hintRight"]::after {
+  content: attr(data-short-label); font-size: calc(9px * var(--wg-ui-font-scale, 1));
+}
+.wg-statusbar .wg-legend:focus-visible,
+.wg-statusbar button:focus-visible { outline: 2px solid var(--wg-accent, #d49a52); outline-offset: -1px; }
+.wg-root .wg-statusbar.wg-status-measure {
+  position: absolute; top: 0; left: 0; width: max-content; max-width: none;
+  grid-template-columns: max-content max-content max-content; visibility: hidden; pointer-events: none;
+}
+.wg-status-measure .wg-legend { max-width: none; }
+.wg-status-measure .wg-status-metrics { overflow: visible; }
+.wg-root .pp-refine-bar { border-width: 0; border-radius: 0; margin: 0; border-left: 2px solid color-mix(in srgb, var(--wg-accent, #d49a52) 45%, transparent); }
+.wg-root .pp-recipe-workspace { padding: 5px 8px 12px; }
+.wg-root .pp-recipe-workspace .pp-recipe-field { border-top: 0; border-right: 0; border-bottom: 0; border-radius: 3px; }
+.wg-root .pp-recipe-workspace :is(.pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration) { border: 0; border-radius: 3px; }
+.pp-node.wg-root .pp-estimate:not(.pp-warning) { border: 0; border-left: 2px solid color-mix(in srgb, var(--wg-accent, #d49a52) 40%, transparent); }
+.wg-node.wg-zen > .wg-main > .wg-body { padding: 0; }
+@container (max-width: 420px) {
+  .wg-root .wg-statusbar { padding-inline: 6px; gap: 4px; }
+}
+@media (forced-colors: active) {
+  .wg-root .wg-editor-wrap:focus-within { outline: 1px solid Highlight; }
+  .wg-root .wg-statusbar { border-top-color: CanvasText; }
+}
+
+/* Shared refinement: quiet containers, clear controls and a single accent for
+   each useful state. Every color comes from the existing suite theme tokens. */
+.wg-root .wg-variation-results { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--wg-border); color: var(--wg-text-dim); font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-variation-results label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.wg-root .wg-variation-results input { accent-color: var(--wg-accent); }
+.wg-root .wg-variation-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; }
+.wg-root .wg-variation-selection > span { flex: 1 1 130px; }
+.wg-root .wg-variation-selection .wg-button { font-size: inherit; padding: 4px 6px; }
+.wg-root .wg-variation-keep { display: flex; align-items: center; gap: 4px; float: right; margin: 0 0 6px 8px; font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim); cursor: pointer; }
+.wg-root .wg-variation-keep input { accent-color: var(--wg-accent); }
+.wg-root .wg-variation-grid .wg-variation-card.is-kept { box-shadow: inset 2px 0 var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-panel-bg)); }
+.wg-root .wg-variation-results[hidden], .wg-root .wg-variation-card[hidden] { display: none !important; }
+.wg-root .wg-variation-grid .wg-variation-card { color: var(--wg-text); border: 0; border-bottom: 1px solid var(--wg-border); border-radius: 0; background: transparent; }
+.wg-root .wg-variation-card .wg-variation-text { border: 0; border-radius: 5px; }
+.wg-root, .wg-tip { --wg-popup-shadow: 0 10px 28px rgb(0 0 0 / .28); }
+.wg-node.wg-root, .pp-node.wg-root, .ppwc-surface.wg-root { container-type: inline-size; }
+[data-wg-tone="light"] { --wg-popup-shadow: 0 8px 24px rgb(0 0 0 / .13); }
+.wg-root :is(.wg-toolbar, .pp-header, .ppwc-settings-row) {
+  background: color-mix(in srgb, var(--wg-accent) 4%, var(--wg-panel-bg));
+  border-bottom-color: color-mix(in srgb, var(--wg-border) 65%, transparent);
+}
+.wg-root :is(.wg-toolbar, .pp-header, .ppwc-settings-row) .wg-icon-btn {
+  border-color: transparent; background: transparent; box-shadow: none;
+  border-radius: min(var(--wg-corner-radius, 8px), 6px);
+  color: var(--wg-text-dim); transform: none;
+  transition: color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+.wg-root :is(.wg-toolbar, .pp-header, .ppwc-settings-row) .wg-icon-btn:hover:not(:disabled) {
+  border-color: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent) 24%, transparent), 0 0 7px color-mix(in srgb, var(--wg-accent) 13%, transparent);
+  background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); color: var(--wg-accent);
+}
+.wg-root :is(.wg-toolbar, .pp-header, .ppwc-settings-row) .wg-icon-btn:is(.active, [aria-expanded="true"], [aria-pressed="true"]):not(:disabled) {
+  color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 9%, var(--wg-panel-bg));
+  box-shadow: inset 0 -2px var(--wg-accent), 0 0 7px color-mix(in srgb, var(--wg-accent) 13%, transparent); border-color: transparent;
+}
+.wg-root .wg-toolbar .wg-pill:is(:hover, :active, .on, .active, [aria-pressed="true"], [aria-expanded="true"]):not(:disabled) {
+  color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 16%, var(--wg-panel-bg));
+  box-shadow: inset 0 -2px var(--wg-accent), 0 0 7px color-mix(in srgb, var(--wg-accent) 12%, transparent);
+}
+.wg-root .wg-toolbar .wg-pill { transform: none; }
+.wg-root .wg-toolbar :is(.wg-icon-btn, .wg-pill):focus-visible {
+  outline: 2px solid var(--wg-accent); outline-offset: 1px;
+  box-shadow: 0 0 7px color-mix(in srgb, var(--wg-accent) 16%, transparent);
+}
+.wg-root .wg-toolbar .wg-icon-btn:active:not(:disabled) { background: color-mix(in srgb, var(--wg-accent) 22%, var(--wg-panel-bg)); }
+@media (prefers-reduced-motion: reduce) { .wg-root .wg-toolbar .wg-icon-btn { transition: none; } }
+.wg-root :is(.wg-toolbar, .pp-header, .ppwc-settings-row) .wg-io-toggle-btn {
+  background: color-mix(in srgb, var(--wg-text) 5%, var(--wg-panel-bg));
+  gap: 5px; font-variant-numeric: tabular-nums;
+}
+.wg-root .wg-icon-btn[data-act="clear"]:hover:not(:disabled) {
+  color: var(--wg-danger); background: color-mix(in srgb, var(--wg-danger) 10%, var(--wg-panel-bg));
+}
+.wg-root :is(.wg-button, .wg-pill) {
+  box-shadow: none; border-color: transparent;
+  border-radius: min(var(--wg-corner-radius, 8px), 6px);
+}
+.wg-root .wg-button:not(.primary) { background: color-mix(in srgb, var(--wg-text) 5%, var(--wg-panel-bg)); }
+.wg-root .wg-button:hover:not(:disabled) { box-shadow: none; background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); }
+.wg-root .wg-button.primary { background: var(--wg-accent); color: var(--wg-accent-text); }
+.wg-root .wg-button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--wg-accent) 90%, var(--wg-text)); color: var(--wg-accent-text); }
+.wg-root :is(button, input, select, summary):focus-visible {
+  outline: 2px solid var(--wg-accent); outline-offset: 2px;
+}
+.wg-root :is(.wg-theme-select, .wg-seed-input, .pp-row input, .pp-row select, .ppwc-field select) {
+  box-shadow: none; border-color: var(--wg-border); border-radius: min(var(--wg-corner-radius, 8px), 6px);
+}
+.wg-root :is(.wg-theme-select, .wg-seed-input, .pp-row input, .pp-row select, .ppwc-field select):focus {
+  box-shadow: none; border-color: var(--wg-accent);
+}
+.wg-root :is(.wg-settings-card, .wg-settings-disclosure, .wg-safe-notice, .ppwc-help-card) {
+  background: transparent; box-shadow: none; border: 0; border-radius: 0;
+}
+.wg-root .wg-settings-card { padding: 10px 0; border-top: 1px solid var(--wg-border); }
+.wg-root .wg-settings-card-grid { gap: 8px 16px; margin: 8px 0; }
+.wg-root.wg-root :is(.wg-toggle-card, .wg-zen-card, .wg-color-field, .ppwc-toggle-card) {
+  border: 0; border-radius: 5px; background: transparent; padding: 7px 8px;
+}
+.wg-root.wg-root :is(.wg-toggle-card, .wg-zen-card, .ppwc-toggle-card):hover {
+  background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-panel-bg));
+}
+.wg-root .wg-settings-disclosure { border-bottom: 1px solid var(--wg-border); }
+.wg-root .wg-settings-nav button { border-color: transparent; box-shadow: none; }
+.wg-root .wg-settings-nav button.active { box-shadow: inset 2px 0 var(--wg-accent); }
+.wg-root .wg-safe-notice { padding: 6px 9px; border-left: 2px solid var(--wg-accent); }
+.wg-root :is(.wg-power-note, .wg-empty-power) { border: 0; border-radius: 0; background: transparent; }
+.wg-root .wg-power-note { border-left: 2px solid var(--wg-accent); }
+.wg-root :is(.wg-power-item, .wg-variation-card, .wg-manager-entry) { border: 0; border-bottom: 1px solid var(--wg-border); border-radius: 0; background: transparent; }
+.wg-root .wg-variation-text { border: 0; border-radius: 5px; }
+.wg-root :is(.wg-power-summary-pill, .wg-health-card, .wg-manager-bulk, .wg-recipe-row) { border: 0; border-radius: 5px; }
+.wg-root .pp-refine-panel { border: 0; border-radius: 0; padding: 8px 0; background: transparent; }
+.wg-root .pp-refine-preview { border: 0; border-radius: 5px; background: var(--wg-surface); }
+.wg-root .pp-refine-bar { background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-panel-bg)); }
+.wg-root .pp-recipe-field { background: transparent; padding: 8px 10px; }
+.wg-root .pp-recipe-field:focus-within { background: color-mix(in srgb, var(--wg-accent) 3%, var(--wg-bg)); }
+.wg-root .pp-recipe-editor { border: 0; border-radius: 5px; background: var(--wg-surface); }
+.wg-root .pp-recipe-editor:focus-within { box-shadow: inset 2px 0 var(--wg-accent); }
+.wg-root .pp-recipe-field-head .wg-button { border: 0; background: transparent; padding: 4px 6px; box-shadow: none; }
+.wg-root .pp-recipe-mode .wg-button { border-color: transparent; background: transparent; box-shadow: none; }
+.wg-root .pp-recipe-mode .wg-button[aria-pressed="true"] {
+  border-color: transparent;
+  color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-bg));
+  box-shadow: inset 0 -2px var(--wg-accent);
+}
+.wg-root .pp-recipe-mode .wg-button[data-tone="danger"] { color: var(--wg-danger); margin-left: auto; }
+.wg-root .pp-recipe-workspace .wg-button { border-color: transparent; border-radius: 5px; }
+.wg-root .pp-recipe-workspace :is(.pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration) {
+  background: transparent; border-radius: 0; border-top: 1px solid var(--wg-border); padding: 3px 0;
+}
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button[data-tone="danger"] { color: var(--wg-danger); }
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button[data-tone="save"] { color: var(--wg-success); }
+.pp-node.wg-root .pp-badge { border: 0; background: transparent; border-radius: 0; padding: 3px 2px; }
+.pp-node.wg-root .pp-header { padding: 4px 7px; }
+.pp-node.wg-root .pp-controls { padding: 7px 8px 6px; margin-top: 0; gap: 6px; }
+.pp-node.wg-root .pp-mode-toggle { border: 0; border-radius: 5px; background: var(--wg-panel-bg); padding: 2px; gap: 2px; }
+.pp-node.wg-root .pp-mode-btn { border: 0; border-radius: 4px; background: transparent; box-shadow: none; }
+.pp-node.wg-root .pp-mode-btn.pp-active { background: color-mix(in srgb, var(--wg-accent) 14%, var(--wg-panel-bg)); color: var(--wg-accent); box-shadow: inset 0 -2px var(--wg-accent); }
+.pp-node.wg-root .pp-mode-btn:not(.pp-active):hover { background: color-mix(in srgb, var(--wg-accent) 7%, var(--wg-panel-bg)); color: var(--wg-text); }
+.pp-node.wg-root .pp-estimate { background: transparent; border: 0; border-left: 0; padding: 4px 0 0; border-radius: 0; }
+.pp-node.wg-root .pp-estimate.pp-warning { border-left: 2px solid var(--wg-danger); padding-left: 8px; }
+.pp-output-label { display: inline-flex; align-items: center; gap: 5px; }
+.pp-estimate[data-estimate-kind="connected"] .pp-estimate-warning-text { display: block; color: var(--wg-text-dim); }
+.ppwc-surface.wg-root .ppwc-settings-row { min-height: 34px; padding: 4px 7px 4px 10px; }
+.ppwc-surface.wg-root .ppwc-title-mark { width: 3px; height: 17px; border-radius: 2px; box-shadow: none; }
+.ppwc-surface.wg-root .ppwc-main { padding: 8px 0 0; gap: 6px; overflow-y: auto; overflow-x: hidden; }
+.ppwc-surface.wg-root .ppwc-editor-head { padding: 0 12px; }
+.ppwc-surface.wg-root .ppwc-editor-head > span { text-transform: none; letter-spacing: 0; }
+.ppwc-surface.wg-root .ppwc-editor-wrap { flex-basis: 130px; min-height: calc(var(--wg-editor-font-size, 12.5px) * 3 + 20px); }
+.ppwc-surface.wg-root .ppwc-controls { padding: 6px 10px 9px; border-top: 1px solid var(--wg-border); align-items: end; }
+.ppwc-surface.wg-root .ppwc-toggle-card { min-height: 30px; padding: 4px 6px; }
+.ppwc-surface.wg-root .ppwc-toggle-card input { width: 15px; height: 15px; }
+.ppwc-settings-popup.wg-root .ppwc-settings-shell { grid-template-columns: minmax(0, 1fr); }
+.ppwc-settings-popup.wg-root .ppwc-help-card { padding: 7px 0; margin: 0; }
+.ppwc-guide { border-top: 1px solid var(--wg-border); margin-top: 8px; padding-top: 8px; }
+.ppwc-guide > summary { cursor: pointer; color: var(--wg-text-dim); font-size: 11px; }
+.wg-ac-menu, .wg-ctx-menu, .wg-tip { box-shadow: var(--wg-popup-shadow, 0 10px 28px rgb(0 0 0 / .28)); }
+.wg-ac-menu .wg-ac-item { border-color: transparent; border-radius: 4px; }
+.wg-ac-menu .wg-ac-copy strong { font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.4; }
+.wg-ac-menu .wg-ac-group, .wg-ac-menu.wg-inject-menu .wg-inject-head { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
+.wg-ac-menu .wg-ac-pill, .wg-ac-menu .wg-ac-copy small { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
+.wg-ac-menu .wg-ac-item:is(:hover, .active) { border-color: transparent; }
+.wg-ac-menu .wg-ac-item:is(:hover, .active)::before { box-shadow: none; }
+.wg-ac-menu .wg-ac-pill { border: 0; border-radius: 4px; }
+.wg-ac-menu .wg-ac-item[data-ac-library] .wg-ac-copy strong::before { border-radius: 1px; }
+.wg-ac-menu.wg-inject-menu .wg-inject-copy small { display: none; }
+.wg-ac-menu.wg-inject-menu .wg-inject-item { align-items: center; min-height: calc(27px * var(--wg-ui-font-scale, 1)); }
+.wg-ac-menu.wg-inject-menu { min-width: min(340px, calc(100vw - 16px)); max-height: min(560px, calc(100vh - 16px)); }
+.wg-ctx-menu { max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; box-sizing: border-box; }
+.wg-ctx-item:is(:hover, .active) { background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); color: var(--wg-text); }
+.wg-ctx-item { font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-tip { max-width: min(320px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: hidden; box-sizing: border-box; border-color: var(--wg-border); border-left: 2px solid var(--wg-accent); }
+.wg-tip .wg-tip-title { font-size: calc(10px * var(--wg-ui-font-scale, 1)); overflow-wrap: anywhere; }
+.wg-tip .wg-tip-line { color: var(--wg-text-dim); overflow-wrap: anywhere; }
+.wg-tip { font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+@container (max-width: 420px) {
+  .ppwc-surface.wg-root .ppwc-controls { grid-template-columns: minmax(0, 1fr); }
+  .ppwc-surface.wg-root .ppwc-advanced { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wg-root *, .wg-tip { transition: none !important; animation: none !important; }
+}
+@media (forced-colors: active) {
+  .wg-root :is(button, .pp-recipe-editor, .wg-editor-wrap), .wg-ctx-item { border: 1px solid ButtonText; }
+  .wg-root :is(.pp-mode-btn.pp-active, .wg-button[aria-pressed="true"]) { outline: 2px solid Highlight; }
+}
+
+/* Secondary surfaces share the palette, typography and shape controls already
+   used by the editor. Keep this scope off the action rail and host ComfyUI. */
+.wg-root :is(.wg-settings-head, .wg-library-head, .wg-drawer-head) {
+  gap: 6px; min-height: 34px; padding: 6px 9px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--wg-accent) 7%, var(--wg-panel-bg)), var(--wg-panel-bg));
+}
+.wg-root :is(.wg-settings-head span, .wg-library-head strong, .wg-drawer-head h4) { font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.35; }
+.wg-root .wg-settings-head-pro { min-height: 44px; padding: 8px 12px; }
+.wg-root .wg-library-head > .wg-library-head-tools { display: flex; flex: none; gap: 4px; }
+.wg-root .wg-library-head > div:first-child { flex: 1; }
+.wg-root .wg-library-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-root .wg-close-btn { flex: none; width: 26px; height: 26px; border-radius: min(var(--wg-corner-radius), 6px); }
+.wg-root .wg-close-btn:hover { background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); color: var(--wg-accent); }
+.wg-root .wg-settings-nav { padding: 8px; gap: 3px; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.wg-root .wg-settings-nav button { padding: 8px; }
+.wg-root .wg-settings-nav button > span { font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-settings-nav button > small { font-size: calc(9px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-settings-body { overscroll-behavior: contain; overflow-x: hidden; }
+.wg-root .wg-settings-panel { min-width: 0; }
+.wg-root .wg-settings-body :is(.wg-button-row, .wg-power-controls) { flex-wrap: wrap; }
+.wg-root :is(.wg-settings-popup, .wg-drawer-inner) .wg-button { min-height: 28px; padding: 4px 8px; font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.35; }
+.wg-root :is(.wg-settings-popup, .wg-drawer-inner) .wg-button:hover:not(:disabled) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent) 22%, transparent); }
+.wg-root :is(.wg-settings-popup, .wg-drawer-inner) :is(input, select, textarea) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.wg-root .wg-drawer-inner :is(input, textarea):focus { border-color: var(--wg-accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent) 15%, transparent); }
+.wg-root :is(.wg-drawer, .pp-recipe-workspace, .wg-choice-dialog) :is(button, select):disabled { cursor: default; opacity: .45; transform: none; box-shadow: none; }
+.wg-root .wg-status.err { border-left: 2px solid var(--wg-danger); padding-left: 7px; }
+.wg-root .wg-power-item { padding: 8px 2px 9px 8px; border-left: 2px solid var(--wg-accent); }
+.wg-root .wg-power-item[data-severity="error"] { border-left-color: var(--wg-danger); }
+.wg-root .wg-power-item[data-severity="warning"] { border-left-color: var(--wg-accent); }
+.wg-root .wg-variation-card { padding: 8px 2px; }
+.wg-root .wg-variation-card:has(input:checked) { border-left: 2px solid var(--wg-success); padding-left: 8px; background: color-mix(in srgb, var(--wg-success) 4%, var(--wg-panel-bg)); }
+.wg-root .wg-manager-entry { padding: 6px 2px; }
+.wg-root .wg-manager-entry:hover { background: color-mix(in srgb, var(--wg-accent) 4%, var(--wg-panel-bg)); }
+.wg-root .wg-manager-entry-actions button:hover { color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 10%, var(--wg-panel-bg)); }
+.wg-root .wg-manager-entry-actions button.danger:hover { color: var(--wg-danger); }
+.wg-root .wg-stash-tabs button { font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-stash-item { box-shadow: none; border-radius: 0; border: 0; border-bottom: 1px solid var(--wg-border); background: transparent; }
+.wg-root .wg-library-tabs { padding: 3px 6px; gap: 3px; }
+.wg-root .wg-library-tabs button { min-height: 27px; flex: 1; padding: 5px 7px; border: 0; border-radius: 5px; font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-library-tabs button.active { box-shadow: inset 0 -2px var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 9%, var(--wg-panel-bg)); color: var(--wg-accent); }
+.wg-root .wg-library-popup .wg-starter-category-group { border: 0; border-bottom: 1px solid var(--wg-border); border-radius: 0; background: transparent; }
+.wg-root .wg-starter-category-group > summary { min-height: 40px; padding: 4px 3px; }
+.wg-root .wg-starter-category-copy strong { font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-starter-category-copy small { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-starter-category-content { padding: 6px 0 8px; background: transparent; }
+.wg-root .wg-starter-card { border-color: transparent; border-radius: min(var(--wg-corner-radius), 6px); box-shadow: none; }
+.wg-root .wg-starter-card:hover { border-color: color-mix(in srgb, var(--wg-accent) 45%, var(--wg-border)); box-shadow: none; }
+.wg-root .wg-starter-card h5 { font-size: calc(9px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-starter-card p { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-starter-card-actions button { color: var(--wg-text-dim); border-color: transparent; background: transparent; }
+.wg-root .wg-starter-card-actions button:hover { color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); }
+.wg-root .wg-starter-card-actions button[aria-pressed="true"] { color: var(--wg-accent); }
+.wg-root .pp-workspace-guide { border: 0; border-radius: 0; border-left: 2px solid var(--wg-accent); padding: 3px 8px; background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-bg)); }
+.wg-root .pp-recipe-field { border-top: 0; border-right: 0; border-bottom: 1px solid var(--wg-border); border-left-width: 2px; border-radius: 0; padding: 7px 8px; }
+.wg-root .pp-recipe-field:focus-within { border-left-color: var(--pp-field-tone); }
+.wg-root .pp-recipe-field[data-experiment-state="follow"] { --pp-field-tone: var(--wg-accent); }
+.wg-root .pp-recipe-workspace .pp-recipe-experiment { min-height: 26px; border-color: transparent; background: color-mix(in srgb, var(--pp-field-tone) 9%, var(--wg-panel-bg)); font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+.wg-root .pp-recipe-field.is-disabled { opacity: .7; border-left-style: dotted; }
+.wg-root .pp-recipe-field-head .wg-button { min-height: 26px; }
+.wg-root .pp-recipe-field-head input { flex: none; width: 14px; height: 14px; }
+.wg-root .pp-recipe-toolbar { padding-bottom: 6px; }
+.wg-ctx-menu.wg-root { padding: 5px; border-radius: var(--wg-corner-radius, 10px); border: 1px solid var(--wg-border); background: var(--wg-panel-bg); }
+.wg-ctx-menu.wg-root .wg-ctx-item { border-radius: 5px; padding: 7px 10px; line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
+.wg-ctx-menu.wg-root .wg-ctx-item:focus { outline: none; box-shadow: inset 2px 0 var(--wg-accent); }
+.wg-root .wg-power-popup { container-type: inline-size; container-name: pp-power; }
+@container pp-power (max-width: 300px) { .wg-root .wg-power-popup .wg-two-col { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 760px) { .wg-root .wg-settings-nav button.active { box-shadow: inset 0 -2px var(--wg-accent); } }
+
+.wg-cw-dialog { border-radius: var(--wg-corner-radius, 10px); border-color: var(--wg-border); box-shadow: var(--wg-popup-shadow, 0 18px 50px rgba(0,0,0,.3)); }
+.wg-cw-head { background: linear-gradient(110deg, color-mix(in srgb, var(--wg-accent) 7%, var(--wg-panel-bg)), var(--wg-panel-bg)); border-bottom: 1px solid var(--wg-border); margin-bottom: 10px; }
+.wg-cw-row { border: 0; border-radius: 0; border-bottom: 1px solid var(--wg-border); }
+.wg-cw-row:hover { background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-panel-bg)); }
+.wg-cw-close { width: 26px; height: 26px; }
+.wg-cw-dialog .wg-button { min-height: 28px; font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .pp-iteration-group { padding: 7px 0; background: transparent; border: 0; border-bottom: 1px solid var(--wg-border); border-radius: 0; }
+.wg-root .pp-iteration-heading { color: var(--wg-text); font-size: calc(11px * var(--wg-ui-font-scale, 1)); text-transform: none; letter-spacing: 0; }
+
+/* Context menu v2: sectioned actions, icon column, shortcut hints, danger and disabled states. */
+.wg-ctx-menu.wg-root { min-width: 188px; padding: 4px; }
+.wg-ctx-menu.wg-root[style*="display: block"] { animation: pp-ctx-in 110ms cubic-bezier(.2, .8, .2, 1); }
+.wg-ctx-menu.wg-root .wg-ctx-item { display: flex; align-items: center; gap: 8px; box-sizing: border-box; min-height: 28px; padding: 5px 10px 5px 8px; white-space: normal; }
+.wg-ctx-menu .wg-ctx-icon { flex: none; display: inline-flex; width: 16px; justify-content: center; color: var(--wg-text-dim); }
+.wg-ctx-menu .wg-ctx-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.wg-ctx-menu .wg-ctx-item[data-hint]::after { content: attr(data-hint); flex: none; margin-left: 18px; font: 10px/1 "SF Mono", "Cascadia Code", Consolas, monospace; color: var(--wg-text-faint); letter-spacing: .02em; }
+.wg-ctx-menu .wg-ctx-sep { height: 1px; margin: 4px 6px; background: var(--wg-border); opacity: .8; }
+.wg-ctx-menu .wg-ctx-item:is(:hover, .active) .wg-ctx-icon { color: var(--wg-accent); }
+.wg-ctx-menu.wg-root .wg-ctx-item:focus-visible, .wg-ctx-menu.wg-root .wg-ctx-item.active { box-shadow: inset 2px 0 var(--wg-accent); }
+.wg-ctx-menu .wg-ctx-item.danger:is(:hover, .active) { background: color-mix(in srgb, var(--wg-danger, #d96a5a) 16%, var(--wg-panel-bg)); }
+.wg-ctx-menu .wg-ctx-item.danger:is(:hover, .active) :is(.wg-ctx-icon, .wg-ctx-label) { color: var(--wg-danger, #d96a5a); }
+.wg-ctx-menu .wg-ctx-item[aria-disabled="true"] { opacity: .45; cursor: default; background: transparent; }
+.wg-ctx-menu .wg-ctx-item[aria-disabled="true"] .wg-ctx-icon { color: var(--wg-text-dim); }
+@keyframes pp-ctx-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .wg-ctx-menu.wg-root[style*="display: block"] { animation: none; } }

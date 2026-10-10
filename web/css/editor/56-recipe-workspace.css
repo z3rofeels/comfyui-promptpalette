@@ -1,0 +1,167 @@
+/* Recipe Workspace uses the same surfaces, tinted rows and selection marks as
+   autocomplete. Every control follows the active Prompt Palette theme. */
+.wg-root .pp-recipe-mode,
+.wg-root .pp-recipe-workspace {
+  --pp-workspace-panel: color-mix(in srgb, var(--wg-panel-bg, #1c1f23) 97%, black 3%);
+  --pp-workspace-row: color-mix(in srgb, var(--wg-surface, #121417) 95%, var(--wg-panel-bg, #1c1f23));
+  --pp-workspace-tone: var(--wg-accent, #d49a52);
+}
+.wg-root .pp-recipe-mode { flex: 0 0 auto; gap: 5px; padding: 5px 0; }
+.wg-root .pp-recipe-mode:has(> .wg-button[data-tone="danger"][hidden]) { justify-content: center; }
+.wg-root .pp-recipe-mode .pp-refine-label:empty { display: none; }
+.wg-root .pp-recipe-mode .pp-refine-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-recipe-workspace { flex: 1 1 0; min-height: 0; overflow: auto; padding: 4px 5px 12px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong, #3a4048) transparent; }
+.wg-root .pp-recipe-workspace[hidden], .wg-root .wg-editor-wrap[hidden] { display: none !important; }
+.wg-root .pp-recipe-mode [hidden], .wg-root .pp-recipe-workspace [hidden], .wg-root .pp-refine-panel button[hidden] { display: none !important; }
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button {
+  --pp-control-tone: var(--wg-text-dim, #b4aea5);
+  border: 1px solid color-mix(in srgb, var(--pp-control-tone) 23%, var(--wg-border, #2a2e34));
+  border-radius: var(--wg-corner-radius, 7px);
+  background: color-mix(in srgb, var(--pp-control-tone) 5%, var(--pp-workspace-row));
+  color: var(--pp-control-tone); font-size: 11px; line-height: 1.35; font-weight: 600;
+  padding: 5px 9px; min-height: 28px; box-shadow: none;
+  transition: background 90ms ease, border-color 90ms ease, color 90ms ease;
+}
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button[data-tone="accent"] { --pp-control-tone: var(--wg-accent, #d49a52); }
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button[data-tone="save"] { --pp-control-tone: var(--wg-success, #82c6a2); }
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button[data-tone="danger"] { --pp-control-tone: var(--wg-danger, #d86f70); }
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button:hover:not(:disabled) {
+  color: var(--wg-text, #f1eee8); background: color-mix(in srgb, var(--pp-control-tone) 14%, var(--pp-workspace-row));
+  border-color: color-mix(in srgb, var(--pp-control-tone) 58%, var(--wg-border-strong, #3a4048));
+}
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button:active:not(:disabled) { background: color-mix(in srgb, var(--pp-control-tone) 24%, var(--pp-workspace-row)); }
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button:disabled { opacity: .38; cursor: default; }
+.wg-root .pp-recipe-mode .wg-button[aria-pressed="true"] {
+  color: var(--wg-accent-text, #17191c); background: var(--wg-accent, #d49a52); border-color: var(--wg-accent, #d49a52);
+}
+.wg-root .pp-recipe-workspace .wg-button[aria-pressed="true"] { border-color: var(--wg-accent, #d49a52); color: var(--wg-accent, #d49a52); background: color-mix(in srgb, var(--wg-accent, #d49a52) 12%, var(--pp-workspace-row)); }
+.wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) :is(button, select, summary, input):focus-visible {
+  outline: 2px solid var(--wg-accent, #d49a52); outline-offset: 2px; box-shadow: var(--wg-focus, none);
+}
+.wg-root .pp-recipe-toolbar { gap: 5px; padding: 3px 0 9px; flex-wrap: wrap; }
+.wg-root .pp-recipe-workspace select {
+  max-width: 210px; min-width: 0; min-height: 28px; padding: 4px 7px; border: 1px solid var(--wg-border-strong, #3a4048);
+  border-radius: var(--wg-corner-radius, 7px); background: var(--pp-workspace-row); color: var(--wg-text-dim, #b4aea5); font-size: 11px; line-height: 1.35;
+}
+.wg-root .pp-recipe-workspace select:hover { border-color: color-mix(in srgb, var(--wg-accent, #d49a52) 50%, var(--wg-border-strong, #3a4048)); }
+.wg-root .pp-recipe-workspace select option { color: var(--wg-text, #f1eee8); background: var(--wg-panel-bg, #1c1f23); }
+.wg-root .pp-recipe-workspace input[type="checkbox"] { accent-color: var(--wg-accent, #d49a52); cursor: pointer; }
+.wg-root .pp-recipe-field {
+  --pp-field-tone: var(--wg-text-dim, #b4aea5);
+  margin: 0 0 9px; padding: 8px 10px; border: 1px solid var(--wg-border, #2a2e34); border-left: 3px solid var(--pp-field-tone);
+  border-radius: var(--wg-corner-radius, 7px); background: var(--pp-workspace-panel); position: static;
+  transition: border-color 90ms ease, background 90ms ease;
+}
+.wg-root .pp-recipe-field[data-experiment-state="lock"] { --pp-field-tone: var(--wg-success, #82c6a2); }
+.wg-root .pp-recipe-field[data-experiment-state="vary"] { --pp-field-tone: var(--wg-accent, #d49a52); }
+.wg-root .pp-recipe-field[data-experiment-state="follow"] { --pp-field-tone: var(--wg-text-dim, #b4aea5); border-left-style: dashed; }
+.wg-root .pp-recipe-field:hover { border-top-color: var(--wg-border-strong, #3a4048); border-right-color: var(--wg-border-strong, #3a4048); }
+.wg-root .pp-recipe-field:focus-within { border-color: color-mix(in srgb, var(--wg-accent, #d49a52) 45%, var(--wg-border, #2a2e34)); border-left-color: var(--wg-accent, #d49a52); background: color-mix(in srgb, var(--wg-accent, #d49a52) 3%, var(--pp-workspace-panel)); }
+.wg-root .pp-recipe-field-head { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.wg-root .pp-recipe-field .pp-recipe-field-label { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; color: var(--wg-text, #f1eee8); font-weight: 700; }
+.wg-root .pp-recipe-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--wg-text-faint, #8f887e); font-size: 11px; }
+.wg-root .pp-recipe-field.is-disabled { opacity: .65; }
+.wg-root .pp-recipe-field.is-empty .pp-recipe-summary { font-style: italic; }
+.wg-root .pp-recipe-workspace .pp-recipe-experiment { width: 80px; flex: 0 0 80px; color: var(--pp-field-tone); border-color: color-mix(in srgb, var(--pp-field-tone) 50%, var(--wg-border, #2a2e34)); background: color-mix(in srgb, var(--pp-field-tone) 8%, var(--pp-workspace-row)); font-weight: 700; }
+.wg-root .pp-recipe-editor-bar { display: flex; align-items: center; gap: 8px; margin: 8px 0 5px; min-width: 0; }
+.wg-root .pp-recipe-channel { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: var(--wg-success, #82c6a2); }
+.wg-root .pp-recipe-channel[data-channel="negative"] { color: var(--wg-danger, #d86f70); }
+.wg-root .pp-recipe-editor-hint { flex: 1; min-width: 0; font-size: 10px; color: var(--wg-text-faint, #8f887e); }
+.wg-root .pp-recipe-editor-bar .wg-button { margin-left: auto; flex: 0 0 auto; font-size: 10px; min-height: 24px; padding: 3px 7px; }
+.wg-root .pp-recipe-editor {
+  position: relative; box-sizing: border-box; height: max(180px, calc(var(--wg-editor-font-size, 12.5px) * 8 + 28px));
+  min-height: max(120px, calc(var(--wg-editor-font-size, 12.5px) * 4.8 + 28px));
+  margin: 4px 0 7px; border: 1px solid var(--wg-border-strong, #3a4048); border-radius: var(--wg-corner-radius, 7px);
+  background: var(--pp-workspace-row); overflow: hidden; resize: vertical;
+}
+.wg-root .pp-recipe-editor.is-expanded { height: max(360px, calc(var(--wg-editor-font-size, 12.5px) * 13 + 28px)); }
+.wg-root .pp-recipe-editor:focus-within { border-color: var(--wg-accent, #d49a52); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d49a52) 16%, transparent); }
+.wg-root .pp-recipe-editor .wg-editor-layer {
+  position: absolute; inset: 0; margin: 0; padding: 12px 14px; box-sizing: border-box; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  height: 100%; width: 100%; max-height: none; font-family: var(--wg-font-family, Consolas, monospace); font-size: var(--wg-editor-font-size, 12.5px); line-height: 1.6;
+  scrollbar-width: thin; scrollbar-color: var(--wg-border-strong, #3a4048) transparent; caret-color: var(--wg-accent, #d49a52);
+}
+.wg-root .pp-recipe-editor [data-pp-editor-surface="single"] { color: var(--wg-prompt-text, #eee); outline: none; }
+.wg-root .pp-recipe-editor textarea { resize: none; }
+.wg-root .pp-recipe-editor .wg-textarea::selection,
+.wg-root .pp-recipe-editor .wg-textarea ::selection { background: color-mix(in srgb, var(--wg-accent, #d49a52) 32%, transparent); }
+.wg-root :is(.pp-recipe-field-tools, .pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration, .pp-field-resolved, .pp-recipe-more) { font-size: 11px; color: var(--wg-text-dim, #b4aea5); }
+.wg-root :is(.pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration) { margin: 8px 0; padding: 3px 8px; border: 1px solid var(--wg-border, #2a2e34); border-radius: var(--wg-corner-radius, 7px); background: var(--pp-workspace-panel); }
+.wg-root :is(.pp-recipe-field-tools, .pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration, .pp-field-resolved, .pp-recipe-more) > summary { cursor: pointer; padding: 6px 3px; border-radius: 4px; font-weight: 600; }
+.wg-root :is(.pp-recipe-field-tools, .pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration, .pp-field-resolved, .pp-recipe-more) > summary:hover { color: var(--wg-accent, #d49a52); background: color-mix(in srgb, var(--wg-accent, #d49a52) 7%, transparent); }
+.wg-root :is(.pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration)[open] > summary { color: var(--wg-accent, #d49a52); border-bottom: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 18%, transparent); margin-bottom: 6px; }
+.wg-root .pp-recipe-field-tools .pp-refine-actions { gap: 5px; flex-wrap: wrap; padding: 4px 0; }
+.wg-root .pp-recipe-workspace .pp-refine-bar { padding: 3px 0; }
+.wg-root .pp-recipe-more[open] { flex-basis: 100%; }
+.wg-root .pp-recipe-more .pp-refine-actions { gap: 5px; flex-wrap: wrap; }
+.wg-root .pp-recipe-static { white-space: pre-wrap; color: var(--wg-text-dim, #b4aea5); padding: 6px 10px; font-size: 11px; }
+.wg-root .pp-recipe-preview pre, .wg-root .pp-recipe-review { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; max-height: 180px; overflow: auto; }
+.wg-root .pp-workspace-scope[hidden] { display: none !important; }
+.wg-root .pp-workspace-changes { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; margin: 6px 0; }
+.wg-root .pp-iteration-group { margin: 7px 0; padding: 8px; background: var(--pp-workspace-row); border: 1px solid var(--wg-border, #2a2e34); border-radius: 5px; }
+.wg-root .pp-iteration-heading { display: block; color: var(--wg-text-faint, #8f887e); font-size: 10px; letter-spacing: .04em; margin-bottom: 5px; }
+.wg-root .pp-iteration-row { gap: 5px; flex-wrap: wrap; margin: 0; }
+.wg-root .pp-field-inheritance { color: var(--wg-text-dim, #b4aea5); font-size: 10px; max-width: 75px; overflow: hidden; text-overflow: ellipsis; }
+.wg-root .pp-field-inheritance:not([hidden]) { border-radius: 4px; padding: 3px 5px; background: color-mix(in srgb, var(--wg-accent, #d49a52) 8%, transparent); }
+.wg-root .pp-field-inheritance[data-inheritance="overridden"] { color: var(--wg-accent, #d49a52); }
+.wg-root .pp-field-resolved { padding: 0 3px; }
+.wg-root .pp-field-resolved pre, .wg-root .pp-combination-fields { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; max-height: 160px; overflow: auto; margin: 6px 0; }
+.wg-root .pp-combination-status { padding: 6px 0; color: var(--wg-success, #82c6a2); font-weight: 600; }
+.wg-root .pp-combination-status.is-warning { color: var(--wg-danger, #d86f70); }
+.wg-root .pp-workspace-doctor { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; padding: 8px; border-left: 3px solid var(--wg-accent, #d49a52); background: var(--pp-workspace-row); }
+.wg-root .pp-recipe-diff { max-height: 360px; overflow: auto; padding: 8px; border: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 32%, var(--wg-border, #2a2e34)); border-radius: 5px; }
+.wg-root .pp-recipe-diff article { padding: 7px 0; border-bottom: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 12%, transparent); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wg-root .pp-recipe-diff pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 5px 0; max-height: 150px; overflow: auto; }
+.wg-root .pp-follow-dependencies { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; padding: 8px; border: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 24%, var(--wg-border, #2a2e34)); border-radius: 5px; background: var(--pp-workspace-row); }
+.wg-root .pp-follow-dependencies label { display: inline-flex; align-items: center; gap: 4px; }
+.wg-root .pp-follow-dependencies small { flex-basis: 100%; color: var(--wg-text-faint, #8f887e); }
+@container (max-width: 430px) {
+  .wg-root .pp-recipe-field-head { flex-wrap: wrap; }
+  .wg-root .pp-recipe-field-label { max-width: 65%; }
+  .wg-root .pp-recipe-summary { flex-basis: 35%; }
+  .wg-root .pp-field-inheritance { order: 2; }
+  .wg-root .pp-recipe-editor-hint { display: none; }
+  .wg-root .pp-recipe-workspace select { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wg-root :is(.pp-recipe-mode, .pp-recipe-workspace) .wg-button,
+  .wg-root .pp-recipe-field { transition: none; }
+}
+
+/* Source setup stays beside the field; previews explain their actual scope. */
+.wg-root .pp-workspace-guide { margin: 0 0 9px; padding: 5px 9px; border: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 24%, var(--wg-border, #2a2e34)); border-radius: var(--wg-corner-radius, 7px); background: var(--pp-workspace-panel); font-size: 11px; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-workspace-guide summary { cursor: pointer; color: var(--wg-accent, #d49a52); padding: 4px 0; font-weight: 650; }
+.wg-root .pp-workspace-guide p { margin: 7px 0; line-height: 1.6; }
+.wg-root .pp-field-variation-hint { margin: 7px 2px; font-size: 11px; line-height: 1.5; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-field-source-controls { gap: 5px; margin: 4px 0 8px; }
+.wg-root .pp-field-source-controls .wg-button { min-height: 26px; padding: 4px 7px; font-size: 10px; }
+.wg-root .pp-field-choices { margin: 8px 0; padding: 10px; border: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 40%, var(--wg-border, #2a2e34)); border-radius: 7px; background: var(--pp-workspace-row); }
+.wg-root .pp-field-choices label { display: flex; flex-direction: column; gap: 7px; font-size: 11px; color: var(--wg-text, #f1eee8); font-weight: 600; }
+.wg-root .pp-field-choices .pp-choice-input { box-sizing: border-box; width: 100%; min-height: 120px; max-height: 420px; padding: 9px; border: 1px solid var(--wg-border-strong, #3a4048); border-radius: 5px; font: 13px/1.6 var(--wg-font-family, monospace); background: var(--wg-surface, #121417); color: var(--wg-text, #f1eee8); resize: vertical; }
+.wg-root .pp-field-choices .pp-choice-input:focus-visible { outline: 2px solid var(--wg-accent, #d49a52); outline-offset: 1px; }
+.wg-root .pp-field-choices .pp-refine-note { margin: 7px 0; line-height: 1.5; }
+.wg-root .pp-choice-error { color: var(--wg-danger, #d86f70); font-size: 11px; }
+.wg-root .pp-field-saved-choices { margin: 5px 0; font-size: 11px; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-field-saved-choices summary { padding: 4px 2px; cursor: pointer; color: var(--wg-accent, #d49a52); }
+.wg-root .pp-field-saved-choices pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow: auto; font: inherit; }
+.wg-root .pp-iteration-purpose { margin: 3px 0 8px; font-size: 11px; line-height: 1.5; color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-experiment-plan { margin: 8px 0 12px; padding: 10px; border: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 30%, var(--wg-border, #2a2e34)); border-radius: 7px; background: color-mix(in srgb, var(--wg-accent, #d49a52) 4%, var(--wg-surface, #121417)); color: var(--wg-text, #f1eee8); font-size: 11px; line-height: 1.5; }
+.wg-root .pp-experiment-plan[hidden] { display: none !important; }
+.wg-root .pp-experiment-plan p { margin: 5px 0; }
+.wg-root .pp-experiment-steps, .wg-root .pp-experiment-distinct { color: var(--wg-accent, #d49a52); font-weight: 650; }
+.wg-root .pp-experiment-plan .pp-experiment-warning { color: var(--wg-danger, #d86f70); }
+.wg-root .pp-experiment-plan .pp-experiment-note { color: var(--wg-text-dim, #b4aea5); }
+.wg-root .pp-experiment-held { margin-top: 8px; border-top: 1px solid var(--wg-border, #2a2e34); padding-top: 7px; }
+.wg-root .pp-experiment-held summary { cursor: pointer; color: var(--wg-success, #82c6a2); }
+.wg-root .pp-experiment-held strong, .wg-root .pp-experiment-held span { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wg-root .pp-experiment-held span { color: var(--wg-text-dim, #b4aea5); max-height: 100px; overflow: auto; }
+.wg-root .pp-candidate-status { display: inline-block; margin: 6px 0; padding: 3px 7px; border-radius: 5px; background: color-mix(in srgb, var(--wg-text-dim, #b4aea5) 8%, var(--wg-surface, #121417)); color: var(--wg-text-dim, #b4aea5); font-size: 10px; }
+.wg-root .pp-candidate-status[data-changed="true"] { color: var(--wg-accent, #d49a52); background: color-mix(in srgb, var(--wg-accent, #d49a52) 12%, var(--wg-surface, #121417)); }
+.wg-root .pp-candidate-change { padding: 7px; margin: 3px 0 7px; border-left: 3px solid var(--wg-accent, #d49a52); border-radius: 4px; background: color-mix(in srgb, var(--wg-accent, #d49a52) 5%, var(--wg-surface, #121417)); }
+.wg-root .pp-candidate-change strong { color: var(--wg-text, #f1eee8); }
+.wg-root .pp-candidate-before { color: var(--wg-text-dim, #b4aea5); margin: 5px 0; }
+.wg-root .pp-candidate-after { color: var(--wg-accent, #d49a52); }
+.wg-root :is(.pp-candidate-same, .pp-candidate-follow, .pp-candidate-repeat) { font-size: 10px; line-height: 1.5; color: var(--wg-text-dim, #b4aea5); margin: 5px 0; }
+.wg-root .pp-candidate-follow { color: var(--wg-success, #82c6a2); }
+.wg-root .wg-variation-card > details > summary { cursor: pointer; color: var(--wg-text-dim, #b4aea5); font-size: 11px; padding: 5px 0; }
+.wg-root .wg-variation-card > details > summary:hover { color: var(--wg-accent, #d49a52); }

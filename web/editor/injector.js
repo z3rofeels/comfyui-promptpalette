@@ -1,5 +1,8 @@
 import { escapeHtml } from "./text_utils.js";
 import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
+import { openPromptTools, canBuildPromptRules } from "./prompt_tools_panel.js";
+import { syntaxTone, syntaxCodeHtml } from "./syntax_presentation.js";
+import { notify } from "./notifications.js";
 
 const INJECT_MODIFIERS = [
   { label: "Random", desc: "Seeded \u2014 one pick per resolve, stable for a given seed.", build: cat => `__${cat}__` },
@@ -22,6 +25,10 @@ const INJECT_TEMPLATES = [
   { label: "Variable \u2014 resolve once", desc: "Resolve an expression when assigned, then reuse that exact result.", build: () => ({ prefix: "${", editable: "name=!{a|b|c}", suffix: "}" }) },
   { label: "Variable with default", desc: "Use a fallback when a variable has not been assigned.", build: () => ({ prefix: "${", editable: "name:fallback", suffix: "}" }) },
   { label: "Comment line", desc: "A line beginning with # is removed before resolution.", build: () => ({ prefix: "# ", editable: "note", suffix: "" }) },
+  { label: "If / otherwise", desc: "Use different text depending on an assigned variable.", build: () => ({ prefix: "[if ", editable: 'genre == "cyberpunk"', suffix: "]neon lighting[else]soft lighting[/if]" }) },
+  { label: "If / else if / otherwise", desc: "Check branches in order; the first match wins.", build: () => ({ prefix: "[if ", editable: 'genre == "cyberpunk"', suffix: ']neon[elif genre == "fantasy"]pastel[else]neutral[/if]' }) },
+  { label: "Reuse a variable", desc: "Insert text from a variable assigned earlier in this resolved block.", build: () => ({ prefix: "${", editable: "name", suffix: "}" }) },
+  { label: "Phrase weight", desc: "Explicit numeric emphasis for encoders that support CLIP-style weights.", build: () => ({ prefix: "(", editable: "phrase", suffix: ":1.2)" }) },
 ];
 
 const INJECT_EDIT_ACTIONS = [
@@ -40,12 +47,19 @@ async function runTextareaEditCommand(textarea, render, cmd) {
 
   const start = textarea.selectionStart;
   const end = textarea.selectionEnd;
+  const source = textarea.value;
+  if (cmd === "delete") {
+    textarea.setRangeText("", start, end, "start");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    return;
+  }
 
   try {
     if (!navigator.clipboard) throw new Error("Clipboard API unavailable");
 
     if (cmd === "paste") {
       const text = await navigator.clipboard.readText();
+      if (textarea.value !== source) return;
       textarea.setRangeText(text, start, end, "end");
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
       return;
@@ -56,10 +70,11 @@ async function runTextareaEditCommand(textarea, render, cmd) {
     await navigator.clipboard.writeText(selected);
 
     if (cmd === "cut") {
+      if (textarea.value !== source) return;
       textarea.setRangeText("", start, end, "start");
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
-  } catch {}
+  } catch { notify("error", "Clipboard unavailable", "Allow clipboard access or use your keyboard's copy, cut and paste shortcuts."); }
 }
 
 let injectMenu = null;
@@ -67,6 +82,9 @@ let injectState = null;
 let injectCloseTimer = null;
 function handleInjectDocumentMouseDown(event) {
   if (injectState && !injectMenu?.contains(event.target) && event.target !== injectState.trigger) closeInjectMenu();
+}
+function handleInjectViewportChange(event) {
+  if (injectState && !(event.target instanceof Node && injectMenu?.contains(event.target))) closeInjectMenu();
 }
 
 function ensureInjectMenu() {
@@ -83,19 +101,28 @@ function ensureInjectMenu() {
     if (!row || !injectState) return;
     e.preventDefault();
     const idx = Number(row.dataset.index);
-    if (row.dataset.kind === "mod") commitInjectModifier(INJECT_MODIFIERS[idx]);
+    if (row.dataset.kind === "tool") {
+      const { textarea, replaceRange } = injectState;
+      const tab = row.dataset.tool;
+      closeInjectMenu(); openPromptTools(textarea, { tab, range: tab === "rules" ? replaceRange : null });
+    }
+    else if (row.dataset.kind === "mod") commitInjectModifier(INJECT_MODIFIERS[idx]);
     else if (row.dataset.kind === "tpl") commitInjectTemplate(INJECT_TEMPLATES[idx]);
     else commitInjectEditAction(INJECT_EDIT_ACTIONS[idx]);
   });
   injectMenu.addEventListener("mouseenter", () => clearTimeout(injectCloseTimer));
   injectMenu.addEventListener("mouseleave", scheduleCloseInjectMenu);
   document.addEventListener("mousedown", handleInjectDocumentMouseDown);
+  document.addEventListener("contextmenu", handleInjectDocumentMouseDown);
+  document.addEventListener("scroll", handleInjectViewportChange, true);
+  window.addEventListener("resize", handleInjectViewportChange);
+  document.addEventListener("keydown", handleInjectKeydown, true);
   return injectMenu;
 }
 
 function insertInjectorText(textarea, renderFn, text, selStart, selEnd, replaceRange) {
   const start = replaceRange ? replaceRange.start : (textarea.selectionStart ?? textarea.value.length);
-  const end = replaceRange ? replaceRange.end : start;
+  const end = replaceRange ? replaceRange.end : (textarea.selectionEnd ?? start);
   textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(end);
   if (selStart == null) {
     textarea.selectionStart = textarea.selectionEnd = start + text.length;
@@ -132,27 +159,50 @@ function renderInjectMenu(cat) {
   const scope = injectState?.textarea?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface");
   if (scope) copyPromptPaletteThemeScope(scope, menu);
 
-  const row = (kind, index, label, code, desc) => `
-    <div class="wg-ac-item wg-inject-item" data-kind="${kind}" data-index="${index}" title="${escapeHtml(desc)}">
+  const row = (kind, index, label, code, desc, tool = "") => `
+    <div class="wg-ac-item wg-inject-item" role="menuitem" data-kind="${kind}" data-index="${index}" ${tool ? `data-tool="${tool}"` : ""} data-syntax-tone="${tool ? "logic" : kind === "edit" ? "note" : syntaxTone(code)}" title="${escapeHtml(desc)}">
       <span class="wg-ac-copy wg-inject-copy">
         <strong>${escapeHtml(label)}</strong>
         ${desc ? `<small>${escapeHtml(desc)}</small>` : ""}
       </span>
-      ${code ? `<span class="wg-ac-metrics"><span class="wg-ac-pill wg-ac-code">${escapeHtml(code)}</span></span>` : ""}
+      ${code ? `<span class="wg-ac-metrics"><span class="wg-ac-pill wg-ac-code">${syntaxCodeHtml(code)}</span></span>` : ""}
     </div>`;
 
-  const modRows = INJECT_MODIFIERS.map((m, i) => row("mod", i, m.label, m.build(cat), m.desc)).join("");
-  const tplRows = INJECT_TEMPLATES.map((t, i) => {
-    const { prefix, editable, suffix } = t.build(cat);
-    return row("tpl", i, t.label, prefix + editable + suffix, t.desc);
+  const modRows = cat ? INJECT_MODIFIERS.map((m, i) => row("mod", i, m.label, m.build(cat), m.desc)).join("") : "";
+  const groups = [["choice", "Choices"], ["weight", "Selection & weighting"], ["variable", "Reusable values"], ["logic", "Conditions"], ["note", "Notes"]];
+  const tplRows = groups.map(([tone, title]) => {
+    const rows = INJECT_TEMPLATES.map((t, i) => {
+      if (!cat && i === 8) return "";
+      const { prefix, editable, suffix } = t.build(cat), code = prefix + editable + suffix;
+      return syntaxTone(code) === tone ? row("tpl", i, t.label, code, t.desc) : "";
+    }).join("");
+    return rows ? `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="${tone}">${title}</div>${rows}` : "";
   }).join("");
-  const editRows = INJECT_EDIT_ACTIONS.map((a, i) => row("edit", i, a.label, "", a.desc)).join("");
+  const selected = injectState.textarea.selectionEnd > injectState.textarea.selectionStart;
+  const editRows = INJECT_EDIT_ACTIONS.map((a, i) => !selected && ["cut", "copy"].includes(a.cmd) ? "" : row("edit", i, a.label, "", a.desc)).join("");
+  const tools = (!canBuildPromptRules(injectState.textarea) ? "" : row("tool", 0, "Build choices & rules", "", "Use a dropdown and matching outputs instead of writing syntax by hand.", "rules"))
+    + row("tool", 1, "Inspect prompt", "", "See explicit weights, reference tokens and embedding availability.", "inspect");
 
   menu.innerHTML =
-    `<div class="wg-ac-group wg-inject-head" data-ac-section="context">${escapeHtml(cat)}</div>` +
-    `<div class="wg-ac-group" data-ac-section="wildcard">Wildcard</div>` + modRows +
-    `<div class="wg-ac-group" data-ac-section="template">Template</div>` + tplRows +
+    `<div class="wg-ac-group wg-inject-head" data-ac-section="context">${escapeHtml(cat || "Insert syntax")}</div>` +
+    `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="logic">Prompt tools</div>` + tools +
+    (cat ? `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="choice" data-ac-section="wildcard">Wildcard mode</div>` + modRows : "") + tplRows +
     `<div class="wg-ac-group" data-ac-section="edit">Edit</div>` + editRows;
+  menu.setAttribute("role", "menu");
+}
+
+function handleInjectKeydown(event) {
+  if (!injectState || (document.activeElement !== injectState.textarea && !injectMenu?.contains(document.activeElement)) || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+  // Shift navigation belongs to native text selection, never to menu navigation.
+  if (event.shiftKey && ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) { closeInjectMenu(); return; }
+  const rows = [...injectMenu.querySelectorAll(".wg-inject-item")], active = rows.findIndex(row => row.classList.contains("active"));
+  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    event.preventDefault(); event.stopPropagation();
+    const next = event.key === "Home" ? 0 : event.key === "End" ? rows.length - 1 : event.key === "ArrowDown" ? (active + 1) % rows.length : (active < 0 ? rows.length - 1 : (active + rows.length - 1) % rows.length);
+    rows.forEach((row, index) => row.classList.toggle("active", index === next)); rows[next]?.scrollIntoView({ block: "nearest" });
+  } else if (event.key === "Enter" && active >= 0) {
+    event.preventDefault(); event.stopPropagation(); rows[active].dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+  } else if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeInjectMenu(); }
 }
 
 function positionInjectMenu(trigger) {
@@ -230,6 +280,7 @@ export function syntaxSnippetRows(typed = "") {
     rows.push({
       value: code, label: tpl.label, meta: tpl.desc, code, kind: "syntax", group: "Syntax",
       insertText: code, selectRange: [prefix.length, prefix.length + editable.length],
+      syntaxTone: syntaxTone(code),
     });
   }
   return rows;
@@ -238,6 +289,10 @@ export function syntaxSnippetRows(typed = "") {
 export function cleanupInjector() {
   closeInjectMenu();
   document.removeEventListener("mousedown", handleInjectDocumentMouseDown);
+  document.removeEventListener("contextmenu", handleInjectDocumentMouseDown);
+  document.removeEventListener("scroll", handleInjectViewportChange, true);
+  window.removeEventListener("resize", handleInjectViewportChange);
+  document.removeEventListener("keydown", handleInjectKeydown, true);
   injectMenu?.remove();
   injectMenu = null;
 }

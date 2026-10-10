@@ -453,8 +453,8 @@ class WildcardIndex:
         if changed:
             self.rescan(blocking=force_check)
 
-    async def ensure_fresh_async(self) -> None:
-        await asyncio.to_thread(self._ensure_fresh, False)
+    async def ensure_fresh_async(self, force_check: bool = False) -> None:
+        await asyncio.to_thread(self._ensure_fresh, force_check)
 
     def rescan(self, blocking: bool = True) -> bool:
         if not self._scan_lock.acquire(blocking=blocking):
@@ -612,6 +612,28 @@ class WildcardIndex:
         lines = self.get_lines(name)
         return None if lines is None else lines[: max(0, int(max_lines))]
 
+    def _acknowledge_source_mutation_locked(self, root: str, path: str) -> None:
+        """Acknowledge our loaded file edit without hiding unrelated disk edits.
+
+        Called with the scan and registry locks held. Preserve the cheap stat-only
+        path when the rest of the library is unchanged, including large imports.
+        """
+        relative_path = os.path.relpath(os.path.realpath(path), os.path.realpath(root)).replace(os.sep, "/")
+        signature = _source_signature(root)
+        old_others = tuple(item for item in self._source_signature if item[0] != relative_path)
+        new_others = tuple(item for item in signature if item[0] != relative_path)
+        now = time.monotonic()
+        self._last_scan = now
+        if old_others == new_others:
+            self._source_signature = signature
+            self._last_source_check = now
+            self._last_known_source_check = now
+        else:
+            # Keep the loaded snapshot signature so the next read discovers the
+            # external changes instead of accepting them as already indexed.
+            self._last_source_check = 0.0
+            self._last_known_source_check = 0.0
+
     def save_txt(self, name: str, content_text: str) -> str:
         safe_name = _normalise_wildcard_name(name)
         if not isinstance(content_text, str):
@@ -642,11 +664,7 @@ class WildcardIndex:
                 self._tree = self._build_tree(registry)
                 if changed:
                     self._revision += 1
-                now = time.monotonic()
-                self._source_signature = _source_signature(root)
-                self._last_scan = now
-                self._last_source_check = now
-                self._last_known_source_check = now
+                self._acknowledge_source_mutation_locked(root, abs_path)
         return abs_path
 
     def assert_txt_target_available(self, target: str) -> str:
@@ -768,12 +786,7 @@ class WildcardIndex:
                 self._tree = self._build_tree(registry)
                 if removed:
                     self._revision += 1
-                now = time.monotonic()
-                root = self.root_dir
-                self._source_signature = _source_signature(root)
-                self._last_scan = now
-                self._last_source_check = now
-                self._last_known_source_check = now
+                self._acknowledge_source_mutation_locked(self.root_dir, entry["abs_path"])
 
     def _switch_root(self, abs_path: str) -> None:
         changed = False

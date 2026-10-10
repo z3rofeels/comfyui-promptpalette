@@ -1,4 +1,6 @@
 import { svgIcon } from "../prompt_palette_shared.js";
+import { statusBarMarkup } from "./status_bar.js";
+import { toolbarDesignerMarkup } from "./toolbar.js";
 
 export function createEditorShell() {
   const root = document.createElement("div");
@@ -8,12 +10,13 @@ export function createEditorShell() {
       <div class="wg-toolbar-group left" data-el="toolbarMajor" aria-label="Prompt tools">
         <button class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="Prompt Library — Starter Packs and My Library" aria-label="Open Prompt Library" aria-expanded="false">${svgIcon("gallery")}</button>
         <button class="wg-icon-btn" data-act="edit" data-el="btnEdit" title="Create or edit a My Library entry" aria-label="Create or edit My Library entry">${svgIcon("edit")}</button>
-        <button class="wg-icon-btn" data-act="recipesShortcut" data-el="btnRecipes" title="Open RECIPES" aria-label="Open recipes">${svgIcon("recipe")}</button>
+        <button type="button" class="wg-icon-btn" data-act="importImage" data-el="btnImportImage" title="Import authored or resolved prompts from a generated image" aria-label="Import prompt from image" aria-expanded="false">${svgIcon("upload")}</button>
+        <button class="wg-icon-btn" data-act="recipesShortcut" data-el="btnRecipes" title="Open recipes in My Library" aria-label="Open recipes">${svgIcon("recipe")}</button>
         <button class="wg-icon-btn" data-act="stash" data-el="btnStash" title="Prompt Stash — save and restore drafts" aria-label="Open Prompt Stash" aria-expanded="false">${svgIcon("stash")}</button>
       </div>
       <div class="wg-toolbar-center">
-        <button class="wg-pill wg-pill-resolve" data-act="resolve" data-el="btnResolve" title="Preview the wildcard-resolved result" aria-label="Preview resolved prompt" aria-pressed="false">Preview result</button>
-        <button class="wg-pill wg-power-pill" data-act="variations" data-el="btnVariations" title="Variation Lab — compare deterministic wildcard resolutions" aria-label="Open Variation Lab" hidden>Variations</button>
+        <button class="wg-pill wg-pill-resolve" data-act="resolve" data-el="btnResolve" title="Preview the wildcard-resolved result" aria-label="Preview resolved prompt" aria-pressed="false">${svgIcon("bolt")}<span class="wg-toolbar-label">Preview result</span></button>
+        <button class="wg-pill wg-power-pill" data-act="variations" data-el="btnVariations" title="Variation Lab — compare deterministic wildcard resolutions" aria-label="Open Variation Lab" hidden>${svgIcon("branch")}<span class="wg-toolbar-label">Variations</span></button>
       </div>
       <div class="wg-toolbar-group right" aria-label="Prompt Palette utilities">
         <button class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Rescan My Library files" aria-label="Rescan My Library">${svgIcon("refresh")}</button>
@@ -26,17 +29,17 @@ export function createEditorShell() {
         <button class="wg-icon-btn" data-el="zenBtn" data-act="zenToggle" title="Toggle Zen mode" aria-label="Toggle Zen mode">${svgIcon("zen")}</button>
         <button class="wg-icon-btn wg-settings-anchor" data-el="settingsBtn" data-act="settings" title="Prompt Palette settings" aria-label="Open Prompt Palette settings" aria-expanded="false">${svgIcon("settings")}</button>
       </div>
-      <div class="wg-toolbar-extra" data-el="seedbar">
+    </div>
+      <div class="wg-toolbar-extra wg-seed-controls" data-el="seedbar">
         <span class="wg-seed-label">Seed</span>
         <input type="number" class="wg-seed-input" data-el="seedInput" min="0" step="1" title="Prompt seed">
         <button class="wg-icon-btn" data-act="seedRandomizeNow" title="Roll a new random seed now" aria-label="Randomize seed">${svgIcon("dice")}</button>
         <select class="wg-seed-mode" data-el="seedModeSelect" title="What happens to the seed after each run"></select>
-        <select class="wg-seed-mode" data-el="processingModeSelect" title="How multi-line prompts are resolved" style="flex: 0 0 148px;">
+        <select class="wg-seed-mode" data-el="processingModeSelect" title="How multi-line prompts are resolved">
           <option value="entire text as one">Entire text as one</option>
           <option value="line by line">Line by line</option>
         </select>
       </div>
-    </div>
     <div class="wg-main">
       <div class="wg-drawer left wg-library-popup" data-drawer="picker" role="region" aria-label="Prompt Library" aria-hidden="true" hidden inert>
         <div class="wg-drawer-resize-handle wg-library-resize-handle" data-el="libraryResizeHandle" role="separator" aria-orientation="vertical" aria-label="Resize Prompt Library" tabindex="0" title="Drag to resize Prompt Library · Double-click to reset"></div>
@@ -102,13 +105,7 @@ export function createEditorShell() {
           </div>
           <div class="wg-resolved" data-el="resolvedView"></div><div class="wg-preview-status" data-el="previewStatus" hidden aria-live="polite"></div>
         </div>
-        <div class="wg-legend" data-el="legend" title="Wildcard colors follow your My Library category palette."></div>
-        <div class="wg-footer">
-          <span class="wg-hint" data-el="charCount"></span>
-          <span class="wg-hint" data-el="tokenCount" data-el-token title="CLIP-L token count of the resolved prompt (visible while Preview result is open)"></span>
-          <button type="button" class="wg-doctor-chip" data-el="doctorChip" data-act="doctor" aria-label="Open Prompt Doctor" title="Prompt Doctor" hidden><span data-el="doctorDot"></span><span data-el="doctorLabel">Doctor</span></button>
-          <span class="wg-hint" data-el="hintRight"></span>
-        </div>
+        ${statusBarMarkup({ doctor: true })}
       </div>
       <div class="wg-drawer right" data-drawer="edit">
         <div class="wg-drawer-inner">
@@ -154,19 +151,28 @@ export function createEditorShell() {
       <div class="wg-drawer right wg-settings-popup wg-power-popup" data-el="variationPopup" role="region" aria-label="Variation Lab" aria-hidden="true" hidden inert>
         <div class="wg-settings-head"><span>Variation Lab</span><button class="wg-close-btn" data-act="closeVariations" title="Close Variation Lab" aria-label="Close Variation Lab">${svgIcon("close", 14)}</button></div>
         <div class="wg-settings-body">
-          <div class="wg-panel-title"><div><h3>Resolve before you queue</h3><p>Same source prompt, predictable seed steps. Nothing is generated.</p></div></div>
+          <div class="wg-panel-title"><div><h3>Resolve before you queue</h3><p>Preview alternatives from the same prompt across seeds.</p></div></div>
           <div class="wg-field-row"><label class="wg-field"><span>Versions</span><select data-el="variationCount" class="wg-theme-select"><option>4</option><option>8</option><option>12</option><option>16</option></select></label><button class="wg-button primary" data-act="variationRefresh">Resolve</button></div>
           <div class="wg-status" data-el="variationStatus"></div>
+          <div class="wg-variation-results" data-el="variationResults" hidden>
+            <span data-el="variationSummary" role="status"></span>
+            <label><input type="checkbox" data-el="variationUnique"> Unique results only</label>
+            <div class="wg-variation-selection">
+              <span data-el="variationKept" role="status">Keep previews to make a shortlist.</span>
+              <button type="button" class="wg-button" data-el="variationCopyKept" disabled title="Copy kept positive prompts, separated by blank lines">Copy kept</button>
+              <button type="button" class="wg-button" data-el="variationClearKept" disabled>Clear kept</button>
+            </div>
+          </div>
           <div class="wg-variation-grid" data-el="variationList"></div>
         </div>
       </div>
       <div class="wg-drawer right wg-settings-popup wg-power-popup" data-el="libraryManagerPopup" role="region" aria-label="Library Manager" aria-hidden="true" hidden inert>
         <div class="wg-settings-head"><span>Library Manager</span><button class="wg-close-btn" data-act="closeLibraryManager" title="Close Library Manager" aria-label="Close Library Manager">${svgIcon("close", 14)}</button></div>
         <div class="wg-settings-body">
-          <div class="wg-panel-title"><div><h3>Library health</h3><p>Read-only audit first. Destructive actions always require an explicit click.</p></div><button class="wg-button" data-act="libraryAuditRefresh">Rescan</button></div>
+          <div class="wg-panel-title"><div><h3>Library health</h3><p>Find missing files, duplicates, and broken references.</p></div><button class="wg-button" data-act="libraryAuditRefresh">Rescan</button></div>
           <div class="wg-library-health-summary" data-el="libraryHealthSummary"></div>
           <div class="wg-search-field wg-manager-search"><input type="search" data-el="libraryManagerSearch" placeholder="Filter My Library entries…" aria-label="Filter My Library entries"></div>
-          <div class="wg-panel-title wg-manager-subhead"><div><h3>Manage entries</h3><p>Rename, copy, edit, or delete TXT-backed entries. Nothing is changed by the audit itself.</p></div></div>
+          <div class="wg-panel-title wg-manager-subhead"><div><h3>Manage entries</h3><p>Rename, copy, edit, or delete your text entries.</p></div></div>
           <div class="wg-manager-bulk" data-el="libraryManagerBulk"><span data-el="libraryManagerSelectedCount">0 selected</span><div><button type="button" class="wg-button" data-act="librarySelectVisible">Select visible</button><button type="button" class="wg-button" data-act="libraryBulkMove">Move…</button><button type="button" class="wg-button" data-act="libraryBulkCopy">Copy…</button><button type="button" class="wg-button" data-act="libraryBulkPrefix">Prefix…</button><button type="button" class="wg-button" data-act="libraryUndo" disabled title="Undo the last safely reversible library change">Undo last</button><button type="button" class="wg-button" data-act="libraryBulkClear">Clear</button></div></div>
           <div class="wg-library-manager-entries" data-el="libraryManagerEntries"></div>
           <div class="wg-panel-title wg-manager-subhead"><div><h3>Audit findings</h3><p>Potential cleanup items found in the current library.</p></div></div>
@@ -186,14 +192,14 @@ export function createEditorShell() {
           <div class="wg-recipe-builder-list" data-el="recipeBuilderList"></div>
           <label class="wg-field"><span>Recipe source preview</span><textarea data-el="recipeBuilderPreview" class="wg-recipe-builder-preview" readonly></textarea></label>
           <div class="wg-status" data-el="recipeBuilderStatus"></div>
-          <div class="wg-button-row"><button class="wg-button" data-act="recipeBuilderCancel">Cancel</button><button class="wg-button primary" data-act="recipeBuilderSave">Save to RECIPES</button></div>
+          <div class="wg-button-row"><button class="wg-button" data-act="recipeBuilderCancel">Cancel</button><button class="wg-button primary" data-act="recipeBuilderSave">Save recipe</button></div>
         </div>
       </div>
       <div class="wg-drawer right wg-settings-popup wg-settings-pro" data-el="settingsPopup" role="dialog" aria-label="Prompt Palette settings" aria-hidden="true" hidden inert>
         <div class="wg-settings-head wg-settings-head-pro">
           <div>
             <span>Prompt Palette</span>
-            <small>Live controls — your prompt stays visible</small>
+            <small>Settings</small>
           </div>
           <button class="wg-close-btn" data-act="closeSettings" title="Close settings" aria-label="Close Prompt Palette settings">${svgIcon("close", 15)}</button>
         </div>
@@ -270,7 +276,9 @@ export function createEditorShell() {
             </section>
 
             <section role="tabpanel" class="wg-settings-panel" data-settings-panel="layout">
-              <div class="wg-panel-title"><div><h3>Workspace level</h3><p>Optional presets only. They change existing toggles; every setting remains individually editable.</p></div><span class="wg-badge">2.0</span></div>
+              ${toolbarDesignerMarkup()}
+              <div class="wg-section-divider"></div>
+              <div class="wg-panel-title"><div><h3>Workspace level</h3><p>Optional presets only. They change existing toggles; every setting remains individually editable.</p></div><span class="wg-badge">Presets</span></div>
               <div class="wg-preset-grid wg-workspace-level-grid" role="group" aria-label="Prompt Palette workspace level">
                 <button type="button" data-workspace-level="core"><strong>Core</strong><small>Editor + essentials</small></button>
                 <button type="button" data-workspace-level="creator"><strong>Creator</strong><small>Familiar default</small></button>
@@ -278,7 +286,7 @@ export function createEditorShell() {
               </div>
               <div class="wg-inline-note">Choosing a level is never required. It is only a shortcut for the same optional controls below.</div>
               <div class="wg-section-divider"></div>
-              <div class="wg-panel-title"><div><h3>Workspace density</h3><p>Start from a preset, then tailor every control below.</p></div></div>
+              <div class="wg-panel-title"><div><h3>Visibility presets</h3><p>Change existing toggles while keeping your toolbar size, presentation and order.</p></div></div>
               <div class="wg-preset-grid">
                 <button data-layout-preset="minimal"><strong>Minimal</strong><small>Writing first</small></button>
                 <button data-layout-preset="balanced" class="active"><strong>Balanced</strong><small>Best default</small></button>
@@ -295,6 +303,7 @@ export function createEditorShell() {
               <div class="wg-toggle-grid">
                 <label class="wg-toggle-card"><div><strong>Prompt Library</strong><small>Starter Packs and your entries.</small></div><input type="checkbox" data-el="toggleGalleryBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Wildcard editor</strong><small>Create and edit files.</small></div><input type="checkbox" data-el="toggleEditBtn"></label>
+                <label class="wg-toggle-card"><div><strong>Image prompt import</strong><small>Show the toolbar shortcut. Import stays available in the editor menu and by image drop.</small></div><input type="checkbox" data-el="toggleImportImageBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Recipes</strong><small>Build combinatorial sets.</small></div><input type="checkbox" data-el="toggleRecipesBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Prompt stash</strong><small>Local drafts.</small></div><input type="checkbox" data-el="toggleStashBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Refresh</strong><small>Rescan My Library files.</small></div><input type="checkbox" data-el="toggleRefreshBtn"></label>
@@ -310,7 +319,7 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Recent items in autocomplete</strong><small>How many recent picks the autocomplete menu keeps (5-10). Use Clear or &times; on a recent row to leave only the ones you want.</small></div><select data-el="autocompleteRecentLimit" aria-label="Recent items kept in autocomplete"><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
                 <label class="wg-toggle-card"><div><strong>Booru autocomplete</strong><small>Suggest database tags while typing ordinary prompt words. Wildcard name autocomplete is unaffected.</small></div><input type="checkbox" data-el="toggleBooruAutocomplete"></label>
                 <label class="wg-toggle-card"><div><strong>Booru trigger</strong><small>Auto opens while typing, or only when you press Ctrl+Space.</small></div><select data-el="booruAutocompleteMode" aria-label="Booru autocomplete trigger"><option value="off">Off</option><option value="auto">Auto</option><option value="onDemand">On demand (Ctrl+Space)</option></select></label>
-                <label class="wg-toggle-card"><div><strong>Minimum characters</strong><small>Wait for this many characters before booru lookup.</small></div><input type="number" data-el="booruAutocompleteMinChars" min="1" max="12" step="1" inputmode="numeric"></label>
+                <label class="wg-toggle-card"><div><strong>Minimum characters</strong><small>Counts the search term. Filter with artist:, character:, series:, general: or meta: before the term.</small></div><input type="number" data-el="booruAutocompleteMinChars" min="1" max="12" step="1" inputmode="numeric"></label>
                 <label class="wg-toggle-card"><div><strong>Booru sources</strong><small>Choose which local sources feed the same autocomplete menu.</small></div><span class="wg-inline-checks"><label><input type="checkbox" data-el="booruSourceDatabase"> Database</label><label><input type="checkbox" data-el="booruSourceCustomWords"> Custom words</label></span></label>
                 <label class="wg-toggle-card"><div><strong>Color tags in prompt</strong><small>Keep booru and custom-word tags in their category color after you insert them, so the whole prompt stays easy to scan. Wildcard colors are unaffected.</small></div><input type="checkbox" data-el="toggleBooruPromptColors"></label>
               </div>
@@ -325,6 +334,7 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Resolved Diff</strong><small>Highlight text that changed between your source prompt and resolved preview.</small></div><input type="checkbox" data-power-tool="resolvedDiff"></label>
                 <label class="wg-toggle-card"><div><strong>Library Manager</strong><small>Audit empty entries, duplicate content, broken recipes, and orphan thumbnails.</small></div><input type="checkbox" data-power-tool="libraryManager"></label>
                 <label class="wg-toggle-card"><div><strong>Recipe Builder 2</strong><small>Use the richer reorder, operator, separator, prefix, and suffix builder when saving RECIPES.</small></div><input type="checkbox" data-power-tool="recipeBuilder2"></label>
+                <label class="wg-toggle-card"><div><strong>Adjustable recipes</strong><small>Selection fields, Recipe draft, fill panels, and recipe pack import/export in both prompt editors. Saved drafts are kept when disabled.</small></div><input type="checkbox" data-power-tool="adjustableRecipes"></label>
                 <label class="wg-toggle-card"><div><strong>ComfyUI command palette</strong><small>Optionally register Prompt Palette commands. Prompt Palette assigns no keyboard shortcuts. Restart after changing this option.</small></div><input type="checkbox" data-power-tool="nativeCommands"></label>
               </div>
               <div class="wg-button-row">
@@ -409,5 +419,6 @@ export function createEditorShell() {
       </div>
     </div>
   `;
+  root.querySelectorAll(".wg-status").forEach(status => { status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite"); });
   return root;
 }

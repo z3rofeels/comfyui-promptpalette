@@ -1,5 +1,5 @@
 import { API } from "../prompt_palette_api.js";
-import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary } from "../prompt_palette_shared.js";
+import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary, onPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
 import { dialogChoice, dialogConfirm, trackDialog } from "./dialogs.js";
 import { notify } from "./notifications.js";
 import { parseCustomRow, resetCustomWords } from "./custom_words.js";
@@ -79,7 +79,9 @@ export function openCustomWordsManager({ themeSource = null } = {}) {
   const overlay = document.createElement("div");
   overlay.className = "wg-choice-backdrop wg-cw-backdrop wg-root";
   overlay.dataset.promptPaletteGlobal = "true";
+  const updateTheme = () => { if (scope) copyPromptPaletteThemeScope(scope, overlay); dialog.dataset.acTone = panelToneFor(dialog); };
   if (scope) copyPromptPaletteThemeScope(scope, overlay);
+  const releaseTheme = onPromptPaletteAppearanceChanged(updateTheme);
   const releaseKeyboard = installPromptPaletteKeyboardBoundary(overlay);
 
   const dialog = document.createElement("div");
@@ -300,6 +302,7 @@ export function openCustomWordsManager({ themeSource = null } = {}) {
     activeManager = null;
     releaseDialog();
     releaseKeyboard();
+    releaseTheme();
     overlay.remove();
     if (returnFocus instanceof HTMLElement && returnFocus.isConnected) returnFocus.focus({ preventScroll: true });
   }

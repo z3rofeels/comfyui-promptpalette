@@ -1,3 +1,8 @@
+import { createRecipeWorkspaceController } from "./recipe_workspace_controller.js";
+import { setToolbarLabel, installToolbarLayout } from "./toolbar.js";
+import { attachImageImport } from "./image_import.js";
+import { editCompiledPrompt } from "./recipe_text_edit.js";
+import { WORKSPACE_KEY } from "./recipe_workspace_model.js";
 import { readEditorPreference, getPowerToolPreferences, getWorkspacePreferences, setWorkspacePreference, replacePowerToolPreferences } from "../prompt_palette_state.js";
 import { buildResolvedDiff } from "../prompt_palette_power_tools.js";
 import { registerPromptPaletteCommandTarget } from "../prompt_palette_command_bus.js";
@@ -9,13 +14,14 @@ import {
   ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, setupIoRail, installSocketRailLayout,
 } from "../prompt_palette_compat.js";
 import { dialogConfirm, isDialogOpen, cleanupDialogOverlays } from "./dialogs.js";
-import { loadTheme, loadPinned, loadExpandedCats, loadCatOrder, loadPickerView } from "./preferences.js";
-import { hashStr, categoryOf, escapeHtml, currentUiSurface, categoryColorFromHue } from "./text_utils.js";
+import { loadTheme, saveTheme, loadPinned, loadExpandedCats, loadCatOrder, loadPickerView } from "./preferences.js";
+import { hashStr, categoryOf, escapeHtml, currentUiSurface, categoryColorFromHue, bindPromptSeedInput } from "./text_utils.js";
 import { getCaretCoords, closeAcMenu, acState, cleanupAutocomplete } from "./autocomplete.js";
-import { runTextareaEditCommand, openInjectMenuAtPoint, closeInjectMenu, injectState, cleanupInjector } from "./injector.js";
-import { openCtxMenu, closeCtxMenu, ctxMenuOpen, cleanupContextMenu } from "./context_menu.js";
+import { openInjectMenuAtPoint, closeInjectMenu, injectState, cleanupInjector } from "./injector.js";
+import { openCtxMenu, closeCtxMenu, ctxMenuOpen, cleanupContextMenu, attachEditorContextMenu } from "./context_menu.js";
 import { cleanupThumbnailPicker } from "./thumbnails.js";
 import { createEditorShell } from "./shell.js";
+import { createRefinementController } from "./refinement_controller.js";
 import { createPowerToolsController } from "./power_tools_controller.js";
 import { createThemeController } from "./theme_controller.js";
 import { createUtilityController } from "./utility_controller.js";
@@ -29,12 +35,15 @@ import { createReactiveRuntime } from "../runtime/reactive_runtime.js";
 import { WildcardWorkerClient } from "../engine/wildcard_worker_client.js";
 import { EditorUndoManager } from "./undo_manager.js";
 import { PromptLibraryModel } from "../library/library_model.js";
+import { createLibraryLookup } from "../engine/library_lookup.js";
 import { upgradeEditorSurface } from "./editor_surface.js";
 import { createSyntaxHighlighter } from "./syntax_highlighter.js";
-import { createTagPainter, onTagColorsChanged, TAG_CATEGORY_KEYS, TAG_CATEGORY_LABELS } from "./booru_tag_colors.js";
+import { createTagPainter, onTagColorsChanged } from "./booru_tag_colors.js";
+import { createStatusBar, wildcardStatusText } from "./status_bar.js";
 
 function buildWildcardWidget(node, hiddenWidget) {
   const promptState = installPromptStateGuard(node, hiddenWidget);
+  let recipeWorkspace = null;
   const theme = loadTheme();
   let powerTools = getPowerToolPreferences();
   let workspacePrefs = getWorkspacePreferences();
@@ -45,14 +54,13 @@ function buildWildcardWidget(node, hiddenWidget) {
   const historyStore = createPromptHistoryStore({ limit: 40 });
   let recentList = usageStore.libraryRecent(12);
   let knownSet = new Set();
-  let knownLeafSet = new Set();
+  let lookupWildcard = createLibraryLookup([]);
   let libraryCache = [];
   const libraryModel = new PromptLibraryModel();
   let thumbMap = {};
   let thumbBust = {};
   let pickerViewMode = loadPickerView();
   let tokenRanges = [];
-  let lastLegendSignature = "";
   const previewCache = new Map();
   let lastExecutionMetadata = node.properties?.prompt_palette_last_result || null;
   let starterAutocompleteRows = [];
@@ -70,6 +78,7 @@ function buildWildcardWidget(node, hiddenWidget) {
 
 
   const root = createEditorShell();
+  const cleanupToolbarLayout = installToolbarLayout(root, { loadTheme, saveTheme });
   const cleanupKeyboardBoundary = installPromptPaletteKeyboardBoundary(root);
   const performanceRuntime = createPerformanceRuntime({ node, root });
   const profiler = performanceRuntime.profiler;
@@ -91,7 +100,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   const textarea = editorSurface.element;
   const highlight = el("highlight");
   const syntaxHighlighter = createSyntaxHighlighter(textarea, highlight);
-  const legend = el("legend");
+  const statusBar = createStatusBar(root);
   const pickerDrawer = root.querySelector('[data-drawer="picker"]');
   const libraryTabs = Array.from(root.querySelectorAll("[data-library-tab]"));
   const libraryPanels = Array.from(root.querySelectorAll("[data-library-panel]"));
@@ -194,11 +203,11 @@ function buildWildcardWidget(node, hiddenWidget) {
     (seedWidget && seedWidget.linkedWidgets && seedWidget.linkedWidgets[0]) ||
     node.widgets.find(w => w !== seedWidget && /control.*generate/i.test(w.name || ""));
   const modeWidget = node.widgets.find(w => w.name === "processing_mode");
-  [seedWidget, controlWidget, modeWidget].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
+  [seedWidget, controlWidget, modeWidget, node.widgets?.find(w => w.__ppRecipeNegative)].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
 
   function reassertHiddenWidgets() {
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
-    [seedWidget, controlWidget, modeWidget].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
+    [seedWidget, controlWidget, modeWidget, node.widgets?.find(w => w.__ppRecipeNegative)].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
   }
   if (modeWidget) {
     processingModeSelect.addEventListener("change", () => {
@@ -218,7 +227,10 @@ function buildWildcardWidget(node, hiddenWidget) {
     randomize: "Randomize \u2014 new seed each run",
   };
   function syncSeedControlsFromWidgets() {
-    if (seedWidget) seedInput.value = seedWidget.value;
+    if (seedWidget) {
+      seedInput.value = seedWidget.value;
+      seedInput.removeAttribute("aria-invalid");
+    }
     if (controlWidget) {
       const values = (controlWidget.options && controlWidget.options.values) || ["fixed", "increment", "decrement", "randomize"];
       if (seedModeSelect.dataset.built !== "1") {
@@ -231,15 +243,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
     if (modeWidget) processingModeSelect.value = modeWidget.value;
   }
-  if (seedWidget) {
-    seedInput.addEventListener("input", () => {
-      if (seedInput.value === "") return;
-      seedWidget.value = Number(seedInput.value);
-      if (typeof seedWidget.callback === "function") seedWidget.callback(seedWidget.value, node.graph?.canvas, node);
-      node.graph?.setDirtyCanvas(true, true);
-      reactiveRuntime.invalidate("seed", { value: seedWidget.value });
-    });
-  } else {
+  const cleanupSeedInput = bindPromptSeedInput(seedInput, seedWidget, value => {
+    seedWidget.value = value;
+    if (typeof seedWidget.callback === "function") seedWidget.callback(seedWidget.value, node.graph?.canvas, node);
+    node.graph?.setDirtyCanvas(true, true);
+    reactiveRuntime.invalidate("seed", { value: seedWidget.value });
+  });
+  if (!seedWidget) {
     el("seedbar").querySelectorAll("input,button,select").forEach(x => x.disabled = true);
   }
   if (controlWidget) {
@@ -255,6 +265,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     const randomSeed = Math.floor(Math.random() * maxSeed);
     seedWidget.value = randomSeed;
     seedInput.value = randomSeed;
+    seedInput.removeAttribute("aria-invalid");
     if (typeof seedWidget.callback === "function") seedWidget.callback(randomSeed, node.graph?.canvas, node);
     node.graph?.setDirtyCanvas(true, true);
     reactiveRuntime.invalidate("seed", { value: randomSeed });
@@ -340,13 +351,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     return categoryColorFromHue(hue, theme.saturation, currentUiSurface());
   }
   function rebuildKnownLeafSet() {
-    knownLeafSet = new Set(Array.from(knownSet, (name) => String(name).split("/").pop()));
+    lookupWildcard = createLibraryLookup([...knownSet]);
     syntaxCache.clear();
     profiler.gauge("libraryEntries", knownSet.size);
   }
   function isKnown(name) {
     const value = String(name || "");
-    return knownSet.has(value) || knownLeafSet.has(value.split("/").pop());
+    return lookupWildcard(value).length > 0;
   }
   function highlightText(text, parsedOverride = null) {
     const parsed = parsedOverride || profiler.measure("editor.parse", () => syntaxCache.parse(text));
@@ -370,7 +381,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   const undoManager = new EditorUndoManager({
-    initialValue: textarea.value,
+    initialValue: historyValue(),
     limit: 100,
     coalesceMs: 600,
     schedule: (fn, ms) => scheduleNodeTimer(node, fn, ms),
@@ -379,23 +390,64 @@ function buildWildcardWidget(node, hiddenWidget) {
   });
 
   function refreshFromHidden() {
-    const restored = promptState.restore();
+    recipeWorkspace?.refresh();
+    const restored = recipeWorkspace?.snapshot() ? textarea.value : promptState.restore();
     if (restored !== textarea.value) {
       textarea.value = restored;
-      undoManager.reset(restored);
+      recipeWorkspace?.refresh();
+      undoManager.reset(historyValue());
       render();
     }
+    if (recipeWorkspace?.snapshot()) { syncHiddenWidget(); render(); }
     syncSeedControlsFromWidgets();
   }
 
   function flushUndoBurst() { return undoManager.flush(); }
 
+  function historyValue() {
+    const workspace = node.properties?.[WORKSPACE_KEY];
+    // Navigation cannot create a text edit or clear Redo after restoring one.
+    return JSON.stringify({ text: textarea.value, negative: node.widgets?.find(w => w.name === "negative_text")?.value || "", workspace: workspace ? { ...workspace, view: "workspace" } : null });
+  }
+  function restoreHistory(value) {
+    const active = document.activeElement;
+    const fieldId = root.contains(active) ? active.closest?.("[data-field-id]")?.dataset.fieldId : null;
+    const editingMain = active === textarea;
+    const workspaceView = recipeWorkspace?.snapshot()?.view;
+    const saved = JSON.parse(value);
+    // View switches are navigation, not text edits. Keep the surface the user
+    // is typing in visible when an older text checkpoint restores its workspace.
+    if (saved.workspace && editingMain) saved.workspace.view = "editor";
+    else if (saved.workspace && fieldId) saved.workspace.view = "workspace";
+    else if (saved.workspace && workspaceView) saved.workspace.view = workspaceView;
+    textarea.value = saved.text;
+    node._ppNegativePromptState?.commit(saved.negative || "");
+    recipeWorkspace?.restore(saved.workspace, { commit: false });
+    textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+    if (saved.workspace?.view === "workspace" && fieldId) recipeWorkspace?.focusField(fieldId);
+    else if (!saved.workspace || editingMain || saved.workspace.view === "editor") textarea.focus({ preventScroll: true });
+    render();
+  }
+
   function noteValueChange() {
-    const changed = undoManager.note(textarea.value);
+    const changed = undoManager.note(historyValue());
     if (!changed) return;
     lastTokenStats = null;
     lastTokenStatsSource = "";
   }
+
+  const cleanupImageImport = attachImageImport({ node, root, getState: historyValue, apply: ({ positive, negative, hasNegative }) => {
+    const saved = recipeWorkspace?.snapshot();
+    if (saved) {
+      saved.recipe = editCompiledPrompt(saved.recipe, positive);
+      if (hasNegative) saved.recipe = editCompiledPrompt(saved.recipe, negative, { channel: "negative" });
+    }
+    undoManager.note(historyValue()); undoManager.flush();
+    if (saved) recipeWorkspace.restore(saved);
+    else { textarea.value = positive; if (hasNegative) node._ppNegativePromptState.commit(negative); render(); }
+    textarea.setSelectionRange(positive.length, positive.length);
+    noteValueChange(); undoManager.flush();
+  } });
 
   function updateUndoRedoButtons() {
     if (undoBtn) undoBtn.disabled = !undoManager.canUndo();
@@ -403,22 +455,16 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   function performUndo() {
-    const prev = undoManager.undo(textarea.value);
+    const prev = undoManager.undo(historyValue());
     if (prev === null) return;
-    textarea.value = prev;
-    textarea.selectionStart = textarea.selectionEnd = prev.length;
-    textarea.focus();
-    render();
+    restoreHistory(prev);
     scheduleHistorySnapshot("Undo");
   }
 
   function performRedo() {
-    const next = undoManager.redo(textarea.value);
+    const next = undoManager.redo(historyValue());
     if (next === null) return;
-    textarea.value = next;
-    textarea.selectionStart = textarea.selectionEnd = next.length;
-    textarea.focus();
-    render();
+    restoreHistory(next);
     scheduleHistorySnapshot("Redo");
   }
 
@@ -481,14 +527,12 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   function renderVisualsFromParsed(parsedOverride = null, sourceText = textarea.value) {
-    let names = [], categoriesInUse = [], categoryHueMap = {}, tagCategoriesInUse = [], tagPalette = null;
+    let names = [], categoriesInUse = [], categoryHueMap = {};
     try {
       const result = highlightText(sourceText, parsedOverride);
       names = result.names;
       categoriesInUse = result.categoriesInUse;
       categoryHueMap = result.categoryHueMap;
-      tagCategoriesInUse = result.tagCategoriesInUse || [];
-      tagPalette = result.tagPalette || null;
       profiler.measure("editor.dom", () => {
         if (!syntaxHighlighter.render(result.decorations, sourceText)) syncHighlightDom(result.lineHtml, sourceText);
       });
@@ -502,33 +546,17 @@ function buildWildcardWidget(node, hiddenWidget) {
 
     profiler.measure("editor.legend", () => {
       const legendItems = categoriesInUse.map((cat) => [cat, theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation, currentUiSurface())]);
-      // Booru / custom tag categories present in the prompt get their own chips (square swatch,
-      // so they read as tags rather than wildcard categories).
-      const tagItems = TAG_CATEGORY_KEYS.filter((key) => tagPalette && tagCategoriesInUse.includes(key)).map((key) => [key, tagPalette[key]]);
-      const signature = legendItems.map(([cat, color]) => `${cat}:${color}`).join("|") + "||" + tagItems.map(([key, color]) => `${key}:${color}`).join("|");
-      if (signature === lastLegendSignature) return;
-      lastLegendSignature = signature;
-      const fragment = document.createDocumentFragment();
-      legendItems.forEach(([cat, color]) => {
-        const chip = document.createElement("div");
-        chip.className = "wg-chip";
-        chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>${escapeHtml(cat)}`;
-        fragment.appendChild(chip);
-      });
-      tagItems.forEach(([key, color]) => {
-        const chip = document.createElement("div");
-        chip.className = "wg-chip wg-chip-tag";
-        chip.innerHTML = `<span class="wg-sw" style="background:${color}; border-radius:3px;"></span>${escapeHtml(TAG_CATEGORY_LABELS[key] || key)}`;
-        fragment.appendChild(chip);
-      });
-      legend.replaceChildren(fragment);
+      // Tags remain color-highlighted in the prompt, but their category key is not
+      // repeated as a footer legend; wildcard categories are the useful legend here.
+      statusBar.renderLegend(legendItems);
     });
 
     const knownCount = names.reduce((count, name) => count + (isKnown(name) ? 1 : 0), 0);
     const missingCount = names.length - knownCount;
-    const hintText = `${knownCount} resolved-ready · ${missingCount} missing`;
+    const hintText = wildcardStatusText(knownCount, missingCount);
     if (hintRight.textContent !== hintText) hintRight.textContent = hintText;
     const hintClickable = missingCount > 0;
+    hintRight.disabled = !hintClickable;
     if (hintRight.classList.contains("wg-hint-clickable") !== hintClickable) hintRight.classList.toggle("wg-hint-clickable", hintClickable);
     const hintTitle = hintClickable ? "Click to repair the next missing wildcard" : "";
     if (hintRight.title !== hintTitle) hintRight.title = hintTitle;
@@ -536,6 +564,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     const charText = `${len.toLocaleString()} char${len === 1 ? "" : "s"}`;
     const charCount = el("charCount");
     if (charCount.textContent !== charText) charCount.textContent = charText;
+    statusBar.refresh();
     updateUndoRedoButtons();
     profiler.count("editorRenders");
     if (profiler.enabled) profiler.gauge("domNodes", root.querySelectorAll("*").length);
@@ -601,7 +630,11 @@ function buildWildcardWidget(node, hiddenWidget) {
   reactiveRuntime.subscribe(["socket", "layout"], () => node._ppRendererAdapter?.requestLayout?.(), { key: "renderer-layout", schedule: "frame", visual: true });
   node._ppInvalidateRuntime = (channel, payload = null) => reactiveRuntime.invalidate(channel, payload);
 
+  let refinementController = null;
   function render({ asyncVisual = true, refreshPreview = true, refreshDoctor = true } = {}) {
+    recipeWorkspace?.reconcile();
+    recipeWorkspace?.contextChanged();
+    refinementController?.sourceChanged();
     noteValueChange();
     syncHiddenWidget();
     reactiveRuntime.invalidate("prompt", { source: textarea.value, asyncVisual });
@@ -609,8 +642,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     if (refreshPreview && resolvedView.classList.contains("on")) reactiveRuntime.invalidate("preview", { source: textarea.value });
   }
 
-  function renderThemeOnly() { reactiveRuntime.invalidate("theme", { reason: "theme" }); }
-  function renderLibraryOnly() { reactiveRuntime.invalidate("library", { reason: "library" }); }
+  function renderThemeOnly() { reactiveRuntime.invalidate("theme", { reason: "theme" }); recipeWorkspace?.refresh(); }
+  function renderLibraryOnly() {
+    reactiveRuntime.invalidate("library", { reason: "library" });
+    reactiveRuntime.invalidate("doctor", { reason: "library" });
+    if (resolvedView.classList.contains("on")) reactiveRuntime.invalidate("preview", { reason: "library" });
+    recipeWorkspace?.refresh();
+  }
 
   performanceRuntime.setOnWake(() => {
     reactiveRuntime.batch(() => {
@@ -761,6 +799,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   textarea.addEventListener("scroll", () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });
 
   textarea.addEventListener("keydown", (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const key = e.key.toLowerCase();
     if (key === "z" && e.shiftKey) { e.preventDefault(); performRedo(); }
@@ -831,6 +870,40 @@ function buildWildcardWidget(node, hiddenWidget) {
     refreshLibrary, openEditForItem, renderPickerList, updateThemeJson, el, performanceRuntime, profiler,
   });
 
+  refinementController = createRefinementController({
+    node, root, textarea, render,
+    onOpenWorkspace: (...args) => recipeWorkspace.open(...args),
+    getSeed: () => seedWidget?.value ?? 0,
+    getMode: () => modeWidget?.value || "entire text as one",
+    getLibrary: () => libraryCache, refreshLibrary,
+    variationGuard: () => { if (recipeWorkspace?.isActive()) throw new Error("Use Selection in a workspace field or choose a workspace Variation Lab scope."); },
+    host: variationPopup.querySelector(".wg-settings-body"),
+    openHost: () => powerToolsController.openSelectionLab(),
+    atomicEdit: (text, start, end) => {
+      undoManager.flush(); textarea.value = text; textarea.setSelectionRange(start, end);
+      render(); undoManager.flush();
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    },
+  });
+
+  recipeWorkspace = createRecipeWorkspaceController({
+    node, root, textarea, render: () => { render(); scheduleHistorySnapshot(); }, flushHistory: flushUndoBurst, onUndo: performUndo, onRedo: performRedo,
+    onShowEditor: () => { editorReal.classList.remove("hidden"); resolvedView.classList.remove("on"); btnResolve.classList.remove("on"); setToolbarLabel(btnResolve, "Preview result"); },
+    host: variationPopup.querySelector(".wg-settings-body"), openHost: () => powerToolsController.openSelectionLab(),
+    openVariations: scope => powerToolsController.openVariations(scope),
+    bindHover: (...args) => libraryController.bindEditorHover(...args),
+    onLibrarySaved: path => libraryController.selectionSaved(path),
+    getMatches: (...args) => libraryController.getAcMatches(...args),
+    onCommit: (...args) => libraryController.commitAcItem(...args),
+    paintSyntax: text => renderPromptSyntax(syntaxCache.parse(text), {
+      isKnown, categoryOf, buildCategoryColorMap, colorForToken, tagPainter: createTagPainter(theme),
+    }),
+    getSeed: () => seedWidget?.value ?? 0,
+    getMode: () => modeWidget?.value || "entire text as one",
+    getLibrary: () => libraryCache, refreshLibrary,
+  });
+  node._ppRecipeWorkspace = recipeWorkspace;
+
   function syncWorkspaceSettingsUI() {
     syncWorkspaceSettingsSurface(root, settingsPopup, workspacePrefs, previewModeSelect);
   }
@@ -851,7 +924,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     if (next === "core" || next === "creator") {
       powerTools = replacePowerToolPreferences({});
     } else {
-      powerTools = replacePowerToolPreferences({ promptDoctor: true, variationLab: true, resolvedDiff: true, libraryManager: true, recipeBuilder2: true, nativeCommands: powerTools.nativeCommands });
+      powerTools = replacePowerToolPreferences({ promptDoctor: true, variationLab: true, resolvedDiff: true, libraryManager: true, recipeBuilder2: true, adjustableRecipes: true, nativeCommands: powerTools.nativeCommands });
     }
     powerToolsController?.applyPowerToolSettings({ refreshPreview: true });
     syncWorkspaceSettingsUI();
@@ -887,7 +960,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     const on = resolvedView.classList.toggle("on");
     editorReal.classList.toggle("hidden", on);
     e.currentTarget.classList.toggle("on", on);
-    e.currentTarget.textContent = on ? "Edit prompt" : "Preview result";
+    setToolbarLabel(e.currentTarget, on ? "Edit prompt" : "Preview result");
     e.currentTarget.setAttribute("aria-pressed", String(on));
     e.currentTarget.setAttribute("aria-label", on ? "Return to prompt editor" : "Preview resolved prompt");
     e.currentTarget.title = on ? "Return to your editable prompt" : "Preview the wildcard-resolved result without changing your draft";
@@ -925,6 +998,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     textarea.value = "";
 
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    recipeWorkspace?.showEditor();
     textarea.focus();
   });
 
@@ -934,10 +1008,12 @@ function buildWildcardWidget(node, hiddenWidget) {
     refreshBtn.disabled = true;
     try {
       const data = await API.refreshWildcards();
-      node.updateWildcardSidePanels(data);
+      await refreshLibrary(data);
+      refreshBtn.title = "Refresh wildcard library from disk";
     } catch (e) {
       console.error("Prompt Palette: wildcard refresh failed", e);
-      refreshBtn.title = "Refresh failed \u2014 see console";
+      refreshBtn.title = e?.message || "Refresh failed";
+      notify("error", "Wildcard refresh failed", e?.message || String(e));
     } finally {
       refreshBtn.classList.remove("active");
       refreshBtn.disabled = false;
@@ -951,6 +1027,7 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   node.updateWildcardSidePanels = function (data) {
     const items = (data && data.items) || [];
+    hideTip(); previewCache.clear();
     installLibraryRevision(items);
     knownSet = new Set(items.map(i => i.path));
     rebuildKnownLeafSet();
@@ -969,48 +1046,27 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
   });
 
-  textarea.addEventListener("contextmenu", (e) => {
-
-    const selStart = textarea.selectionStart, selEnd = textarea.selectionEnd;
-    if (selEnd > selStart) {
-      const selectedText = textarea.value.slice(selStart, selEnd);
-      if (selectedText.trim()) {
-        e.preventDefault();
-        hideTip();
-        closeInjectMenu();
-        const actions = [
-          { label: "Cut", onSelect: () => runTextareaEditCommand(textarea, render, "cut") },
-          { label: "Copy", onSelect: () => runTextareaEditCommand(textarea, render, "copy") },
-          { label: "Paste", onSelect: () => runTextareaEditCommand(textarea, render, "paste") },
-          { label: "Select All", onSelect: () => runTextareaEditCommand(textarea, render, "selectAll") },
-          { label: "Save selection to My Library\u2026", onSelect: () => promptExtractSelectionToWildcard(selStart, selEnd) },
-        ];
-        const selectedTokens = tokenRanges.filter(t => t.known && t.start >= selStart && t.end <= selEnd);
-        if (selectedTokens.length >= 2) {
-          const names = selectedTokens.map(t => t.name);
-          actions.push({ label: `Save ${names.length} library entries as Palette Recipe`, onSelect: () => promptSaveRecipe(names) });
-        }
-        openCtxMenu(e.clientX, e.clientY, actions);
-        return;
-      }
-    }
-    const idx = textarea.selectionStart;
-    const tok = tokenRanges.find(t => t.start <= idx && t.end >= idx);
-    if (!tok) return;
-    if (!tok.known) {
-      e.preventDefault();
-      hideTip();
-      closeInjectMenu();
-      openMissingRepairAt(e.clientX, e.clientY, tok);
-      return;
-    }
-    if (theme.syntaxInjectorEnabled === false) return;
-    e.preventDefault();
-    hideTip();
-    closeCtxMenu();
-    textarea.selectionStart = tok.start;
-    textarea.selectionEnd = tok.end;
-    openInjectMenuAtPoint(e.clientX, e.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
+  const cleanupEditorContext = attachEditorContextMenu(textarea, {
+    render, beforeOpen: () => { hideTip(); closeInjectMenu(); },
+    promptTools: { node, apply: (text, start, end) => { undoManager.flush(); textarea.value = text; textarea.setSelectionRange(start, end); render(); undoManager.flush(); } },
+    syntaxEnabled: () => theme.syntaxInjectorEnabled !== false,
+    selectionActions: ({ start, end }) => {
+      const names = tokenRanges.filter(t => t.known && t.start >= start && t.end <= end).map(t => t.name);
+      return names.length >= 2 ? [{ label: `Save ${names.length} library entries as Palette Recipe`, onSelect: () => promptSaveRecipe(names) }] : [];
+    },
+    tokenContext: (event, selection, handle) => {
+      const tok = tokenRanges.find(t => t.start <= selection.start && selection.start < t.end);
+      if (!tok) return false;
+      if (!tok.known) { handle(); openMissingRepairAt(event.clientX, event.clientY, tok); return true; }
+      if (theme.syntaxInjectorEnabled === false) return false;
+      handle(); closeCtxMenu(); textarea.setSelectionRange(tok.start, tok.end);
+      openInjectMenuAtPoint(event.clientX, event.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
+      return true;
+    },
+    syntaxAction: (event, selection) => {
+      if (theme.syntaxInjectorEnabled === false) return;
+      openInjectMenuAtPoint(event.clientX, event.clientY, "", textarea, render, selection.start === selection.end ? null : selection);
+    },
   });
 
   function replaceMissingToken(target, path) {
@@ -1026,11 +1082,11 @@ function buildWildcardWidget(node, hiddenWidget) {
   function openMissingRepairAt(x, y, target) {
     const suggestions = closestPromptEntries(target.name, knownSet, 4);
     const actions = suggestions.map((path) => ({
-      label: `Replace with ${path}`,
+      label: `Replace with ${path}`, icon: "refresh", group: "fix",
       onSelect: () => replaceMissingToken(target, path),
     }));
     actions.push({
-      label: "Search My Library…",
+      label: "Search My Library…", icon: "gallery", group: "find",
       onSelect: () => {
         openPickerDrawer();
         activateLibraryTab("personal");
@@ -1064,15 +1120,22 @@ function buildWildcardWidget(node, hiddenWidget) {
     closeAllPowerPopups();
   };
   const handleEscapeKey = (e) => {
-    if (e.key !== "Escape") return;
+    if (e.key !== "Escape" || e.defaultPrevented || isDialogOpen() || !root.contains(e.target)) return;
 
+    let trigger = null;
     if (ctxMenuOpen) closeCtxMenu();
     else if (injectState && injectState.textarea === textarea) closeInjectMenu();
     else if (node._wgIoRailOpen) ioRail.close();
-    else if (powerPopupEntries.some((popup) => popup.classList.contains("open"))) closeAllPowerPopups();
-    else if (stashPopup.classList.contains("open")) closeStash();
-    else if (editDrawer.classList.contains("open")) closeEditDrawer();
-    else if (pickerDrawer.classList.contains("open")) closePickerDrawer();
+    else if (powerPopupEntries.some((popup) => popup.classList.contains("open"))) {
+      const popup = powerPopupEntries.find((item) => item.classList.contains("open"));
+      trigger = root.querySelector(`[aria-controls="${popup.id}"]`); closeAllPowerPopups();
+    }
+    else if (stashPopup.classList.contains("open")) { trigger = root.querySelector('[data-act="stash"]'); closeStash(); }
+    else if (editDrawer.classList.contains("open")) { trigger = root.querySelector('[data-act="edit"]'); closeEditDrawer(); }
+    else if (pickerDrawer.classList.contains("open")) { trigger = libraryButton; closePickerDrawer(); }
+    else return;
+    e.preventDefault(); e.stopPropagation();
+    trigger?.focus({ preventScroll: true });
   };
 
   document.addEventListener("click", handleOutsideClick);
@@ -1095,18 +1158,20 @@ function buildWildcardWidget(node, hiddenWidget) {
     closeStash, closePickerDrawer, closeEditDrawer, activateLibraryTab, prepareStarterPacks, renderPickerList,
   });
 
-  textarea.value = promptState.restore();
+  if (recipeWorkspace?.snapshot()) recipeWorkspace.refresh();
+  else textarea.value = promptState.restore();
   refreshLibrary().then(() => renderCatPins()).catch((error) => {
     console.error("Prompt Palette: initial wildcard refresh failed", error);
   });
   render();
+  undoManager.reset(historyValue());
 
   const commandTarget = registerPromptPaletteCommandTarget(node, {
     openLibrary: () => openPickerDrawer("personal"),
     focusEditor: () => {
       closeAllPowerPopups(); closeSettings(); closeStash(); closePickerDrawer(); closeEditDrawer();
       editorReal.classList.remove("hidden"); resolvedView.classList.remove("on"); btnResolve.classList.remove("on");
-      btnResolve.textContent = "Preview result"; textarea.focus({ preventScroll: true });
+      setToolbarLabel(btnResolve, "Preview result"); recipeWorkspace?.showEditor(); textarea.focus({ preventScroll: true });
     },
     togglePreview: () => btnResolve.click(),
     toggleIo: () => root.querySelector('[data-act="ioRailToggle"]')?.click(),
@@ -1145,6 +1210,12 @@ function buildWildcardWidget(node, hiddenWidget) {
     reassertHiddenWidgets,
     reapplyTheme: () => themeController?.applyUiTheme?.(),
     cleanup: () => {
+      cleanupSeedInput();
+      cleanupToolbarLayout();
+      cleanupImageImport();
+      recipeWorkspace.cleanup();
+      delete node._ppRecipeWorkspace;
+      refinementController.cleanup();
       workspaceController?.cleanup();
       delete node._wgBeforeIoRailOpen;
       delete node._wgAcceptPromptMetadata;
@@ -1168,6 +1239,10 @@ function buildWildcardWidget(node, hiddenWidget) {
       textarea.removeEventListener("blur", repaintEditorHighlights);
       unsubscribeTagColors();
       editorSurface.cleanup();
+      statusBar.cleanup();
+      cleanupEditorContext();
+      delete textarea.__ppExtractSelectionToWildcard;
+      delete textarea.__ppSaveSelectionAsList;
       performanceDiagnosticsController.cleanup();
       cleanupSettingsKeyboardBoundary();
       settingsPopup.remove();

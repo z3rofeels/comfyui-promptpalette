@@ -1,3 +1,4 @@
+import { createLibraryLookup } from "./library_lookup.js";
 const WILDCARD_RE = /__([+\-*%~@]?)([A-Za-z0-9_\-/*]+)(?:\(([^()]*)\))?__/g;
 const SIMPLE_TOKEN_RE = /(__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
 const LORA_RE = /<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)>/gi;
@@ -19,7 +20,7 @@ function parseArgs(raw) {
 }
 
 function parseLine(raw) {
-  if (raw.startsWith("#")) return { raw, segments: [{ type: "comment", text: raw, start: 0, end: raw.length }], wildcards: [], variables: [], choices: [] };
+  if (/^\s*#/.test(raw)) return { raw, segments: [{ type: "comment", text: raw, start: 0, end: raw.length }], wildcards: [], variables: [], choices: [] };
   const segments = [];
   const wildcards = [];
   const variables = [];
@@ -109,9 +110,10 @@ export class UnifiedWildcardEngine {
   }
   validate(parsedOrText, { libraryEntries = [], tokenCount = null } = {}) {
     const parsed = typeof parsedOrText === "string" ? this.parse(parsedOrText) : parsedOrText;
-    const source = parsed?.source || "";
-    const entryMap = new Map((libraryEntries || []).map((entry) => [String(entry?.path || ""), entry]));
-    const known = new Set(entryMap.keys());
+    // Ignore the same full-line comments as the backend while retaining token
+    // offsets for "Show in editor" and Unicode selections.
+    const source = (parsed?.source || "").split("\n").map(line => /^\s*#/.test(line) ? " ".repeat(line.length) : line).join("\n");
+    const lookup = createLibraryLookup(libraryEntries || []);
     const issues = [];
     const add = (severity, code, title, detail, extra = {}) => issues.push({ severity, code, title, detail, ...extra });
 
@@ -133,8 +135,9 @@ export class UnifiedWildcardEngine {
     for (const token of parsed?.wildcards || []) {
       const glob = token.name.includes("*");
       const plainName = token.name.replace(/\*+$/g, "");
-      if (!glob && !known.has(token.name)) add("error", "missing-wildcard", "Missing library entry", `“${token.name}” is not in My Library.`, { token });
-      else if (!glob && Number(entryMap.get(token.name)?.count) === 0) add("warning", "empty-wildcard", "Empty library entry", `“${token.name}” has no usable lines.`, { token });
+      const matching = lookup(token.name);
+      if (!matching.length) add("error", "missing-wildcard", "Missing library entry", `“${token.name}” is not in My Library or its short name is ambiguous.`, { token });
+      else if (matching.every(entry => Number(entry.count) === 0)) add("warning", "empty-wildcard", "Empty library entry", `“${token.name}” has no usable lines.`, { token });
       else if (glob && !plainName) add("warning", "broad-glob", "Very broad wildcard pattern", `“${token.name}” may match more of the library than intended.`, { token });
       const key = `${token.mode}|${token.name}|${token.argsRaw || ""}`;
       duplicateWildcards.set(key, (duplicateWildcards.get(key) || 0) + 1);

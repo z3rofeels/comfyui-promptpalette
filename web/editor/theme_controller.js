@@ -2,6 +2,7 @@ import { downloadJsonFile, pickJsonFile, normalizeThemeFilename, svgIcon, applyP
 import { replacePowerToolPreferences } from "../prompt_palette_state.js";
 import { searchPromptPaletteHelp } from "../prompt_quickness.js";
 import { scheduleNodeTimer, cancelNodeTimer } from "../prompt_palette_compat.js";
+import { TOOLBAR_BUTTONS, applyToolbarVisibility, setToolbarLabel } from "./toolbar.js";
 import {
   loadTheme, defaultTheme, saveTheme, loadCategoryPalettes, saveCategoryPalettes, categoryPaletteSnapshot,
   UI_THEME_KEYS, BUILTIN_UI_THEMES, THEME_PACKS, normalizeUiThemeName, loadUiThemes, saveUiThemes,
@@ -446,7 +447,9 @@ export function createThemeController(ctx) {
     saveTheme(theme); renderCatPins(); render(); updateThemeJson();
   });
   settingsRoot.querySelector('[data-act="booruColorsReset"]')?.addEventListener("click", () => {
-    theme.booruColors = { ...currentBooruDefaultPalette() };
+    // Clear overrides instead of retaining a stale per-category snapshot.
+    // The resolver will supply the live light/dark defaults from the current surface.
+    theme.booruColors = {};
     theme.booruColorsCustomized = false;
     saveTheme(theme);
     renderBooruColors();
@@ -881,56 +884,26 @@ export function createThemeController(ctx) {
   const dayThemeSelect = el("dayThemeSelect");
   const nightThemeSelect = el("nightThemeSelect");
 
-  const btnGallery = el("btnGallery");
-  const btnEdit = el("btnEdit");
-  const btnRecipes = el("btnRecipes");
-  const btnStash = el("btnStash");
-  const btnRefresh = el("btnRefresh");
-  const btnUndo = el("btnUndo");
-  const btnRedo = el("btnRedo");
-  const btnCopy = el("btnCopy");
-  const btnClear = el("btnClear");
-  const toggleGalleryBtnCb = el("toggleGalleryBtn");
-  const toggleEditBtnCb = el("toggleEditBtn");
-  const toggleRecipesBtnCb = el("toggleRecipesBtn");
-  const toggleStashBtnCb = el("toggleStashBtn");
-  const toggleRefreshBtnCb = el("toggleRefreshBtn");
-  const toggleUndoBtnCb = el("toggleUndoBtn");
-  const toggleRedoBtnCb = el("toggleRedoBtn");
-  const toggleResolveBtnCb = el("toggleResolveBtn");
-  const toggleCopyBtnCb = el("toggleCopyBtn");
-  const toggleClearBtnCb = el("toggleClearBtn");
-  const TOOLBAR_BTN_TOGGLES = [
-    [btnGallery, "showGalleryBtn", toggleGalleryBtnCb],
-    [btnEdit, "showEditBtn", toggleEditBtnCb],
-    [btnRecipes, "showRecipesBtn", toggleRecipesBtnCb],
-    [btnStash, "showStashBtn", toggleStashBtnCb],
-    [btnRefresh, "showRefreshBtn", toggleRefreshBtnCb],
-    [btnUndo, "showUndoBtn", toggleUndoBtnCb],
-    [btnRedo, "showRedoBtn", toggleRedoBtnCb],
-    [btnResolve, "showResolveBtn", toggleResolveBtnCb],
-    [btnCopy, "showCopyBtn", toggleCopyBtnCb],
-    [btnClear, "showClearBtn", toggleClearBtnCb],
-  ];
+  const TOOLBAR_BTN_TOGGLES = TOOLBAR_BUTTONS.map(([name, key, toggle]) => [el(name), key, el(toggle)]);
 
   const zenBtn = el("zenBtn");
   const toggleZenModeCb = el("toggleZenMode");
   const TOOLBAR_KEYS = TOOLBAR_BTN_TOGGLES.map(([, key]) => key);
   const LAYOUT_PRESETS = {
     minimal: {
-      showGalleryBtn: true, showEditBtn: false, showRecipesBtn: false, showStashBtn: false,
+      showGalleryBtn: true, showEditBtn: false, showImportImageBtn: false, showRecipesBtn: false, showStashBtn: false,
       showRefreshBtn: false, showUndoBtn: false, showRedoBtn: false, showResolveBtn: true,
       showCopyBtn: true, showClearBtn: false, showSeedControls: false, showDayNightBtn: false,
       syntaxInjectorEnabled: false,
     },
     balanced: {
-      showGalleryBtn: true, showEditBtn: true, showRecipesBtn: true, showStashBtn: true,
+      showGalleryBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
       showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true,
       showCopyBtn: true, showClearBtn: true, showSeedControls: false, showDayNightBtn: true,
       syntaxInjectorEnabled: true,
     },
     studio: {
-      showGalleryBtn: true, showEditBtn: true, showRecipesBtn: true, showStashBtn: true,
+      showGalleryBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
       showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true,
       showCopyBtn: true, showClearBtn: true, showSeedControls: true, showDayNightBtn: true,
       syntaxInjectorEnabled: true,
@@ -952,7 +925,7 @@ export function createThemeController(ctx) {
         resolvedView.classList.remove("on");
         editorReal.classList.remove("hidden");
         btnResolve.classList.remove("on");
-        btnResolve.textContent = "Preview result";
+        setToolbarLabel(btnResolve, "Preview result");
         btnResolve.setAttribute("aria-pressed", "false");
         btnResolve.setAttribute("aria-label", "Preview resolved prompt");
         btnResolve.title = "Preview the wildcard-resolved result without changing your draft";
@@ -979,9 +952,7 @@ export function createThemeController(ctx) {
   function applyToolbarSettings() {
     toolbarSeedExtra.classList.toggle("on", !!theme.showSeedControls);
     dayNightBtn.style.display = theme.showDayNightBtn ? "" : "none";
-    TOOLBAR_BTN_TOGGLES.forEach(([btn, key]) => {
-      btn.style.display = theme[key] === false ? "none" : "";
-    });
+    applyToolbarVisibility(root, theme);
     settingsRoot.querySelectorAll("[data-layout-preset]").forEach(button => {
       button.classList.toggle("active", button.dataset.layoutPreset === theme.layoutPreset);
     });
@@ -1052,7 +1023,9 @@ export function createThemeController(ctx) {
   }
   function updateDayNightIcon() {
     const inNight = theme.nightTheme && activeUiThemeName === theme.nightTheme;
+    const caption = dayNightBtn.querySelector(".wg-toolbar-caption");
     dayNightBtn.innerHTML = svgIcon(inNight ? "sun" : "moon");
+    if (caption) dayNightBtn.appendChild(caption);
     dayNightBtn.title = inNight ? "Switch to day theme" : "Switch to night theme";
   }
 
@@ -1300,6 +1273,9 @@ export function createThemeController(ctx) {
     refreshFontControlsUI();
     applyFontSettings();
     if (previousTypography !== nextTypography) refreshLibraryTypographyGeometry();
+    applyToolbarSettings();
+    refreshToolbarSettingsUI();
+    if (root.classList.contains("wg-zen") !== !!theme.zenMode) applyZenMode();
   });
 
   try {

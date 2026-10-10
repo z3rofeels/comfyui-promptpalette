@@ -3,21 +3,13 @@
 </p>
 
 <p align="center">
-  <strong>Your new best friend for prompting in ComfyUI.</strong><br>
-  A colorful wildcard editor, batch prompt generator, and backend-aware weight controller—built as one focused suite.
+  <strong>Prompt Palette by z3rofeels</strong><br>
+  Prompt editing, wildcard libraries, batch generation, and model-aware weighting for ComfyUI.
 </p>
 <p align="center">
   <img alt="GitHub stars" src="https://img.shields.io/github/stars/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=6ee7b7&labelColor=11131a">
   <img alt="Last commit" src="https://img.shields.io/github/last-commit/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=60a5fa&labelColor=11131a">
   <img alt="ComfyUI Nodes 1 and 2" src="https://img.shields.io/badge/ComfyUI-Nodes%201.x%20%2B%202.x-a78bfa?style=for-the-badge&labelColor=11131a">
- 
-
-
-
-
-
-
-
 
 </p>
 
@@ -25,37 +17,71 @@
 > **Start with Prompt Palette.** The Combinatorial and Weight Controller nodes are specialized companions—not requirements. Add them only when your workflow needs batch expansion or dedicated prompt-weight routing.
 
 <p align="center">
+  <a href="#recent-features">Recent features</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#choose-your-node">Choose a node</a> ·
   <a href="#prompt-palette">Prompt Palette</a> ·
   <a href="#combinatorial">Combinatorial</a> ·
   <a href="#weight-controller">Weight Controller</a> ·
+  <a href="#booru-autocomplete">Autocomplete</a> ·
   <a href="#wildcard-syntax">Syntax</a> ·
   <a href="#troubleshooting">Troubleshooting</a>
 </p>
 
 ---
 
-<a id="whats-new-in-200"></a>
-## What's new in Prompt Palette 2.0.0
+<a id="recent-features"></a>
+## Recent features — 2.0.5
 
-Prompt Palette 2.0.0 is a major interface and workflow update, but the core idea is unchanged: write normal prompt text, keep wildcard syntax visible, and turn on only the extra tools your workflow needs.
+### Booru autocomplete & custom words
 
-### The main v2 changes
+- Local tag suggestions with category colors, aliases, and custom shortcuts.
+- Choose **Off**, **Auto**, or **On demand** (`Ctrl+Space`); import and export your custom words.
+- Narrow results with `artist:`, `character:`, `series:`, `general:`, or `meta:`. See [Autocomplete](#booru-autocomplete) for examples.
 
-- **Rebuilt settings panel** — Prompt Palette now uses a full-height settings workspace instead of packing every option into the node itself.
-- **72 built-in palettes across 12 collections** — Soda Shop, Planetarium, Ocean, Garden, Sweet Shop, Pixel Arcade, Trailhead, Night, Daylight, Creative, Professional, and Materials.
-- **Theme Studio** — larger previews, collection browsing, editable custom themes, typography, wildcard-category colors, day/night pairing, corner controls, and theme import/export. Appearance is shared across Prompt Palette, Combinatorial, and Weight Controller while staying scoped to Prompt Palette-owned UI.
-- **Workspace presets** — Core, Creator, and Power User presets let you choose how much of the interface is visible without changing the prompt workflow underneath.
-- **Resolved Preview modes** — Manual, After pause, or Live. Your editable source stays intact while the preview shows the text Prompt Palette will actually return.
-- **Expanded Prompt Library** — My Library supports search, folders, thumbnails, favorites, Recent items, RECIPES, and list/grid views while continuing to use normal local files.
-- **Optional Starter Packs** — built-in syntax and model-oriented examples live separately from My Library and can be turned off at any time.
-- **Optional Power Tools** — Prompt Doctor, Variation Lab, Resolved Diff, Library Manager, and Recipe Builder 2 can each be enabled independently.
-- **Cleaner workflow I/O** — socket visibility and socket-label visibility are controlled separately so the node can stay as compact or as connected as you want.
-- **Nodes 1.x and 2.x support** remains part of the same extension.
 
-> [!NOTE]
-> Starter Packs and Power Tools are optional. Prompt Palette still works as a straightforward local wildcard-aware prompt node with the extra UI and sockets hidden.
+
+### Adjustable prompt workspace & selective variation
+
+- Build positive and negative prompts from editable, reorderable recipe fields.
+- Use **Lock / Vary / Follow** to control which fields change during variation.
+- In **Variation Lab**, compare unique results, hide duplicates, and **Keep** favorites to copy or send to Combinatorial.
+- Combinatorial also includes the structured workspace, Variation Lab, Prompt Doctor, and recipe tools.
+
+
+
+### Customizable toolbar
+
+- Choose **Small**, **Medium**, or **Large** buttons and rearrange their order.
+- Use **Always visible**, **Click to open**, or **Auto-hide**; **Keep open** pins the toolbar for that node.
+- Show only the shortcuts you need, including the optional image-import button. Controls follow your dark, light, or custom theme.
+
+
+
+### Import prompts from images
+
+- Drop a PNG, JPEG, or WebP onto Editor or Combinatorial, or choose **Import prompt from image**.
+- Preview positive and negative text before importing. Choose the authored template or resolved prompt when Palette metadata is available.
+- Supports Palette metadata, ComfyUI API prompt graphs, and A1111 generation metadata. Images need embedded metadata to recover a prompt.
+
+
+
+### Choices, rules & prompt inspector
+
+- Open **Choices & rules** from the right-click or syntax menu to build fixed choices, seeded choices, and variable-based conditions.
+- Preview a rule before inserting it, then reopen it to edit.
+- **Prompt inspector** shows explicit weights, embedding availability, and a CLIP-L reference token layout.
+- Syntax menus group actions with theme-colored labels and keyboard navigation.
+
+
+
+### Editing & library improvements
+
+- Improved text selection, undo, list saving, and saved workspace restoration.
+- Library edits refresh across open nodes and browser tabs connected to the same ComfyUI server.
+- Autocomplete formatting choices persist; saved node sizes and hover previews behave more consistently.
+
+Optional tools can be enabled individually in **Settings**.
 
 ---
 
@@ -70,7 +96,7 @@ Prompt Palette 2.0.0 is a major interface and workflow update, but the core idea
 | **Prompt Palette (Combinatorial)** | Producing many deliberate prompt variations from one template | Lists of prompts, seeds, wildcard metadata, and optional per-prompt conditioning/model/CLIP outputs |
 | **Prompt Palette (Weight Controller)** | Applying and translating explicit `(phrase:weight)` instructions for different text backends | Backend-ready text, raw weight dictionary, compatibility text, optional conditioning, model/CLIP passthrough |
 
-All three nodes appear under the **PromptPalette** category and use the same Prompt Palette autocomplete surface wherever they edit prompt text. The autocomplete menu is shared safely across nodes, while hover previews remain node-local.
+All three nodes appear under the **PromptPalette** category and share autocomplete and theme settings.
 
 ---
 
@@ -82,9 +108,10 @@ All three nodes appear under the **PromptPalette** category and use the same Pro
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/z3rofeels/comfyui-promptpalette.git
+python -m pip install -r comfyui-promptpalette/requirements.txt
 ```
 
-Restart ComfyUI, then search the node menu for **Prompt Palette**.
+Use the Python environment that runs ComfyUI to install requirements. Restart ComfyUI, then search the node menu for **Prompt Palette**.
 
 <details>
 <summary><strong>Windows portable command</strong></summary>
@@ -112,7 +139,7 @@ python -m pip install -r requirements.txt
 Restart ComfyUI and hard-refresh the browser after frontend updates.
 
 > [!IMPORTANT]
-> For a **manual v1 → v2 update**, replace the old `comfyui-promptpalette` folder cleanly instead of copying the v2 files over the existing folder. This prevents retired frontend files from an older install from being left behind.
+> Before a manual update, back up your custom files and configuration. For a **v1 → v2 update**, use a clean extension folder, then restore your custom files. Keep only one active Prompt Palette installation.
 </details>
 
 ### Wildcard library location
@@ -123,7 +150,7 @@ By default, Prompt Palette creates and scans:
 ComfyUI/wildcards/
 ```
 
-It supports nested `.txt` files and nested `.yaml` / `.yml` libraries. You can also point it to another folder through Prompt Palette's settings (accepted from the machine running ComfyUI; for remote or proxied sessions set `PROMPT_PALETTE_ALLOW_REMOTE_SET_PATH=1`, and filesystem roots, your home folder itself and system folders are refused), `wildcards_config.json`, or ComfyUI's `extra_model_paths.yaml` using a `wildcards:` entry.
+It supports nested `.txt`, `.yaml`, and `.yml` libraries. Choose a different wildcard folder in **Settings** on the computer running ComfyUI. Advanced setups can use `wildcards_config.json` or a `wildcards:` entry in ComfyUI's `extra_model_paths.yaml`.
 
 Example:
 
@@ -161,11 +188,25 @@ Prompt Palette replaces the plain prompt box with a full wildcard-aware editor w
 - **Folder colors and legend** make long prompts readable at a glance.
 - **Missing wildcard detection** marks broken references and lets you jump to the next one.
 - **Autocomplete** opens when you type `__`.
-- **Booru tag autocomplete** also appears in the same menu when you type a normal tag after whitespace or a comma. Booru tags are listed first; Custom Words, Recents, and Library Prompts follow under a plain label when they appear in the same menu.
+- **Booru tag autocomplete** suggests tags and custom words as you type. See [Autocomplete](#booru-autocomplete) for settings and category filters.
 - **Hover preview** shows a wildcard file's contents without inserting it.
 - **Double-click a token** to open that wildcard directly in the editor.
 - **Right-click a token** to open the Syntax Injector and rewrite that exact occurrence.
 - **Undo and redo** cover typing, inserts, autocomplete, syntax changes, and clearing.
+
+### Prompt workspace & toolbar
+
+Enable the **Adjustable Recipe Workspace** in **Settings → Power tools** to organize a prompt into fields such as subject, outfit, setting, and lighting. Rename or reorder fields, choose separators, and check the compiled preview. Workspaces support positive and negative prompts.
+
+Use **Lock / Vary / Follow** with Variation Lab to control field changes. Compare previews, hide duplicates, and check **Keep** on results you want to reuse. Copy kept prompts or send kept workspace results to Combinatorial for batch generation.
+
+Customize the Editor toolbar under **Settings → Workspace → Toolbar layout**; Combinatorial has the same controls under **Settings → Generation**. Choose a size and visibility mode, then use **Arrange buttons** to drag buttons or move them with arrows. **Reset order** restores the default arrangement. In retractable modes, **Tools** opens the toolbar and **Keep open** holds it open.
+
+### Recover a prompt from an image
+
+Choose **Import prompt from image** or drop one PNG, JPEG, or WebP onto the editor. Review the recovered text, choose **Authored template** or **Resolved prompt** when available, and decide whether to import the negative prompt. The import can be undone.
+
+If an image has no negative-prompt metadata, your existing negative stays intact. Prefixes, suffixes, seeds, and connected inputs still apply, so check the final preview before queueing. Images without embedded prompt metadata cannot be used for recovery. Maximum image size: **32 MB**.
 
 ### Prompt Library, recipes, and stash
 
@@ -192,7 +233,6 @@ Starter Packs are optional built-in examples kept separate from **My Library**. 
 Included packs cover **Prompt Palette Syntax, Universal, KREA 2, MiniMax H3, Qwen Image, Z-Image Turbo, LTX-2.3, Anima, Illustrious, Pony, and SDXL**. Disable Starter Packs in Settings if you only want your own library.
 
 <img width="726" height="1155" alt="Screenshot 2026-08-16 114459" src="https://github.com/user-attachments/assets/fb80837d-07d4-4db3-93aa-d06967d0f7bf" />
-
 
 ### Optional Power Tools
 
@@ -236,10 +276,10 @@ Nothing is required. Enable only the sockets your graph needs.
 - Real CLIP-L token count
 - Prompt Palette metadata JSON
 
-Socket visibility and socket-label visibility are separate controls in v2, so a socket can stay connected while its displayed label is hidden when you want a cleaner graph.
+Socket visibility and socket-label visibility are separate controls, so a socket can stay connected while its displayed label is hidden when you want a cleaner graph.
 
 > [!NOTE]
-> LoRA tags are applied only when both MODEL and CLIP are connected. With only CLIP connected, the tags are removed before encoding (and a warning is logged) instead of being encoded as text. Tags are scanned **after** wildcard resolution, so a wildcard entry may contain `<lora:name:weight>`.
+> LoRA tags are applied only when both MODEL and CLIP are connected. With only CLIP connected, the tags are removed before encoding instead of being encoded as text. Tags are scanned **after** wildcard resolution, so a wildcard entry may contain `<lora:name:weight>`.
 
 ### Themes and accessibility
 
@@ -254,12 +294,10 @@ Socket visibility and socket-label visibility are separate controls in v2, so a 
 - Separate prompt/interface text sizes
 - Dedicated prompt text color
 - Corner-roundness and other presentation controls
-- **Core, Creator, and Power User** workspace presets
+- Workspace presets for a minimal or expanded interface
 - Density, toolbar, preview, motion, contrast, and interface-size controls
 
 Prompt Palette themes stay scoped to Prompt Palette-owned UI; they do not recolor the ComfyUI canvas, menus, sidebar, or unrelated nodes.
-
-
 
 <p align="center">
 <img width="1437" height="1344" alt="Comfy_Desktop_2EoBSqbTuy" src="https://github.com/user-attachments/assets/7980ac12-8236-486a-8566-bc6c022bf9cd" />
@@ -349,7 +387,6 @@ The Weight Controller is a standalone text-routing companion. Feed it Prompt Pal
 
 <img width="1600" height="500" alt="diagram-weight-controller" src="https://github.com/user-attachments/assets/66a68575-1d31-4342-9426-673c52b40d54" />
 
-
 ### Input syntax
 
 ```text
@@ -392,15 +429,13 @@ Advanced controls are intentionally off by default.
 
 ### Recommended wiring
 
-```text
-Prompt Palette: prompt
-        │
-        ▼
-Weight Controller: text
-        ├── text ─────────────► target text encoder
-        ├── negpip_compatible ► attention / negative-weight patcher
-        └── conditioning ─────► sampler path (when CLIP is connected)
-```
+Connect Prompt Palette's `prompt` output to Weight Controller's `text` input, then choose the output your workflow needs:
+
+| Output | Connect to |
+|---|---|
+| `text` | Your model's text encoder |
+| `negpip_compatible` | A compatible attention or negative-weight patcher |
+| `conditioning` | The sampler's conditioning input, when CLIP is connected |
 
 Add a second Weight Controller after Prompt Palette's `negative_prompt` output when the positive and negative sides need independent handling.
 
@@ -412,7 +447,6 @@ Add a second Weight Controller after Prompt Palette's `negative_prompt` output w
 The **Syntax Injector** inserts most of this for you from the wildcard browser or a token's right-click menu.
 
 <img width="759" height="576" alt="Screenshot 2026-08-16 114940" src="https://github.com/user-attachments/assets/a0a2c32f-6adb-4e1f-bdb4-ab625b394624" />
-
 
 ### Everyday syntax
 
@@ -453,7 +487,7 @@ Nesting is resolved innermost-first. Lines beginning with `#` are treated as com
 
 ### Conditional prompt blocks
 
-Prompt Palette has its own small conditional syntax; no Jinja2 or other template engine is required. Conditions operate on Prompt Palette variables and are evaluated again for each Combinatorial branch.
+Conditional blocks include different text based on your prompt variables. Conditions operate on Prompt Palette variables and are evaluated again for each Combinatorial branch.
 
 ```text
 ${style=anime}
@@ -462,64 +496,74 @@ A character portrait. [if style == "anime"]cel shading, vivid colors[elif style 
 
 Supported operators are `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `and`, `or`, and `not`. `in` accepts a compact pipe-separated set such as `style in anime|illustration|realistic`. Conditionals can be nested.
 
-### Booru tag autocomplete
-
-Booru autocomplete is intentionally separate from wildcard `name` autocomplete even though both use the same menu. Type a normal tag after whitespace or a comma and the shared context engine marks it as `kind: "booru"`. The settings gate that bare-word context only; typing `__...` continues to open wildcard suggestions regardless of the Booru mode.
-
-**Booru autocomplete settings.** In Prompt Palette Settings → Autocomplete you can choose:
-
-| Setting | Behavior |
-|---|---|
-| **Off** | Bare-word Booru autocomplete never opens automatically. Wildcard autocomplete is unchanged. |
-| **Auto** | Current behavior: opens after the configured minimum number of characters. |
-| **On demand** | Bare-word suggestions stay closed until you press `Ctrl+Space`. |
-| **Minimum characters** | `1`–`12`; default is `2`. |
-| **Booru database** | Include the bundled Danbooru SQLite index. |
-| **Custom Words** | Include local `autocomplete.txt` entries. |
-
-Choosing a suggestion inserts it directly into the prompt; it does **not** turn it into a wildcard. Use the arrow keys to move through results and `Enter` or `Tab` to insert the highlighted result. `Esc` closes the menu.
-
-**Safer tag insertion.** Parentheses are escaped automatically on Booru insertion because ComfyUI's text-weight syntax gives `(` and `)` special meaning. For example, `fate_(series)` is inserted as `fate_\(series\)`. The footer also has two optional formatting toggles: **underscores → spaces** and **append comma**.
-
-**Already in prompt.** Suggestions already represented by the prompt are dimmed and marked with `✓`, so the menu can act as a quick duplicate check without loading another data source.
-
-**Compact metadata.** Post counts use compact notation such as `8.5M` rather than `8,470,773`, keeping the rows narrow.
-
-**Custom-word precedence.** Custom Words are capped at 24 results. An exact custom-word match is promoted ahead of database results, so a shortcut or character name you defined locally can win over the corresponding database tag. Other custom results follow the database results.
-
-**Color-coded tag types.** Booru rows use their category color for the complete row, including the tag name, post count, alias, hover state, and keyboard-selected state. Categories are `general`, `artist`, `copyright`, `character`, and `meta`, with `custom` used for uncategorized custom words. The palette is stored separately from wildcard/library folder colors, so a wildcard folder named `character` or `artist` cannot recolor Booru results. Colors are applied only as inline `--pp-booru-*` variables on the autocomplete menu; Prompt Palette's accent, wildcard-category colors, and syntax colors are unaffected.
-
-The selected row shows a short bar on its left edge in the same category color. Light themes use a deeper default palette, and custom colors are nudged when necessary to preserve readable contrast against the current panel background. Saved palettes and theme packs carry the Booru palette separately.
-
-**Tags keep their color in the prompt.** After a booru or custom-word tag is inserted it stays in its category color inside the editor, exactly like wildcards and library recipes keep theirs, so a long prompt stays easy to scan. This also applies to tags you type, paste, or load from a saved workflow: each comma-separated piece is matched exactly against your custom words and the bundled offline database (aliases use the category of the tag they point to), and unknown text simply stays plain. Weighted tags such as `(blue hair:1.2)`, escaped parentheses, and the underscores → spaces option are all recognized. Custom words win over the database, and the colors are the same Booru palette used by the menu (with the same contrast protection), so wildcard and folder colors are never affected. Each category in use also gets a small legend chip. Turn it off under Settings → Autocomplete → **Color tags in prompt**.
-
-**Substring search.** Booru suggestions match anywhere in a tag or alias, and multiple terms can be typed in any order (`saber_dark` and `dark_saber` find the same tags). Results are ordered by post count.
-
-**Build lists without a CSV.** Select comma- or newline-separated tags in the prompt, open the autocomplete menu, and choose **Save as list**. Prompt Palette asks for a My Library path and writes the selected tags as a local wildcard list. This works from both the main Prompt Palette and Combinatorial editors.
-
-**Writing custom words by hand.** One tag per line in `prompt_palette/autocomplete.txt`. Only the tag is required; add the rest from left to right:
-
-```
-tag,category,count,aliases
-saber_(fate),4,120000,"saber,/sab"
-hatsune_miku,character
-fate/grand_order,series,90000
-long phrase to insert,lp
-```
-
-`category` is a Danbooru id (`0` general, `1` artist, `3` copyright, `4` character, `5` meta) or a name (`general`, `artist`, `copyright`/`series`, `character`, `meta`). `count` is shown as a chip and ranks the word. `aliases` are extra shortcuts that insert the tag; put several in one quoted, comma-separated cell, or in separate columns. Both the tag and its aliases are searchable. A two-column `word,shortcut` row is a phrase you recall by typing the shortcut, and a header row like `tag,category,count,aliases` is ignored.
-
-**Saving custom words.** Click **+ Custom word** at the bottom of the menu, enter the text to insert and, optionally, a shortcut you will type to recall it, optionally a tag type, then press Enter or Save. Shortcuts can be a comma-separated list. Entries are appended to `prompt_palette/autocomplete.txt` inside ComfyUI's user directory, so they stay local and survive updates. You can also edit that file by hand.
-
-**Managing your list.** Click **Manage** next to **+ Custom word** to open the custom words dialog. Search your words and shortcuts, mark the ones you don't want with **×** (nothing is deleted until you press **Remove**), **Import** a CSV or text list in the layout above (add it to your list, or replace your list; a replace keeps `autocomplete.txt.bak`), or **Export** your list as a CSV file. Prompt Palette does not impose a custom-word file-size limit. At **100 MB and above**, the importer asks for confirmation because parsing, loading, and searching a very large list can use substantial memory and make autocomplete slower. ComfyUI itself also has a configurable server upload limit, so a server configured below the file size can still reject a request. Imports skip rows that are already in your list. Nothing leaves your machine, and words that come from ComfyUI-Custom-Scripts are read but never modified.
-
-
 </details>
+
+---
 
 ### `%` inside Prompt Palette vs. the Combinatorial node
 
 - `%` syntax in the regular Prompt Palette node advances **one joint combination per execution**.
 - The dedicated Combinatorial node returns the **entire expansion set in one execution** and does not require `%` markers.
+
+---
+
+<a id="booru-autocomplete"></a>
+## Booru autocomplete & custom words
+
+Type a tag after a space or comma to search the bundled offline Danbooru tags and your custom words. Choosing a result inserts plain prompt text. Typing `__` still opens wildcard suggestions.
+
+### Autocomplete settings
+
+Open **Settings → Autocomplete**:
+
+| Setting | What it does |
+|---|---|
+| **Off** | Turns off bare-word tag suggestions; wildcard autocomplete remains available. |
+| **Auto** | Opens suggestions after the minimum number of characters. |
+| **On demand** | Opens suggestions when you press `Ctrl+Space`. |
+| **Minimum characters** | Choose `1`–`12`; default is `2`. |
+| **Booru database / Custom Words** | Choose which sources to search. |
+| **Color tags in prompt** | Colors recognized tags in the editor by category. |
+
+Use arrow keys to browse, `Enter` or `Tab` to insert, and `Esc` to close. Optional menu controls convert **underscores → spaces** or **append comma**; your choices are saved. Parentheses in booru tags are escaped for ComfyUI prompt syntax.
+
+### Filter by category
+
+| Search | Category |
+|---|---|
+| `artist:monet` | Artists |
+| `character:saber` | Characters |
+| `series:zelda` | Series / copyright |
+| `general:portrait` | General tags |
+| `meta:highres` | Metadata tags |
+
+Aliases `art:`, `char:`, `copyright:`, `copy:`, and `gen:` also work. Selecting a result replaces the category prefix and search term with the tag. Filters also apply to categorized custom words, favorites, and recents; uncategorized words remain available in ordinary searches.
+
+### Readable suggestions
+
+- Category colors follow your theme and remain separate from wildcard folder colors.
+- Recognized tags can keep their colors inside the prompt, including pasted and saved tags.
+- Tags already in the prompt are dimmed and marked with `✓`.
+- Search matches tags and aliases, including text inside a name; multiple search terms can appear in any order.
+- Exact custom-word matches take priority over database tags.
+
+### Add, import & export custom words
+
+Click **+ Custom word** in the autocomplete menu to save a word or phrase. Add optional shortcuts and a category, then press **Save**. Use **Manage** to search, remove, import, or export entries. CSV and text imports can add to or replace your list; replacement keeps a backup. Large imports of **100 MB or more** ask for confirmation.
+
+Custom words are saved in `prompt_palette/autocomplete.txt` inside ComfyUI's user directory and survive extension updates. To edit them by hand, use one entry per line:
+
+```csv
+tag,category,count,aliases
+saber_(fate),character,120000,"saber,/sab"
+hatsune_miku,character
+fate/grand_order,series,90000
+long phrase to insert,lp
+```
+
+Only the tag is required. Categories accept names or Danbooru IDs: `0` general, `1` artist, `3` copyright, `4` character, and `5` meta. Optional counts rank entries; aliases provide search shortcuts. A two-column `phrase,shortcut` row saves a phrase with a shortcut.
+
+To create a wildcard list from a prompt, select comma- or newline-separated tags and choose **Save as list** in the autocomplete menu. This works in Editor and Combinatorial.
 
 ---
 
@@ -593,7 +637,7 @@ Prompt Palette builds on work and conventions from:
 - **Adi Eyal / Dynamic Prompts** — the wildcard and dynamic-prompt conventions that inspired much of the supported syntax.
 - **Jtkelm2 and AUTOMATIC1111 contributors** — early text-file prompt replacement workflows and conventions.
 
-Made with care by **z3rofeels**.
+By **z3rofeels**.
 
 <p align="center">
   <a href="https://github.com/z3rofeels/comfyui-promptpalette/issues">Report a bug</a> ·

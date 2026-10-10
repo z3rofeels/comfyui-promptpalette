@@ -1,4 +1,5 @@
 import { API } from "../prompt_palette_api.js";
+import { setToolbarLabel } from "./toolbar.js";
 import {
   analyzePromptSource, buildRecipeSource, summarizeLibraryHealth, extractPromptTokens,
 } from "../prompt_palette_power_tools.js";
@@ -12,6 +13,8 @@ import { escapeHtml, normalizeLibraryEntryPath, slugifyRecipeName } from "./text
 import { notify } from "./notifications.js";
 import { createToolRegistry } from "../tools/tool_registry.js";
 import { ReversibleLibraryHistory } from "./undo_manager.js";
+import { WORKSPACE_SCOPES, resolveExperiment } from "./recipe_experiment.js";
+import { fieldVariationSource, hasVariationSyntax } from "./recipe_variation_source.js";
 
 export function createPowerToolsController(ctx) {
   const {
@@ -31,7 +34,7 @@ export function createPowerToolsController(ctx) {
 
   const toolRegistry = createToolRegistry();
   toolRegistry.register({ id: "promptDoctor", elements: [doctorChip, doctorPopup], unmount: () => { closePowerPopup(doctorPopup); performanceRuntime?.cancelTimer("doctor"); } });
-  toolRegistry.register({ id: "variationLab", elements: [btnVariations, variationPopup], unmount: () => closePowerPopup(variationPopup) });
+  toolRegistry.register({ id: "variationLab", elements: [btnVariations], unmount: () => closePowerPopup(variationPopup) });
   toolRegistry.register({ id: "libraryManager", elements: [libraryManagerBtn, libraryManagerPopup], unmount: () => closePowerPopup(libraryManagerPopup) });
   toolRegistry.register({ id: "recipeBuilder2", elements: [recipeBuilderPopup], unmount: () => closePowerPopup(recipeBuilderPopup) });
   toolRegistry.register({ id: "resolvedDiff", elements: [] });
@@ -45,8 +48,113 @@ export function createPowerToolsController(ctx) {
   let recipeBuilderPaths = [];
   let recipeBuilderCompletion = null;
   let variationRequestId = 0;
+  const cleanupLibrarySubscription = API.onLibraryChanged(() => {
+    variationRequestId++;
+    performanceRuntime?.abortRequest("variations");
+    clearResultView();
+    if (variationPopup.classList.contains("open")) setVariationStatus("Library changed. Resolve again to preview the current wildcard values.");
+  });
   let libraryHealthRequestId = 0;
   let doctorAnalysisRequestId = 0;
+  const resultControls = el("variationResults"), resultSummary = el("variationSummary"), uniqueOnly = el("variationUnique");
+  const keptSummary = el("variationKept"), copyKept = el("variationCopyKept"), clearKept = el("variationClearKept");
+  let keptItems = [], resetKept = null;
+  clearKept.addEventListener("click", () => resetKept?.());
+  copyKept.addEventListener("click", async () => {
+    if (!keptItems.length) return;
+    const count = keptItems.length, text = keptItems.map(item => String(item.resolved ?? "")).join("\n\n");
+    const requestId = variationRequestId;
+    try {
+      await navigator.clipboard.writeText(text);
+      if (requestId === variationRequestId) setVariationStatus(`${count} kept positive prompt${count === 1 ? "" : "s"} copied.`);
+    } catch {
+      if (requestId === variationRequestId) setVariationStatus("Clipboard permission was denied.", true);
+    }
+  });
+  let updateResultVisibility = null;
+  uniqueOnly.addEventListener("change", () => updateResultVisibility?.());
+  function clearResultView() {
+    updateResultVisibility = null;
+    keptItems = []; resetKept = null;
+    copyKept.disabled = clearKept.disabled = true;
+    resultControls.hidden = true;
+    variationList.replaceChildren();
+  }
+  function showResultView(items, onFilter = null) {
+    const cards = [...variationList.querySelectorAll(":scope > .wg-variation-card")];
+    const selected = new Set(), checks = [];
+    const seen = new Map();
+    const firstIndices = items.map((item, index) => {
+      const key = JSON.stringify([String(item.resolved ?? ""), String(item.negative ?? "")]);
+      if (!seen.has(key)) seen.set(key, index);
+      return seen.get(key);
+    });
+    updateResultVisibility = () => {
+      cards.forEach((card, index) => { card.hidden = uniqueOnly.checked && firstIndices[index] !== index; });
+      resultSummary.textContent = `${seen.size} unique of ${items.length} previews${uniqueOnly.checked ? ` · ${items.length - seen.size} repeats hidden` : ""}`;
+      keptItems = items.filter((_, index) => selected.has(index));
+      const hiddenKept = cards.filter((card, index) => card.hidden && selected.has(index)).length;
+      keptSummary.textContent = selected.size ? `${selected.size} kept${hiddenKept ? ` · ${hiddenKept} hidden by filter` : ""}` : "Keep previews to make a shortlist.";
+      copyKept.disabled = clearKept.disabled = !selected.size;
+      onFilter?.(selected.size ? keptItems : items.filter((_, index) => !cards[index].hidden), selected.size);
+    };
+    cards.forEach((card, index) => {
+      const label = document.createElement("label"); label.className = "wg-variation-keep";
+      label.title = "Keep this preview for copying or a workspace batch. Resolving again starts a new shortlist.";
+      const input = document.createElement("input"); input.type = "checkbox";
+      input.setAttribute("aria-label", `Keep preview ${index + 1}, seed ${items[index].seed}`);
+      input.addEventListener("change", () => {
+        if (input.checked) selected.add(index); else selected.delete(index);
+        card.classList.toggle("is-kept", input.checked); updateResultVisibility();
+      });
+      label.append(input, document.createTextNode("Keep")); card.prepend(label); checks.push(input);
+    });
+    resetKept = () => {
+      selected.clear(); checks.forEach(input => { input.checked = false; });
+      cards.forEach(card => card.classList.remove("is-kept")); updateResultVisibility();
+    };
+    resultControls.hidden = !items.length;
+    updateResultVisibility();
+  }
+  const scopeRow = document.createElement("label"); scopeRow.className = "pp-refine-field pp-workspace-scope"; scopeRow.hidden = true;
+  const scopeLabel = document.createElement("span"); scopeLabel.textContent = "Workspace scope";
+  const scopeSelect = document.createElement("select"); scopeSelect.className = "wg-theme-select"; scopeSelect.setAttribute("aria-label", "Workspace variation scope");
+  WORKSPACE_SCOPES.forEach(([value, label]) => { const option = document.createElement("option"); option.value = value; option.textContent = label; scopeSelect.appendChild(option); });
+  scopeRow.append(scopeLabel, scopeSelect); variationStatus.before(scopeRow);
+  const workspacePlan = document.createElement("section"); workspacePlan.className = "pp-experiment-plan"; workspacePlan.hidden = true; scopeRow.after(workspacePlan);
+  const labHeading = variationPopup.querySelector(".wg-panel-title h3"), labIntro = variationPopup.querySelector(".wg-panel-title p");
+  scopeSelect.addEventListener("change", () => refreshVariations());
+  function describeWorkspacePlan(workspace, plan = null, items = null) {
+    workspacePlan.replaceChildren(); workspacePlan.hidden = !workspace;
+    if (!workspace) return;
+    const recipe = plan?.recipe || workspace.snapshot().recipe;
+    const line = (text, className = "") => { const p = document.createElement("p"); p.className = className; p.textContent = text; workspacePlan.appendChild(p); return p; };
+    line("1 Choose fields and their choices. 2 Preview seeds. 3 Apply a version or send the exact results to Combinatorial.", "pp-experiment-steps");
+    if (!plan) { line("Choose Vary on at least one enabled field. Plain text needs choices or a __library_wildcard__ to produce alternatives."); return; }
+    const targets = recipe.fields.filter(f => plan.primaryTargets.includes(f.id));
+    line(`Exploring: ${targets.map(f => f.label).join(", ")}.`);
+    const following = recipe.fields.filter(f => plan.targets.includes(f.id) && !plan.primaryTargets.includes(f.id));
+    if (following.length) line(`Follow when a source changes: ${following.map(f => f.label).join(", ")}.`);
+    const fixed = targets.filter(f => !hasVariationSyntax(fieldVariationSource(f)));
+    if (fixed.length) {
+      line(`One fixed value: ${fixed.map(f => f.label).join(", ")}. Vary cannot invent alternatives for plain text.`, "pp-experiment-warning");
+      const jump = document.createElement("button"); jump.type = "button"; jump.className = "wg-button"; jump.textContent = `Set choices for ${fixed[0].label}`;
+      jump.addEventListener("click", () => { closePowerPopup(variationPopup); workspace.configureChoices(fixed[0].id); }); workspacePlan.appendChild(jump);
+    }
+    if (plan.scope === "workspace") line("Entire Workspace also resamples dynamic text outside fields. Locked field results remain held.");
+    line("Lock holds the captured result in these previews and exact batches. Apply updates targeted fields; Freeze current value in a field also fixes its generation value across seeds.", "pp-experiment-note");
+    if (!items?.length) return;
+    const unique = new Set(items.map(item => JSON.stringify([item.resolved, item.negative]))).size;
+    if (unique === 1 && !fixed.length) line("These samples resolve alike. Your list may have one choice, nearby seeds may repeat, or a fixed-pick modifier may hold a choice. Check the source or sample more seeds.", "pp-experiment-warning");
+    const held = recipe.fields.filter(f => plan.markers.some(m => m.id === f.id) && !plan.targets.includes(f.id));
+    if (held.length) {
+      const details = document.createElement("details"), summary = document.createElement("summary"); summary.textContent = `Held fixed during this preview (${held.length})`;
+      const baseline = { ...items[0].baseline[0].fields, ...items[0].baseline[1].fields };
+      details.className = "pp-experiment-held"; details.appendChild(summary);
+      for (const f of held) { const p = document.createElement("p"); const label = document.createElement("strong"); label.textContent = `${f.label} · ${f.experimentState === "lock" ? "Lock" : "Outside scope"}`; const value = document.createElement("span"); value.textContent = baseline[f.id]; p.append(label, value); details.appendChild(p); }
+      workspacePlan.appendChild(details);
+    }
+  }
 
   const powerPopupEntries = [doctorPopup, variationPopup, libraryManagerPopup, recipeBuilderPopup];
   function closePowerPopup(popup) {
@@ -110,8 +218,18 @@ export function createPowerToolsController(ctx) {
     result.issues.forEach((issue) => {
       const row = document.createElement("div");
       row.className = "wg-power-item";
+      row.dataset.severity = issue.severity;
       row.innerHTML = `<div class="wg-power-item-head"><div class="wg-power-item-title"><span class="wg-severity-dot ${escapeHtml(issue.severity)}"></span>${escapeHtml(issue.title)}</div><span class="wg-badge">${escapeHtml(issue.severity)}</span></div><p>${escapeHtml(issue.detail)}</p>`;
-      if (issue.token && Number.isFinite(issue.token.start)) {
+      if (issue.fieldIds?.length) {
+        const actions = document.createElement("div"); actions.className = "wg-power-actions";
+        for (const id of issue.fieldIds) {
+          const jump = document.createElement("button"); jump.type = "button";
+          const workspace = node._ppRecipeWorkspace?.snapshot()?.recipe;
+          jump.textContent = `Show ${workspace?.fields.find(f => f.id === id)?.label || "field"}`;
+          jump.addEventListener("click", () => { closePowerPopup(doctorPopup); node._ppRecipeWorkspace?.focusField(id, issue.fieldToken); }); actions.appendChild(jump);
+        }
+        row.appendChild(actions);
+      } else if (issue.token && Number.isFinite(issue.token.start)) {
         const actions = document.createElement("div");
         actions.className = "wg-power-actions";
         const jump = document.createElement("button");
@@ -122,7 +240,7 @@ export function createPowerToolsController(ctx) {
           editorReal.classList.remove("hidden");
           resolvedView.classList.remove("on");
           btnResolve.classList.remove("on");
-          btnResolve.textContent = "Preview result";
+          setToolbarLabel(btnResolve, "Preview result");
           textarea.focus({ preventScroll: true });
           textarea.setSelectionRange(issue.token.start, issue.token.end);
         });
@@ -139,12 +257,15 @@ export function createPowerToolsController(ctx) {
     const text = textarea.value;
     const tokenCount = ctx.state.lastTokenStatsSource === text ? (ctx.state.lastTokenStats?.tokens ?? null) : null;
     let analysis = null;
+    const workspace = node._ppRecipeWorkspace?.isActive() ? node._ppRecipeWorkspace : null;
+    const workspaceKey = workspace ? JSON.stringify(workspace.snapshot().recipe) : null;
+    if (workspace) analysis = workspace.analyze();
     const worker = ctx.state.workerClient;
-    if (worker?.shouldUseForPrompt?.(text)) {
+    if (!analysis && worker?.shouldUseForPrompt?.(text)) {
       try { analysis = await worker.validate(text, tokenCount); } catch { analysis = null; }
     }
     if (!analysis) analysis = analyzePromptSource({ text, parsed: ctx.state.parsedPrompt, libraryEntries: ctx.state.libraryCache, tokenCount });
-    if (requestId !== doctorAnalysisRequestId || textarea.value !== text || !ctx.state.powerTools.promptDoctor) return;
+    if (requestId !== doctorAnalysisRequestId || textarea.value !== text || !ctx.state.powerTools.promptDoctor || workspace && (!workspace.isActive() || workspaceKey !== JSON.stringify(workspace.snapshot().recipe))) return;
     currentDoctorAnalysis = analysis;
     const count = currentDoctorAnalysis.issues.length;
     doctorChip.dataset.status = currentDoctorAnalysis.status;
@@ -179,7 +300,7 @@ export function createPowerToolsController(ctx) {
       else refreshResolvedView();
     }
   }
-  function renderVariations(items) {
+  function renderVariations(items, assertCurrent, didUseSeed) {
     variationList.innerHTML = "";
     if (!items.length) {
       variationList.innerHTML = '<div class="wg-empty-power">No variations were returned.</div>';
@@ -193,51 +314,166 @@ export function createPowerToolsController(ctx) {
       card.innerHTML = `<div class="wg-variation-meta"><strong>#${index + 1} · seed ${escapeHtml(String(item.seed ?? ""))}</strong><span>${Number.isFinite(tokens) ? `${tokens} tokens · ` : ""}${wildcardCount} wildcard${wildcardCount === 1 ? "" : "s"}</span></div><div class="wg-variation-text"></div><div class="wg-power-actions"><button type="button" data-use>Use seed</button><button type="button" data-preview>Use + preview</button><button type="button" data-copy>Copy resolved</button></div>`;
       card.querySelector(".wg-variation-text").textContent = String(item.resolved || "");
       card.querySelector("[data-use]").addEventListener("click", () => {
-        useVariationSeed(item.seed);
-        setVariationStatus(`Seed ${item.seed} is now active.`);
+        try {
+          assertCurrent(); useVariationSeed(item.seed); didUseSeed();
+          setVariationStatus(`Seed ${item.seed} is now active. Your source choices are unchanged.`);
+        } catch (error) { setVariationStatus(error.message, true); }
       });
-      card.querySelector("[data-preview]").addEventListener("click", () => useVariationSeed(item.seed, { preview: true }));
+      card.querySelector("[data-preview]").addEventListener("click", () => {
+        try { assertCurrent(); useVariationSeed(item.seed, { preview: true }); didUseSeed(); }
+        catch (error) { setVariationStatus(error.message, true); }
+      });
       card.querySelector("[data-copy]").addEventListener("click", async () => {
         try { await navigator.clipboard.writeText(String(item.resolved || "")); setVariationStatus(`Variation ${index + 1} copied.`); }
         catch { setVariationStatus("Clipboard permission was denied.", true); }
       });
       variationList.appendChild(card);
     });
+    showResultView(items);
   }
   async function refreshVariations() {
     if (!ctx.state.powerTools.variationLab) return;
     const requestId = ++variationRequestId;
+    clearResultView();
     const source = textarea.value;
     const seed = seedWidget?.value ?? 0;
     const mode = modeWidget?.value || "entire text as one";
     const count = Math.max(1, Math.min(16, Number(variationCount.value) || 4));
+    const workspace = node._ppRecipeWorkspace?.isActive() ? node._ppRecipeWorkspace : null;
+    scopeRow.hidden = !workspace;
+    if (labHeading) labHeading.textContent = workspace ? "Explore choices without changing held fields" : "Resolve before you queue";
+    if (labIntro) labIntro.textContent = workspace ? "Choices come from inline alternatives or library wildcards. Previewing does not edit or queue anything." : "Same source prompt, predictable seed steps. Nothing is generated.";
+    describeWorkspacePlan(workspace);
+    if (workspace && scopeSelect.value === "selection") {
+      variationList.replaceChildren();
+      try { await workspace.varySelection(); } catch (error) { setVariationStatus(error.message, true); }
+      return;
+    }
+    let plan;
+    try { if (workspace) plan = workspace.experimentPlan(scopeSelect.value); }
+    catch (error) { variationList.replaceChildren(); setVariationStatus(error.message, true); return; }
+    if (workspace) describeWorkspacePlan(workspace, plan);
     const stillCurrent = () => requestId === variationRequestId
       && nodeIsActive(node)
       && variationPopup.classList.contains("open")
       && ctx.state.powerTools.variationLab
       && textarea.value === source
       && (seedWidget?.value ?? 0) === seed
-      && (modeWidget?.value || "entire text as one") === mode;
+      && (modeWidget?.value || "entire text as one") === mode
+      && !!node._ppRecipeWorkspace?.isActive() === !!workspace
+      && (!workspace || (workspace.isActive() && scopeSelect.value === plan.scope && (() => { try { workspace.assertPlan(plan); return true; } catch { return false; } })()));
     setVariationStatus(`Resolving ${count} versions…`);
     variationList.innerHTML = "";
     const requestController = performanceRuntime?.beginRequest("variations") || new AbortController();
     try {
-      const items = await profiler?.measureAsync("variations.resolve", () => API.resolveVariations(source, seed, mode, count, { signal: requestController.signal }))
-        ?? await API.resolveVariations(source, seed, mode, count, { signal: requestController.signal });
+      const resolve = () => workspace ? resolveExperiment(plan, seed, mode, count, API.resolveVariations, { signal: requestController.signal }) : API.resolveVariations(source, seed, mode, count, { signal: requestController.signal });
+      const items = profiler ? await profiler.measureAsync("variations.resolve", resolve) : await resolve();
       performanceRuntime?.endRequest("variations", requestController);
-      if (!stillCurrent() || requestController.signal.aborted) return;
-      renderVariations(items);
+      if (!stillCurrent() || requestController.signal.aborted) {
+        if (requestId === variationRequestId && variationPopup.classList.contains("open") && !requestController.signal.aborted) setVariationStatus("The prompt, workspace or seed changed. Resolve again to preview the current values.", true);
+        return;
+      }
+      if (workspace) {
+        describeWorkspacePlan(workspace, plan, items);
+        renderWorkspaceVariations(workspace, plan, items, seed, mode);
+        setVariationStatus(`${items.length} previews ready. Held values stay fixed; Use version keeps the original choices.`);
+        return;
+      }
+      let acceptedSeed = seed;
+      renderVariations(items, () => {
+        if (requestId !== variationRequestId || !nodeIsActive(node) || !ctx.state.powerTools.variationLab ||
+            textarea.value !== source || (seedWidget?.value ?? 0) !== acceptedSeed ||
+            (modeWidget?.value || "entire text as one") !== mode || node._ppRecipeWorkspace?.isActive())
+          throw new Error("The prompt or seed changed. Resolve again before using a preview.");
+        if (node.inputs?.some(input => ["seed", "external_seed"].includes(input.name) && input.link != null))
+          throw new Error("The seed is connected. Change its upstream value or disconnect it before using a preview seed.");
+      }, () => { acceptedSeed = seedWidget?.value ?? 0; });
       const hasUnseeded = extractPromptTokens(source).some((token) => token.mode === "*" || token.mode === "~") || /\{[\*~][^{}]*\}/.test(source);
       setVariationStatus(hasUnseeded
         ? `${items.length} seed-stepped version${items.length === 1 ? "" : "s"}. Unseeded * / ~ syntax remains intentionally random. Nothing was queued.`
         : `${items.length} deterministic version${items.length === 1 ? "" : "s"}. No image generation was queued.`);
+      if (items.length > 1 && new Set(items.map(item => String(item.resolved ?? ""))).size === 1)
+        setVariationStatus(hasVariationSyntax(source)
+          ? "These seeds produced the same result. Check your choices or resolve more versions; filtering repeats does not create new alternatives."
+          : "This prompt has one fixed result. Add {choice A|choice B} or a library wildcard to explore alternatives.");
     } catch (error) {
       performanceRuntime?.endRequest("variations", requestController);
       if (error?.name === "AbortError" || requestController.signal.aborted || !stillCurrent()) return;
       setVariationStatus(error?.message || "Could not resolve variations.", true);
     }
   }
-  function openVariations() {
+  function renderWorkspaceVariations(workspace, plan, items, seed, mode) {
+    variationList.replaceChildren();
+    const renderedRequestId = variationRequestId;
+    const assertCurrent = () => {
+      if (renderedRequestId !== variationRequestId || !nodeIsActive(node) || !ctx.state.powerTools.variationLab)
+        throw new Error("This preview has expired. Resolve again before applying or sending it.");
+      workspace.assertPlan(plan);
+      if ((seedWidget?.value ?? 0) !== seed || (modeWidget?.value || "entire text as one") !== mode || scopeSelect.value !== plan.scope) throw new Error("The scope or seed changed. Refresh variations first.");
+    };
+    function action(text, run) {
+      const button = document.createElement("button"); button.type = "button"; button.textContent = text;
+      button.addEventListener("click", () => Promise.resolve().then(run).catch(error => setVariationStatus(error.message, true)));
+      return button;
+    }
+    const seen = new Map();
+    const versions = items.map((item, originalIndex) => {
+      const key = JSON.stringify([item.resolved, item.negative]), duplicateOf = seen.get(key);
+      if (!seen.has(key)) seen.set(key, originalIndex);
+      const changed = item.changes.some(change => change.changed) || item.resolved !== items[0].resolved || item.negative !== items[0].negative;
+      return { item, originalIndex, duplicateOf, priority: duplicateOf != null ? 2 : changed ? 0 : 1 };
+    }).sort((a, b) => a.priority - b.priority || a.originalIndex - b.originalIndex);
+    versions.forEach(({ item, originalIndex, duplicateOf }, index) => {
+      const card = document.createElement("article"); card.className = "wg-variation-card";
+      card.dataset.previewBaseline = String(originalIndex === 0);
+      const title = document.createElement("strong"); title.textContent = `#${index + 1} · seed ${item.seed}`;
+      const fields = document.createElement("div"); fields.className = "pp-refine-text pp-workspace-changes";
+      const changed = item.changes.filter(change => change.changed), same = item.changes.filter(change => !change.changed);
+      const status = document.createElement("span"); status.className = "pp-candidate-status"; status.dataset.changed = String(changed.length > 0); status.textContent = changed.length ? `${changed.length} field${changed.length === 1 ? "" : "s"} changed` : "No target value changed";
+      if (!changed.length) fields.textContent = "Same target values at this seed.";
+      for (const change of changed) {
+        const row = document.createElement("article"); row.className = "pp-candidate-change";
+        const name = document.createElement("strong"); name.textContent = `${change.label}${change.channel === "negative" ? " (negative)" : ""}${plan.recipe.fields.find(f => f.id === change.id).experimentState === "follow" ? " · Follow activated" : ""}`;
+        const before = document.createElement("div"); before.className = "pp-candidate-before"; before.textContent = `Before: ${change.resolvedBefore}`;
+        const after = document.createElement("div"); after.className = "pp-candidate-after"; after.textContent = `After: ${change.after}`; row.append(name, before, after); fields.appendChild(row);
+      }
+      if (same.length) { const note = document.createElement("p"); note.className = "pp-candidate-same"; note.textContent = `Unchanged targets: ${same.map(change => change.label).join(", ")}.`; fields.appendChild(note); }
+      const inactive = plan.recipe.fields.filter(f => plan.targets.includes(f.id) && !Object.hasOwn(item.values, f.id));
+      const waiting = document.createElement("p"); waiting.className = "pp-candidate-follow"; waiting.hidden = !inactive.length; waiting.textContent = `Held until a source changes: ${inactive.map(f => f.label).join(", ")}.`;
+      const duplicate = duplicateOf == null ? null : versions.findIndex(v => v.originalIndex === duplicateOf) + 1;
+      const repeated = document.createElement("p"); repeated.className = "pp-candidate-repeat"; repeated.hidden = duplicate == null; repeated.textContent = `Same resolved result as #${duplicate}.`;
+      if (!changed.length && plan.scope === "workspace" && (item.resolved !== items[0].resolved || item.negative !== items[0].negative)) status.textContent = "Dynamic text outside fields changed";
+      const preview = document.createElement("details"), summary = document.createElement("summary"); summary.textContent = "Resolved prompt";
+      const text = document.createElement("div"); text.className = "wg-variation-text"; text.textContent = item.resolved + (item.negative ? `\n\nNegative:\n${item.negative}` : ""); preview.append(summary, text);
+      const actions = document.createElement("div"); actions.className = "wg-power-actions";
+      const apply = action("Use version", () => { assertCurrent(); workspace.applyVariation(plan, item.values); setVariationStatus(`Applied values to ${item.changes.map(change => change.label).join(", ")}. Original choices were kept. Press Resolve to explore again, or Restore choices in a field to return to its template. Held fields retain their authored text.`); });
+      apply.title = "Apply the selected values to target fields. Original choices stay available for future previews. Undo restores the previous workspace.";
+      actions.append(apply,
+        action("Copy resolved", () => navigator.clipboard.writeText(item.resolved)));
+      card.append(title, status, repeated, fields, waiting, preview, actions); variationList.appendChild(card);
+    });
+    let batchItems = [];
+    const batch = action("Send to Combinatorial", async () => { assertCurrent(); const selected = batchItems.slice(); await workspace.sendVariations(plan, selected, seed); setVariationStatus(`${selected.length} exact version${selected.length === 1 ? "" : "s"} sent to a new Combinatorial node in preview order. Connect its existing outputs and queue normally.`); });
+    batch.className = "wg-button";
+    const note = document.createElement("p"); note.className = "pp-refine-note";
+    note.textContent = "These versions have different negative prompts. Keep versions with the same negative prompt, or apply one version.";
+    variationList.appendChild(note);
+    variationList.appendChild(batch);
+    showResultView(versions.map(v => v.item), (selected, keptCount) => {
+      batchItems = selected;
+      const incompatible = selected.some(item => item.negative !== selected[0]?.negative);
+      batch.disabled = !selected.length || incompatible;
+      batch.title = incompatible ? note.textContent : "Send the exact resolved prompts in preview order; nothing is queued.";
+      note.hidden = !incompatible;
+      batch.textContent = `Send ${selected.length}${keptCount ? " kept" : ""} to Combinatorial`;
+    });
+  }
+  function openVariations(scope = null) {
+    root.dispatchEvent(new Event("pp-refinement-reset"));
+    variationPopup.querySelector(".wg-settings-body")?.dispatchEvent(new CustomEvent("pp-refinement-owner", { detail: null }));
+    variationPopup.querySelector(".wg-settings-body")?.classList.remove("pp-refine-active");
+    const workspace = node._ppRecipeWorkspace;
+    if (workspace?.isActive()) scopeSelect.value = scope || workspace.defaultScope();
     if (!ctx.state.powerTools.variationLab) { notify("info", "Variation Lab is off", "Enable it in Settings → Power tools."); return; }
     openPowerPopup(variationPopup);
     btnVariations.classList.add("active");
@@ -551,7 +787,7 @@ export function createPowerToolsController(ctx) {
       return (rootName === "recipe" || rootName === "recipes") && parts.join("/").toLowerCase() === slug.toLowerCase();
     });
     const fullName = legacyMatch || `RECIPES/${slug}`;
-    if (ctx.state.knownSet.has(fullName)) {
+    if ((await API.content(fullName, { fresh: true }))?.found) {
       const overwrite = await dialogConfirm({ title: "Overwrite Recipe", message: `“${fullName}” already exists — overwrite it?` });
       if (!overwrite) return false;
     }
@@ -582,25 +818,30 @@ export function createPowerToolsController(ctx) {
     scheduleDomWidgetRemeasure(node);
   }
 
+  const syncSharedPowerPreferences = () => {
+    const previous = ctx.state.powerTools;
+    ctx.state.powerTools = getPowerToolPreferences();
+    applyPowerToolSettings({ refreshPreview: previous.resolvedDiff !== ctx.state.powerTools.resolvedDiff });
+  };
+  window.addEventListener("pp-power-tools-changed", syncSharedPowerPreferences);
+
   settingsRoot.querySelectorAll("[data-power-tool]").forEach((input) => {
     input.addEventListener("change", () => {
       const key = input.dataset.powerTool;
-      const before = !!ctx.state.powerTools[key];
       setPowerToolPreference(key, input.checked);
       ctx.state.powerTools = getPowerToolPreferences();
-      applyPowerToolSettings({ refreshPreview: key === "resolvedDiff" && before !== input.checked });
       updateThemeJson();
       if (key === "nativeCommands") notify("info", "Command palette setting saved", "Restart ComfyUI to add or remove Prompt Palette commands. No keyboard shortcuts are assigned by Prompt Palette.");
     });
   });
   settingsRoot.querySelector('[data-act="powerToolsAllOn"]').addEventListener("click", () => {
     ctx.state.powerTools = replacePowerToolPreferences(Object.fromEntries(Object.keys(ctx.state.powerTools).map((key) => [key, true])));
-    applyPowerToolSettings({ refreshPreview: true }); updateThemeJson();
+    updateThemeJson();
     notify("info", "Power tools enabled", "Prompt Palette command-palette actions appear after restart; no keyboard shortcuts are assigned.");
   });
   settingsRoot.querySelector('[data-act="powerToolsAllOff"]').addEventListener("click", () => {
     ctx.state.powerTools = replacePowerToolPreferences({});
-    applyPowerToolSettings({ refreshPreview: true }); updateThemeJson();
+    updateThemeJson();
   });
 
   doctorChip.addEventListener("click", () => doctorPopup.classList.contains("open") ? closePowerPopup(doctorPopup) : openDoctor());
@@ -637,13 +878,15 @@ export function createPowerToolsController(ctx) {
   root.querySelector('[data-act="recipeBuilderSave"]').addEventListener("click", async () => {
     if (!recipeBuilderPaths.length) { recipeBuilderStatus.textContent = "Add at least one library entry."; recipeBuilderStatus.className = "wg-status err"; return; }
     recipeBuilderStatus.textContent = "Saving…"; recipeBuilderStatus.className = "wg-status";
-    const saved = await saveRecipeContent(recipeBuilderName.value, recipeBuilderSource(), recipeBuilderPaths.length);
-    if (saved) {
-      const finish = recipeBuilderCompletion;
-      recipeBuilderCompletion = null;
-      closePowerPopup(recipeBuilderPopup);
-      finish?.(true);
-    } else { recipeBuilderStatus.textContent = "Recipe was not saved."; recipeBuilderStatus.className = "wg-status err"; }
+    try {
+      const saved = await saveRecipeContent(recipeBuilderName.value, recipeBuilderSource(), recipeBuilderPaths.length);
+      if (saved) {
+        const finish = recipeBuilderCompletion;
+        recipeBuilderCompletion = null;
+        closePowerPopup(recipeBuilderPopup);
+        finish?.(true);
+      } else { recipeBuilderStatus.textContent = "Recipe was not saved."; recipeBuilderStatus.className = "wg-status err"; }
+    } catch (error) { recipeBuilderStatus.textContent = error?.message || "Recipe could not be saved."; recipeBuilderStatus.className = "wg-status err"; }
   });
 
   async function promptSaveRecipe(paths) {
@@ -663,11 +906,12 @@ export function createPowerToolsController(ctx) {
     updateDoctorStatus,
     openDoctor,
     openVariations,
+    openSelectionLab: () => openPowerPopup(variationPopup),
     openLibraryManager,
     applyPowerToolSettings,
     syncPowerToolSettingsUI,
     promptSaveRecipe,
-    cleanup() { closeAllPowerPopups(); libraryHistory.clear(); toolRegistry.cleanup(); },
+    cleanup() { cleanupLibrarySubscription(); window.removeEventListener("pp-power-tools-changed", syncSharedPowerPreferences); closeAllPowerPopups(); libraryHistory.clear(); toolRegistry.cleanup(); scopeRow.remove(); },
     toolRegistry,
   };
 }

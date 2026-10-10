@@ -1,57 +1,164 @@
-/* Horizontal workspace: drawers stay beside the editor without covering prompt text. */
-.wg-node > .wg-toolbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
+/* One modular rail shared by Editor and Combinatorial. Original action buttons
+   move between slots; Settings remains outside the scrolling track. */
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar {
+  --pp-toolbar-icon-size: clamp(22px, 4cqw, 28px);
+  --pp-toolbar-height: 32px;
+  box-sizing: border-box;
+  display: flex; flex: 0 0 auto; flex-flow: row nowrap; align-items: center;
+  min-width: 0; min-height: 40px; gap: 5px; padding: 4px 6px;
+  overflow: hidden; background: var(--wg-panel-bg);
 }
-.wg-node > .wg-toolbar .wg-toolbar-group.left {
-  grid-column: 1;
-  grid-row: 1;
-  justify-self: start;
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[hidden] { display: none !important; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="small"] {
+  --pp-toolbar-icon-size: 24px; --pp-toolbar-height: 28px; min-height: 36px;
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"] {
+  --pp-toolbar-icon-size: 36px; --pp-toolbar-height: 40px; min-height: 48px;
+}
+.wg-root .wg-toolbar-track {
+  display: flex; flex: 1 1 auto; flex-flow: row nowrap; align-items: center;
+  justify-content: center; justify-content: safe center;
+  min-width: 0; gap: 2px; padding: 2px;
+  overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+  scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent;
+  scroll-padding: 2px;
+}
+.wg-root .wg-toolbar-scroll-button {
+  flex: 0 0 20px; width: 20px; height: var(--pp-toolbar-height); padding: 0;
+  border: 0; border-radius: 5px; background: var(--wg-panel-bg);
+  color: var(--pp-toolbar-ink, var(--wg-text)); cursor: pointer; font-size: 20px; line-height: 1;
+}
+.wg-root .wg-toolbar-scroll-button[hidden] { display: none !important; }
+.wg-root .wg-toolbar-scroll-button:disabled { opacity: .3; cursor: default; }
+.wg-root .wg-toolbar-scroll-button:hover:not(:disabled) { background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-panel-bg)); }
+.wg-root .wg-toolbar-scroll-button:focus-visible { outline: 2px solid var(--pp-toolbar-accent-ink, var(--wg-accent)); outline-offset: -2px; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-toolbar-group, .wg-toolbar-center) { display: contents; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-anchor {
+  display: inline-flex; flex: 0 0 auto; padding-left: 5px;
+  border-left: 1px solid var(--wg-border);
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-retractable="true"] .wg-toolbar-anchor { display: none; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-tool-label, .wg-settings-button-label, .wg-io-button-label) { display: none !important; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-action-btn, .wg-pill) {
+  box-sizing: border-box; flex: 0 0 auto; display: inline-flex;
+  align-items: center; justify-content: center;
+  width: var(--pp-toolbar-icon-size); min-width: var(--pp-toolbar-icon-size); max-width: none;
+  height: var(--pp-toolbar-height); margin: 0; padding: 0; white-space: nowrap;
+  font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.2;
+  border-radius: min(var(--wg-corner-radius, 10px), 8px);
+  color: var(--pp-toolbar-ink, var(--wg-text));
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-svg-icon { flex: none; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-section-start { margin-left: 6px; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-pill {
+  width: auto; gap: 5px; padding-inline: 8px;
+  border: 1px solid color-mix(in srgb, var(--wg-accent) 20%, var(--wg-border));
+  background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-panel-bg));
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-pill { width: var(--pp-toolbar-icon-size); padding: 0; gap: 0; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-toolbar-label { display: none; }
+.wg-root .wg-toolbar-caption { display: none; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"] .wg-toolbar-track .wg-icon-btn { width: auto; gap: 6px; padding-inline: 10px; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"] .wg-toolbar-caption { display: inline; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-io-toggle-btn { width: auto; min-width: var(--pp-toolbar-icon-size); padding-inline: 4px; gap: 3px; }
+.wg-root .wg-toolbar .wg-io-toggle-btn [data-io-count]:empty { display: none; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-settings-anchor { background: var(--wg-panel-bg); border: 1px solid var(--wg-border); }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-pill):is(:hover, .on, .active, [aria-pressed="true"], [aria-expanded="true"]):not(:disabled) {
+  color: var(--pp-toolbar-accent-ink, var(--wg-text));
+  background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-panel-bg));
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-icon-btn[data-act="clear"]:hover:not(:disabled) {
+  color: var(--pp-toolbar-ink, var(--wg-text));
+  box-shadow: inset 0 -2px var(--wg-danger); background: color-mix(in srgb, var(--wg-danger) 8%, var(--wg-panel-bg));
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-pill):focus-visible { outline: 2px solid var(--pp-toolbar-accent-ink, var(--wg-accent)); outline-offset: -2px; }
+/* Disclosure occupies stable space; only the optional rail opens below it. */
+.wg-root > .wg-toolbar-dock {
+  display: flex; flex: 0 0 auto; align-items: center; gap: 6px;
+  box-sizing: border-box; min-height: 32px; padding: 3px 6px;
+  background: var(--wg-panel-bg); border-bottom: 1px solid var(--wg-border);
+}
+.wg-root > .wg-toolbar-dock[hidden] { display: none !important; }
+.wg-root .wg-toolbar-dock-anchor { display: inline-flex; margin-left: auto; }
+.wg-root .wg-toolbar-dock :is(button, .wg-icon-btn) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  box-sizing: border-box; height: 26px; padding: 0 8px;
+  border: 1px solid var(--wg-border); border-radius: min(var(--wg-corner-radius, 10px), 7px);
+  background: var(--wg-panel-bg); color: var(--pp-toolbar-ink, var(--wg-text));
+  cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); font-weight: 600;
+}
+.wg-root .wg-toolbar-dock .wg-icon-btn { width: 28px; min-width: 28px; max-width: 28px; padding: 0; }
+.wg-root .wg-toolbar-reveal::before { content: "⌄"; font-size: 15px; transform: rotate(-90deg); }
+.wg-root .wg-toolbar-reveal[aria-expanded="true"]::before { transform: none; }
+.wg-root .wg-toolbar-dock button[hidden] { display: none; }
+.wg-root .wg-toolbar-dock button:is(:hover, [aria-pressed="true"], [aria-expanded="true"]) { border-color: var(--wg-accent); color: var(--pp-toolbar-accent-ink, var(--wg-text)); }
+.wg-root .wg-toolbar-dock button:focus-visible { outline: 2px solid var(--pp-toolbar-accent-ink, var(--wg-accent)); outline-offset: 1px; }
+.wg-root .wg-toolbar[data-retractable="true"]:not([hidden]) { animation: pp-toolbar-enter 140ms ease-out; }
+@keyframes pp-toolbar-enter { from { opacity: .5; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+/* Settings designer uses the same suite tokens, with readable, keyboard-operable rows. */
+.wg-root .wg-toolbar-designer { min-width: 0; }
+.wg-root .wg-toolbar-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.wg-root .wg-toolbar-options :is(label, fieldset) { display: grid; gap: 7px; margin: 0; min-width: 0; padding: 0; border: 0; color: var(--wg-text); font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-toolbar-options legend { padding: 0 0 7px; }
+.wg-root .wg-toolbar-options select { width: 100%; min-width: 0; }
+.wg-root .wg-toolbar-sizes { display: flex; min-width: 0; gap: 3px; }
+.wg-root .wg-toolbar-designer button { min-height: 28px; border: 1px solid var(--wg-border); border-radius: min(var(--wg-corner-radius, 10px), 6px); background: var(--wg-surface); color: var(--wg-text); cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-toolbar-sizes button { flex: 1; min-width: 0; padding: 4px 6px; }
+.wg-root .wg-toolbar-designer button:is(:hover, [aria-pressed="true"]):not(:disabled) { border-color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-surface)); }
+.wg-root .wg-toolbar-designer button:focus-visible { outline: 2px solid var(--pp-toolbar-accent-ink, var(--wg-accent)); outline-offset: 1px; }
+.wg-root .wg-toolbar-designer button:disabled { opacity: .45; cursor: default; }
+.wg-root .wg-toolbar-help { color: var(--wg-text-dim); font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.5; margin: 10px 0; }
+.wg-root .wg-toolbar-arrange summary { color: var(--wg-text); cursor: pointer; padding: 8px 0; font-size: calc(12px * var(--wg-ui-font-scale, 1)); font-weight: 600; }
+.wg-root [data-toolbar-order] { list-style: none; padding: 0; margin: 8px 0; }
+.wg-root [data-toolbar-row] { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 0; border-bottom: 1px solid var(--wg-border); }
+.wg-root [data-toolbar-row] .wg-toolbar-order-label { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--wg-text); font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root [data-toolbar-row] small { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim); }
+.wg-root [data-toolbar-row] button { flex: none; width: 28px; padding: 0; }
+.wg-root .wg-toolbar-grip { cursor: grab; touch-action: none; }
+.wg-root [data-toolbar-row].dragging { opacity: .5; }
+.wg-root [data-toolbar-drop="before"] { box-shadow: inset 0 2px var(--wg-accent); }
+.wg-root [data-toolbar-drop="after"] { box-shadow: inset 0 -2px var(--wg-accent); }
+.wg-root .wg-toolbar-order-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.wg-root [data-toolbar-message] { color: var(--wg-text-dim); font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+@media (max-width: 520px) { .wg-root .wg-toolbar-options { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .wg-root .wg-toolbar[data-retractable="true"]:not([hidden]) { animation: none; } }
+
+/* Seed controls keep their existing setting and bindings outside the action
+   rail. Flexible columns prevent the processing select from clipping a node. */
+.wg-root > .wg-seed-controls {
+  box-sizing: border-box;
+  flex: 0 0 auto;
   min-width: 0;
+  margin: 0;
+  padding: 5px 7px;
+  gap: 5px;
+  border-top: 0;
+  border-bottom: 1px solid var(--wg-border);
+  background: var(--wg-panel-bg);
+  grid-template-columns: auto minmax(48px, 1fr) 26px minmax(0, 1.3fr) minmax(0, 1.05fr);
+  align-items: center;
 }
-.wg-node > .wg-toolbar .wg-pill-resolve {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: center;
-  padding: 5px 12px;
-  font-size: 10px;
+.wg-root > .wg-seed-controls.on { display: grid; }
+.wg-root > .wg-seed-controls :is(input, select) { box-sizing: border-box; width: 100%; min-width: 0; height: 26px; }
+.wg-root > .wg-seed-controls .wg-icon-btn { width: 26px; height: 26px; }
+@container (max-width: 610px) {
+  .wg-root > .wg-seed-controls { grid-template-columns: auto minmax(48px, 1fr) 26px; }
+  .wg-root > .wg-seed-controls select { grid-column: 1 / -1; }
 }
-.wg-node > .wg-toolbar .wg-toolbar-group.right {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: end;
-  width: auto;
-  flex-wrap: nowrap;
-  overflow: visible;
-  padding: 0;
-  border: 0;
-  background: transparent;
+
+/* Horizontal workspace: drawers stay beside the editor without covering prompt text. */
+
+/* A saved node can be shorter than its current optional controls. Keep a usable
+   editor viewport and let the existing node shell scroll without changing size. */
+.wg-root:is(.wg-node, .pp-node) {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wg-border-strong) transparent;
 }
-.wg-node > .wg-toolbar .wg-toolbar-extra {
-  grid-column: 1 / -1;
-  grid-row: 2;
+.wg-root:is(.wg-node, .pp-node) > .wg-main {
+  min-height: calc(var(--wg-editor-font-size, 12.5px) * 3.2 + 20px);
 }
-.wg-node > .wg-toolbar .wg-tool-cluster,
-.wg-node > .wg-toolbar .wg-tool-label,
-.wg-node > .wg-toolbar .wg-settings-button-label,
-.wg-node > .wg-toolbar .wg-io-button-label { display: none !important; }
-.wg-node > .wg-toolbar .wg-icon-btn,
-.wg-node > .wg-toolbar .wg-action-btn,
-.wg-node > .wg-toolbar .wg-settings-anchor {
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0;
-}
-.wg-node > .wg-toolbar .wg-io-toggle-btn {
-  width: auto;
-  min-width: 48px;
-  padding: 0 6px;
-}
+.wg-root [data-el="seedInput"][aria-invalid="true"] { border-color: var(--wg-danger); }
 
 .wg-node > .wg-main {
   flex: 1 1 auto;
@@ -157,3 +264,25 @@
 .wg-node > .wg-main > .wg-settings-popup > * { min-width: 0; }
 .wg-node > .wg-main > .wg-stash-popup > * { min-width: 0; }
 
+/* Below the useful split-pane width, stack the existing drawer and editor.
+   A scrollable main area preserves access in short saved nodes without resizing them. */
+@container (max-width: 560px) {
+  .wg-node.wg-root > .wg-main:has(> .wg-drawer.open) { flex-direction: column; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+  .wg-node.wg-root > .wg-main:has(> .wg-drawer.open) > .wg-body { flex: 1 0 150px; min-height: 150px; width: 100%; box-sizing: border-box; }
+  .wg-node.wg-root > .wg-main > .wg-drawer.open {
+    order: -1; width: 100% !important; max-width: 100% !important;
+    height: min(340px, 65%) !important; min-height: 200px !important;
+    flex: 0 0 min(340px, 65%) !important; border-left: 0; border-right: 0;
+    border-bottom: 1px solid var(--wg-border); box-shadow: none !important;
+  }
+  .wg-node.wg-root > .wg-main:has(> .wg-drawer.open) > .wg-drawer:not(.open) { height: 0 !important; }
+  .wg-node.wg-root > .wg-main > .wg-drawer.open > .wg-drawer-inner { width: 100%; }
+  .wg-node.wg-root > .wg-main > .wg-library-popup.open .wg-library-resize-handle { display: none; }
+}
+
+/* Group dividers: a hairline at each action-group boundary reinforces the Run / Edit / Library / View / Clear hierarchy. */
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-section-start { margin-left: 10px; position: relative; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-section-start::before {
+  content: ""; position: absolute; left: -7px; top: 22%; bottom: 22%; width: 1px; pointer-events: none;
+  background: var(--wg-border-strong, var(--wg-border)); opacity: .7;
+}

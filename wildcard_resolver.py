@@ -446,12 +446,12 @@ class WildcardResolver:
             return False
         # Small deterministic expression grammar: comparisons, membership,
         # truthiness, and/or/not. No Python eval and no executable expressions.
-        parts = re.split(r"\s+(or)\s+", expression, flags=re.IGNORECASE)
+        parts = self._split_condition_logic(expression, "or")
         if len(parts) > 1:
-            return any(self._eval_condition(part, env, rng, combo_map, depth + 1) for part in parts[::2])
-        parts = re.split(r"\s+(and)\s+", expression, flags=re.IGNORECASE)
+            return any(self._eval_condition(part, env, rng, combo_map, depth + 1) for part in parts)
+        parts = self._split_condition_logic(expression, "and")
         if len(parts) > 1:
-            return all(self._eval_condition(part, env, rng, combo_map, depth + 1) for part in parts[::2])
+            return all(self._eval_condition(part, env, rng, combo_map, depth + 1) for part in parts)
         if re.match(r"^not\s+", expression, re.IGNORECASE):
             return not self._eval_condition(re.sub(r"^not\s+", "", expression, flags=re.IGNORECASE), env, rng, combo_map, depth + 1)
         m = re.match(r"^(.+?)\s*(==|!=|>=|<=|>|<|\bin\b)\s*(.+)$", expression, re.IGNORECASE)
@@ -473,6 +473,28 @@ class WildcardResolver:
             return {"==": a == b, "!=": a != b, ">": a > b, ">=": a >= b, "<": a < b, "<=": a <= b}[op]
         value = self._condition_value(expression, env, rng, combo_map, depth)
         return str(value).strip().lower() not in {"", "0", "false", "none", "null", "no"}
+
+    @staticmethod
+    def _split_condition_logic(expression, operator):
+        # Quoted names such as "black and white" are literals, not boolean logic.
+        # Keep the existing unquoted grammar and precedence; never execute code.
+        quote = None
+        cuts = []
+        for match in re.finditer(r"['\"]|\s+" + operator + r"\s+", expression, re.IGNORECASE):
+            token = match.group(0)
+            if token in {"'", '"'}:
+                if quote is None and (match.start() == 0 or expression[match.start() - 1].isspace() or expression[match.start() - 1] in "=<>!"):
+                    quote = token
+                elif quote == token:
+                    quote = None
+            elif quote is None:
+                cuts.append((match.start(), match.end()))
+        parts = []
+        start = 0
+        for left, right in cuts:
+            parts.append(expression[start:left])
+            start = right
+        return parts + [expression[start:]]
 
     def _resolve_conditionals(self, text, rng, combo_map=None, env=None, depth=0):
         """Resolve native [if]/[elif]/[else]/[/if] blocks without executing code."""
@@ -500,6 +522,9 @@ class WildcardResolver:
                 parent_active, _current_active, any_taken = stack[-1]
                 if any_taken:
                     active = False
+                    # Nested blocks restore their parent's current branch flag.
+                    # A skipped elif must not retain the earlier taken branch.
+                    stack[-1] = (parent_active, False, any_taken)
                 else:
                     branch_active = parent_active and self._eval_condition(expr, env, rng, combo_map, depth + 1)
                     stack[-1] = (parent_active, branch_active, any_taken or branch_active)
@@ -979,4 +1004,3 @@ class WildcardResolver:
                 len(results) >= limit or self._generation_chars >= MAX_COMBINATORIAL_TOTAL_CHARS
             ):
                 return
-

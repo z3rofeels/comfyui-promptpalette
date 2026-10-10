@@ -3,7 +3,7 @@ import { API } from "../prompt_palette_api.js";
 import {
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
   ensureNodeLifecycle, nodeIsActive, installPromptStateGuard, installPromptMetadataCapture,
-  cleanupSocketRailLayout, queueSocketRailLayout,
+  cleanupSocketRailLayout, queueSocketRailLayout, preparePromptBackingWidgets,
 } from "../prompt_palette_compat.js";
 import { notify } from "./notifications.js";
 import { editorStylesReady } from "./styles.js";
@@ -46,14 +46,11 @@ export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPal
 
     async nodeCreated(node) {
       if (node.comfyClass !== "PromptPaletteEditor") return;
-      if (node.__promptPaletteEditorInitialized) return;
+      if (node.__promptPaletteEditorInitialized || node.__promptPaletteEditorInitializing) return;
       const lifecycle = ensureNodeLifecycle(node);
-      await editorStylesReady;
-      if (!nodeIsActive(node)) return;
-
       const hiddenWidget = node.widgets?.find((widget) => widget.name === "text");
       if (!hiddenWidget) return;
-      Object.defineProperty(node, "__promptPaletteEditorInitialized", {
+      Object.defineProperty(node, "__promptPaletteEditorInitializing", {
         value: true,
         configurable: true,
       });
@@ -61,65 +58,81 @@ export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPal
       hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
       installPromptStateGuard(node, hiddenWidget);
       installPromptMetadataCapture(node);
+      preparePromptBackingWidgets(node);
       node.resizable = true;
-
-      const { root: container, refreshFromHidden, refreshVisuals, reassertHiddenWidgets, reapplyTheme, cleanup } = buildWildcardWidget(node, hiddenWidget);
-      let domWidget;
-      domWidget = node.addDOMWidget("prompt_palette_ui", "div", container, {
-        getValue: () => node._ppPromptStateGuard?.current() ?? hiddenWidget.value,
-        setValue: (value) => {
-          node._ppPromptStateGuard?.acceptRendererValue(value);
-          node._wgRefreshFromHidden?.();
-        },
-        serialize: false,
-        hideOnZoom: false,
-        // Keep the DOM row subordinate to the user's node height. A zero minimum
-        // means the row never imposes a hard floor; the dynamic max/preferred
-        // height is simply the space ComfyUI has already allocated to this row.
-        getMinHeight: () => 0,
-        getMaxHeight: () => getDomWidgetAvailableHeight(node, domWidget),
-        getHeight: () => getDomWidgetAvailableHeight(node, domWidget),
-        afterResize: () => scheduleDomWidgetRemeasure(node),
-      });
-      installResponsiveDomWidgetWidth(node, domWidget);
-      node._wgRefreshFromHidden = refreshFromHidden;
-      node._wgRefreshVisuals = refreshVisuals;
-      node._wgReassertHiddenWidgets = reassertHiddenWidgets;
-      node._wgReapplyTheme = reapplyTheme;
-      node._wgRendererModeChanged = () => {
-        // ComfyUI remounts the DOM widget when switching Nodes 1/2. Native CSS
-        // Highlight ranges are tied to that mounted editor tree, so rebuild the
-        // visual layer after the renderer transition even when prompt text did
-        // not change. This is paint/state synchronization, not node sizing.
-        node._wgReassertHiddenWidgets?.();
-        node._wgReapplyTheme?.();
-        node._wgRefreshVisuals?.();
-        scheduleDomWidgetRemeasure(node);
-      };
-      livePromptPaletteNodes.add(node);
-
-      // Install the socket renderer only after the DOM widget exists. One frame later is
-      // deliberate: it lets ComfyUI finish its own nodeCreated/addDOMWidget layout first.
-      const scheduleRendererInstall = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
-      scheduleRendererInstall(() => {
+      let built = null;
+      try {
+        await editorStylesReady;
         if (!nodeIsActive(node)) return;
-        node._wgInstallSocketRailWhenReady?.();
-        queueSocketRailLayout(node);
-        scheduleDomWidgetRemeasure(node);
-      });
-      queueMicrotask(() => reassertHiddenWidgets());
-      scheduleDomWidgetRemeasure(node);
+        built = buildWildcardWidget(node, hiddenWidget);
+        const { root: container, refreshFromHidden, refreshVisuals, reassertHiddenWidgets, reapplyTheme, cleanup } = built;
+        let domWidget;
+        domWidget = node.addDOMWidget("prompt_palette_ui", "div", container, {
+          getValue: () => node._ppPromptStateGuard?.current() ?? hiddenWidget.value,
+          setValue: (value) => {
+            node._ppPromptStateGuard?.acceptRendererValue(value);
+            node._wgRefreshFromHidden?.();
+          },
+          serialize: false,
+          hideOnZoom: false,
+          // Keep the DOM row subordinate to the user's node height. A zero minimum
+          // means the row never imposes a hard floor; the dynamic max/preferred
+          // height is simply the space ComfyUI has already allocated to this row.
+          getMinHeight: () => 0,
+          getMaxHeight: () => getDomWidgetAvailableHeight(node, domWidget),
+          getHeight: () => getDomWidgetAvailableHeight(node, domWidget),
+          afterResize: () => scheduleDomWidgetRemeasure(node),
+        });
+        installResponsiveDomWidgetWidth(node, domWidget);
+        node._ppNodeGeometry?.mounted(container);
+        Object.defineProperty(node, "__promptPaletteEditorInitialized", { value: true, configurable: true });
+        node._wgRefreshFromHidden = refreshFromHidden;
+        node._wgRefreshVisuals = refreshVisuals;
+        node._wgReassertHiddenWidgets = reassertHiddenWidgets;
+        node._wgReapplyTheme = reapplyTheme;
+        node._wgRendererModeChanged = () => {
+          // ComfyUI remounts the DOM widget when switching Nodes 1/2. Native CSS
+          // Highlight ranges are tied to that mounted editor tree, so rebuild the
+          // visual layer after the renderer transition even when prompt text did
+          // not change. Protect the current size while that surface remounts too.
+          node._ppNodeGeometry?.remount();
+          node._wgReassertHiddenWidgets?.();
+          node._wgReapplyTheme?.();
+          node._wgRefreshVisuals?.();
+          scheduleDomWidgetRemeasure(node);
+        };
+        livePromptPaletteNodes.add(node);
 
-      lifecycle.add(() => {
+        // Install the socket renderer only after the DOM widget exists. One frame later is
+        // deliberate: it lets ComfyUI finish its own nodeCreated/addDOMWidget layout first.
+        const scheduleRendererInstall = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
+        scheduleRendererInstall(() => {
+          if (!nodeIsActive(node)) return;
+          node._wgInstallSocketRailWhenReady?.();
+          queueSocketRailLayout(node);
+          scheduleDomWidgetRemeasure(node);
+        });
+        queueMicrotask(() => reassertHiddenWidgets());
+        scheduleDomWidgetRemeasure(node);
+
+        lifecycle.add(() => {
+          livePromptPaletteNodes.delete(node);
+          cleanupSocketRailLayout(node);
+          delete node._wgRendererModeChanged;
+          delete node._wgReapplyTheme;
+          delete node._wgRefreshVisuals;
+          delete node._wgRefreshFromHidden;
+          delete node._wgReassertHiddenWidgets;
+          cleanup?.();
+          if (livePromptPaletteNodes.size === 0) cleanupSharedPromptPaletteDom();
+        });
+      } catch (error) {
+        try { built?.cleanup?.(); } catch {}
         livePromptPaletteNodes.delete(node);
         cleanupSocketRailLayout(node);
-        delete node._wgRendererModeChanged;
-        delete node._wgReapplyTheme;
-        delete node._wgRefreshVisuals;
-        cleanup?.();
-        if (livePromptPaletteNodes.size === 0) cleanupSharedPromptPaletteDom();
-      });
-
+        delete node.__promptPaletteEditorInitialized;
+        console.error("Prompt Palette: editor initialization failed", error);
+      } finally { delete node.__promptPaletteEditorInitializing; }
     },
 
     loadedGraphNode(node) {

@@ -1,6 +1,6 @@
 [project]
 name = "zf-prompt-palette"
-version = "2.0.4"
+version = "2.0.5"
 description = "A colorful wildcard editor, conditional prompt resolver, local booru tag autocomplete, batch prompt generator, prompt library, and backend-aware weight controller for ComfyUI."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,4 +29,3 @@ PublisherId = "z3rofeels"
 DisplayName = "Prompt Palette"
 Icon = "https://raw.githubusercontent.com/z3rofeels/comfyui-promptpalette/main/assets/prompt-palette-icon.png"
 Banner = "https://raw.githubusercontent.com/z3rofeels/comfyui-promptpalette/main/assets/prompt-palette-banner.png"
-

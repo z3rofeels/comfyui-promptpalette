@@ -19,6 +19,7 @@ const POWER_TOOL_DEFAULTS = Object.freeze({
   resolvedDiff: false,
   libraryManager: false,
   recipeBuilder2: false,
+  adjustableRecipes: false,
   nativeCommands: false,
 });
 
@@ -254,6 +255,7 @@ export function getPowerToolPreferences() {
 export function setPowerToolPreference(key, enabled) {
   if (!Object.prototype.hasOwnProperty.call(POWER_TOOL_DEFAULTS, key)) return false;
   updateSection("powerTools", key, !!enabled);
+  globalThis.dispatchEvent?.(new Event("pp-power-tools-changed"));
   return !!enabled;
 }
 
@@ -265,6 +267,7 @@ export function replacePowerToolPreferences(value) {
   }
   promptPaletteStateRuntime.cachedState = { ...current, powerTools: normalized };
   persist(promptPaletteStateRuntime.cachedState);
+  globalThis.dispatchEvent?.(new Event("pp-power-tools-changed"));
   return { ...normalized };
 }
 
@@ -283,6 +286,7 @@ export function replaceWorkspacePreferences(value) {
   const normalized = normalizeWorkspace(value);
   promptPaletteStateRuntime.cachedState = { ...current, workspace: normalized };
   persist(promptPaletteStateRuntime.cachedState);
+  globalThis.dispatchEvent?.(new Event("pp-power-tools-changed"));
   return { ...normalized };
 }
 

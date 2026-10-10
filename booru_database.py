@@ -7,6 +7,7 @@ import logging
 import os
 import sqlite3
 import tempfile
+import time
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -242,7 +243,12 @@ def build_bundled_database(
     os.close(fd)
 
     try:
-        with sqlite3.connect(tmp_path) as conn:
+        # sqlite3.Connection.__exit__ commits/rolls back but does NOT close the
+        # connection. On Windows that leaves the temporary DB handle open long
+        # enough for os.replace() to raise WinError 32. Close it explicitly
+        # before replacing the live index.
+        conn = sqlite3.connect(tmp_path)
+        try:
             _create_schema(conn)
             with open(csv_path, "r", encoding="utf-8-sig", errors="replace", newline="") as handle:
                 tag_count, alias_count, alias_values, category_counts = _parse_pyu_csv(handle, conn)
@@ -268,8 +274,24 @@ def build_bundled_database(
                 rows.items(),
             )
             conn.commit()
+        finally:
+            conn.close()
 
-        os.replace(tmp_path, db_path)
+        # A first-launch antivirus/indexer can still briefly hold the destination
+        # file. Retry only the Windows-style lock case; other errors surface normally.
+        replace_error = None
+        for attempt in range(6):
+            try:
+                os.replace(tmp_path, db_path)
+                replace_error = None
+                break
+            except PermissionError as error:
+                replace_error = error
+                if attempt == 5:
+                    raise
+                time.sleep(0.15 * (attempt + 1))
+        if replace_error is not None:
+            raise replace_error
 
         with open(metadata_path, "w", encoding="utf-8", newline="\n") as handle:
             json.dump(metadata, handle, ensure_ascii=False, indent=2)

@@ -1,8 +1,10 @@
+import { observeEditorSelection } from "./editor_selection.js";
 let surfaceCounter = 0;
 const EDITOR_SENTINEL = "\u200b";
 
 function logicalText(root) {
-  return String(root?.textContent || "").split(EDITOR_SENTINEL).join("");
+  const text = String(root?.textContent || "");
+  return text.endsWith(EDITOR_SENTINEL) ? text.slice(0, -1) : text;
 }
 
 function logicalLength(root) { return logicalText(root).length; }
@@ -30,8 +32,9 @@ function readLiveSelection(root, fallbackStart = 0, fallbackEnd = 0) {
     focusRange.setEnd(selection.focusNode, selection.focusOffset);
     const anchorRaw = anchorRange.toString();
     const focusRaw = focusRange.toString();
-    const anchor = anchorRaw.split(EDITOR_SENTINEL).join("").length;
-    const focus = focusRaw.split(EDITOR_SENTINEL).join("").length;
+    const length = logicalLength(root);
+    const anchor = Math.min(anchorRaw.length, length);
+    const focus = Math.min(focusRaw.length, length);
     return {
       start: Math.min(anchor, focus),
       end: Math.max(anchor, focus),
@@ -50,17 +53,12 @@ function textPointAtOffset(root, requestedOffset) {
   let lastText = null;
   while (node) {
     lastText = node;
-    let localLogical = 0;
-    for (let raw = 0; raw <= node.data.length; raw++) {
-      if (consumed + localLogical === target) return { node, offset: raw };
-      if (raw < node.data.length && node.data[raw] !== EDITOR_SENTINEL) localLogical += 1;
-    }
-    consumed += localLogical;
+    if (target <= consumed + node.data.length) return { node, offset: target - consumed };
+    consumed += node.data.length;
     node = walker.nextNode();
   }
   if (lastText) {
-    const sentinelAt = lastText.data.lastIndexOf(EDITOR_SENTINEL);
-    return { node: lastText, offset: sentinelAt >= 0 ? sentinelAt : lastText.data.length };
+    return { node: lastText, offset: lastText.data.length };
   }
   const empty = document.createTextNode(EDITOR_SENTINEL);
   root.appendChild(empty);
@@ -102,11 +100,11 @@ function supportsSingleSurfaceEditor() {
 function normalizePlainTextDom(root, state) {
   const onlyChild = root.childNodes.length === 1 ? root.firstChild : null;
   const raw = onlyChild?.nodeType === Node.TEXT_NODE ? onlyChild.data : "";
-  const sentinelCount = raw ? raw.split(EDITOR_SENTINEL).length - 1 : 0;
-  if (onlyChild?.nodeType === Node.TEXT_NODE && sentinelCount === 1 && raw.endsWith(EDITOR_SENTINEL)) return;
+  if (onlyChild?.nodeType === Node.TEXT_NODE && raw.endsWith(EDITOR_SENTINEL)) return;
   const current = readLiveSelection(root, state.start, state.end);
   // Slow-path only: normal typing, Enter and paste stay in a single text node.
-  const text = String(root.innerText || root.textContent || "").replace(/\r\n?/g, "\n").split(EDITOR_SENTINEL).join("");
+  const rawText = String(root.innerText || root.textContent || "").replace(/\r\n?/g, "\n");
+  const text = rawText.endsWith(EDITOR_SENTINEL) ? rawText.slice(0, -1) : rawText;
   root.textContent = text + EDITOR_SENTINEL;
   state.start = clampOffset(current.start, text.length);
   state.end = clampOffset(current.end, text.length);
@@ -135,7 +133,10 @@ function installTextareaCompatibility(root) {
     configurable: true,
     get() { return logicalText(root); },
     set(value) {
-      const text = String(value ?? "").replace(/\r\n?/g, "\n").split(EDITOR_SENTINEL).join("");
+      const text = String(value ?? "").replace(/\r\n?/g, "\n");
+      // A projection refresh must not replace the live text node, move the caret
+      // or interrupt an IME composition when the value has not changed.
+      if (text === logicalText(root)) return;
       root.textContent = text + EDITOR_SENTINEL;
       state.start = state.end = text.length;
       state.direction = "none";
@@ -180,7 +181,7 @@ function installTextareaCompatibility(root) {
     state.start = clampOffset(Math.min(start, end), length);
     state.end = clampOffset(Math.max(start, end), length);
     state.direction = direction === "backward" ? "backward" : "forward";
-    setLiveSelection(root, state.start, state.end, state.direction);
+    applySelection();
   };
 
   root.select = () => root.setSelectionRange(0, root.value.length, "forward");
@@ -189,8 +190,9 @@ function installTextareaCompatibility(root) {
     const source = root.value;
     const safeStart = clampOffset(Math.min(start, end), source.length);
     const safeEnd = clampOffset(Math.max(start, end), source.length);
-    const insert = String(replacement ?? "");
-    const oldSelection = refreshSelection();
+    const insert = String(replacement ?? "").replace(/\r\n?/g, "\n");
+    // The value setter updates the same state object returned by refreshSelection.
+    const oldSelection = { ...refreshSelection() };
     root.value = source.slice(0, safeStart) + insert + source.slice(safeEnd);
     const insertedEnd = safeStart + insert.length;
     if (selectionMode === "select") root.setSelectionRange(safeStart, insertedEnd);
@@ -203,10 +205,13 @@ function installTextareaCompatibility(root) {
     }
   };
 
-  let correctingSelection = false;
+  let correctingSelection = false, pointerSelecting = false, selectionFrame = 0;
   const onSelectionChange = () => {
     const selection = window.getSelection?.();
-    if (!selectionBelongsTo(root, selection) || correctingSelection) return;
+    // Replacing a native range while the mouse is down resets Chromium's drag
+    // anchor. A click after the final __ can land beyond our zero-width marker;
+    // clamp the public offsets now, but leave that live gesture untouched.
+    if (!selectionBelongsTo(root, selection) || correctingSelection || pointerSelecting) return;
     const current = refreshSelection();
     try {
       const anchorRange = document.createRange();
@@ -215,7 +220,7 @@ function installTextareaCompatibility(root) {
       const focusRange = document.createRange();
       focusRange.selectNodeContents(root);
       focusRange.setEnd(selection.focusNode, selection.focusOffset);
-      const crossedSentinel = anchorRange.toString().includes(EDITOR_SENTINEL) || focusRange.toString().includes(EDITOR_SENTINEL);
+      const crossedSentinel = anchorRange.toString().length > root.value.length || focusRange.toString().length > root.value.length;
       if (crossedSentinel) {
         correctingSelection = true;
         setLiveSelection(root, current.start, current.end, current.direction);
@@ -223,7 +228,27 @@ function installTextareaCompatibility(root) {
       }
     } catch { /* selection is still safely clamped by the compatibility getters */ }
   };
-  document.addEventListener("selectionchange", onSelectionChange);
+  const cleanupSelection = observeEditorSelection(root, onSelectionChange);
+  const finishPointerSelection = () => {
+    pointerSelecting = false;
+    document.removeEventListener("pointerup", finishPointerSelection, true);
+    document.removeEventListener("pointercancel", finishPointerSelection, true);
+    document.removeEventListener("mouseup", finishPointerSelection, true);
+    window.removeEventListener("blur", finishPointerSelection);
+    if (selectionFrame) cancelAnimationFrame(selectionFrame);
+    selectionFrame = requestAnimationFrame(() => { selectionFrame = 0; onSelectionChange(); });
+  };
+  const startPointerSelection = event => {
+    event.stopPropagation();
+    if (event.button !== 0) return;
+    if (selectionFrame) cancelAnimationFrame(selectionFrame);
+    selectionFrame = 0; pointerSelecting = true;
+    document.addEventListener("pointerup", finishPointerSelection, true);
+    document.addEventListener("pointercancel", finishPointerSelection, true);
+    document.addEventListener("mouseup", finishPointerSelection, true);
+    window.addEventListener("blur", finishPointerSelection);
+  };
+  const stopPointerBubble = event => { if (pointerSelecting) event.stopPropagation(); };
 
   const insertPlainText = (text, inputType = "insertText") => {
     const start = root.selectionStart;
@@ -232,8 +257,26 @@ function installTextareaCompatibility(root) {
     root.dispatchEvent(new InputEvent("input", { bubbles: true, inputType, data: text }));
   };
 
+  const onSurfaceClick = (event) => {
+    if (event.button != null && event.button !== 0) return;
+    if (event.target !== root) return;
+    // Clicking the empty padding/gutter of a contenteditable can produce a DOM
+    // selection anchored to the root element instead of a text node. That leaves
+    // subsequent typing/selection feeling inert in Nodes 2. Put a real caret at the
+    // nearest safe boundary without touching clicks that already landed in text.
+    queueMicrotask(() => {
+      if (document.activeElement !== root) root.focus({ preventScroll: true });
+      const selection = window.getSelection?.();
+      if (selectionBelongsTo(root, selection) && (!selection.isCollapsed || selection.anchorNode?.nodeType === Node.TEXT_NODE)) return;
+      const end = root.value.length;
+      root.setSelectionRange(end, end);
+    });
+  };
+
   const onBeforeInput = (event) => {
     event.stopPropagation();
+    onSelectionChange();
+    if (event.inputType?.startsWith("format")) { event.preventDefault(); return; }
     if (event.inputType !== "insertParagraph" && event.inputType !== "insertLineBreak") return;
     event.preventDefault();
     insertPlainText("\n", event.inputType);
@@ -247,6 +290,15 @@ function installTextareaCompatibility(root) {
     insertPlainText(text.replace(/\r\n?/g, "\n"), "insertFromPaste");
   };
 
+  const onCopyCut = (event) => {
+    event.stopPropagation();
+    const start = root.selectionStart, end = root.selectionEnd;
+    if (end <= start || !event.clipboardData) return;
+    event.preventDefault();
+    event.clipboardData.setData("text/plain", root.value.slice(start, end));
+    if (event.type === "cut") insertPlainText("", "deleteByCut");
+  };
+
   const onDrop = (event) => {
     event.stopPropagation();
     const text = event.dataTransfer?.getData("text/plain");
@@ -256,16 +308,28 @@ function installTextareaCompatibility(root) {
     insertPlainText(text.replace(/\r\n?/g, "\n"), "insertFromDrop");
   };
 
-  const onInputNormalize = () => normalizePlainTextDom(root, state);
+  const onInputNormalize = event => { if (!event.isComposing) normalizePlainTextDom(root, state); };
+  const onCompositionEnd = () => normalizePlainTextDom(root, state);
+  const onFocusSelection = () => { if (!pointerSelecting) setLiveSelection(root, state.start, state.end, state.direction); };
   const onKeyDown = (event) => {
-    event.stopPropagation();
+    if (event.key !== "Escape") event.stopPropagation();
     if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === "a") {
       event.preventDefault();
       root.select();
     }
   };
+  root.addEventListener("click", onSurfaceClick);
+  root.addEventListener("pointerdown", startPointerSelection);
+  root.addEventListener("mousedown", startPointerSelection);
+  root.addEventListener("pointermove", stopPointerBubble);
+  root.addEventListener("mousemove", stopPointerBubble);
+  root.addEventListener("focus", onFocusSelection);
+  root.addEventListener("blur", refreshSelection);
   root.addEventListener("beforeinput", onBeforeInput);
   root.addEventListener("paste", onPaste);
+  root.addEventListener("copy", onCopyCut);
+  root.addEventListener("cut", onCopyCut);
+  root.addEventListener("compositionend", onCompositionEnd);
   root.addEventListener("drop", onDrop);
   root.addEventListener("input", onInputNormalize);
   const onKeyBubbleStop = (event) => event.stopPropagation();
@@ -274,9 +338,24 @@ function installTextareaCompatibility(root) {
   root.addEventListener("keypress", onKeyBubbleStop);
 
   return () => {
-    document.removeEventListener("selectionchange", onSelectionChange);
+    if (selectionFrame) cancelAnimationFrame(selectionFrame);
+    document.removeEventListener("pointerup", finishPointerSelection, true);
+    document.removeEventListener("pointercancel", finishPointerSelection, true);
+    document.removeEventListener("mouseup", finishPointerSelection, true);
+    window.removeEventListener("blur", finishPointerSelection);
+    root.removeEventListener("pointerdown", startPointerSelection);
+    root.removeEventListener("mousedown", startPointerSelection);
+    root.removeEventListener("pointermove", stopPointerBubble);
+    root.removeEventListener("mousemove", stopPointerBubble);
+    cleanupSelection();
+    root.removeEventListener("click", onSurfaceClick);
+    root.removeEventListener("focus", onFocusSelection);
+    root.removeEventListener("blur", refreshSelection);
     root.removeEventListener("beforeinput", onBeforeInput);
     root.removeEventListener("paste", onPaste);
+    root.removeEventListener("copy", onCopyCut);
+    root.removeEventListener("cut", onCopyCut);
+    root.removeEventListener("compositionend", onCompositionEnd);
     root.removeEventListener("drop", onDrop);
     root.removeEventListener("input", onInputNormalize);
     root.removeEventListener("keydown", onKeyDown);

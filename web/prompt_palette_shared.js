@@ -1,4 +1,5 @@
 import { api } from "../../scripts/api.js";
+import { panelToneFor } from "./editor/panel_tone.js";
 
 const STYLE_PROMISES = new Map();
 const EXTENSION_BASE_URL = new URL("./", import.meta.url).href;
@@ -26,8 +27,12 @@ export function getPromptPaletteBuildId() {
   if (!buildIdPromise) {
     buildIdPromise = (async () => {
       try {
-        const url = typeof api.apiURL === "function" ? api.apiURL("/prompt_palette/build_id") : "/prompt_palette/build_id";
-        const response = await fetch(url, { cache: "no-store" });
+        // api.fetchApi applies ComfyUI's base path and auth/user headers, so this works
+        // behind subpath proxies and in multi-user mode. Raw fetch is the fallback only.
+        const route = "/prompt_palette/build_id";
+        const response = typeof api.fetchApi === "function"
+          ? await api.fetchApi(route, { cache: "no-store" })
+          : await fetch(typeof api.apiURL === "function" ? api.apiURL(route) : route, { cache: "no-store" });
         if (!response.ok) return "";
         const data = await response.json();
         const build = String(data?.build || "");
@@ -131,6 +136,14 @@ export function normalizeThemeFilename(name) {
 
 export function svgIcon(name, size = 14) {
   const paths = {
+    cut: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
+    paste: '<path d="M9 4h6v3H9z"/><path d="M15 5h3a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3"/>',
+    select: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M9 12h6"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 9"/>',
+    pin: '<path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3Z"/>',
+    path: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    jump: '<path d="M7 17 17 7M8 7h9v9"/>',
+    doctor: '<path d="M9 3H5v18h14V3h-4M9 2h6v4H9z"/><path d="m8 13 3 3 5-6"/>',
     gallery: '<path d="M3 4.5h6l1.4 1.7H21v12.3a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2Z"/><path d="m6 16 3-3 2.5 2.5 2-2L18 18"/><circle cx="16.5" cy="10" r="1.5"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
     recipe: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5Z"/><path d="M4 4.5v17"/><path d="M8 7h8M8 11h6"/>',
@@ -213,6 +226,11 @@ export function applyPromptPaletteThemeScope(target, colors = {}, typography = {
       else target.style.setProperty(`--wg-${key}`, String(value));
     }
   }
+  // Native selects and scrollbars must follow the node palette even when
+  // ComfyUI itself uses the opposite appearance. Do not theme the host page.
+  const background = colors["panel-bg"] || colors.bg || target.style.getPropertyValue("--wg-panel-bg");
+  target.dataset.wgTone = panelToneFor(target, background);
+  target.style.colorScheme = target.dataset.wgTone;
 }
 
 /** Remove variables written by Prompt Palette versions that themed :root globally. */
@@ -231,9 +249,23 @@ export function copyPromptPaletteThemeScope(source, target) {
   for (const key of [...PROMPT_PALETTE_THEME_KEYS, ...PROMPT_PALETTE_TYPOGRAPHY_KEYS, ...PROMPT_PALETTE_EFFECT_KEYS]) {
     const value = computed.getPropertyValue(`--wg-${key}`).trim();
     if (value) target.style.setProperty(`--wg-${key}`, value);
+    else target.style.removeProperty(`--wg-${key}`);
   }
   const finish = source.dataset?.wgFinish;
   if (finish) target.dataset.wgFinish = finish;
+  target.dataset.wgTone = source.dataset?.wgTone || panelToneFor(source);
+  target.style.colorScheme = target.dataset.wgTone;
+}
+
+/** Position an existing, non-interactive preview inside the browser viewport. */
+export function positionPromptPaletteTip(tip, x, y) {
+  const gap = 14, margin = 8;
+  tip.style.display = "block";
+  const rect = tip.getBoundingClientRect();
+  const left = Math.max(margin, Math.min(x + gap, window.innerWidth - rect.width - margin));
+  const below = y + gap;
+  const top = below + rect.height <= window.innerHeight - margin ? below : Math.max(margin, y - rect.height - gap);
+  tip.style.left = `${left}px`; tip.style.top = `${top}px`;
 }
 
 /**
@@ -254,6 +286,18 @@ export function installPromptPaletteKeyboardBoundary(target) {
     for (const type of ["keydown", "keyup", "keypress", "copy", "cut", "paste"]) target.removeEventListener(type, stop);
     delete target.dataset.promptPaletteKeyboardBoundary;
   };
+}
+
+/** Navigate an existing tab group; its owner remains responsible for activation. */
+export function navigatePromptPaletteTabs(event, tabs, activate) {
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+  const visible = tabs.filter(tab => !tab.hidden);
+  if (!visible.length) return;
+  const index = Math.max(0, visible.indexOf(event.currentTarget));
+  const next = event.key === "Home" ? visible[0] : event.key === "End" ? visible.at(-1)
+    : visible[(index + (["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1) + visible.length) % visible.length];
+  event.preventDefault(); event.stopPropagation(); activate(next); next.focus({ preventScroll: true });
+  next.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 // Appearance synchronization uses one Prompt Palette-owned runtime registry per page.

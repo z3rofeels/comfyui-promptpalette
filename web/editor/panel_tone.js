@@ -4,9 +4,9 @@
 const toneCache = new Map();
 let toneContext = null;
 
-export function panelToneFor(element) {
+export function panelToneFor(element, background = null) {
   try {
-    const bg = getComputedStyle(element).backgroundColor || "";
+    const bg = background || getComputedStyle(element).backgroundColor || "";
     if (toneCache.has(bg)) return toneCache.get(bg);
     if (!toneContext) {
       const canvas = document.createElement("canvas");

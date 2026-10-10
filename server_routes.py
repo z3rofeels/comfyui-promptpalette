@@ -9,21 +9,28 @@ import os
 import re
 import tempfile
 import threading
+from pathlib import Path
 from typing import Any
 
 from aiohttp import web
 from server import PromptServer
 
 from .clip_tokenizer import count_clip_tokens
+from .prompt_exploration import capture_selection
+from .prompt_diagnostics import inspect_resolved_prompt
 from .wildcard_index import get_index
 from .wildcard_resolver import WildcardResolver
 from .booru_database import active_db_path, normalize_lookup, normalize_tag
+from .image_prompt_import import import_image_prompts, MAX_IMPORT_BYTES
 
 logger = logging.getLogger(__name__)
 routes = PromptServer.instance.routes
 
 MAX_JSON_BYTES = 2 * 1024 * 1024
 MAX_TEXT_CHARS = 1_000_000
+# Structured workspace histories stay in existing recipe TXT files.
+MAX_RECIPE_TEXT_CHARS = 20_000_000
+MAX_RECIPE_JSON_BYTES = 64 * 1024 * 1024
 MAX_NAME_CHARS = 1024
 MAX_PATH_CHARS = 4096
 MAX_THUMB_BYTES = 8 * 1024 * 1024
@@ -32,6 +39,42 @@ THUMB_EXTS = (".jpg", ".jpeg", ".png")
 UINT64_MAX = 0xFFFFFFFFFFFFFFFF
 
 _CUSTOM_WORD_TEXT_CACHE: dict[str, Any] = {"signature": None, "text": ""}
+
+_build_id: str | None = None
+
+
+def _compute_build_id() -> str:
+    """Content hash of the installed web/ folder, used by the frontend as a cache-busting key."""
+    web_root = Path(__file__).resolve().parent / "web"
+    digest = hashlib.sha256()
+    if not web_root.is_dir():
+        return digest.hexdigest()[:16]
+    for path in sorted((p for p in web_root.rglob("*") if p.is_file()), key=lambda p: p.relative_to(web_root).as_posix()):
+        digest.update(path.relative_to(web_root).as_posix().encode("utf-8"))
+        try:
+            digest.update(path.read_bytes())
+        except OSError:
+            logger.debug("Prompt Palette: unable to hash asset %s", path, exc_info=True)
+    return digest.hexdigest()[:16]
+
+
+def build_id() -> str:
+    global _build_id
+    if _build_id is None:
+        _build_id = _compute_build_id()
+    return _build_id
+
+
+@routes.get("/prompt_palette/build_id")
+async def prompt_palette_build_id(_request: web.Request) -> web.Response:
+    return web.Response(
+        text=json.dumps({"build": build_id()}, separators=(",", ":")),
+        content_type="application/json",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )
 
 _BOORU_CATEGORY_NAMES = ("general", "artist", "copyright", "character", "meta")
 _BOORU_CATEGORY_ALIASES = {
@@ -63,7 +106,7 @@ def _booru_query_tokens(query: str) -> list[str]:
     return seen[:6]
 
 
-def _booru_bundle_search(query: str, limit: int = 48) -> list[dict[str, Any]]:
+def _booru_bundle_search(query: str, limit: int = 48, category: str = "") -> list[dict[str, Any]]:
     """Substring search of the bundled SQLite index, ranked by popularity.
 
     Every term of the query must appear anywhere in the tag (or in one of its
@@ -85,8 +128,13 @@ def _booru_bundle_search(query: str, limit: int = 48) -> list[dict[str, Any]]:
     fetch = max(limit * 4, 96)
     tag_where = " AND ".join("instr(tag_lc, ?) > 0" for _ in tokens)
     alias_where = " AND ".join("instr(a.alias_lc, ?) > 0" for _ in tokens)
+    category_args = (category,) if category else ()
+    if category:
+        # Filter before LIMIT: rare categories must not be crowded out by general tags.
+        tag_where += " AND category = ?"
+        alias_where += " AND t.category = ?"
 
-    candidates: dict[tuple[str, str], tuple[tuple[Any, ...], dict[str, Any]]] = {}
+    candidates: dict[str, tuple[tuple[Any, ...], dict[str, Any]]] = {}
     try:
         import sqlite3
         with sqlite3.connect(db_path) as conn:
@@ -95,14 +143,14 @@ def _booru_bundle_search(query: str, limit: int = 48) -> list[dict[str, Any]]:
                 (
                     "SELECT tag, post_count, category, aliases, NULL AS matched_alias "
                     f"FROM tags WHERE {tag_where} ORDER BY post_count DESC LIMIT ?",
-                    (*tokens, fetch),
+                    (*tokens, *category_args, fetch),
                     False,
                 ),
                 (
                     "SELECT t.tag, t.post_count, t.category, t.aliases, a.alias AS matched_alias "
                     "FROM tag_aliases a JOIN tags t ON t.tag = a.tag "
                     f"WHERE {alias_where} ORDER BY t.post_count DESC LIMIT ?",
-                    (*tokens, fetch),
+                    (*tokens, *category_args, fetch),
                     True,
                 ),
             ]
@@ -111,44 +159,37 @@ def _booru_bundle_search(query: str, limit: int = 48) -> list[dict[str, Any]]:
                 for row in conn.execute(sql, params):
                     canonical = normalize_tag(row["tag"])
                     canonical_lc = canonical.casefold()
-                    row_aliases = [
-                        normalize_tag(a)
-                        for a in str(row["aliases"] or "").split(",")
-                        if a.strip()
-                    ]
                     matched_alias = normalize_tag(row["matched_alias"]) if row["matched_alias"] else ""
-                    labels = (
-                        [(matched_alias, True), (canonical, False)]
-                        if alias_match and matched_alias
-                        else [(canonical, False)]
+                    # Aliases are search-only. A canonical tag gets one row regardless
+                    # of whether it was found directly or through an alias. That keeps
+                    # large alias sets from filling the autocomplete table with duplicates.
+                    search_label = matched_alias if alias_match and matched_alias else canonical
+                    search_label_lc = search_label.casefold()
+                    if canonical_lc == q:
+                        continue
+                    if not all(t in search_label_lc for t in tokens):
+                        continue
+                    match_kind = 1 if alias_match else 0
+                    score = (
+                        -int(row["post_count"] or 0),
+                        0 if search_label_lc.startswith(tokens[0]) else 1,
+                        match_kind,
+                        len(canonical),
+                        canonical_lc,
                     )
-
-                    for label, is_alias in labels:
-                        label_lc = label.casefold()
-                        # The typed text itself is never suggested back, and every
-                        # term has to be present in the label being shown.
-                        if label_lc == q or not all(t in label_lc for t in tokens):
-                            continue
-                        key = (label_lc, canonical_lc)
-                        score = (
-                            -int(row["post_count"] or 0),
-                            0 if label_lc.startswith(tokens[0]) else 1,
-                            1 if is_alias else 0,
-                            len(label),
-                            label_lc,
-                        )
-                        item = {
-                            "value": canonical,
-                            "label": label,
-                            "group": "Booru Tags",
-                            "kind": "booru",
-                            "category": _booru_category(str(row["category"] or "general")),
-                            "count": int(row["post_count"] or 0),
-                            "alias": canonical if is_alias else (row_aliases[0] if row_aliases else ""),
-                        }
-                        old = candidates.get(key)
-                        if old is None or score < old[0]:
-                            candidates[key] = (score, item)
+                    item = {
+                        "value": canonical,
+                        "label": canonical,
+                        "group": "Booru Tags",
+                        "kind": "booru",
+                        "category": _booru_category(str(row["category"] or "general")),
+                        "count": int(row["post_count"] or 0),
+                        # Aliases are intentionally not rendered as separate pills/rows.
+                        "alias": "",
+                    }
+                    old = candidates.get(canonical_lc)
+                    if old is None or score < old[0]:
+                        candidates[canonical_lc] = (score, item)
     except Exception:
         logger.exception("Could not search canonical SQLite booru database")
         return []
@@ -276,27 +317,35 @@ def _bounded_int(value: Any, field: str, *, minimum: int = 0, maximum: int = UIN
     return parsed
 
 
-def _read_text_file(path: str) -> str:
+def _recipe_content_limit(name: str) -> int:
+    return MAX_RECIPE_TEXT_CHARS if name.split("/", 1)[0].casefold() in {"recipe", "recipes"} else MAX_TEXT_CHARS
+
+
+def _read_text_file(path: str, limit: int = MAX_TEXT_CHARS) -> str:
     with open(path, "r", encoding="utf-8", errors="replace", newline="") as handle:
-        content = handle.read(MAX_TEXT_CHARS + 1)
-    if len(content) > MAX_TEXT_CHARS:
+        content = handle.read(limit + 1)
+    if len(content) > limit:
         raise ValueError("wildcard file is too large to edit in the browser")
     return content
 
 
-async def _get_fresh_index():
-    index = get_index()
-    await index.ensure_fresh_async()
+async def _get_fresh_index(force_check=False):
+    # First access creates/scans the index; do not block ComfyUI's event loop.
+    index = await asyncio.to_thread(get_index)
+    await index.ensure_fresh_async(force_check=force_check)
     return index
 
 
 @routes.get("/prompt_palette/booru_tags")
 async def search_booru_tags(request):
     query = str(request.rel_url.query.get("q", ""))[:128].strip()
+    category = str(request.rel_url.query.get("category", "")).strip().lower()
+    if category and category not in _BOORU_CATEGORY_NAMES:
+        return _error("unknown tag category")
     if len(query) < 1:
         return web.json_response({"items": []})
     try:
-        items = _booru_bundle_search(query, 60)
+        items = await asyncio.to_thread(_booru_bundle_search, query, 60, category)
         for item in items:
             item["meta"] = (
                 f'{int(item.get("count", 0)):,} posts'
@@ -307,6 +356,38 @@ async def search_booru_tags(request):
     except Exception:
         logger.exception("Could not search booru tags")
         return _error("couldn't search booru tags", 500)
+
+
+@routes.post("/prompt_palette/import_image_prompts")
+async def import_image_prompt_route(request):
+    try:
+        if request.content_length is not None and request.content_length > MAX_IMPORT_BYTES + 64 * 1024:
+            raise ValueError("Image exceeds the 32MB import limit.")
+        reader = await request.multipart()
+        image = bytearray()
+        found = False
+        async for part in reader:
+            if part.name != "file":
+                await part.release()
+                continue
+            if found:
+                raise ValueError("Choose one image to import.")
+            found = True
+            while True:
+                chunk = await part.read_chunk(size=64 * 1024)
+                if not chunk:
+                    break
+                image.extend(chunk)
+                if len(image) > MAX_IMPORT_BYTES:
+                    raise ValueError("Image exceeds the 32MB import limit.")
+        if not image:
+            raise ValueError("Choose an image to import.")
+        return web.json_response(await asyncio.to_thread(import_image_prompts, bytes(image)))
+    except (ValueError, AssertionError) as error:
+        return _error(str(error))
+    except Exception:
+        logger.exception("Could not import image prompt metadata")
+        return _error("Could not read image prompt metadata.", 500)
 
 
 MAX_BOORU_LOOKUP_TAGS = 400
@@ -809,17 +890,31 @@ async def preview_wildcard(request):
         return _error("couldn't preview wildcard", 500)
 
 
+@routes.get("/prompt_palette/alternatives")
+async def get_prompt_alternatives(request):
+    name = request.rel_url.query.get("name", "")[:MAX_NAME_CHARS]
+    try:
+        index = await _get_fresh_index()
+        lines = index.get_lines(name)
+        if lines is None:
+            return web.json_response({"found": False, "lines": [], "total": 0, "truncated": False})
+        return web.json_response({"found": True, "lines": lines[:256], "total": len(lines), "truncated": len(lines) > 256})
+    except Exception:
+        logger.exception("Could not load prompt alternatives")
+        return _error("couldn't load alternatives", 500)
+
+
 @routes.get("/prompt_palette/content")
 async def get_content(request):
     name = request.rel_url.query.get("name", "")[:MAX_NAME_CHARS]
     try:
-        index = await _get_fresh_index()
+        index = await _get_fresh_index(force_check=request.rel_url.query.get("fresh") == "1")
         entry = index.get_entry(name)
         if not entry:
             return web.json_response({"found": False}, status=404)
         editable = entry["type"] == "txt"
         content = (
-            await asyncio.to_thread(_read_text_file, entry["abs_path"])
+            await asyncio.to_thread(_read_text_file, entry["abs_path"], _recipe_content_limit(name))
             if editable
             else "\n".join(entry["lines"])
         )
@@ -839,10 +934,11 @@ async def get_content(request):
 @routes.post("/prompt_palette/save")
 async def save_wildcard(request):
     try:
-        data = await _read_json_object(request)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS)
-        content = _bounded_text(data.get("content"), "content")
-        await asyncio.to_thread(get_index().save_txt, name, content)
+        content = _bounded_text(data.get("content"), "content", _recipe_content_limit(name))
+        index = await asyncio.to_thread(get_index)
+        await asyncio.to_thread(index.save_txt, name, content)
     except ValueError as exc:
         return _error(str(exc), ok=False)
     except Exception:
@@ -856,7 +952,8 @@ async def delete_wildcard(request):
     try:
         data = await _read_json_object(request)
         name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS)
-        await asyncio.to_thread(get_index().delete, name)
+        index = await _get_fresh_index()
+        await asyncio.to_thread(index.delete, name)
     except (FileNotFoundError, ValueError) as exc:
         return _error(str(exc), ok=False)
     except Exception:
@@ -867,8 +964,8 @@ async def delete_wildcard(request):
 
 @routes.post("/prompt_palette/refresh")
 async def refresh_index(request):
-    index = get_index()
     try:
+        index = await asyncio.to_thread(get_index)
         await asyncio.to_thread(index.rescan, True)
         items = index.flat_list()
     except Exception:
@@ -900,8 +997,8 @@ def _remote_set_path_allowed() -> bool:
 
 @routes.post("/prompt_palette/set_path")
 async def set_path(request):
-    index = get_index()
     try:
+        index = await asyncio.to_thread(get_index)
         data = await _read_json_object(request)
         path = _bounded_text(data.get("path"), "path", MAX_PATH_CHARS)
         if path.strip():
@@ -963,6 +1060,68 @@ async def resolve_prompt(request):
         logger.exception("Prompt resolution failed")
         return _error("prompt resolution failed", 500)
     return web.json_response(response)
+
+
+@routes.post("/prompt_palette/inspect")
+async def inspect_prompt(request):
+    try:
+        data = await _read_json_object(request)
+        text = _bounded_text(data.get("text"), "text")
+        seed = _bounded_int(data.get("seed", 0), "seed")
+        mode = data.get("mode", "entire text as one")
+        resolve = data.get("resolve", True)
+        if not isinstance(resolve, bool):
+            raise ValueError("invalid resolve flag")
+        if mode not in {"entire text as one", "line by line"}:
+            raise ValueError("invalid processing mode")
+    except (ValueError, TypeError) as exc:
+        return _error(str(exc))
+    try:
+        index = await _get_fresh_index() if resolve else None
+
+        def inspect():
+            # Share the resolver, isolated preview cursors and Weight Controller parser.
+            # Inspecting never advances a user's sequential wildcard or patches a model.
+            from .nodes import PromptPaletteWeightController
+            resolver = WildcardResolver(index.preview_view()) if index is not None else None
+            resolved = text if not resolve else "\n".join(resolver.resolve_lines(text, seed=seed)) if mode == "line by line" else resolver.resolve(text, seed=seed)
+            try:
+                import folder_paths
+                available = folder_paths.get_filename_list("embeddings")
+            except Exception:
+                available = None
+            result = inspect_resolved_prompt(resolved, PromptPaletteWeightController._parse_weighted_segments(resolved), available)
+            result.update({"resolved": resolved, "token_stats": count_clip_tokens(resolved, include_layout=True),
+                           "variables": [{"name": name, "value": str(value)} for name, (kind, value) in (resolver.variables.items() if resolver else []) if kind == "resolved"][:64]})
+            return result
+
+        return web.json_response(await asyncio.to_thread(inspect))
+    except ValueError as exc:
+        return _error(str(exc))
+    except Exception:
+        logger.exception("Prompt inspection failed")
+        return _error("prompt inspection failed", 500)
+
+
+@routes.post("/prompt_palette/capture_selection")
+async def capture_prompt_selection(request):
+    try:
+        data = await _read_json_object(request)
+        text = _bounded_text(data.get("text"), "text")
+        start = _bounded_int(data.get("start"), "start", maximum=MAX_TEXT_CHARS * 2)
+        end = _bounded_int(data.get("end"), "end", maximum=MAX_TEXT_CHARS * 2)
+        seed = _bounded_int(data.get("seed", 0), "seed")
+        mode = data.get("mode", "entire text as one")
+        if not isinstance(mode, str) or mode not in {"entire text as one", "line by line"}:
+            raise ValueError("invalid processing mode")
+        index = await _get_fresh_index()
+        result = await asyncio.to_thread(capture_selection, index, text, start, end, seed, mode)
+        return web.json_response(result)
+    except ValueError as exc:
+        return _error(str(exc))
+    except Exception:
+        logger.exception("Could not capture prompt selection")
+        return _error("couldn't capture this selection", 500)
 
 
 @routes.post("/prompt_palette/resolve_variations")
@@ -1358,7 +1517,8 @@ async def library_batch(request):
 @routes.get("/prompt_palette/categories")
 async def get_thumbnail_map(request):
     try:
-        root = os.path.realpath(get_index().get_root_dir())
+        index = await asyncio.to_thread(get_index)
+        root = os.path.realpath(index.get_root_dir())
         return web.json_response(await asyncio.to_thread(_thumbnail_map, root))
     except Exception:
         logger.exception("Could not load thumbnail map")
@@ -1370,7 +1530,8 @@ async def get_thumbnail(request):
     rel_file = request.rel_url.query.get("file", "")[:MAX_NAME_CHARS]
     if not rel_file.lower().endswith(THUMB_EXTS):
         raise web.HTTPNotFound()
-    abs_path = _resolve_within_root(get_index().get_root_dir(), rel_file)
+    index = await asyncio.to_thread(get_index)
+    abs_path = _resolve_within_root(index.get_root_dir(), rel_file)
     if not abs_path or not os.path.isfile(abs_path):
         raise web.HTTPNotFound()
     return web.FileResponse(abs_path)
@@ -1444,8 +1605,8 @@ async def _read_thumbnail_multipart(request: web.Request) -> tuple[str, bytes, s
 async def set_thumbnail(request):
     try:
         name, image, extension = await _read_thumbnail_multipart(request)
-        index = get_index()
-        entry = index.get_entry(name)
+        index = await _get_fresh_index()
+        entry = await asyncio.to_thread(index.get_entry, name)
         if not entry or entry["type"] != "txt":
             raise ValueError("thumbnail target must be an existing .txt wildcard")
         target_base = os.path.splitext(entry["abs_path"])[0]
@@ -1479,7 +1640,8 @@ async def remove_thumbnail(request):
         name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS).strip()
         if not name:
             raise ValueError("missing name")
-        entry = get_index().get_entry(name)
+        index = await _get_fresh_index()
+        entry = await asyncio.to_thread(index.get_entry, name)
         if not entry or entry["type"] != "txt":
             raise ValueError("thumbnail target must be an existing .txt wildcard")
         target_base = os.path.splitext(entry["abs_path"])[0]

@@ -4,11 +4,13 @@ import { escapeHtml, sanitizeHexColor, nudgeHexForContrast, currentUiSurface, ca
 import { createDomRangeForOffsets } from "./editor_surface.js";
 import { API } from "../prompt_palette_api.js";
 import { loadCustomWords, filterCustomWords, resetCustomWords } from "./custom_words.js";
-import { recordInsertedTags } from "./booru_tag_colors.js";
+import { recordInsertedTags, scanTagPieces } from "./booru_tag_colors.js";
 import { notify } from "./notifications.js";
 import { panelToneFor } from "./panel_tone.js";
+import { tagSearch } from "./tag_search.js";
 import { openCustomWordsManager } from "./custom_words_manager.js";
 import { syntaxSnippetRows } from "./injector.js";
+import { syntaxCodeHtml, syntaxTone } from "./syntax_presentation.js";
 import { createPromptUsageStore } from "../prompt_quickness.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import {
@@ -82,10 +84,17 @@ let acOwner = null;
 let acRequestVersion = 0;
 // Draft of the inline "save custom word" form; lives only while the menu is open.
 let acAddDraft = null;
-let booruInsertOptions = { spaces: false, appendComma: false };
+const savedInsertOptions = readEditorPreference("booruInsertOptions", null);
+let booruInsertOptions = { spaces: savedInsertOptions?.spaces === true, appendComma: savedInsertOptions?.appendComma === true };
 let suppressAutocompleteInputFor = null;
 function handleAcDocumentMouseDown(event) {
-  if (acState && !acMenu?.contains(event.target) && event.target !== acState.textarea) closeAcMenu();
+  const owner = acState?.textarea || acOwner;
+  if (owner && !acMenu?.contains(event.target) && event.target !== owner && !owner.contains?.(event.target)) closeAcMenu();
+}
+function handleAcViewportChange(event) {
+  if (event.target instanceof Node && acMenu?.contains(event.target)) return;
+  if (event.type === "resize") { if (acState || acOwner) closeAcMenu(); }
+  else if (acState && acMenu) positionAcMenu(acMenu);
 }
 
 function ensureAcMenu() {
@@ -118,6 +127,17 @@ function ensureAcMenu() {
       removeAcRecent(rowIndex());
       return;
     }
+    const insertOption = target.closest("[data-ac-insert-option]");
+    if (insertOption) {
+      e.preventDefault();
+      e.stopPropagation();
+      const mode = insertOption.dataset.acInsertOption;
+      if (mode === "spaces") booruInsertOptions.spaces = !booruInsertOptions.spaces;
+      if (mode === "comma") booruInsertOptions.appendComma = !booruInsertOptions.appendComma;
+      writeEditorPreference("booruInsertOptions", booruInsertOptions);
+      renderAcMenu();
+      return;
+    }
     const head = target.closest("[data-ac-toggle]");
     if (head) {
       e.preventDefault();
@@ -130,6 +150,9 @@ function ensureAcMenu() {
     commitAcSelection(Number(row.dataset.acIndex));
   });
   document.addEventListener("mousedown", handleAcDocumentMouseDown);
+  document.addEventListener("contextmenu", handleAcDocumentMouseDown);
+  document.addEventListener("scroll", handleAcViewportChange, true);
+  window.addEventListener("resize", handleAcViewportChange);
   return acMenu;
 }
 
@@ -171,7 +194,8 @@ function booruSettings() {
 }
 
 async function getBooruAutocompleteMatches(query) {
-  const q = String(query || "").trim().toLowerCase();
+  const search = tagSearch(query);
+  const q = search.query.toLowerCase();
   const settings = booruSettings();
   if (!q || q.length < settings.minChars || (!settings.database && !settings.customWords)) return [];
 
@@ -187,9 +211,9 @@ async function getBooruAutocompleteMatches(query) {
   };
 
   try {
-    const databasePromise = settings.database ? API.booruTags(q) : Promise.resolve([]);
+    const databasePromise = settings.database ? API.booruTags(q, search.category) : Promise.resolve([]);
     const customPromise = settings.customWords
-      ? loadCustomWords().then((words) => filterCustomWords(words, q, 24))
+      ? loadCustomWords().then((words) => filterCustomWords(search.category ? words.filter(item => item.category === search.category) : words, q, 24))
       : Promise.resolve([]);
     const [databaseResult, customResult] = await Promise.allSettled([databasePromise, customPromise]);
     const database = databaseResult.status === "fulfilled" && Array.isArray(databaseResult.value)
@@ -199,8 +223,8 @@ async function getBooruAutocompleteMatches(query) {
 
     // Each source is independent: a broken/oversized custom-word source must not hide
     // otherwise healthy database results, and vice versa. Exact custom matches still win.
-    const exactCustom = custom.filter((item) => String(item?.label || "").trim().toLowerCase() === q);
-    const otherCustom = custom.filter((item) => String(item?.label || "").trim().toLowerCase() !== q);
+    const exactCustom = custom.filter((item) => item?.exactCustomMatch === true || String(item?.label || "").trim().toLowerCase() === q);
+    const otherCustom = custom.filter((item) => !(item?.exactCustomMatch === true || String(item?.label || "").trim().toLowerCase() === q));
     exactCustom.forEach(add);
     database.forEach(add);
     otherCustom.forEach(add);
@@ -208,7 +232,7 @@ async function getBooruAutocompleteMatches(query) {
     // Booru autocomplete is optional; preserve whichever local source can still answer.
     if (settings.customWords) {
       try {
-        (await loadCustomWords().then((words) => filterCustomWords(words, q, 24)))
+        (await loadCustomWords().then((words) => filterCustomWords(search.category ? words.filter(item => item.category === search.category) : words, q, 24)))
           .forEach(add);
       } catch { /* optional source */ }
     }
@@ -223,7 +247,7 @@ function shouldOpenBooruAutocomplete(fragment, { onDemand = false } = {}) {
   if (!settings.enabled || settings.mode === "off") return false;
   if (settings.mode === "onDemand" && !onDemand) return false;
   if (!settings.database && !settings.customWords) return false;
-  return String(fragment.query || "").length >= settings.minChars;
+  return tagSearch(fragment.query).query.length >= settings.minChars;
 }
 
 function expandAutocompleteReplacementRange(text, fragment, caret) {
@@ -274,7 +298,9 @@ function normalizePromptTag(value) {
 function promptContainsTag(text, candidate) {
   const wanted = normalizePromptTag(candidate);
   if (!wanted) return false;
-  return String(text || "").split(/[\s,]+/).some(part => normalizePromptTag(part) === wanted);
+  // Use the same tag boundaries as prompt coloring. Splitting at spaces loses
+  // multiword tags inserted with "spaces" enabled, and weight wrappers hide tags.
+  return scanTagPieces(text).some(piece => piece.key === wanted);
 }
 
 function promptContainsLibraryEntry(text, path) {
@@ -290,6 +316,10 @@ function cssColorToHex(value, fallback) {
   if (hex) return `#${hex[1]}`;
   const rgb = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
   if (rgb) return `#${[rgb[1], rgb[2], rgb[3]].map(channel => Number(channel).toString(16).padStart(2, "0")).join("")}`;
+  // color-mix() backgrounds serialize as color(srgb ...) in modern browsers.
+  // Read that resolved surface instead of contrasting against a theme fallback.
+  const srgb = raw.match(/^color\(srgb\s+([+-]?[\d.]+)\s+([+-]?[\d.]+)\s+([+-]?[\d.]+)(?:\s*\/\s*[\d.]+)?\s*\)$/i);
+  if (srgb) return `#${srgb.slice(1, 4).map(channel => Math.max(0, Math.min(255, Math.round(Number(channel) * 255))).toString(16).padStart(2, "0")).join("")}`;
   return fallback;
 }
 
@@ -371,10 +401,11 @@ async function resolveAcItems(getMatches, query, kind) {
 
 async function decorateAcItems(items, query, kind) {
   if (kind !== "booru" && kind !== "wildcard") return items;
-  const q = String(query || "").trim().toLowerCase();
+  const search = kind === "booru" ? tagSearch(query) : { query, category: "" };
+  const q = String(search.query || "").trim().toLowerCase();
   const settings = booruSettings();
   const tagsEnabled = settings.enabled && (settings.database || settings.customWords);
-  let rows = items.slice();
+  let rows = search.category ? items.filter(item => rawTagKind(item) && item.category === search.category) : items.slice();
 
   if (kind === "wildcard" && tagsEnabled) {
     try {
@@ -397,6 +428,7 @@ async function decorateAcItems(items, query, kind) {
       });
       const extra = [];
       for (const [key, entry] of acFavorites) {
+        if (search.category && entry.category !== search.category) continue;
         if (present.has(key)) continue;
         if (q && !entry.value.toLowerCase().includes(q)) continue;
         const hasCategory = !(entry.kind === "custom" && entry.category === "custom");
@@ -479,7 +511,7 @@ function insertBooruValue(value) {
   // Preserve the source tag verbatim so tags such as saber_(fate) stay real tags rather
   // than being transformed into wildcard syntax or an escaped variant of the tag.
   if (booruInsertOptions.spaces) text = text.replace(/_/g, " ");
-  if (booruInsertOptions.appendComma) text += ",";
+  if (booruInsertOptions.appendComma) text += ", ";
   return text;
 }
 
@@ -524,12 +556,15 @@ function normalizeAcItem(item) {
     insertText: item?.insertText == null ? null : String(item.insertText),
     selectInserted: !!item?.selectInserted,
     selectRange: Array.isArray(item?.selectRange) && item.selectRange.length === 2 ? item.selectRange.map(Number) : null,
+    exactCustomMatch: item?.exactCustomMatch === true,
+    matchedAlias: String(item?.matchedAlias || ""),
     insertMode: item?.insertMode === "plain" ? "plain" : item?.insertMode === "library" ? "library" : ((kind === "booru" || kind === "custom") ? "plain" : "library"),
     favorite: !!item?.favorite,
     recent: !!item?.recent,
     recipe: !!item?.recipe,
     swatch: typeof item?.swatch === "string" ? item.swatch : "",
     code: String(item?.code || ""),
+    syntaxTone: String(item?.syntaxTone || syntaxTone(String(item?.code || ""))),
     section: sectionForItem(item),
   };
 }
@@ -563,6 +598,7 @@ function appendPill(parent, value, modifier = "") {
   pill.textContent = text;
   pill.title = text;
   parent.appendChild(pill);
+  return pill;
 }
 
 function focusAcField(field) {
@@ -632,17 +668,15 @@ function appendAcFooter(menu) {
     const spacesToggle = document.createElement("button");
     spacesToggle.type = "button";
     spacesToggle.className = "wg-ac-option" + (booruInsertOptions.spaces ? " active" : "");
+    spacesToggle.dataset.acInsertOption = "spaces";
     spacesToggle.title = "Replace tag underscores with spaces when inserting";
     spacesToggle.textContent = "spaces";
-    spacesToggle.addEventListener("mousedown", e => e.preventDefault());
-    spacesToggle.addEventListener("click", () => { booruInsertOptions.spaces = !booruInsertOptions.spaces; renderAcMenu(); });
     const commaToggle = document.createElement("button");
     commaToggle.type = "button";
     commaToggle.className = "wg-ac-option" + (booruInsertOptions.appendComma ? " active" : "");
-    commaToggle.title = "Append a comma after the inserted tag";
-    commaToggle.textContent = ",";
-    commaToggle.addEventListener("mousedown", e => e.preventDefault());
-    commaToggle.addEventListener("click", () => { booruInsertOptions.appendComma = !booruInsertOptions.appendComma; renderAcMenu(); });
+    commaToggle.dataset.acInsertOption = "comma";
+    commaToggle.title = "Append a comma and space after the inserted tag";
+    commaToggle.textContent = ", ";
     options.append(spacesToggle, commaToggle);
 
     const add = document.createElement("button");
@@ -774,6 +808,12 @@ function renderAcMenu() {
   const fieldSelection = activeField
     ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
   menu.innerHTML = "";
+  const search = acState.kind === "booru" ? tagSearch(acState.query) : null;
+  if (search?.category) {
+    const heading = document.createElement("div"); heading.className = "wg-ac-head";
+    heading.textContent = `${BOORU_CATEGORY_TITLES[search.category]} tags · ${search.query}`;
+    menu.appendChild(heading);
+  }
 
   // Section order follows what was typed: "__" lists the library/wildcards first and tags after;
   // an ordinary word lists tags/custom words first and the relevant library entries after.
@@ -784,7 +824,7 @@ function renderAcMenu() {
   const grouped = new Map();
   acState.items.forEach((rawItem, index) => {
     const item = normalizeAcItem(rawItem);
-    const isExactCustom = item.kind === "custom" && String(item.label || "").trim().toLocaleLowerCase() === String(acState.query || "").trim().toLocaleLowerCase();
+    const isExactCustom = item.kind === "custom" && (item.exactCustomMatch === true || String(item.label || "").trim().toLocaleLowerCase() === String(search?.query ?? acState.query ?? "").trim().toLocaleLowerCase());
     if (isExactCustom) item.exactCustom = true;
     const section = item.section === "Favorite Tags" ? "Favorite Tags" : isExactCustom ? "Exact Custom" : (item.section || sectionForItem(item));
     if (!grouped.has(section)) grouped.set(section, []);
@@ -916,6 +956,7 @@ function renderAcMenu() {
           }
         } else if (item.kind === "syntax") {
           row.title = item.meta || "Inline syntax";
+          row.dataset.syntaxTone = item.syntaxTone || "choice";
         } else {
           // Library card: prompt, wildcard list, recipe, favorite or recent. These are all
           // library-backed rows, so their source color must remain attached to the item even
@@ -941,7 +982,7 @@ function renderAcMenu() {
         const textWrap = document.createElement("span");
         textWrap.className = "wg-ac-copy";
         const strong = document.createElement("strong");
-        appendHighlightedText(strong, item.label, acState.query || "");
+        appendHighlightedText(strong, item.label, search?.query ?? acState.query ?? "");
         textWrap.appendChild(strong);
         if (item.meta) {
           const small = document.createElement("small");
@@ -951,7 +992,7 @@ function renderAcMenu() {
 
         const metrics = document.createElement("span");
         metrics.className = "wg-ac-metrics";
-        if (item.kind === "syntax" && item.code) appendPill(metrics, item.code, "wg-ac-code");
+        if (item.kind === "syntax" && item.code) appendPill(metrics, item.code, "wg-ac-code").innerHTML = syntaxCodeHtml(item.code);
         if (item.recipe) appendPill(metrics, "recipe", "wg-ac-source wg-ac-recipe");
         else if (item.favorite && item.kind !== "booru" && item.kind !== "custom") appendPill(metrics, "\u2605", "wg-ac-source wg-ac-fav");
         else if (item.recent) appendPill(metrics, "recent", "wg-ac-source");
@@ -994,6 +1035,22 @@ function renderAcMenu() {
   appendAcFooter(menu);
   if (acAddDraft) menu.dataset.acAdding = "true"; else delete menu.dataset.acAdding;
 
+  positionAcMenu(menu);
+
+  if (acAddDraft?.focus) {
+    focusAcField(acAddDraft.focus);
+    acAddDraft.focus = "";
+  } else if (activeField) {
+    const input = menu.querySelector(`[data-ac-field="${activeField}"]`);
+    if (input && !input.disabled) {
+      input.focus({ preventScroll: true });
+      if (fieldSelection) { try { input.setSelectionRange(fieldSelection.start, fieldSelection.end); } catch { /* not selectable */ } }
+    }
+  }
+}
+
+function positionAcMenu(menu) {
+  if (!acState) return;
   // Size and place the menu: as wide as its longest row (CSS max-width applies) and as
   // tall as the results need, using whichever side of the caret has more room.
   const coords = getCaretCoords(acState.textarea, acState.anchor ?? acState.end);
@@ -1007,23 +1064,13 @@ function renderAcMenu() {
   menu.style.display = "block";
   const wanted = Math.min(menu.scrollHeight, AC_MAX_HEIGHT);
   const placeBelow = roomBelow >= Math.min(wanted, 280) || roomBelow >= roomAbove;
-  const room = Math.max(120, placeBelow ? roomBelow : roomAbove);
-  menu.style.maxHeight = Math.min(AC_MAX_HEIGHT, room) + "px";
+  const room = Math.max(48, placeBelow ? roomBelow : roomAbove);
+  menu.style.maxHeight = Math.max(1, Math.min(AC_MAX_HEIGHT, room, vh - 2 * margin)) + "px";
   const height = menu.offsetHeight;
   const width = menu.offsetWidth;
   menu.style.left = Math.max(margin, Math.min(coords.left, vw - width - margin)) + "px";
-  menu.style.top = Math.max(margin, placeBelow ? belowTop : coords.top - 4 - height) + "px";
+  menu.style.top = Math.max(margin, Math.min(placeBelow ? belowTop : coords.top - 4 - height, vh - height - margin)) + "px";
 
-  if (acAddDraft?.focus) {
-    focusAcField(acAddDraft.focus);
-    acAddDraft.focus = "";
-  } else if (activeField) {
-    const input = menu.querySelector(`[data-ac-field="${activeField}"]`);
-    if (input && !input.disabled) {
-      input.focus({ preventScroll: true });
-      if (fieldSelection) { try { input.setSelectionRange(fieldSelection.start, fieldSelection.end); } catch { /* not selectable */ } }
-    }
-  }
 }
 
 const AC_LOOKUP_TIMEOUT_MS = 4000;
@@ -1075,13 +1122,22 @@ function commitAcSelection(index) {
   const item = normalizeAcItem(rawItem);
   // The row's explicit insertion mode is the source of truth. Plain tags/custom words are
   // inserted byte-for-byte from their stored value (subject only to the existing user toggles);
-  // only a verified library row may become __name__.
+  // only a verified library row may become __name__. Apply explicitly enabled
+  // insertion options to canonical booru/custom values even when a row supplies
+  // insertText (aliases do); other plain syntax snippets remain verbatim.
   const isPlainTag = item.insertMode === "plain" || item.kind === "booru" || item.kind === "custom";
+  const isTagRow = item.kind === "booru" || item.kind === "custom";
   const replacement = isPlainTag
-    ? (item.insertText == null ? insertBooruValue(item.value) : item.insertText)
+    ? (isTagRow ? insertBooruValue(item.insertText == null ? item.value : item.insertText) : (item.insertText == null ? item.value : item.insertText))
     : (item.insertText == null
       ? `__${acState.kind === "wildcard" ? (acState.modifier || "") : ""}${item.value}__`
       : item.insertText);
+  if (!isPlainTag && item.insertText == null && textarea.__ppRecipeInsert) {
+    const source = textarea.value;
+    if (textarea.__ppRecipeInsert(item.value, { source, start, end, fallback: replacement, committed: () => onCommit?.(item) })) {
+      closeAcMenu(); return;
+    }
+  }
   textarea.value = textarea.value.slice(0, start) + replacement + textarea.value.slice(end);
   // A picked tag keeps its category color in the prompt. Register it before the input event
   // below triggers the repaint, so it never flashes uncolored while the lookup catches up.
@@ -1119,6 +1175,7 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
   // Only editors whose text is resolved as inline syntax opt in (Prompt Palette, Combinatorial).
   const syntaxAllowed = () => syntax && syntaxMenuEnabled();
   const openForCurrentCaret = ({ onDemand = false, typed = false } = {}) => {
+    if (textarea.selectionEnd > textarea.selectionStart) { closeAcMenu(); return; }
     const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
     if (!fragment) { closeAcMenu(); return; }
     if (fragment.kind === "syntax") {
@@ -1140,6 +1197,7 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
     else if (!acOwner && acState && acState.textarea !== textarea) closeAcMenu();
   };
   const handleInput = (event) => {
+    if (event?.isComposing) return;
     if (suppressAutocompleteInputFor === textarea) {
       suppressAutocompleteInputFor = null;
       closeAcMenu();
@@ -1152,11 +1210,12 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
     try { onInput?.(); } catch (error) { console.warn("Prompt Palette: autocomplete input sync failed", error); }
     const typed = !event?.inputType || event.inputType === "insertText";
     queueMicrotask(() => {
-      if (!textarea.isConnected) return;
+      if (!textarea.isConnected || document.activeElement !== textarea) return;
       openForCurrentCaret({ typed });
     });
   };
   const onClick = () => {
+    if (textarea.selectionEnd > textarea.selectionStart) return closeAcMenu();
     const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
     if (!fragment) return closeAcMenu();
     if (fragment.kind === "booru") {
@@ -1169,6 +1228,10 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
     if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) openForCurrentCaret();
   };
   const onKeydown = (event) => {
+    if (event.isComposing || event.keyCode === 229) return;
+    // Selection shortcuts belong to the editor even when an old completion
+    // request/menu is still pending. Shift+arrows must extend the native range.
+    if (event.shiftKey || textarea.selectionEnd > textarea.selectionStart) closeAcMenu();
     if (event.ctrlKey && !event.altKey && !event.metaKey && event.code === "Space") {
       const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
       if (fragment?.kind === "booru" && shouldOpenBooruAutocomplete(fragment, { onDemand: true })) {
@@ -1250,6 +1313,9 @@ export function cleanupAutocomplete() {
   suppressAutocompleteInputFor = null;
   closeAcMenu();
   document.removeEventListener("mousedown", handleAcDocumentMouseDown);
+  document.removeEventListener("contextmenu", handleAcDocumentMouseDown);
+  document.removeEventListener("scroll", handleAcViewportChange, true);
+  window.removeEventListener("resize", handleAcViewportChange);
   acMenu?.remove();
   acMenu = null;
   acMirrorDiv?.remove();
