@@ -1,3 +1,4 @@
+from .workspace_generation import WorkspaceGeneration, active_runtime, runtime_changes
 from .prompt_exploration import read_prepared_batch
 import json
 import math
@@ -12,6 +13,7 @@ from .comfy_compat import io
 
 from .wildcard_index import get_index
 from .wildcard_resolver import WildcardResolver
+from .positive_antonyms import apply_positive_antonyms, enabled_flag, protected_span_end
 from .clip_tokenizer import clip_counting_applies, count_clip_tokens
 from .prompt_metadata import (
     build_prompt_metadata, compact_json, compose_source_prompt, publish_prompt_metadata,
@@ -216,6 +218,16 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                     force_input=True,
                     default="",
                 ),
+                io.Boolean.Input(
+                    "positive_antonyms", display_name="Positive Antonyms",
+                    optional=True, default=False,
+                    tooltip="Replace supported standalone positive descriptors in generated output only. Authored text and negatives are kept.",
+                ),
+                io.String.Input(
+                    "workspace_runtime", display_name="Workspace generation", optional=True,
+                    default="", multiline=True, dynamic_prompts=False,
+                    tooltip="Internal projection of Fields workspace generation policies.",
+                ),
             ],
 
             hidden=[io.Hidden.unique_id, io.Hidden.prompt, io.Hidden.extra_pnginfo],
@@ -291,8 +303,10 @@ class PromptPaletteEditor(PromptPaletteV3Node):
     @classmethod
     def fingerprint_inputs(
         cls, text="", prompt_prefix="", prompt_suffix="", enhancer_override="",
-        negative_text="", negative_prefix="", negative_suffix="", **_kwargs,
+        negative_text="", negative_prefix="", negative_suffix="", workspace_runtime="", **_kwargs,
     ):
+        if not _kwargs.get("prepared_batch") and _kwargs.get("mode") != "combinatorial" and runtime_changes(workspace_runtime, text):
+            return float("nan")
         if _prompt_uses_runtime_sequence(
             text, prompt_prefix, prompt_suffix, enhancer_override,
             negative_text, negative_prefix, negative_suffix,
@@ -396,7 +410,7 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                 clip=None, model=None,
                 prompt_prefix="", prompt_suffix="", enhancer_override="",
                 external_seed=None, negative_text="",
-                negative_prefix="", negative_suffix=""):
+                negative_prefix="", negative_suffix="", positive_antonyms=False, workspace_runtime=""):
         processing_mode = _coerce_choice(
             processing_mode, {"entire text as one", "line by line"}, "entire text as one"
         )
@@ -410,6 +424,7 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         resolver = WildcardResolver(get_index())
         seed = _coerce_uint64(seed)
         effective_seed = seed if external_seed is None else _coerce_uint64(external_seed, seed)
+        runtime = WorkspaceGeneration(resolver.index, active_runtime(workspace_runtime, text), getattr(getattr(cls, "hidden", None), "unique_id", ""))
         source_prompt = compose_source_prompt([prompt_prefix, text, prompt_suffix], processing_mode)
         source_negative_prompt = compose_source_prompt(
             [negative_prefix, negative_text, negative_suffix], processing_mode
@@ -418,6 +433,10 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         def resolve_block(t, seed_offset=0):
             if not t:
                 return ""
+            channel = "negative" if seed_offset == 1000 else "positive" if seed_offset == 0 else None
+            if channel and runtime.payload:
+                value, used = runtime.resolve(t, effective_seed + seed_offset, processing_mode, channel)
+                resolver.used_names.extend(used); return value
             if processing_mode == "line by line":
                 return "\n".join(resolver.resolve_lines(t, seed=effective_seed + seed_offset))
             return resolver.resolve(t, seed=effective_seed + seed_offset)
@@ -429,6 +448,8 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         used_enhancer = bool(enhancer_override and enhancer_override.strip())
         if used_enhancer:
             resolved = enhancer_override
+        positive_antonyms = enabled_flag(positive_antonyms)
+        resolved = apply_positive_antonyms(resolved, positive_antonyms)
 
         neg_parts = [p for p in (
             resolve_block(negative_prefix, 1001),
@@ -493,6 +514,9 @@ class PromptPaletteEditor(PromptPaletteV3Node):
             loras=lora_records,
             clip_token_count=clip_token_count,
             extra={
+                "positive_antonyms": positive_antonyms,
+                "workspace_runtime": workspace_runtime,
+                "workspace_fields": dict(runtime.values),
                 "loras_applied": loras_applied,
                 "prompt_prefix": prompt_prefix,
                 "prompt_suffix": prompt_suffix,
@@ -650,6 +674,16 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     default="", multiline=True, dynamic_prompts=False,
                     tooltip="Exact captured variations managed by the Prompt Palette editor.",
                 ),
+                io.Boolean.Input(
+                    "positive_antonyms", display_name="Positive Antonyms",
+                    optional=True, default=False,
+                    tooltip="Replace supported standalone positive descriptors in each generated output only. Authored text and negatives are kept.",
+                ),
+                io.String.Input(
+                    "workspace_runtime", display_name="Workspace generation", optional=True,
+                    default="", multiline=True, dynamic_prompts=False,
+                    tooltip="Internal projection of Fields workspace generation policies.",
+                ),
             ],
             hidden=[io.Hidden.unique_id, io.Hidden.prompt, io.Hidden.extra_pnginfo],
             outputs=[
@@ -773,8 +807,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
     @classmethod
     def fingerprint_inputs(
         cls, text="", prompt_prefix="", prompt_suffix="", enhancer_override="",
-        negative_text="", negative_prefix="", negative_suffix="", **_kwargs,
+        negative_text="", negative_prefix="", negative_suffix="", workspace_runtime="", **_kwargs,
     ):
+        if not _kwargs.get("prepared_batch") and _kwargs.get("mode") != "combinatorial" and runtime_changes(workspace_runtime, text):
+            return float("nan")
         if _prompt_uses_runtime_sequence(
             text, prompt_prefix, prompt_suffix, enhancer_override,
             negative_text, negative_prefix, negative_suffix,
@@ -796,7 +832,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
     def execute(cls, text, mode, count, seed, seed_mode, max_prompts, clip=None, model=None,
                 prompt_prefix="", prompt_suffix="", enhancer_override="",
                 external_seed=None, negative_text="",
-                negative_prefix="", negative_suffix="", prepared_batch=""):
+                negative_prefix="", negative_suffix="", prepared_batch="", positive_antonyms=False, workspace_runtime=""):
         mode = _coerce_choice(mode, {"random", "combinatorial"}, "random")
         seed_mode = _coerce_choice(seed_mode, {"sequential", "fixed", "random"}, "sequential")
         text = _coerce_text(text)
@@ -815,6 +851,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         max_prompts = max(0, min(max_prompts, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
         resolver = WildcardResolver(get_index())
 
+        runtime = WorkspaceGeneration(resolver.index, active_runtime(workspace_runtime, text) if mode == "random" and not prepared_batch else None, getattr(getattr(cls, "hidden", None), "unique_id", ""))
         prepared = read_prepared_batch(_coerce_text(prepared_batch), text)
         if prepared:
             cap = max_prompts or WildcardResolver.MAX_COMBINATORIAL_PROMPTS
@@ -835,13 +872,21 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, len(prompts))
         else:
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, count)
-            prompts = [resolver.resolve(text, seed=s) for s in seeds_out]
+            prompts = []
+            for s in seeds_out:
+                if runtime.payload:
+                    generated, used = runtime.resolve(text, s)
+                    resolver.used_names.extend(used); prompts.append(generated)
+                else: prompts.append(resolver.resolve(text, seed=s))
 
         # Prefix / suffix / enhancer are applied per generated prompt. With none of them
         # connected this block changes nothing, so existing workflows behave as before.
         def resolve_extra(block, prompt_seed, offset):
             if not block:
                 return ""
+            if offset == 1000 and runtime.payload:
+                value, used = runtime.resolve(block, (prompt_seed + offset) & UINT64_MAX, channel="negative")
+                resolver.used_names.extend(used); return value
             return resolver.resolve(block, seed=(prompt_seed + offset) & UINT64_MAX)
 
         used_enhancer = bool(enhancer_override and enhancer_override.strip())
@@ -859,6 +904,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 ]
                 composed.append(" ".join(parts))
             prompts = composed
+        positive_antonyms = enabled_flag(positive_antonyms)
+        prompts = [apply_positive_antonyms(prompt, positive_antonyms) for prompt in prompts]
 
         # The negative prompt is a single value for the whole batch.
         negative_parts = [part for part in (
@@ -919,6 +966,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 enhancer_override=enhancer_override,
                 loras=lora_records,
                 extra={
+                    "positive_antonyms": positive_antonyms,
                     "batch_index": index,
                     "batch_count": len(prompts),
                     "generation_mode": mode,
@@ -951,6 +999,9 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             "node_type": "PromptPaletteCombinatorial",
             "batch": True,
             "prepared_variations": bool(prepared),
+            "workspace_runtime": workspace_runtime,
+            "workspace_fields": dict(runtime.values),
+            "positive_antonyms": positive_antonyms,
             "resolution_seed": prepared.get("resolution_seed") if prepared else None,
             "count": n,
             "source_prompt": text,
@@ -1032,6 +1083,7 @@ class PromptPaletteWeightController(PromptPaletteV3Node):
                         "SDXL / CLIP (Standard)",
                         "Krea 2 / ZIT (Qwen)",
                         "LTX 2.3 / T5 (LLM)",
+                        "Anima 1.0 (High-Scale Qwen)",
                     ],
                     default="SDXL / CLIP (Standard)",
                 ),
@@ -1127,24 +1179,61 @@ class PromptPaletteWeightController(PromptPaletteV3Node):
             i += 1
         return -1
 
+    @staticmethod
+    def _safe_prose_wrapper(text, start, end, inner):
+        # In Anima, a lone full prose sentence can have a non-semantic wrapper.
+        # Short tags, nested emphasis, inline parentheticals and DSL stay intact.
+        core = inner.strip()
+        left = text[:start].rstrip(" \t")
+        right = text[end + 1:].lstrip(" \t")
+        return (not left or left[-1] in ",;\n") and (not right or right[0] in ",;\n") and bool(
+            re.fullmatch(r"[^()\[\]{}<>\\$:@|]+[.!?]", core)
+        ) and len(core.split()) >= 4
+
     @classmethod
-    def _collect_segments(cls, text, weight, out):
+    def _collect_segments(cls, text, weight, out, *, anima=False, explicit=False):
         pos = 0
         i = 0
         length = len(text)
+
+        def append(phrase):
+            if phrase:
+                out.append((phrase, weight, explicit) if anima else (phrase, weight))
+
         while i < length:
             ch = text[i]
             if ch == "\\":
                 i += 2
                 continue
+            if anima:
+                # Do not interpret numeric-looking text in dialogue, native DSL,
+                # LoRA tags or parameterized wildcard identifiers as emphasis.
+                protected = ch in '[{<"`' or (ch == "'" and (i == 0 or not text[i - 1].isalnum()))
+                if protected:
+                    i = protected_span_end(text, i)
+                    continue
+                if text.startswith("__", i):
+                    closing = text.find("__", i + 2)
+                    if closing != -1:
+                        i = closing + 2
+                        continue
             if ch == "(":
                 end = cls._find_group_end(text, i)
+                if anima:
+                    protected_end = protected_span_end(text, i, require_closed=True)
+                    if protected_end < 0:
+                        i = length
+                        continue
+                    end = protected_end - 1 if protected_end > i else -1
                 if end != -1:
                     inner = text[i + 1:end]
                     match = cls._WEIGHT_SUFFIX_RE.match(inner)
+                    if anima and match:
+                        prefix = match.group(1)
+                        if (len(prefix) - len(prefix.rstrip("\\"))) % 2:
+                            match = None
                     if match and match.group(1).strip():
-                        if i > pos:
-                            out.append((text[pos:i], weight))
+                        append(text[pos:i])
                         try:
                             own = float(match.group(2))
                         except (ValueError, OverflowError):
@@ -1152,47 +1241,56 @@ class PromptPaletteWeightController(PromptPaletteV3Node):
                         combined = weight * own if math.isfinite(own) else weight
                         if not math.isfinite(combined):
                             combined = weight
-                        cls._collect_segments(match.group(1), combined, out)
+                        cls._collect_segments(match.group(1), combined, out, anima=anima, explicit=True)
                         pos = i = end + 1
                         continue
-                    # Unweighted group: keep the parentheses as text, but still
-                    # look for weighted groups inside it.
-                    out.append((text[pos:i + 1], weight))
-                    cls._collect_segments(inner, weight, out)
-                    pos = end
-                    i = end + 1
+                    if anima and not explicit and cls._safe_prose_wrapper(text, i, end, inner):
+                        append(text[pos:i])
+                        append(inner)
+                    elif not anima:
+                        append(text[pos:i + 1])
+                        cls._collect_segments(inner, weight, out)
+                        pos = end
+                        i = end + 1
+                        continue
+                    else:
+                        # Preserve the wrapper; nested numeric emphasis still uses
+                        # the existing parser and multiplication contract.
+                        append(text[pos:i + 1])
+                        cls._collect_segments(inner, weight, out, anima=anima, explicit=explicit)
+                        append(")")
+                    pos = i = end + 1
                     continue
             i += 1
-        if pos < length:
-            out.append((text[pos:], weight))
+        append(text[pos:])
 
     @classmethod
-    def _parse_weighted_segments(cls, text):
-        """Split ``text`` into (phrase, weight) pieces.
-
-        Nested weighted groups multiply their weights, escaped parentheses stay
-        literal, and whitespace around a weighted phrase is kept outside it.
-        """
+    def _parse_weighted_segments(cls, text, *, anima=False):
+        """Nested explicit groups multiply; legacy callers still receive pairs."""
         raw = []
-        cls._collect_segments(text, 1.0, raw)
+        cls._collect_segments(text, 1.0, raw, anima=anima)
         segments = []
-        for phrase, weight in raw:
+        for item in raw:
+            phrase, weight = item[:2]
+            explicit = item[2] if anima else False
             if not phrase:
                 continue
-            if weight == 1.0:
-                segments.append((phrase, 1.0))
+            def append(value, multiplier, is_explicit=False):
+                segments.append((value, multiplier, is_explicit) if anima else (value, multiplier))
+            if weight == 1.0 and not explicit:
+                append(phrase, 1.0)
                 continue
             core = phrase.strip()
             if not core:
-                segments.append((phrase, 1.0))
+                append(phrase, 1.0)
                 continue
             lead = phrase[:len(phrase) - len(phrase.lstrip())]
             trail = phrase[len(phrase.rstrip()):]
             if lead:
-                segments.append((lead, 1.0))
-            segments.append((core, weight))
+                append(lead, 1.0)
+            append(core, weight, explicit)
             if trail:
-                segments.append((trail, 1.0))
+                append(trail, 1.0)
         return segments
 
     @classmethod
@@ -1254,7 +1352,7 @@ class PromptPaletteWeightController(PromptPaletteV3Node):
 
         weighting_mode = _coerce_choice(
             weighting_mode,
-            {"SDXL / CLIP (Standard)", "Krea 2 / ZIT (Qwen)", "LTX 2.3 / T5 (LLM)"},
+            {"SDXL / CLIP (Standard)", "Krea 2 / ZIT (Qwen)", "LTX 2.3 / T5 (LLM)", "Anima 1.0 (High-Scale Qwen)"},
             "SDXL / CLIP (Standard)",
         )
         weight_clamping = _coerce_choice(
@@ -1271,7 +1369,10 @@ class PromptPaletteWeightController(PromptPaletteV3Node):
         effective_routing = negative_routing if advanced_controls else "Direct"
 
         text = _coerce_text(text)
-        segments = cls._parse_weighted_segments(text)
+        anima = weighting_mode == "Anima 1.0 (High-Scale Qwen)"
+        anima_segments = cls._parse_weighted_segments(text, anima=True) if anima else None
+        segments = ([(phrase, min(weight, 3.5)) for phrase, weight, _ in anima_segments]
+                    if anima else cls._parse_weighted_segments(text))
 
         weight_dict = {}
         seen_pairs = set()
@@ -1286,7 +1387,12 @@ class PromptPaletteWeightController(PromptPaletteV3Node):
                 suffix += 1
             weight_dict[key] = weight
 
-        if weighting_mode == "SDXL / CLIP (Standard)":
+        if anima:
+            text_out = "".join(
+                f"({phrase}:{cls._fmt_weight(cls._apply_clamp(min(weight, 3.5), effective_clamping))})" if explicit
+                else phrase for phrase, weight, explicit in anima_segments
+            )
+        elif weighting_mode == "SDXL / CLIP (Standard)":
             text_out = cls._format_bracket_text(segments, effective_clamping)
         else:
             text_out = cls._format_clean_text(segments, effective_clamping, effective_routing)

@@ -9,7 +9,7 @@ function loadTheme() {
   // on load so an old local preference cannot keep repainting the suite differently.
   const { surfaceFinish: _legacySurfaceFinish, accentGlow: _legacyAccentGlow, ...clean } = saved;
   const theme = { ...defaultTheme(), ...clean };
-  Object.assign(theme, normalizeToolbarPreferences(theme));
+  Object.assign(theme, normalizeToolbarPreferences({ ...theme, toolbarScale: clean.toolbarScale }));
   if (!Object.hasOwn(clean, "showImportImageBtn") && (clean.layoutPreset === "minimal" || TOOLBAR_BUTTONS.filter(([, key]) => key !== "showImportImageBtn").every(([, key]) => clean[key] === false))) theme.showImportImageBtn = false;
   theme.booruColors = theme.booruColorsCustomized === true
     ? { ...DEFAULT_BOORU_COLORS_DARK, ...(clean.booruColors && typeof clean.booruColors === "object" ? clean.booruColors : {}) }
@@ -84,6 +84,8 @@ function defaultTheme() {
     booruSourceDatabase: true,
     booruSourceCustomWords: true,
     booruPromptColors: true,
+    animaArtistFormatting: false,
+    showPositiveAntonymsBtn: false,
     zenMode: false,
     layoutPreset: "balanced",
     ...normalizeToolbarPreferences(),
@@ -114,8 +116,14 @@ function loadPinned() {
   const value = readEditorPreference("pinned", []);
   return new Set(Array.isArray(value) ? value : []);
 }
+const pinEvents = new EventTarget();
+export function onLibraryPinsChanged(listener) {
+  pinEvents.addEventListener("change", listener);
+  return () => pinEvents.removeEventListener("change", listener);
+}
 function savePinned(set) {
   writeEditorPreference("pinned", Array.from(set));
+  pinEvents.dispatchEvent(new Event("change"));
 }
 
 function loadExpandedCats() {
@@ -146,6 +154,35 @@ function loadLibraryDensity() {
 }
 function saveLibraryDensity(value) {
   writeEditorPreference("libraryDensity", value);
+}
+
+// One sidebar display preference across library, style and tag collections.
+const SIDEBAR_DISPLAY_KEY = "sidebarDisplayV1";
+export function loadSidebarDisplay() {
+  const saved = readEditorPreference(SIDEBAR_DISPLAY_KEY, {}) || {};
+  const old = readEditorPreference("prompt_palette_style_explorer_v1", {}) || {};
+  const layouts = { library: "list", styles: old.compact === true ? "list" : "gallery", classic: "gallery", artists: "list", anima: "list", tags: "list", favorites: "list", previews: "gallery", custom: "list" };
+  if (saved.layouts && typeof saved.layouts === "object") for (const key of Object.keys(layouts)) if (["gallery", "list"].includes(saved.layouts[key])) layouts[key] = saved.layouts[key];
+  return { version: 1, scale: Math.max(.1, Math.min(1.5, Number(saved.scale) || .9)), layouts };
+}
+export function saveSidebarDisplay(changes = {}) {
+  const current = loadSidebarDisplay();
+  const next = { ...current, ...changes, layouts: { ...current.layouts, ...changes.layouts } };
+  next.scale = Math.max(.1, Math.min(1.5, Number(next.scale) || .9));
+  for (const key of Object.keys(next.layouts)) if (!["gallery", "list"].includes(next.layouts[key])) next.layouts[key] = current.layouts[key] || "list";
+  writeEditorPreference(SIDEBAR_DISPLAY_KEY, next); return next;
+}
+export function sidebarDisplayMetrics(key, themeScale = 1) {
+  const state = loadSidebarDisplay(), scale = state.scale, font = Math.max(.9, Math.sqrt(scale)), ui = Math.max(.75, Math.min(2, Number(themeScale) || 1));
+  // Virtual row estimates and rendered content share a readable minimum, even
+  // when density is reduced independently of the user's UI text size.
+  const micro = scale < .45;
+  const imageHeight = Math.round(Math.max(32, Math.min(192, 112 * scale)) * ui);
+  return { mode: state.layouts[key] || "gallery", scale, font, imageHeight,
+    rowHeight: Math.max(30, Math.ceil((micro ? 30 : 44) * ui * font), Math.round(48 * ui * scale)),
+    cardWidth: Math.max(112, Math.round(160 * scale)),
+    cardHeight: Math.ceil(imageHeight + (micro ? 76 : 176) * font * ui + 16) };
+
 }
 
 const UI_THEME_KEYS = [

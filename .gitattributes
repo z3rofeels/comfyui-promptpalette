@@ -9,6 +9,10 @@
 *.md text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+# Preserve dataset bytes: bundled metadata hashes the original CSV, including CRLF.
+*.csv -text
 
 # Binary assets
 *.png binary
@@ -19,3 +23,19 @@
 *.zip binary
 *.7z binary
 *.safetensors binary
+
+# Keep repository automation and private development files out of source releases.
+/.github export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
+/.comfyignore export-ignore
+/tests export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/AUDIT.md export-ignore
+/RELEASE_NOTES.md export-ignore
+/STYLE_LIBRARY_IMPLEMENTATION.md export-ignore
+/ERENODES_COMPARISON.md export-ignore
+*HANDOFF*.md export-ignore
+*Handoff*.md export-ignore
+*handoff*.md export-ignore

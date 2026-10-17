@@ -1,3 +1,4 @@
+import { libraryEditShell } from "./library_edit_shell.js";
 import { svgIcon } from "../prompt_palette_shared.js";
 import { statusBarMarkup } from "./status_bar.js";
 import { toolbarDesignerMarkup } from "./toolbar.js";
@@ -17,6 +18,7 @@ export function createEditorShell() {
       <div class="wg-toolbar-center">
         <button class="wg-pill wg-pill-resolve" data-act="resolve" data-el="btnResolve" title="Preview the wildcard-resolved result" aria-label="Preview resolved prompt" aria-pressed="false">${svgIcon("bolt")}<span class="wg-toolbar-label">Preview result</span></button>
         <button class="wg-pill wg-power-pill" data-act="variations" data-el="btnVariations" title="Variation Lab — compare deterministic wildcard resolutions" aria-label="Open Variation Lab" hidden>${svgIcon("branch")}<span class="wg-toolbar-label">Variations</span></button>
+        <button type="button" class="wg-icon-btn" data-act="positiveAntonyms" data-el="btnPositiveAntonyms" title="Positive Antonyms · generated positive output only" aria-label="Toggle Positive Antonyms for this node" aria-pressed="false" hidden>${svgIcon("doctor")}</button>
       </div>
       <div class="wg-toolbar-group right" aria-label="Prompt Palette utilities">
         <button class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Rescan My Library files" aria-label="Rescan My Library">${svgIcon("refresh")}</button>
@@ -108,21 +110,7 @@ export function createEditorShell() {
         ${statusBarMarkup({ doctor: true })}
       </div>
       <div class="wg-drawer right" data-drawer="edit">
-        <div class="wg-drawer-inner">
-          <div class="wg-drawer-head">
-            <h4>Edit My Library</h4>
-            <button class="wg-close-btn" data-act="closeEditDrawer" title="Close">${svgIcon("close", 14)}</button>
-          </div>
-          <label>Entry path (TXT only)</label>
-          <input type="text" data-el="editName" placeholder="category/subcategory/name">
-          <label>Options or reusable prompt text</label>
-          <textarea data-el="editContent"></textarea>
-          <div class="wg-status" data-el="editStatus"></div>
-          <div class="wg-drawer-btns">
-            <button data-act="delete">Delete</button>
-            <button class="primary" data-act="save">Save</button>
-          </div>
-        </div>
+        ${libraryEditShell()}
       </div>
       <div class="wg-drawer right wg-settings-popup wg-stash-popup" data-el="stashPopup" role="region" aria-label="Prompt Stash" aria-hidden="true" hidden inert>
         <div class="wg-settings-head">
@@ -205,10 +193,11 @@ export function createEditorShell() {
         </div>
         <div class="wg-settings-shell">
           <nav class="wg-settings-nav" role="tablist" aria-label="Settings sections">
-            <button role="tab" aria-selected="true" class="active" data-settings-tab="appearance"><span>Appearance</span><small>Themes, text, effects</small></button>
-            <button role="tab" aria-selected="false" data-settings-tab="layout"><span>Workspace</span><small>Toolbar &amp; density</small></button>
+            <button role="tab" aria-selected="true" class="active" data-settings-tab="appearance"><span>Appearance</span><small>Themes, fonts, roundness</small></button>
+            <button role="tab" aria-selected="false" data-settings-tab="layout"><span>Toolbar &amp; layout</span><small>Size, visibility, order</small></button>
+            <button role="tab" aria-selected="false" data-settings-tab="editor"><span>Editor &amp; suggestions</span><small>History, Booru, Anima</small></button>
             <button role="tab" aria-selected="false" data-settings-tab="power"><span>Power tools</span><small>Optional advanced tools</small></button>
-            <button role="tab" aria-selected="false" data-settings-tab="colors"><span>Categories</span><small>Wildcard color system</small></button>
+            <button role="tab" aria-selected="false" data-settings-tab="colors"><span>Tag &amp; category colors</span><small>Wildcards, Booru palettes</small></button>
             <button role="tab" aria-selected="false" data-settings-tab="data"><span>Backup</span><small>Import, export, reset</small></button>
             <button role="tab" aria-selected="false" data-settings-tab="guide"><span>Guide</span><small>Search local help</small></button>
           </nav>
@@ -270,7 +259,7 @@ export function createEditorShell() {
                   <label class="wg-range-field"><span>Interface text <output data-el="uiFontOut">100%</output></span><input type="range" class="wg-range" data-el="uiFontRange" min="80" max="200" step="5" value="100"></label>
                   <label class="wg-range-field"><span>Corner roundness <output data-el="cornerRadiusOut">10px</output></span><input type="range" class="wg-range" data-el="cornerRadiusRange" min="4" max="18" step="1" value="10"></label>
                   <label class="wg-toggle-card"><div><strong>Match theme text</strong><small>Keep prompt text cohesive with the selected palette.</small></div><input type="checkbox" data-el="promptTextColorAuto" checked></label>
-                  <label class="wg-color-field"><div><strong>Custom prompt text</strong><small>Used only when theme matching is off.</small></div><input type="color" data-el="promptTextColor" value="#f1eee8"></label>
+                  <div class="wg-color-field"><div><strong>Prompt text color</strong><small data-el="promptTextColorStatus">Theme default</small></div><div class="wg-color-inputs"><input type="color" data-el="promptTextColor" value="#f1eee8" aria-label="Prompt text color"><input type="text" data-el="promptTextColorHex" maxlength="7" aria-label="Prompt text hex color"><button type="button" class="wg-button" data-act="promptTextColorReset">Use theme</button></div></div>
                 </section>
               </div>
             </section>
@@ -314,6 +303,12 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Copy</strong><small>Copy prompt text.</small></div><input type="checkbox" data-el="toggleCopyBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Clear</strong><small>Clear the editor.</small></div><input type="checkbox" data-el="toggleClearBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Seed controls</strong><small>Seed, mode, line handling.</small></div><input type="checkbox" data-el="toggleSeedControls"></label>
+              </div>
+            </section>
+  
+            <section role="tabpanel" class="wg-settings-panel" data-settings-panel="editor">
+              <div class="wg-panel-title"><div><h3>Editor &amp; suggestions</h3><p>Local history, syntax helpers and artist autocomplete. All suggestions stay on your machine.</p></div></div>
+              <div class="wg-toggle-grid">
                 <label class="wg-toggle-card"><div><strong>Syntax injector</strong><small>Contextual wildcard syntax, plus a menu when you type { (or press Ctrl+Space).</small></div><input type="checkbox" data-el="toggleSyntaxInjector"></label>
                 <label class="wg-toggle-card"><div><strong>Automatic history</strong><small>Keep local recovery checkpoints after editing pauses and queues.</small></div><input type="checkbox" data-el="togglePromptHistory"></label>
                 <label class="wg-toggle-card"><div><strong>Recent items in autocomplete</strong><small>How many recent picks the autocomplete menu keeps (5-10). Use Clear or &times; on a recent row to leave only the ones you want.</small></div><select data-el="autocompleteRecentLimit" aria-label="Recent items kept in autocomplete"><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
@@ -322,19 +317,23 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Minimum characters</strong><small>Counts the search term. Filter with artist:, character:, series:, general: or meta: before the term.</small></div><input type="number" data-el="booruAutocompleteMinChars" min="1" max="12" step="1" inputmode="numeric"></label>
                 <label class="wg-toggle-card"><div><strong>Booru sources</strong><small>Choose which local sources feed the same autocomplete menu.</small></div><span class="wg-inline-checks"><label><input type="checkbox" data-el="booruSourceDatabase"> Database</label><label><input type="checkbox" data-el="booruSourceCustomWords"> Custom words</label></span></label>
                 <label class="wg-toggle-card"><div><strong>Color tags in prompt</strong><small>Keep booru and custom-word tags in their category color after you insert them, so the whole prompt stays easy to scan. Wildcard colors are unaffected.</small></div><input type="checkbox" data-el="toggleBooruPromptColors"></label>
+                <label class="wg-toggle-card"><div><strong>Anima Artist Formatting (@)</strong><small>Insert database artists as @Artist Name with spaces. Custom words and other categories stay as stored.</small></div><input type="checkbox" data-el="toggleAnimaArtistFormatting"></label>
               </div>
             </section>
-  
+
             <section role="tabpanel" class="wg-settings-panel" data-settings-panel="power">
               <div class="wg-panel-title"><div><h3>Optional power tools</h3><p>Every power tool is independent. Turn on only what earns space in your workflow.</p></div><span class="wg-badge">All optional</span></div>
               <div class="wg-power-note">The classic Prompt Palette workflow remains the baseline. Disabling a tool removes its UI rather than leaving dead controls behind.</div>
               <div class="wg-toggle-grid">
+                <label class="wg-toggle-card"><div><strong>Selection tools</strong><small>Show the Selection bar (Replace, Vary, weights, favorites, recipe fields) when text is selected. Ctrl/Cmd+Up/Down weighting works either way. Presets and Disable all never change this switch.</small></div><input type="checkbox" data-power-tool="selectionTools"></label>
                 <label class="wg-toggle-card"><div><strong>Prompt Doctor</strong><small>Local syntax and prompt health checks. Adds one small themed status chip in the footer.</small></div><input type="checkbox" data-power-tool="promptDoctor"></label>
                 <label class="wg-toggle-card"><div><strong>Variation Lab</strong><small>Compare 4–16 deterministic resolved versions before queueing.</small></div><input type="checkbox" data-power-tool="variationLab"></label>
                 <label class="wg-toggle-card"><div><strong>Resolved Diff</strong><small>Highlight text that changed between your source prompt and resolved preview.</small></div><input type="checkbox" data-power-tool="resolvedDiff"></label>
                 <label class="wg-toggle-card"><div><strong>Library Manager</strong><small>Audit empty entries, duplicate content, broken recipes, and orphan thumbnails.</small></div><input type="checkbox" data-power-tool="libraryManager"></label>
                 <label class="wg-toggle-card"><div><strong>Recipe Builder 2</strong><small>Use the richer reorder, operator, separator, prefix, and suffix builder when saving RECIPES.</small></div><input type="checkbox" data-power-tool="recipeBuilder2"></label>
                 <label class="wg-toggle-card"><div><strong>Adjustable recipes</strong><small>Selection fields, Recipe draft, fill panels, and recipe pack import/export in both prompt editors. Saved drafts are kept when disabled.</small></div><input type="checkbox" data-power-tool="adjustableRecipes"></label>
+                <label class="wg-toggle-card"><div><strong>Positive Antonyms</strong><small>Generated positive output only: “blurry, low resolution” becomes “sharp focus, high resolution”. Complete comma, semicolon or newline descriptors are supported; selections, prose and weighted expressions stay literal. Your draft and negatives are kept.</small></div><input type="checkbox" data-el="positiveAntonymsEnabled"></label>
+                <label class="wg-toggle-card"><div><strong>Positive Antonyms shortcut</strong><small>Show its optional toggle in the shared toolbar.</small></div><input type="checkbox" data-el="togglePositiveAntonymsBtn"></label>
                 <label class="wg-toggle-card"><div><strong>ComfyUI command palette</strong><small>Optionally register Prompt Palette commands. Prompt Palette assigns no keyboard shortcuts. Restart after changing this option.</small></div><input type="checkbox" data-power-tool="nativeCommands"></label>
               </div>
               <div class="wg-button-row">
@@ -381,7 +380,7 @@ export function createEditorShell() {
 
               <div class="wg-section-divider"></div>
               <div class="wg-panel-title"><div><h3>Booru tag colors</h3><p>These are separate from wildcard folder colors. One editable color per tag category is nudged for readable contrast on the current theme.</p></div><span class="wg-badge">Booru only</span></div>
-              <div class="wg-inline-note">Saved palettes and theme packs carry these colors separately under <code>booruColors</code>. They are applied only as inline <code>--pp-booru-*</code> variables on the autocomplete menu.</div>
+              <div class="wg-inline-note">Customize tag categories independently of wildcard folders. Use theme defaults to restore the palette’s automatic colors.</div>
               <div class="wg-button-row"><button class="wg-button" data-act="booruColorsReset">Use theme defaults</button></div>
               <div class="wg-category-manager" data-el="booruColors"></div>
             </section>

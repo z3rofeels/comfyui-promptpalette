@@ -1,0 +1,514 @@
+{
+  "version": 1,
+  "name": "Classic art · discovery starter",
+  "description": "Real public-domain / CC0 visual references. Reference images illustrate vocabulary and do not predict checkpoint output. Unillustrated entries retain their exact prompt behavior.",
+  "source": "Locally bundled public-domain and CC0 reference images; see STYLE_IMAGE_CREDITS.md",
+  "entries": [
+    {
+      "name": "Vincent van Gogh",
+      "tag": "Vincent van Gogh",
+      "tags": [
+        "painterly",
+        "texture",
+        "expressive",
+        "color"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "met-436535.webp",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Claude Monet",
+      "tag": "Claude Monet",
+      "tags": [
+        "painterly",
+        "soft",
+        "light",
+        "landscape"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-63880393.webp",
+      "provenance": {
+        "title": "Water Lilies",
+        "author": "Claude Monet",
+        "date": "1915",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Claude_Monet_-_Seerosen.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Claude_Monet_-_Seerosen.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Pierre-Auguste Renoir",
+      "tag": "Pierre-Auguste Renoir",
+      "tags": [
+        "painterly",
+        "soft",
+        "portrait"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-81306032.webp",
+      "provenance": {
+        "title": "Flowers in a Vase",
+        "author": "Pierre-Auguste Renoir",
+        "date": "circa 1866",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Auguste_Renoir,_Flowers_in_a_Vase,_c._1866,_NGA_61382.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Auguste_Renoir,_Flowers_in_a_Vase,_c._1866,_NGA_61382.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Edgar Degas",
+      "tag": "Edgar Degas",
+      "tags": [
+        "pastel",
+        "movement",
+        "figure"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-93729955.webp",
+      "provenance": {
+        "title": "Ballet (The Star)",
+        "author": "Edgar Degas",
+        "date": "circa 1876–1877",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Edgar_Degas_-_Ballet_(L%27%C3%89toile).jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Edgar_Degas_-_Ballet_(L%27%C3%89toile).jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Paul Cézanne",
+      "tag": "Paul Cézanne",
+      "tags": [
+        "geometric",
+        "painterly",
+        "still life"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-74116019.webp",
+      "provenance": {
+        "title": "The Basket of Apples",
+        "author": "Paul Cézanne",
+        "date": "1893",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Henri Matisse",
+      "tag": "Henri Matisse",
+      "tags": [
+        "flat",
+        "color",
+        "shape"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-157224662.webp",
+      "provenance": {
+        "title": "Self-Portrait in a Striped T-shirt",
+        "author": "Henri Matisse",
+        "date": "1906",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Autoportrait,_par_Henri_Matisse.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Autoportrait,_par_Henri_Matisse.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Pablo Picasso",
+      "tag": "Pablo Picasso",
+      "tags": [
+        "geometric",
+        "abstract",
+        "figure"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "none"
+    },
+    {
+      "name": "Wassily Kandinsky",
+      "tag": "Wassily Kandinsky",
+      "tags": [
+        "abstract",
+        "geometric",
+        "color"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-37619232.webp",
+      "provenance": {
+        "title": "Composition VII",
+        "author": "Wassily Kandinsky",
+        "date": "1913",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Vassily_Kandinsky,_1913_-_Composition_7.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Vassily_Kandinsky,_1913_-_Composition_7.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Piet Mondrian",
+      "tag": "Piet Mondrian",
+      "tags": [
+        "flat",
+        "geometric",
+        "abstract"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-37642335.webp",
+      "provenance": {
+        "title": "Lozenge Composition with Yellow, Black, Blue, Red, and Gray",
+        "author": "Piet Mondrian",
+        "date": "1921",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Piet_Mondrian_-_Lozenge_Composition_with_Yellow,_Black,_Blue,_Red,_and_Gray_-_1921_-_The_Art_Institute_of_Chicago.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Piet_Mondrian_-_Lozenge_Composition_with_Yellow,_Black,_Blue,_Red,_and_Gray_-_1921_-_The_Art_Institute_of_Chicago.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Gustav Klimt",
+      "tag": "Gustav Klimt",
+      "tags": [
+        "ornament",
+        "pattern",
+        "portrait"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-70784686.webp",
+      "provenance": {
+        "title": "Farm Garden",
+        "author": "Gustav Klimt",
+        "date": "1907",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Alphonse Mucha",
+      "tag": "Alphonse Mucha",
+      "tags": [
+        "outline",
+        "ornament",
+        "poster"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-19106312.webp",
+      "provenance": {
+        "title": "Zodiac",
+        "author": "Alphonse Mucha",
+        "date": "2012-04-16 01:08:40",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Alphonse_Mucha_-_Zodiac.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Alphonse_Mucha_-_Zodiac.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Aubrey Beardsley",
+      "tag": "Aubrey Beardsley",
+      "tags": [
+        "outline",
+        "ink",
+        "monochrome"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-13703.webp",
+      "provenance": {
+        "title": "The Peacock Skirt",
+        "author": "Aubrey Beardsley",
+        "date": "1894",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Beardsley-peacockskirt.PNG",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Beardsley-peacockskirt.PNG",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Rembrandt",
+      "tag": "Rembrandt",
+      "tags": [
+        "portrait",
+        "shadow",
+        "highlights"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-23594212.webp",
+      "provenance": {
+        "title": "Self-Portrait",
+        "author": "Rembrandt",
+        "date": "1659",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Rembrandt_van_Rijn_-_Self-Portrait_-_Google_Art_Project.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Rembrandt_van_Rijn_-_Self-Portrait_-_Google_Art_Project.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Johannes Vermeer",
+      "tag": "Johannes Vermeer",
+      "tags": [
+        "light",
+        "interior",
+        "realism"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "met-437881.webp",
+      "provenance": {
+        "title": "Young Woman with a Water Pitcher",
+        "author": "Johannes Vermeer",
+        "date": "ca. 1662",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/437881",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Leonardo da Vinci",
+      "tag": "Leonardo da Vinci",
+      "tags": [
+        "soft",
+        "portrait",
+        "realism"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-15442524.webp",
+      "provenance": {
+        "title": "Mona Lisa",
+        "author": "Leonardo da Vinci",
+        "date": "between 1503 and 1506",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Michelangelo",
+      "tag": "Michelangelo",
+      "tags": [
+        "figure",
+        "sculptural",
+        "anatomy"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "met-337497.webp",
+      "provenance": {
+        "title": "Studies for the Libyan Sibyl (recto); Studies for the Libyan Sibyl and a small Sketch for a Seated Figure (verso)",
+        "author": "Michelangelo Buonarroti",
+        "date": "ca. 1510–11",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337497",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Sandro Botticelli",
+      "tag": "Sandro Botticelli",
+      "tags": [
+        "outline",
+        "figure",
+        "mythology"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-23981153.webp",
+      "provenance": {
+        "title": "The Madonna of the Book",
+        "author": "Sandro Botticelli",
+        "date": "between 1480 and 1481",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Sandro_Botticelli_-_The_Virgin_and_Child_(The_Madonna_of_the_Book)_-_Google_Art_Project.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Sandro_Botticelli_-_The_Virgin_and_Child_(The_Madonna_of_the_Book)_-_Google_Art_Project.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Caravaggio",
+      "tag": "Caravaggio",
+      "tags": [
+        "shadow",
+        "highlights",
+        "dramatic"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "met-435844.webp",
+      "provenance": {
+        "title": "The Musicians",
+        "author": "Caravaggio (Michelangelo Merisi)",
+        "date": "1597",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/435844",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "J. M. W. Turner",
+      "tag": "J. M. W. Turner",
+      "tags": [
+        "atmosphere",
+        "light",
+        "landscape"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "met-437853.webp",
+      "provenance": {
+        "title": "Venice, from the Porch of Madonna della Salute",
+        "author": "Joseph Mallord William Turner",
+        "date": "ca. 1835",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/437853",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Caspar David Friedrich",
+      "tag": "Caspar David Friedrich",
+      "tags": [
+        "landscape",
+        "atmosphere",
+        "dramatic"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "commons-151083.webp",
+      "provenance": {
+        "title": "Landscape by Caspar David Friedrich",
+        "author": "Caspar David Friedrich",
+        "date": "circa 1816-1817",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Caspar_David_Friedrich_036.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Caspar_David_Friedrich_036.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "John Singer Sargent",
+      "tag": "John Singer Sargent",
+      "tags": [
+        "portrait",
+        "painterly",
+        "highlights"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "reference",
+      "asset": "met-12025.webp",
+      "provenance": {
+        "title": "Abriès",
+        "author": "John Singer Sargent",
+        "date": "ca. 1912",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/12025",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+      }
+    },
+    {
+      "name": "Georgia O’Keeffe",
+      "tag": "Georgia O’Keeffe",
+      "tags": [
+        "floral",
+        "shape",
+        "color"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "none"
+    },
+    {
+      "name": "Edward Hopper",
+      "tag": "Edward Hopper",
+      "tags": [
+        "architecture",
+        "light",
+        "shadow"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "none"
+    },
+    {
+      "name": "Salvador Dalí",
+      "tag": "Salvador Dalí",
+      "tags": [
+        "surreal",
+        "realism",
+        "dreamlike"
+      ],
+      "description": "Editorial discovery labels; model interpretation varies.",
+      "previewKind": "none"
+    }
+  ]
+}

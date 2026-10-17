@@ -149,6 +149,9 @@ export function categoryForTagKey(key) {
   const custom = customIndex.get(key);
   if (custom) return custom;
   if (!lookupable(key)) return "";
+  // Explicit Anima syntax is meaningful even for an imported artist absent
+  // from Danbooru. This painter only receives plain runs, never __@wildcards__.
+  if (/^@[^@\s]/.test(key)) return "artist";
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
   queue(key);

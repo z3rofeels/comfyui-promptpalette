@@ -8,7 +8,7 @@ function cancelFrame(handle) {
 }
 
 export class VirtualCollection {
-  constructor({ scrollRoot, items = [], renderItem, mode = "list", estimateRowHeight = 32, estimateCardHeight = 132, minCardWidth = 88, overscan = 2, onVisibleCount = null, requestRender = null } = {}) {
+  constructor({ scrollRoot, items = [], renderItem, mode = "list", estimateRowHeight = 32, estimateCardHeight = 132, minCardWidth = 88, overscan = 2, onVisibleCount = null, requestRender = null, captureFocus = null, restoreFocus = null } = {}) {
     this.scrollRoot = scrollRoot;
     this.items = Array.isArray(items) ? items : [];
     this.renderItem = renderItem;
@@ -19,6 +19,8 @@ export class VirtualCollection {
     this.overscan = overscan;
     this.onVisibleCount = onVisibleCount;
     this.requestRender = requestRender;
+    this.captureFocus = captureFocus;
+    this.restoreFocus = restoreFocus;
     this.renderErrors = new Set();
     this.host = document.createElement("div");
     this.host.className = `wg-virtual-collection ${mode === "grid" ? "wg-virtual-grid" : "wg-virtual-list"}`;
@@ -53,6 +55,8 @@ export class VirtualCollection {
   }
   updateGeometry() {
     const columns = this.columns();
+    this.window.style.setProperty("--pp-virtual-columns", columns);
+    this.window.style.setProperty("--pp-virtual-card-height", `${this.effectiveCardHeight(columns)}px`);
     this.host.style.height = `${Math.max(0, this.totalHeight(columns))}px`;
     this.host.style.position = "relative";
     this.window.style.position = "absolute";
@@ -100,6 +104,7 @@ export class VirtualCollection {
     this.lastStart = start;
     this.lastEnd = end;
     this.lastColumns = columns;
+    const focus = this.captureFocus?.();
     const fragment = document.createDocumentFragment();
     for (let index = start; index < end; index++) {
       const item = this.items[index];
@@ -117,6 +122,7 @@ export class VirtualCollection {
       const row = Math.floor(start / columns);
       this.window.style.transform = `translateY(${row * this.effectiveCardHeight(columns)}px)`;
     } else this.window.style.transform = `translateY(${start * this.estimateRowHeight}px)`;
+    this.restoreFocus?.(focus);
     this.onVisibleCount?.(end - start);
     return Math.max(0, end - start);
   }
@@ -172,6 +178,25 @@ export class VirtualCollectionManager {
         try { collection.render(); } catch (error) { console.error("Prompt Palette: virtual library render failed", error); }
       }
     });
+  }
+  // Keep the logical item near the top when density/columns change.
+  captureViewportAnchor(itemSpan = 1) {
+    const collection = this.collections.values().next().value;
+    if (!collection) return null;
+    const root = this.scrollRoot.getBoundingClientRect(), host = collection.host.getBoundingClientRect();
+    const top = root.top - host.top;
+    if (top < 0) return null;
+    const columns = collection.columns(), stride = collection.mode === "grid" ? collection.effectiveCardHeight(columns) : collection.estimateRowHeight;
+    return { index: Math.floor(top / stride) * columns * itemSpan, fraction: (top % stride) / stride };
+  }
+  restoreViewportAnchor(anchor, itemSpan = 1) {
+    const collection = this.collections.values().next().value;
+    if (!anchor || !collection) return;
+    const root = this.scrollRoot.getBoundingClientRect(), host = collection.host.getBoundingClientRect();
+    const columns = collection.columns(), stride = collection.mode === "grid" ? collection.effectiveCardHeight(columns) : collection.estimateRowHeight;
+    const row = Math.floor(anchor.index / itemSpan / columns);
+    this.scrollRoot.scrollTop += host.top - root.top + (row + anchor.fraction) * stride;
+    this.schedule();
   }
   refresh() { this.schedule(); }
   clear() {

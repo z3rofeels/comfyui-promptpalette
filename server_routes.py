@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .workspace_generation import WorkspaceGeneration, read_runtime
+
 import asyncio
 import hashlib
 import ipaddress
@@ -18,9 +20,11 @@ from server import PromptServer
 from .clip_tokenizer import count_clip_tokens
 from .prompt_exploration import capture_selection
 from .prompt_diagnostics import inspect_resolved_prompt
+from .positive_antonyms import apply_positive_antonyms
 from .wildcard_index import get_index
 from .wildcard_resolver import WildcardResolver
 from .booru_database import active_db_path, normalize_lookup, normalize_tag
+from . import style_indexes
 from .image_prompt_import import import_image_prompts, MAX_IMPORT_BYTES
 
 logger = logging.getLogger(__name__)
@@ -346,6 +350,11 @@ async def search_booru_tags(request):
         return web.json_response({"items": []})
     try:
         items = await asyncio.to_thread(_booru_bundle_search, query, 60, category)
+        if category in ("", "artist") and len(items) < 60:
+            extra = await asyncio.to_thread(style_indexes.search_artists, query, 60)
+            seen = {normalize_lookup(i["value"]).replace("\\", "") for i in items}
+            items.extend(i for i in extra if normalize_lookup(i["value"]).replace("\\", "") not in seen)
+            items = items[:60]
         for item in items:
             item["meta"] = (
                 f'{int(item.get("count", 0)):,} posts'
@@ -356,6 +365,58 @@ async def search_booru_tags(request):
     except Exception:
         logger.exception("Could not search booru tags")
         return _error("couldn't search booru tags", 500)
+
+
+@routes.get("/prompt_palette/anima_artists")
+async def search_anima_artists(request):
+    """The explicit @ scope uses only the supplied local Anima snapshot."""
+    query = str(request.rel_url.query.get("q", ""))[:128].strip()
+    try:
+        items = await asyncio.to_thread(style_indexes.search_artists, query, 60, "builtin:anima")
+        for item in items:
+            item["meta"] = "Anima snapshot · support unverified"
+        return web.json_response({"items": items})
+    except (ValueError, OSError) as error:
+        return _error(str(error))
+
+
+@routes.get("/prompt_palette/styles")
+async def style_index_route(request):
+    try:
+        index_id = request.rel_url.query.get("index", "")
+        if not index_id:
+            return web.json_response({"items": await asyncio.to_thread(style_indexes.list_indexes)})
+        data = await asyncio.to_thread(style_indexes.get_index, index_id)
+        return web.json_response(data)
+    except (ValueError, OSError) as error:
+        return _error(str(error))
+
+
+@routes.post("/prompt_palette/styles")
+async def import_style_index_route(request):
+    try:
+        data = await _read_json_object(request, style_indexes.MAX_INDEX_BYTES)
+        index_id = await asyncio.to_thread(style_indexes.import_index, data.get("index"))
+        return web.json_response({"ok": True, "id": index_id})
+    except (ValueError, OSError) as error:
+        return _error(str(error))
+
+
+@routes.get("/prompt_palette/style_annotations")
+async def style_annotations_route(request):
+    try:
+        return web.json_response(await asyncio.to_thread(style_indexes.annotations, request.rel_url.query.get("index", "")))
+    except (ValueError, OSError) as error:
+        return _error(str(error))
+
+
+@routes.post("/prompt_palette/style_annotations")
+async def save_style_annotation_route(request):
+    try:
+        data = await _read_json_object(request)
+        return web.json_response(await asyncio.to_thread(style_indexes.save_annotation, data))
+    except (ValueError, OSError) as error:
+        return _error(str(error))
 
 
 @routes.post("/prompt_palette/import_image_prompts")
@@ -1028,24 +1089,31 @@ async def resolve_prompt(request):
         text = _bounded_text(data.get("text"), "text", limit=None)
         seed = _bounded_int(data.get("seed", 0), "seed")
         mode = data.get("mode", "entire text as one")
+        positive_antonyms = data.get("positive_antonyms", False)
+        if not isinstance(positive_antonyms, bool):
+            raise ValueError("invalid Positive Antonyms flag")
+        should_resolve = data.get("resolve", True)
+        if not isinstance(should_resolve, bool):
+            raise ValueError("invalid resolve flag")
         if not isinstance(mode, str) or mode not in {"entire text as one", "line by line"}:
             raise ValueError("invalid processing mode")
     except ValueError as exc:
         return _error(str(exc))
 
     try:
-        index = await _get_fresh_index()
+        index = await _get_fresh_index() if should_resolve else None
     except Exception:
         logger.exception("Could not load wildcard index for prompt resolution")
         return _error("couldn't load wildcard library", 500)
 
     def resolve_and_count():
-        resolver = WildcardResolver(index.preview_view())
-        resolved = (
+        resolver = WildcardResolver(index.preview_view()) if index is not None else None
+        resolved = text if not should_resolve else (
             "\n".join(resolver.resolve_lines(text, seed=seed))
             if mode == "line by line"
             else resolver.resolve(text, seed=seed)
         )
+        resolved = apply_positive_antonyms(resolved, positive_antonyms)
         response: dict[str, Any] = {"resolved": resolved}
         token_stats = count_clip_tokens(resolved)
         if token_stats is not None:
@@ -1207,6 +1275,34 @@ async def resolve_combinatorial(request):
         logger.exception("Combinatorial resolution failed")
         return _error("combinatorial resolution failed", 500)
     return web.json_response({"resolved": prompts, "count": len(prompts), "truncated": truncated})
+
+
+@routes.post("/prompt_palette/resolve_workspace")
+async def resolve_workspace(request):
+    try:
+        data = await _read_json_object(request, limit=None)
+        payload = read_runtime(data.get("runtime"))
+        if payload is None: raise ValueError("Open a Fields workspace first.")
+        seed = _bounded_int(data.get("seed", 0), "seed")
+        count = _bounded_int(data.get("count", 1), "count", minimum=1, maximum=16)
+        mode = data.get("mode", "entire text as one")
+        if mode not in {"entire text as one", "line by line"}: raise ValueError("Invalid processing mode.")
+        index = await _get_fresh_index()
+    except ValueError as exc: return _error(str(exc))
+    def preview():
+        runtime = WorkspaceGeneration(index.preview_view(), payload, preview=True)
+        items = []
+        for offset in range(count):
+            current = (seed + offset) & UINT64_MAX
+            positive, used = runtime.resolve(payload["positive"], current, mode)
+            negative, negative_used = runtime.resolve(payload["negative"], (current + 1000) & UINT64_MAX, mode, "negative")
+            items.append({"seed": current, "positive": positive, "negative": negative, "fields": dict(runtime.values), "spans": dict(runtime.spans), "wildcards": sorted(set(used + negative_used))})
+        return items
+    try: return web.json_response(await asyncio.to_thread(preview))
+    except ValueError as exc: return _error(str(exc))
+    except Exception:
+        logger.exception("Workspace preview failed")
+        return _error("workspace preview failed", 500)
 
 
 @routes.post("/prompt_palette/count_combinatorial")

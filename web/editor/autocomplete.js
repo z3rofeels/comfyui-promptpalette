@@ -7,7 +7,7 @@ import { loadCustomWords, filterCustomWords, resetCustomWords } from "./custom_w
 import { recordInsertedTags, scanTagPieces } from "./booru_tag_colors.js";
 import { notify } from "./notifications.js";
 import { panelToneFor } from "./panel_tone.js";
-import { tagSearch } from "./tag_search.js";
+import { tagSearch, formatArtistInsertion } from "./tag_search.js";
 import { openCustomWordsManager } from "./custom_words_manager.js";
 import { syntaxSnippetRows } from "./injector.js";
 import { syntaxCodeHtml, syntaxTone } from "./syntax_presentation.js";
@@ -196,6 +196,9 @@ function booruSettings() {
 async function getBooruAutocompleteMatches(query) {
   const search = tagSearch(query);
   const q = search.query.toLowerCase();
+  if (search.anima) {
+    try { return await API.animaArtists(q); } catch { return []; }
+  }
   const settings = booruSettings();
   if (!q || q.length < settings.minChars || (!settings.database && !settings.customWords)) return [];
 
@@ -243,6 +246,7 @@ async function getBooruAutocompleteMatches(query) {
 
 function shouldOpenBooruAutocomplete(fragment, { onDemand = false } = {}) {
   if (!fragment || fragment.kind !== "booru") return true;
+  if (tagSearch(fragment.query).anima) return true;
   const settings = booruSettings();
   if (!settings.enabled || settings.mode === "off") return false;
   if (settings.mode === "onDemand" && !onDemand) return false;
@@ -395,13 +399,19 @@ function acItemKey(item) {
 //  - starred tags/custom words are flagged (and surfaced even when the lookup missed them);
 //  - Recents are capped.
 async function resolveAcItems(getMatches, query, kind) {
-  const items = await withLookupTimeout(Promise.resolve(getMatches(query, kind)));
+  const scoped = kind === "booru" && tagSearch(query).anima;
+  const items = await withLookupTimeout(Promise.resolve(scoped ? getBooruAutocompleteMatches(query) : getMatches(query, kind)));
   return decorateAcItems(Array.isArray(items) ? items : [], query, kind);
 }
 
 async function decorateAcItems(items, query, kind) {
   if (kind !== "booru" && kind !== "wildcard") return items;
   const search = kind === "booru" ? tagSearch(query) : { query, category: "" };
+  if (search.anima) {
+    loadAcFavorites();
+    return items.filter(item => item.source === "anima" && item.category === "artist")
+      .map(item => ({ ...item, favorite: acFavorites.has(tagFavoriteKey("booru", item.value)) }));
+  }
   const q = String(search.query || "").trim().toLowerCase();
   const settings = booruSettings();
   const tagsEnabled = settings.enabled && (settings.database || settings.customWords);
@@ -505,8 +515,8 @@ function clearAcRecents() {
   refreshAcItems(null);
 }
 
-function insertBooruValue(value) {
-  let text = String(value || "").trim();
+function insertBooruValue(value, item) {
+  let text = formatArtistInsertion(item, String(value || "").trim(), loadTheme().animaArtistFormatting === true || (acState?.kind === "booru" && tagSearch(acState.query).anima === true));
   // Booru/custom entries are plain prompt text, not Prompt Palette library wildcards.
   // Preserve the source tag verbatim so tags such as saber_(fate) stay real tags rather
   // than being transformed into wildcard syntax or an escaped variant of the tag.
@@ -516,6 +526,7 @@ function insertBooruValue(value) {
 }
 
 function sectionForItem(item) {
+  if (item?.source === "anima") return "Anima Artists";
   if (item.favorite && (item.kind === "booru" || item.kind === "custom" || item.group === "Booru Tags" || item.group === "Custom Words")) return "Favorite Tags";
   if (item.recent) return "Recents";
   if (item.kind === "booru") return "Booru Tags";
@@ -657,6 +668,14 @@ function appendAcFooter(menu) {
   if (acState?.kind !== "booru") return;
   const footer = document.createElement("div");
   footer.className = "wg-ac-footer";
+  if (tagSearch(acState.query).anima) {
+    const hint = document.createElement("span"); hint.className = "wg-ac-footer-hint";
+    hint.textContent = "Local Anima snapshot · checkpoint support unverified";
+    const comma = document.createElement("button"); comma.type = "button";
+    comma.className = "wg-ac-option" + (booruInsertOptions.appendComma ? " active" : "");
+    comma.dataset.acInsertOption = "comma"; comma.textContent = ", "; comma.title = "Append a comma and space after the artist";
+    footer.append(hint, comma); menu.append(footer); return;
+  }
 
   if (!acAddDraft) {
     const hint = document.createElement("span");
@@ -811,7 +830,7 @@ function renderAcMenu() {
   const search = acState.kind === "booru" ? tagSearch(acState.query) : null;
   if (search?.category) {
     const heading = document.createElement("div"); heading.className = "wg-ac-head";
-    heading.textContent = `${BOORU_CATEGORY_TITLES[search.category]} tags · ${search.query}`;
+    heading.textContent = search.anima ? `Anima artists · ${search.query || "local snapshot"}` : `${BOORU_CATEGORY_TITLES[search.category]} tags · ${search.query}`;
     menu.appendChild(heading);
   }
 
@@ -819,7 +838,7 @@ function renderAcMenu() {
   // an ordinary word lists tags/custom words first and the relevant library entries after.
   const groupOrder = acState.kind === "wildcard"
     ? ["Favorites", "Recents", "Recipes", "Library Prompts", "Favorite Tags", "Exact Custom", "Booru Tags", "Custom Words", "Syntax"]
-    : ["Favorite Tags", "Exact Custom", "Booru Tags", "Custom Words", "Recents", "Favorites", "Recipes", "Library Prompts", "Syntax"];
+    : ["Anima Artists", "Favorite Tags", "Exact Custom", "Booru Tags", "Custom Words", "Recents", "Favorites", "Recipes", "Library Prompts", "Syntax"];
   const promptText = acState?.textarea?.value || "";
   const grouped = new Map();
   acState.items.forEach((rawItem, index) => {
@@ -932,7 +951,8 @@ function renderAcMenu() {
         const row = document.createElement("div");
         const inPrompt = item.kind === "syntax" ? false
           : (item.kind === "booru" || item.kind === "custom")
-            ? promptContainsTag(promptText, item.insertText == null ? item.value : item.insertText)
+            ? (promptContainsTag(promptText, item.insertText == null ? item.value : item.insertText)
+              || promptContainsTag(promptText, formatArtistInsertion(item, item.insertText == null ? item.value : item.insertText, loadTheme().animaArtistFormatting === true)))
             : promptContainsLibraryEntry(promptText, item.value);
         row.className = "wg-ac-item" + (index === acState.activeIndex ? " active" : "") + (inPrompt ? " in-prompt" : "");
         row.dataset.acIndex = String(index);
@@ -1128,7 +1148,7 @@ function commitAcSelection(index) {
   const isPlainTag = item.insertMode === "plain" || item.kind === "booru" || item.kind === "custom";
   const isTagRow = item.kind === "booru" || item.kind === "custom";
   const replacement = isPlainTag
-    ? (isTagRow ? insertBooruValue(item.insertText == null ? item.value : item.insertText) : (item.insertText == null ? item.value : item.insertText))
+    ? (isTagRow ? insertBooruValue(item.insertText == null ? item.value : item.insertText, item) : formatArtistInsertion(item, item.insertText == null ? item.value : item.insertText, loadTheme().animaArtistFormatting === true))
     : (item.insertText == null
       ? `__${acState.kind === "wildcard" ? (acState.modifier || "") : ""}${item.value}__`
       : item.insertText);
@@ -1234,6 +1254,12 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
     if (event.shiftKey || textarea.selectionEnd > textarea.selectionStart) closeAcMenu();
     if (event.ctrlKey && !event.altKey && !event.metaKey && event.code === "Space") {
       const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
+      if (fragment?.kind === "wildcard") {
+        event.preventDefault();
+        event.stopPropagation();
+        openForCurrentCaret({ onDemand: true });
+        return;
+      }
       if (fragment?.kind === "booru" && shouldOpenBooruAutocomplete(fragment, { onDemand: true })) {
         event.preventDefault();
         event.stopPropagation();

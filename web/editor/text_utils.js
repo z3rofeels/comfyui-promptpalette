@@ -52,7 +52,10 @@ function slugifyRecipeName(raw) {
     .replace(/_+/g, "_")
     .replace(/^_+|_+$/g, "");
 }
-function normalizeLibraryEntryPath(raw) {
+function normalizeLibraryEntryPath(raw, { preserveName = false } = {}) {
+  // Disk entry identities are case-sensitive and may contain spaces or Unicode.
+  // Slug generation remains the default for suggestions and selection exports.
+  if (preserveName) return String(raw || "").trim().replace(/\\/g, "/").split("/").map(part => part.trim()).join("/");
   return String(raw || "")
     .trim()
     .replace(/\\/g, "/")
@@ -153,3 +156,8 @@ export {
   hashStr, canonicalRecipeCategory, categoryOf, slugifyRecipeName, normalizeLibraryEntryPath, isRecipeCategory,
   escapeHtml, highlightMatch, sanitizeHexColor, hslToHex, relativeLuminance, contrastRatio, nudgeHexForContrast, currentUiSurface, categoryColorFromHue,
 };
+
+// Shared library insertion separator rule for node and sidebar entry actions.
+export function wildcardInsertionText(path, after = "") {
+  return `__${path}__` + (/^\s*,/.test(after) ? "" : ", ");
+}

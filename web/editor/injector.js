@@ -4,14 +4,14 @@ import { openPromptTools, canBuildPromptRules } from "./prompt_tools_panel.js";
 import { syntaxTone, syntaxCodeHtml } from "./syntax_presentation.js";
 import { notify } from "./notifications.js";
 
-const INJECT_MODIFIERS = [
+export const INJECT_MODIFIERS = [
   { label: "Random", desc: "Seeded \u2014 one pick per resolve, stable for a given seed.", build: cat => `__${cat}__` },
-  { label: "Random \u2014 unseeded", desc: "Ignores the seed \u2014 varies on every single run.", build: cat => `__*${cat}__` },
-  { label: "Sequential \u2014 next", desc: "Walks forward one line each time this is called.", build: cat => `__+${cat}__` },
+  { label: "Random \u2014 unseeded", desc: "Ignores the seed \u2014 varies on every single run. ~ is an alias.", build: cat => `__*${cat}__` },
+  { label: "Sequential \u2014 next", desc: "Walks forward one line each time this is called. @ is an alias.", build: cat => `__+${cat}__` },
   { label: "Sequential \u2014 previous", desc: "Walks backward one line each time this is called.", build: cat => `__-${cat}__` },
   { label: "Cartesian cycle", desc: "Cycles this wildcard with other % groups across editor resolves.", build: cat => `__%${cat}__` },
 ];
-const INJECT_TEMPLATES = [
+export const INJECT_TEMPLATES = [
   { label: "Random choice", desc: "Seeded random pick from an inline list.", build: () => ({ prefix: "{", editable: "a|b|c", suffix: "}" }) },
   { label: "Random choice \u2014 unseeded", desc: "Inline pick that varies every run.", build: () => ({ prefix: "{*", editable: "a|b|c", suffix: "}" }) },
   { label: "Sequential choice \u2014 next", desc: "Inline list, walks forward each call.", build: () => ({ prefix: "{+", editable: "a|b|c", suffix: "}" }) },
@@ -27,7 +27,15 @@ const INJECT_TEMPLATES = [
   { label: "Comment line", desc: "A line beginning with # is removed before resolution.", build: () => ({ prefix: "# ", editable: "note", suffix: "" }) },
   { label: "If / otherwise", desc: "Use different text depending on an assigned variable.", build: () => ({ prefix: "[if ", editable: 'genre == "cyberpunk"', suffix: "]neon lighting[else]soft lighting[/if]" }) },
   { label: "If / else if / otherwise", desc: "Check branches in order; the first match wins.", build: () => ({ prefix: "[if ", editable: 'genre == "cyberpunk"', suffix: ']neon[elif genre == "fantasy"]pastel[else]neutral[/if]' }) },
+  { label: "Boolean AND", desc: "Both comparisons must match. Assign genre and mood with ${name=value} first.", build: () => ({ prefix: "[if ", editable: 'genre == "fantasy" and mood == "calm"', suffix: "]soft light[else]dramatic light[/if]" }) },
+  { label: "Boolean OR", desc: "At least one comparison must match.", build: () => ({ prefix: "[if ", editable: 'genre == "fantasy" or genre == "sci-fi"', suffix: "]imaginary world[else]everyday world[/if]" }) },
+  { label: "Boolean NOT", desc: "Reverse a condition. Use parentheses to group and/or expressions.", build: () => ({ prefix: "[if ", editable: 'not (genre == "fantasy" or genre == "sci-fi")', suffix: "]everyday world[else]imaginary world[/if]" }) },
+  { label: "Switch / case / default", desc: "Compare one value with cases. The first match wins; no fall-through.", build: () => ({ prefix: "[switch ", editable: "genre", suffix: '][case "cyberpunk"]neon lighting[case "fantasy"]soft lighting[default]neutral lighting[/switch]' }) },
+  { label: "Membership", desc: "Match any pipe-separated value; quoted strings stay literal.", build: () => ({ prefix: "[if ", editable: 'genre in "fantasy"|"sci-fi"', suffix: "]imaginary world[else]everyday world[/if]" }) },
+  { label: "Numeric comparison", desc: "Compare numbers with >, >=, <, <=, == or !=.", build: () => ({ prefix: "[if ", editable: "detail >= 2", suffix: "]intricate[else]simple[/if]" }) },
+  { label: "Nested branches", desc: "Nest conditions inside if or switch branches.", build: () => ({ prefix: "[if ", editable: 'genre == "fantasy"', suffix: '][if mood == "calm"]quiet forest[else]stormy forest[/if][else]city[/if]' }) },
   { label: "Reuse a variable", desc: "Insert text from a variable assigned earlier in this resolved block.", build: () => ({ prefix: "${", editable: "name", suffix: "}" }) },
+  { label: "Parameterized wildcard", desc: "Pass values into a wildcard entry that uses ${key:fallback} placeholders.", build: () => ({ prefix: "__", editable: "category/name(key=value)", suffix: "__" }) },
   { label: "Phrase weight", desc: "Explicit numeric emphasis for encoders that support CLIP-style weights.", build: () => ({ prefix: "(", editable: "phrase", suffix: ":1.2)" }) },
 ];
 

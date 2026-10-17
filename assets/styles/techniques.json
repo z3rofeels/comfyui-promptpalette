@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "name": "Style techniques · start here",
+  "description": "Explore visual vocabulary without knowing an artist. Combine technique tags with an artist or use them alone. These descriptions are guidance, not generated-image previews.",
+  "source": "Prompt Palette editorial prompting vocabulary",
+  "entries": [
+    {
+      "name": "Flat color",
+      "tag": "flat color",
+      "category": "general",
+      "description": "Flat areas of color with minimal shading.",
+      "tags": [
+        "flat",
+        "color",
+        "minimal"
+      ]
+    },
+    {
+      "name": "Clean outlines",
+      "tag": "lineart",
+      "category": "general",
+      "description": "Defined contour lines around forms.",
+      "tags": [
+        "outline",
+        "ink",
+        "clean"
+      ]
+    },
+    {
+      "name": "Bold outlines",
+      "tag": "thick outlines",
+      "category": "general",
+      "description": "Strong contour lines for a graphic silhouette.",
+      "tags": [
+        "outline",
+        "bold",
+        "graphic"
+      ]
+    },
+    {
+      "name": "Cel shading",
+      "tag": "cel shading",
+      "category": "general",
+      "description": "Hard-edged blocks of shadow.",
+      "tags": [
+        "flat",
+        "shadow",
+        "graphic"
+      ]
+    },
+    {
+      "name": "Soft shading",
+      "tag": "soft shading",
+      "category": "general",
+      "description": "Smooth transitions between light and shadow.",
+      "tags": [
+        "soft",
+        "shadow",
+        "gradient"
+      ]
+    },
+    {
+      "name": "Rim light",
+      "tag": "rim lighting",
+      "category": "general",
+      "description": "A bright edge along the subject’s silhouette.",
+      "tags": [
+        "highlights",
+        "light",
+        "dramatic"
+      ]
+    },
+    {
+      "name": "Backlight",
+      "tag": "backlighting",
+      "category": "general",
+      "description": "Light from behind the subject.",
+      "tags": [
+        "highlights",
+        "light",
+        "silhouette"
+      ]
+    },
+    {
+      "name": "Dramatic contrast",
+      "tag": "chiaroscuro",
+      "category": "general",
+      "description": "Strong separation between light and dark.",
+      "tags": [
+        "highlights",
+        "shadow",
+        "dramatic"
+      ]
+    },
+    {
+      "name": "Watercolor",
+      "tag": "watercolor",
+      "category": "general",
+      "description": "Translucent washes and soft pigment edges.",
+      "tags": [
+        "soft",
+        "paint",
+        "texture"
+      ]
+    },
+    {
+      "name": "Ink wash",
+      "tag": "ink wash",
+      "category": "general",
+      "description": "Tonal washes with an ink-like surface.",
+      "tags": [
+        "ink",
+        "monochrome",
+        "texture"
+      ]
+    },
+    {
+      "name": "Pencil drawing",
+      "tag": "pencil drawing",
+      "category": "general",
+      "description": "Graphite-like lines and visible marks.",
+      "tags": [
+        "outline",
+        "sketch",
+        "texture"
+      ]
+    },
+    {
+      "name": "Crosshatching",
+      "tag": "crosshatching",
+      "category": "general",
+      "description": "Intersecting lines that build shading.",
+      "tags": [
+        "outline",
+        "ink",
+        "shadow"
+      ]
+    },
+    {
+      "name": "Impasto",
+      "tag": "impasto",
+      "category": "general",
+      "description": "Thick, visibly textured paint strokes.",
+      "tags": [
+        "paint",
+        "texture",
+        "painterly"
+      ]
+    },
+    {
+      "name": "Oil painting",
+      "tag": "oil painting",
+      "category": "general",
+      "description": "Layered paint and brushwork.",
+      "tags": [
+        "paint",
+        "painterly",
+        "texture"
+      ]
+    },
+    {
+      "name": "Pastel palette",
+      "tag": "pastel colors",
+      "category": "general",
+      "description": "Light, gently saturated colors.",
+      "tags": [
+        "soft",
+        "color",
+        "pastel"
+      ]
+    },
+    {
+      "name": "Limited palette",
+      "tag": "limited palette",
+      "category": "general",
+      "description": "A restrained set of colors.",
+      "tags": [
+        "color",
+        "minimal",
+        "graphic"
+      ]
+    },
+    {
+      "name": "Monochrome",
+      "tag": "monochrome",
+      "category": "general",
+      "description": "A single hue or grayscale range.",
+      "tags": [
+        "monochrome",
+        "minimal"
+      ]
+    },
+    {
+      "name": "Pixel art",
+      "tag": "pixel art",
+      "category": "general",
+      "description": "Visible pixel clusters and crisp edges.",
+      "tags": [
+        "pixel",
+        "flat",
+        "graphic"
+      ]
+    },
+    {
+      "name": "Halftone",
+      "tag": "halftone",
+      "category": "general",
+      "description": "Dot patterns that simulate tone.",
+      "tags": [
+        "dots",
+        "print",
+        "texture"
+      ]
+    },
+    {
+      "name": "Screen print",
+      "tag": "screen print",
+      "category": "general",
+      "description": "Flat ink layers with a print-like finish.",
+      "tags": [
+        "flat",
+        "print",
+        "graphic"
+      ]
+    },
+    {
+      "name": "Paper cutout",
+      "tag": "paper cutout",
+      "category": "general",
+      "description": "Layered shapes with crisp boundaries.",
+      "tags": [
+        "flat",
+        "paper",
+        "shape"
+      ]
+    },
+    {
+      "name": "Low poly",
+      "tag": "low poly",
+      "category": "general",
+      "description": "Faceted forms with simplified geometry.",
+      "tags": [
+        "geometric",
+        "shape",
+        "3d"
+      ]
+    },
+    {
+      "name": "Isometric",
+      "tag": "isometric",
+      "category": "general",
+      "description": "A consistent angled view without converging parallel edges.",
+      "tags": [
+        "geometric",
+        "perspective"
+      ]
+    },
+    {
+      "name": "Glowing accents",
+      "tag": "glowing",
+      "category": "general",
+      "description": "Bright accents against surrounding tones.",
+      "tags": [
+        "highlights",
+        "light",
+        "glow"
+      ]
+    }
+  ]
+}

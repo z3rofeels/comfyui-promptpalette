@@ -6,9 +6,10 @@ import { getPowerToolPreferences } from "../prompt_palette_state.js";
 import { buildResolvedDiff } from "../prompt_palette_power_tools.js";
 import { API } from "../prompt_palette_api.js";
 import { dialogConfirm } from "./dialogs.js";
-import { normalizeLibraryEntryPath } from "./text_utils.js";
 import { loadTheme, saveTheme } from "./preferences.js";
 import { notify } from "./notifications.js";
+import { createLibraryEntryEditor } from "./library_entry_editor.js";
+import { positiveAntonymsEnabled } from "./positive_antonyms.js";
 
 // Reuse the Editor's actual tool markup and controllers. Generation controls and
 // batch execution remain owned by the Combinatorial node.
@@ -50,6 +51,7 @@ export function mountCombinatorialTools(root, settingsPopup) {
   }
   settingsPopup.querySelector(".wg-settings-body").appendChild(compact);
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleImportImageBtn").closest(".wg-toggle-card"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleAnimaArtistFormatting").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toolbarDesigner"));
 }
 
@@ -61,7 +63,10 @@ export function createCombinatorialTools(ctx) {
   const cleanupToolbarLayout = installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot: settingsPopup });
   const state = { powerTools: getPowerToolPreferences(), get libraryCache() { return getLibrary(); }, get knownSet() { return getKnown(); } };
   const editDrawer = root.querySelector('[data-drawer="edit"]');
-  let disposed = false, editPath = null, editVersion = 0, previewVersion = 0;
+  let disposed = false, editVersion = 0, previewVersion = 0;
+  const editPanel = createLibraryEntryEditor({ drawer: editDrawer, el, getLibrary, getMatches: ctx.getMatches,
+    onChanged: async path => { previewCache.delete(path); await refreshLibrary(); renderPickerList(searchInput.value); },
+    onThumbnailChanged: () => refreshLibrary() });
   const showEditor = () => {
     previewVersion++; runtime.abortRequest("preview");
     el("editorReal").classList.remove("hidden"); el("resolvedView").classList.remove("on");
@@ -69,28 +74,28 @@ export function createCombinatorialTools(ctx) {
     el("btnResolve").setAttribute("aria-pressed", "false");
   };
   function closeEditDrawer() {
-    editVersion++; editDrawer.classList.remove("open"); editDrawer.hidden = true;
+    editVersion++; editPanel.suspend(); editDrawer.classList.remove("open"); editDrawer.hidden = true;
     editDrawer.setAttribute("aria-hidden", "true"); editDrawer.setAttribute("inert", "");
   }
   async function openEditForItem(path = "") {
     const request = ++editVersion;
-    const data = path ? await API.content(path) : null;
+    const opened = await editPanel.load(path, { confirm: true, existing: !!path });
     if (disposed || request !== editVersion) return;
-    if (path && !data?.editable) throw new Error("This entry is read-only; create a TXT copy to edit it.");
+    if (!opened) { if (el("editStatus").classList.contains("err")) notify("error", "Entry not opened", el("editStatus").textContent); return; }
     tools.closeAllPowerPopups(); closeSettings(); closePickerDrawer(); ioRail.close();
-    editPath = path;
-    el("editName").value = path; el("editContent").value = data?.content || ""; el("editStatus").textContent = "";
     editDrawer.hidden = false; editDrawer.removeAttribute("inert"); editDrawer.setAttribute("aria-hidden", "false"); editDrawer.classList.add("open");
     el("editName").focus();
   }
   async function refreshResolvedView() {
     if (!el("resolvedView").classList.contains("on")) return;
     const request = ++previewVersion, source = textarea.value, seed = seedWidget?.value ?? 0;
+    const positiveAntonyms = positiveAntonymsEnabled(node);
+    const workspaceRuntime = node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "";
     const controller = runtime.beginRequest("preview");
     el("resolvedView").textContent = "Resolving…";
     try {
-      const result = await API.resolve(source, seed, "entire text as one", { signal: controller.signal });
-      if (disposed || request !== previewVersion || source !== textarea.value || seed !== (seedWidget?.value ?? 0)) return;
+      const result = await API.resolve(source, seed, "entire text as one", { signal: controller.signal, positiveAntonyms, workspaceRuntime });
+      if (disposed || request !== previewVersion || source !== textarea.value || seed !== (seedWidget?.value ?? 0) || positiveAntonyms !== positiveAntonymsEnabled(node) || workspaceRuntime !== (node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "")) return;
       const fragment = document.createDocumentFragment();
       const segments = state.powerTools.resolvedDiff ? buildResolvedDiff(source, result.resolved) : [{ type: "same", text: result.resolved }];
       for (const segment of segments) {
@@ -134,24 +139,13 @@ export function createCombinatorialTools(ctx) {
   action("recipesShortcut", () => { searchInput.value = "RECIPES"; openPickerDrawer(); renderPickerList(searchInput.value); });
   action("buildRecipe", () => tools.promptSaveRecipe([...new Set(ctx.getSourcePaths())]));
   action("closeEditDrawer", closeEditDrawer);
-  action("save", async () => {
-    const path = normalizeLibraryEntryPath(el("editName").value), content = el("editContent").value;
-    if (!path) throw new Error("Enter a valid My Library path.");
-    if (path !== editPath && (await API.content(path, { fresh: true }))?.found && !await dialogConfirm({ title: "Overwrite Library Entry", message: `Overwrite "${path}"?` })) return;
-    const result = await API.save(path, content); if (!result.ok) throw new Error(result.error || "Could not save this entry.");
-    editPath = path; el("editStatus").textContent = "Saved."; await refreshLibrary();
-  });
-  action("delete", async () => {
-    if (!editPath || !await dialogConfirm({ title: "Delete Library Entry", message: `Delete "${editPath}"?` })) return;
-    const result = await API.del(editPath); if (!result.ok) throw new Error(result.error || "Could not delete this entry.");
-    closeEditDrawer(); await refreshLibrary();
-  });
   listen(root, "keydown", event => { if (event.key === "Escape") { tools.closeAllPowerPopups(); closeEditDrawer(); showEditor(); } });
   const unsubscribe = API.onLibraryChanged(() => { state.lastTokenStats = null; tools.updateDoctorStatus(); if (el("resolvedView").classList.contains("on")) refreshResolvedView(); });
   tools.syncPowerToolSettingsUI(); tools.applyPowerToolSettings();
   return { ...tools, showEditor, refresh() {
+    tools.syncPowerToolSettingsUI();
     tools.updateDoctorStatus();
     el("btnUndo").disabled = !ctx.canUndo(); el("btnRedo").disabled = !ctx.canRedo();
     if (el("resolvedView").classList.contains("on")) refreshResolvedView();
-  }, cleanup() { disposed = true; previewVersion++; editVersion++; cleanupToolbarLayout(); unsubscribe(); cleanups.forEach(fn => fn()); tools.cleanup(); runtime.cleanup(); } };
+  }, cleanup() { disposed = true; previewVersion++; editVersion++; cleanupToolbarLayout(); unsubscribe(); cleanups.forEach(fn => fn()); editPanel.cleanup(); tools.cleanup(); runtime.cleanup(); } };
 }

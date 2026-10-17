@@ -31,6 +31,47 @@
 ---
 
 <a id="recent-features"></a>
+## Recent features — 2.0.6
+
+### Prompt Palette in the main sidebar
+
+- Open **Library**, **Styles**, **Syntax**, and **Tools** beside the ComfyUI canvas.
+- Choose **Insert into** to send entries to Prompt Palette, Combinatorial, an active workspace field, or another compatible text field.
+- Click an entry to insert it; use its **pencil** to edit. **Quick view** previews its contents first.
+- Switch between gallery cards and compact lists.
+
+### Offline style gallery & Anima artists
+
+- Browse styles, classic artists, Booru tags, and a separate **Anima artist collection with 59k+ names**. Search and filter by available labels such as medium, color, mood, or visual treatment.
+- Explore **73 real public-domain or CC0 reference images**, with source and rights information. Attach your own previews and save favorites across collections.
+- Choose literal Booru/Pony/Illustrious tags, **Anima `@artist`**, or natural-language descriptions. **Will insert** shows the text before you add it.
+- Type **`@`** in a prompt to search the local Anima artist snapshot. Ordinary Booru tags and custom words stay plain text; library entries keep their `__wildcard__` syntax.
+
+### Fields that vary during generation
+
+- **Vary** cycles through supplied choices each generation, even with a fixed seed. Choose **Cycle**, **Shuffle**, **By seed**, or **Use written syntax** in field settings.
+- **Lock** captures a resolved value and keeps it across seed changes and reloads. **Follow** changes a choice only when a selected source field changes.
+- Choose purpose-built starter layouts for portraits, character sheets, scenes, products, photos, anime, Anima, or negative prompts. Start with example content or empty fields, using natural-language, Booru, or Anima starters.
+- Keep named **snapshots and variants**, compare field changes, and reuse saved workspace versions without rebuilding a prompt.
+
+### Library editing that keeps your place
+
+- Editing an existing entry loads its saved prompt options and preserves its name, including capitals, spaces, and Unicode.
+- Use autocomplete, **Suggest**, **Syntax**, **Find**, and **Expand** for quick fixes or longer edits. **Clean up** groups sorting, duplicate removal, and whitespace tools.
+- **Back to library** keeps your draft; **Resume** brings it back. Saved/unsaved badges, option counts, and cursor indicators make the current state clear.
+- Changing an entry path offers **Save copy**. Existing entries and unsaved edits are protected from accidental replacement.
+
+### More flexible controls & syntax help
+
+- Scale toolbar buttons, rearrange them, and choose always visible, auto-hide, collapsed, or hidden modes.
+- Updated settings and sidebar controls follow the same dark, light, and custom themes.
+- The sidebar's visual syntax guide explains choices, wildcards, reusable variables, and conditional text. **`switch` / `case` / `default`** adds a readable way to choose between several named cases.
+- Enable the optional **Positive Antonyms** tool to replace supported descriptors in the resolved positive prompt while preserving authored text and the negative prompt.
+
+All browsing and autocomplete use local data. No account, API key, or runtime downloads are required.
+
+---
+
 ## Recent features — 2.0.5
 
 ### Booru autocomplete & custom words
@@ -104,6 +145,10 @@ All three nodes appear under the **PromptPalette** category and share autocomple
 <img width="1600" height="190" alt="section-install" src="https://github.com/user-attachments/assets/4798f3bf-783e-4c67-87e9-baed7085f5ee" />
 
 ### Standard ComfyUI
+
+Download from the extension manager
+
+or manually:
 
 ```bash
 cd ComfyUI/custom_nodes
@@ -198,9 +243,22 @@ Prompt Palette replaces the plain prompt box with a full wildcard-aware editor w
 
 Enable the **Adjustable Recipe Workspace** in **Settings → Power tools** to organize a prompt into fields such as subject, outfit, setting, and lighting. Rename or reorder fields, choose separators, and check the compiled preview. Workspaces support positive and negative prompts.
 
-Use **Lock / Vary / Follow** with Variation Lab to control field changes. Compare previews, hide duplicates, and check **Keep** on results you want to reuse. Copy kept prompts or send kept workspace results to Combinatorial for batch generation.
+Give a field alternatives with **Set choices**—one option per line—or **Insert wildcard**, then choose how it behaves. A field containing only plain text has one value to use.
 
-Customize the Editor toolbar under **Settings → Workspace → Toolbar layout**; Combinatorial has the same controls under **Settings → Generation**. Choose a size and visibility mode, then use **Arrange buttons** to drag buttons or move them with arrows. **Reset order** restores the default arrangement. In retractable modes, **Tools** opens the toolbar and **Keep open** holds it open.
+| Field mode | During generation |
+|---|---|
+| **Vary** | Cycles through your choices each generation, including with a fixed seed. Field settings also offer Shuffle, By seed, or written syntax. |
+| **Lock** | Captures the current resolved choice and keeps that text across seed changes and reloads. Your original choices remain available. |
+| **Follow** | Holds its choice until a selected source field changes, then chooses again. Pick the source in field settings. |
+| **Default** | Uses the field's authored prompt syntax normally. |
+
+For example, let **Lighting** follow **Pose**: when the resolved pose changes, lighting can change too. Follow responds to changes; it does not match the meanings or line numbers of two lists.
+
+Open **Layouts** for a starter suited to your task. Choose natural language for Krea 2/Qwen-style prompts, tags for Illustrious/Booru, or Anima scene prose and character tags. **Include starter choices** adds example content; turn it off for empty fields. Save your own **field presets** with structure only or with default values. Use **Snapshots & variants** to save checkpoints, keep alternate versions, and compare field differences.
+
+In **Variation Lab**, compare previews, hide duplicates, and check **Keep** on results you want to reuse. Apply a preview to the targeted fields while keeping their choices available, or send kept full versions to Combinatorial for batch generation.
+
+Customize the Editor toolbar under **Settings → Workspace → Toolbar layout**; Combinatorial has the same controls under **Settings → Generation**. Use the **60–180%** size slider or a size preset, choose a visibility mode, then use **Arrange buttons** to drag buttons or move them with arrows. **Reset order** restores the default arrangement. In retractable modes, **Tools** opens the toolbar and **Keep open** holds it open. **Hidden** keeps shortcuts out of the way while Settings stays accessible.
 
 ### Recover a prompt from an image
 
@@ -225,6 +283,34 @@ If an image has no negative-prompt metadata, your existing negative stays intact
 <td align="center"><img width="500" alt="Prompt Stash" src="https://github.com/user-attachments/assets/42de2118-e9a9-40c1-8eae-b965d679398c"></td>
 </tr>
 </table>
+
+<a id="main-sidebar"></a>
+### Main sidebar & style explorer
+
+Open **Prompt Palette** in ComfyUI's main sidebar. Choose **Insert into** before adding text; browsing and library editing work without a target node.
+
+| Tab | What you can do |
+|---|---|
+| **Library** | Search folders, pinned entries, and recents; preview entries, insert wildcards, or edit with the pencil. |
+| **Styles** | Explore styles, classic artists, Anima artists, Booru tags, custom words, favorites, and your previews. |
+| **Syntax** | Browse explained examples, adjust a template, preview it, and insert it at your target cursor. |
+| **Tools** | Open prompting tools supported by the selected node. |
+
+In **Styles**, use the available filters to narrow a collection. Clear filters to find artists without matching labels. Check **Prompt language** and **Will insert**: Anima uses `@artist`, Booru/Pony/Illustrious use literal tags, and natural-language mode uses readable descriptions. Quality prefixes are optional and are not added automatically.
+
+Cards can use your own local preview images. Compare up to **four** styles with a shared subject, copy their prompts, and attach your own generated samples. Bundled artwork is a visual reference, not a promise of a checkpoint's output. [Image credits and sources](STYLE_IMAGE_CREDITS.md) are included.
+
+#### Edit a library entry
+
+Click its **pencil** to open the saved text. Each non-comment line is one option and can contain a short tag or a complete prompt.
+
+- **Suggest** or `Ctrl+Space` opens available completions; **Syntax** works at the cursor or around selected text.
+- **Find** searches within the entry; **Expand** gives the text more room. **Clean up** offers sorting, duplicate removal, and whitespace cleanup.
+- **Save** updates the entry. Changing the path offers **Save copy** and leaves the original in place.
+- **Back to library** retains your draft; **Resume** reopens it. **Revert** restores the saved text.
+- Use **Copy** for the wildcard reference or **Use** to insert the saved entry into your selected target. Save changes before using the edited entry.
+
+The sidebar and node edit drawers share these prompt tools. Existing capitalization, spaces, and Unicode in entry names are preserved. YAML/JSON entries can be viewed here; edit their source file to change them.
 
 ### Starter Packs
 
@@ -297,7 +383,7 @@ Socket visibility and socket-label visibility are separate controls, so a socket
 - Workspace presets for a minimal or expanded interface
 - Density, toolbar, preview, motion, contrast, and interface-size controls
 
-Prompt Palette themes stay scoped to Prompt Palette-owned UI; they do not recolor the ComfyUI canvas, menus, sidebar, or unrelated nodes.
+Prompt Palette themes cover its own nodes, sidebar, and menus. They do not recolor the ComfyUI canvas or unrelated nodes and interface panels.
 
 <p align="center">
 <img width="1437" height="1344" alt="Comfy_Desktop_2EoBSqbTuy" src="https://github.com/user-attachments/assets/7980ac12-8236-486a-8566-bc6c022bf9cd" />
@@ -482,6 +568,7 @@ The **Syntax Injector** inserts most of this for you from the wildcard browser o
 | `${name:default}` | Read a variable with fallback text |
 | `{3#__name__}` | Expand the wildcard token three times before multi-select processing |
 | `[if expression] ... [elif expression] ... [else] ... [/if]` | Conditionally include prompt text using existing Prompt Palette variables |
+| `[switch name][case "value"]text[default]fallback[/switch]` | Use the first matching case, or the default when none match |
 
 Nesting is resolved innermost-first. Lines beginning with `#` are treated as comments and omitted during resolution.
 
@@ -495,6 +582,17 @@ A character portrait. [if style == "anime"]cel shading, vivid colors[elif style 
 ```
 
 Supported operators are `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `and`, `or`, and `not`. `in` accepts a compact pipe-separated set such as `style in anime|illustration|realistic`. Conditionals can be nested.
+
+Use **switch** for several alternatives based on one variable:
+
+```text
+${mood=calm}
+A landscape, [switch mood][case "calm"]soft morning light[case "dramatic"]storm clouds and hard shadows[default]balanced daylight[/switch]
+```
+
+The first matching case is used; otherwise the default text is included. For combined conditions, use expressions such as `[if style == "anime" and mood != "dark"]vivid cel shading[/if]`.
+
+The sidebar's **Syntax** tab explains these patterns and lets you edit a template before inserting it. You can also open **Choices & rules** from a prompt's right-click menu.
 
 </details>
 
@@ -512,6 +610,14 @@ Supported operators are `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `and`, `or`, and
 
 Type a tag after a space or comma to search the bundled offline Danbooru tags and your custom words. Choosing a result inserts plain prompt text. Typing `__` still opens wildcard suggestions.
 
+### Anima artist search
+
+Type **`@`** followed by a name to search the separate bundled **Anima artist snapshot**. Selecting an artist inserts **`@artist name`**. Use the sidebar's **Styles → Anima** collection to discover names without already knowing what to type.
+
+The **Anima artist formatting** setting can also format recognized artist suggestions for Anima. Other Booru tags and custom words remain literal prompt text, and only library entries are inserted as `__wildcards__`. Artist results depend on the checkpoint; the local name collection does not certify model support.
+
+`@artist` is different from `__@name__`: the former is Anima artist text; the latter is the existing sequential wildcard alias.
+
 ### Autocomplete settings
 
 Open **Settings → Autocomplete**:
@@ -525,7 +631,7 @@ Open **Settings → Autocomplete**:
 | **Booru database / Custom Words** | Choose which sources to search. |
 | **Color tags in prompt** | Colors recognized tags in the editor by category. |
 
-Use arrow keys to browse, `Enter` or `Tab` to insert, and `Esc` to close. Optional menu controls convert **underscores → spaces** or **append comma**; your choices are saved. Parentheses in booru tags are escaped for ComfyUI prompt syntax.
+Use arrow keys to browse, `Enter` or `Tab` to insert, and `Esc` to close. Optional menu controls convert **underscores → spaces** or **append comma**; your choices are saved. Booru tags and custom words are inserted as stored, subject to your selected formatting options; they are not wrapped in `__`.
 
 ### Filter by category
 
@@ -575,8 +681,10 @@ To create a wildcard list from a prompt, select comma- or newline-separated tags
 |---|---|
 | `Ctrl/Cmd + Z` | Undo |
 | `Ctrl/Cmd + Shift + Z` or `Ctrl/Cmd + Y` | Redo |
-| `Ctrl/Cmd + Space` in On-demand mode | Open Booru autocomplete for the current bare word |
+| `Ctrl+Space` in On-demand mode | Open Booru autocomplete for the current bare word |
 | `Ctrl/Cmd + S` in the Edit drawer | Save the current wildcard file |
+| `Ctrl/Cmd + F` in a library editor | Find text within the current entry |
+| `Ctrl+Space` in a library editor | Open available suggestions at the cursor |
 | `Esc` | Close the active drawer, menu, or popup |
 | Right-click a wildcard token | Open the Syntax Injector for that occurrence |
 | Double-click a wildcard token | Open that wildcard in the Edit drawer |
@@ -625,9 +733,6 @@ Confirm the selected mode matches the connected text encoder. Standard ComfyUI C
 
 When reporting a bug, include a minimal workflow, exact reproduction steps, console output, ComfyUI/frontend versions, node mode, and Desktop vs. portable.
 
-### License
-
-Prompt Palette is licensed under **GNU GPL-3.0-only**. The full license text is included in the repository's `LICENSE` file.
 
 ### Credits
 

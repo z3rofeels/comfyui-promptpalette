@@ -72,8 +72,21 @@ async function fetchApiResult(path, options) {
 }
 
 let booruTagsAbort = null;
+let animaTagsAbort = null;
 
 const API = {
+  async styleIndexes(index = "") {
+    return readApiJson(await api.fetchApi(`/prompt_palette/styles?index=${encodeURIComponent(index)}`));
+  },
+  async importStyleIndex(index) {
+    return readApiJson(await api.fetchApi("/prompt_palette/styles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ index }) }));
+  },
+  async styleAnnotations(index) {
+    return readApiJson(await api.fetchApi(`/prompt_palette/style_annotations?index=${encodeURIComponent(index)}`));
+  },
+  async saveStyleAnnotation(data) {
+    return readApiJson(await api.fetchApi("/prompt_palette/style_annotations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }));
+  },
   onLibraryChanged(listener) {
     const handle = event => {
       try {
@@ -95,6 +108,13 @@ const API = {
   },
   async search(q) {
     return (await readApiJson(await api.fetchApi(`/prompt_palette/search?q=${encodeURIComponent(q)}`))).items || [];
+  },
+  async animaArtists(q = "") {
+    animaTagsAbort?.abort();
+    const controller = new AbortController(); animaTagsAbort = controller;
+    try {
+      return (await readApiJson(await api.fetchApi(`/prompt_palette/anima_artists?q=${encodeURIComponent(q)}`, { signal: controller.signal }))).items || [];
+    } finally { if (animaTagsAbort === controller) animaTagsAbort = null; }
   },
   async booruTags(q, category = "") {
     // Latest query wins: a keystroke supersedes the previous lookup instead of queueing behind it,
@@ -182,10 +202,17 @@ const API = {
       body: JSON.stringify({ name }),
     });
   },
-  async resolve(text, seed, mode, { signal } = {}) {
+  async resolve(text, seed, mode, { signal, positiveAntonyms = false, resolve = true, workspaceRuntime = "" } = {}) {
+    if (resolve && workspaceRuntime) {
+      const runtime = typeof workspaceRuntime === "string" ? JSON.parse(workspaceRuntime) : workspaceRuntime;
+      if (runtime.positive === text) {
+        const [item] = await API.resolveWorkspace(runtime, seed, mode, 1, { signal });
+        return API.resolve(item.positive, seed, mode, { signal, positiveAntonyms, resolve: false });
+      }
+    }
     const data = await readApiJson(await api.fetchApi("/prompt_palette/resolve", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, seed, mode }),
+      body: JSON.stringify({ text, seed, mode, positive_antonyms: positiveAntonyms, resolve }),
       ...(signal ? { signal } : {}),
     }));
     return { resolved: data.resolved || "", tokenStats: data.token_stats || null };
@@ -200,6 +227,12 @@ const API = {
     return await readApiJson(await api.fetchApi("/prompt_palette/capture_selection", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, start, end, seed, mode }), ...(signal ? { signal } : {}),
+    }));
+  },
+  async resolveWorkspace(runtime, seed, mode, count = 1, { signal } = {}) {
+    return readApiJson(await api.fetchApi("/prompt_palette/resolve_workspace", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runtime, seed, mode, count }),
+      ...(signal ? { signal } : {}),
     }));
   },
   async resolveVariations(text, seed, mode, count = 4, { signal } = {}) {
@@ -243,5 +276,7 @@ const API = {
     return { count: data.count || 0, truncated: !!data.truncated, cap: data.cap || 5000 };
   },
 };
+
+API.resolveVariations.workspace = API.resolveWorkspace;
 
 export { API };

@@ -4,13 +4,14 @@ import { createSyntaxHighlighter } from "./syntax_highlighter.js";
 import { attachAutocomplete, closeAcMenu } from "./autocomplete.js";
 import { openInjectMenuAtPoint, closeInjectMenu, injectState } from "./injector.js";
 import { onTagColorsChanged } from "./booru_tag_colors.js";
+import { historyShortcut } from "./history_keys.js";
 import { createRefinementController } from "./refinement_controller.js";
 import { attachEditorContextMenu } from "./context_menu.js";
 import { saveEditorSelection } from "./selection_library.js";
 import { loadTheme } from "./preferences.js";
 
 export function attachRecipeFieldEditor({ node, root, input, overlay, paintSyntax, getMatches, onCommit,
-  onChange, atomicEdit, getSeed, getMode, getLibrary, mapBatchPrompt, getBatchSource, onFocus, onUndo, onRedo, host, openHost, bindHover, onLibrarySaved, moveFocus, allowBatch = true,
+  onChange, atomicEdit, getSeed, getMode, getLibrary, mapBatchPrompt, getBatchSource, onFocus, onUndo, onRedo, holdHistory, releaseHistory, host, openHost, bindHover, onLibrarySaved, moveFocus, allowBatch = true,
   variationGuard, prepareBatchPrompts, projectPrompt }) {
   const surface = upgradeEditorSurface(input), editor = surface.element;
   const highlighter = createSyntaxHighlighter(editor, overlay);
@@ -57,12 +58,17 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
     atomicEdit: (text, start, end) => { atomicEdit(text); editor.value = text; editor.setSelectionRange(start, end); paint(); },
     getSeed, getMode, getLibrary, host, openHost, allowBatch, fieldOnly: true, mapBatchPrompt, getBatchSource, variationGuard, prepareBatchPrompts });
   const historyKey = event => {
-    if (event.isComposing || event.keyCode === 229) return;
-    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-    const key = event.key.toLowerCase();
-    if (key === "z" || key === "y") { event.preventDefault(); event.stopPropagation(); closeAcMenu(); if (key === "y" || event.shiftKey) onRedo?.(); else onUndo?.(); }
+    const action = historyShortcut(event);
+    if (!action) return;
+    event.preventDefault(); event.stopImmediatePropagation(); closeAcMenu();
+    if (action === "redo") onRedo?.(); else onUndo?.();
   };
   editor.addEventListener("keydown", historyKey, true);
+  // An IME composition is one edit: keep its input events together in the shared history.
+  const compositionStart = () => holdHistory?.();
+  const compositionEnd = () => { change(); releaseHistory?.(); };
+  editor.addEventListener("compositionstart", compositionStart);
+  editor.addEventListener("compositionend", compositionEnd);
   const tabKey = event => {
     if (event.key === "Tab" && !event.defaultPrevented && !event.ctrlKey && !event.metaKey && moveFocus?.(event.shiftKey ? -1 : 1)) { event.preventDefault(); event.stopPropagation(); }
   };
@@ -76,6 +82,7 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
     if (injectState?.textarea === editor) closeInjectMenu();
     hoverCleanup?.(); editor.removeEventListener("keydown", tabKey);
     editor.removeEventListener("keydown", historyKey, true);
+    editor.removeEventListener("compositionstart", compositionStart); editor.removeEventListener("compositionend", compositionEnd);
     editor.removeEventListener("input", change); editor.removeEventListener("focus", focus);
     editor.removeEventListener("blur", blur); editor.removeEventListener("scroll", scroll);
   } };

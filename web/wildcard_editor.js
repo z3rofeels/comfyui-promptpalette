@@ -1,3 +1,4 @@
+import "./editor/main_sidebar.js";
 import "./prompt_palette_commands.js";
 import { clearLegacyPromptPaletteGlobalTheme } from "./prompt_palette_shared.js";
 import { buildWildcardWidget, livePromptPaletteNodes, cleanupSharedPromptPaletteDom } from "./editor/editor_core.js";

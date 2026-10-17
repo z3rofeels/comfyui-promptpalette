@@ -1,0 +1,60 @@
+/* Shared creative-tool chrome for suite Settings and the main sidebar. */
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) { container-type: inline-size; container-name: pp-settings; background: var(--wg-panel-bg); }
+.wg-root .wg-settings-head-pro { background: linear-gradient(115deg, color-mix(in srgb, var(--wg-accent) 9%, var(--wg-panel-bg)), var(--wg-panel-bg)); border-bottom: 1px solid var(--wg-border); }
+.wg-root .wg-settings-head-pro small { color: var(--wg-text-dim); }
+.wg-root .wg-settings-nav { gap: 4px; padding: 10px 8px; background: color-mix(in srgb, var(--wg-surface) 40%, var(--wg-panel-bg)); }
+.wg-root .wg-settings-nav button { border: 1px solid transparent; border-radius: min(var(--wg-corner-radius), 8px); transition: background 120ms ease, border-color 120ms ease; }
+.wg-root .wg-settings-nav button.active { background: linear-gradient(110deg, color-mix(in srgb, var(--wg-accent) 13%, var(--wg-surface)), var(--wg-surface)); border-color: color-mix(in srgb, var(--wg-accent) 25%, var(--wg-border)); box-shadow: inset 2px 0 var(--wg-accent); }
+.wg-root .wg-settings-nav button > small { color: var(--wg-text-dim); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-panel-title h3 { font-size: calc(13px * var(--wg-ui-font-scale, 1)); letter-spacing: -.01em; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-panel-title p { font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.5; color: var(--wg-text-dim); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-settings-card { padding: 12px 0; background: transparent; border: 0; border-top: 1px solid var(--wg-border); border-radius: 0; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-grid { gap: 4px 14px; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card { padding: 9px 7px; border: 1px solid transparent; border-radius: min(var(--wg-corner-radius), 7px); background: transparent; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card:hover { background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-surface)); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card:has(input:checked) { background: linear-gradient(110deg, color-mix(in srgb, var(--wg-accent) 8%, var(--wg-surface)), transparent); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card strong { font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card small { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim); line-height: 1.45; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) :is(input, select, textarea) { font-family: inherit; accent-color: var(--wg-accent); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"] { appearance: none; flex: none; width: 30px; height: 18px; min-width: 30px; padding: 2px; border: 1px solid var(--wg-border-strong); border-radius: 20px; background: var(--wg-surface); cursor: pointer; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"]::before { content: ""; display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--wg-text-dim); transition: transform 120ms ease; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"]:checked { background: var(--wg-accent); border-color: var(--wg-accent); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"]:checked::before { transform: translateX(12px); background: var(--wg-accent-text); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) :is(input, select, textarea, button):focus-visible, .pp-main-sidebar :is(input, select, button):focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 2px; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) :disabled { opacity: .55; cursor: default; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-settings-body { padding: 14px 16px 20px; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) var(--wg-surface); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-section-divider { margin: 16px 0; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-color-field { align-items: center; gap: 10px; flex-wrap: wrap; }
+.wg-root .wg-color-inputs { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.wg-root .wg-color-inputs input[type="text"] { width: 78px; font: 11px/1.5 Consolas, monospace; color: var(--wg-text); background: var(--wg-surface); border: 1px solid var(--wg-border); border-radius: 5px; padding: 5px; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="color"] { appearance: none; width: 34px; height: 30px; padding: 3px; border: 1px solid var(--wg-border-strong); border-radius: 6px; background: var(--wg-surface); cursor: pointer; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 3px; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-swatch-item { border-color: var(--wg-border); border-radius: 7px; padding: 8px; background: var(--wg-surface); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-swatch-item:focus-within { border-color: var(--wg-accent); box-shadow: 0 0 10px color-mix(in srgb, var(--wg-accent) 10%, transparent); }
+.wg-root .wg-settings-find { position: relative; flex: none; padding: 10px 12px; border-bottom: 1px solid var(--wg-border); }
+.wg-root .wg-settings-find > input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--wg-border); border-radius: min(var(--wg-corner-radius), 8px); color: var(--wg-text); background: var(--wg-surface); font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-settings-find > small { display: block; color: var(--wg-text-dim); font-size: calc(10px * var(--wg-ui-font-scale, 1)); margin-top: 5px; }
+.wg-root .wg-settings-find > small:empty { display: none; }
+.wg-root .wg-settings-find-results { max-height: 190px; overflow-y: auto; padding-top: 6px; scrollbar-color: var(--wg-border-strong) var(--wg-surface); }
+.wg-root .wg-settings-find-results[hidden] { display: none; }
+.wg-root .wg-settings-find-results button { width: 100%; display: flex; gap: 8px; justify-content: space-between; align-items: center; text-align: left; padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--wg-text); cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-settings-find-results button:hover { background: color-mix(in srgb, var(--wg-accent) 10%, var(--wg-surface)); }
+.wg-root .wg-settings-find-results small { color: var(--wg-text-dim); }
+.wg-root .wg-setting-found { outline: 1px solid var(--wg-accent); outline-offset: 3px; border-radius: 5px; }
+
+@container pp-settings (max-width: 650px) {
+  .wg-root .wg-settings-shell { display: flex; flex-direction: column; min-height: 0; }
+  .wg-root .wg-settings-nav { flex: none; display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 6px; }
+  .wg-root .wg-settings-nav button { flex: 0 0 auto; width: auto; padding: 7px 10px; }
+  .wg-root .wg-settings-nav button > small { display: none; }
+  .wg-root .wg-settings-nav button.active { box-shadow: inset 0 -2px var(--wg-accent); }
+  :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-settings-body { flex: 1 1 auto; min-height: 0; padding: 12px; }
+  .wg-root .wg-settings-card-grid, .wg-root .wg-toggle-grid, .wg-root .wg-day-night-layout { grid-template-columns: minmax(0, 1fr); }
+}
+.wg-root.wg-reduce-motion *, .wg-root.wg-disable-animations * { scroll-behavior: auto; }
+@media (prefers-reduced-motion: reduce) { .wg-root .wg-settings-nav button, :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"]::before { transition: none; } }
+@media (forced-colors: active) { :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"] { appearance: auto; width: 20px; height: 20px; } :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"]::before { display: none; } }
+
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="color"]:disabled { opacity: 1; cursor: default; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) select { min-height: 30px; padding: 6px 8px; border: 1px solid var(--wg-border-strong); border-radius: min(var(--wg-corner-radius), 6px); background-color: var(--wg-surface); color: var(--wg-text); font-size: calc(11px * var(--wg-ui-font-scale, 1)); }

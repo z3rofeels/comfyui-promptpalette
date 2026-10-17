@@ -1,3 +1,4 @@
+import { workspaceGeneration, markedWorkspaceResult } from "./workspace_generation.js";
 import { fieldVariationSource, hasVariationSyntax } from "./recipe_variation_source.js";
 // Scope planning and mapping only. All prompt resolution uses the existing API.
 import { cloneWorkspaceData, compileWorkspace, validateWorkspaceRecipe, fieldId } from "./recipe_workspace_model.js";
@@ -80,7 +81,16 @@ export function projectExperiment(plan, baseline, values) {
 export async function resolveExperiment(plan, seed, mode, count, resolveVariations, { signal } = {}) {
   // Resolve complete channel context, so variables and conditional syntax keep
   // using the existing resolver. Markers never enter saved data or generation.
-  const responses = await Promise.all(["positive", "negative"].map(channel =>
+  let responses;
+  if (resolveVariations.workspace) {
+    const exploring = cloneWorkspaceData(plan.recipe);
+    for (const f of exploring.fields) {
+      if (plan.targets.includes(f.id) && f.experimentState !== "follow") { f.experimentState = "vary"; f.value = fieldVariationSource(f); }
+      else if (!plan.targets.includes(f.id)) f.experimentState = "lock";
+    }
+    const items = await resolveVariations.workspace(workspaceGeneration(exploring, { namespace: plan.runtimeNamespace || "" }), seed, mode, count, { signal });
+    responses = ["positive", "negative"].map(channel => items.map(item => ({ resolved: markedWorkspaceResult(plan, item, channel), seed: item.seed, wildcards: item.wildcards })));
+  } else responses = await Promise.all(["positive", "negative"].map(channel =>
     plan.sources[channel] ? resolveVariations(plan.sources[channel], seed, mode, count, { signal }) :
       Array.from({ length: count }, () => ({ resolved: "", seed, wildcards: [] }))));
   if (signal?.aborted) throw new DOMException("Preview cancelled", "AbortError");

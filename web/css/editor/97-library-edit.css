@@ -1,0 +1,138 @@
+/* Edit My Library drawer: thumbnail square, path hints, text tools, status badge.
+   Loaded after 96-split-workspace.css. Every rule is scoped to .pp-ledit so the shared
+   .wg-drawer rules keep serving the other drawers. */
+
+.wg-node.wg-root > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
+  width: min(360px, 62%) !important;
+  flex-basis: min(360px, 62%) !important;
+}
+@container (max-width: 560px) {
+  .wg-node.wg-root > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
+    width: 100% !important; flex-basis: min(480px, 82%) !important; height: min(480px, 82%) !important; min-height: 260px !important;
+  }
+}
+
+.pp-ledit { width: 100%; min-width: 0; padding: 10px 10px 10px; gap: 8px; }
+.pp-ledit .wg-drawer-head { gap: 8px; margin: 0; }
+.pp-ledit .wg-drawer-head h4 { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-ledit-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 14px; padding: 2px 3px 2px 0; overscroll-behavior: contain; }
+
+.pp-ledit-badge {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px;
+  font-size: calc(9px * var(--wg-ui-font-scale, 1)); font-weight: 600; letter-spacing: 0.03em; white-space: nowrap;
+  color: var(--wg-text-dim, #b8b0a4); background: var(--wg-surface, #121417); border: 1px solid var(--wg-border-strong, #3a4048);
+}
+.pp-ledit-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.85; }
+.pp-ledit-badge[data-state="saved"] { color: var(--wg-success, #78b58b); border-color: color-mix(in srgb, var(--wg-success, #78b58b) 45%, var(--wg-border-strong, #3a4048)); }
+.pp-ledit-badge[data-state="dirty"] { color: var(--wg-accent, #d49a52); border-color: color-mix(in srgb, var(--wg-accent, #d49a52) 55%, var(--wg-border-strong, #3a4048)); }
+.pp-ledit-badge[data-state="readonly"] { color: var(--wg-danger, #d86f70); }
+.pp-ledit-badge[data-state="loading"]::before { animation: pp-ledit-pulse 1s ease-in-out infinite; }
+@keyframes pp-ledit-pulse { 50% { opacity: 0.25; } }
+
+/* Identity row: thumbnail beside the path */
+.pp-ledit-hero { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; }
+@container (max-width: 560px) { .pp-ledit-hero { grid-template-columns: 80px minmax(0, 1fr); gap: 10px; } }
+
+.pp-ledit-thumb {
+  position: relative; aspect-ratio: 1 / 1; width: 100%; border-radius: 10px; overflow: hidden;
+  border: 1.5px dashed var(--wg-border-strong, #3a4048); background: var(--wg-surface, #121417);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.pp-ledit-thumb.has-image { border-style: solid; }
+.pp-ledit-thumb.busy { opacity: 0.55; cursor: progress; pointer-events: none; }
+.pp-ledit-thumb-add {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: transparent; border: 0; border-radius: 0; cursor: pointer; padding: 0; margin: 0;
+  color: var(--wg-text-faint, #8f887e); font-size: calc(10px * var(--wg-ui-font-scale, 1)); font-weight: 600;
+}
+.pp-ledit-thumb-add[hidden] { display: none; }
+.pp-ledit-plus { font-size: 26px; line-height: 1; font-weight: 300; color: var(--wg-accent, #d49a52); }
+.pp-ledit-thumb:not(.has-image):hover, .pp-ledit-thumb:not(.has-image):focus-within { border-color: var(--wg-accent, #d49a52); background: color-mix(in srgb, var(--wg-accent, #d49a52) 10%, var(--wg-surface, #121417)); }
+.pp-ledit-thumb-add:hover { color: var(--wg-text, #f1eee8); }
+.pp-ledit-thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-ledit-thumb-img[hidden] { display: none; }
+.pp-ledit-thumb-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; opacity: 0; transition: opacity 120ms ease; }
+.pp-ledit-thumb:hover .pp-ledit-thumb-actions, .pp-ledit-thumb:focus-within .pp-ledit-thumb-actions { opacity: 1; }
+@media (hover: none) { .pp-ledit-thumb-actions { opacity: 1; } }
+.pp-ledit-thumb-actions button {
+  width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  border-radius: 6px; border: 1px solid rgba(255,255,255,0.22); background: rgba(10,12,14,0.72); color: #f1eee8;
+}
+.pp-ledit-thumb-actions button[hidden] { display: none; }
+.pp-ledit-thumb-actions button:hover { border-color: var(--wg-accent, #d49a52); }
+.pp-ledit-thumb-note {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 4px; text-align: center; font-size: 9px; line-height: 1.25;
+  background: rgba(10,12,14,0.78); color: #f1eee8; pointer-events: none;
+}
+.pp-ledit-thumb-note[hidden] { display: none; }
+
+.pp-ledit-ident { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pp-ledit label { margin: 0; font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); font-weight: 600; letter-spacing: 0.02em; color: var(--wg-text-dim, #b8b0a4); }
+.pp-ledit-ident input[type=text] { margin: 0; padding: 6px 8px; }
+.pp-ledit input[type=text]:focus, .pp-ledit textarea:focus { border-color: var(--wg-accent, #d49a52); box-shadow: 0 0 0 2px color-mix(in srgb, var(--wg-accent, #d49a52) 22%, transparent); }
+.pp-ledit-hint { font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); line-height: 1.4; color: var(--wg-text-faint, #8f887e); overflow-wrap: anywhere; min-height: 13px; }
+.pp-ledit-hint[data-tone="warn"] { color: var(--wg-warning, var(--wg-accent, #d49a52)); }
+.pp-ledit-hint[data-tone="info"] { color: var(--wg-text-dim, #b8b0a4); }
+.pp-ledit-use { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 2px; }
+.pp-ledit-use code {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 7px; border-radius: 6px;
+  font: 10px/1.4 "SF Mono", Consolas, monospace; color: var(--wg-text, #f1eee8);
+  background: var(--wg-surface, #121417); border: 1px solid var(--wg-border, #2a2e34);
+}
+.pp-ledit-use code.placeholder { color: var(--wg-text-faint, #8f887e); }
+.pp-ledit-icon {
+  flex: none; width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  border-radius: 6px; border: 1px solid var(--wg-border-strong, #3a4048); background: var(--wg-surface, #121417); color: var(--wg-text-dim, #b8b0a4);
+}
+.pp-ledit-icon:hover:not(:disabled) { border-color: var(--wg-accent, #d49a52); color: var(--wg-text, #f1eee8); }
+.pp-ledit-icon.copied { color: var(--wg-success, #78b58b); border-color: var(--wg-success, #78b58b); }
+.pp-ledit-icon:disabled { opacity: 0.4; cursor: default; }
+
+/* Content */
+.pp-ledit-content { flex: 1 1 auto; min-height: 230px; display: flex; flex-direction: column; gap: 6px; }
+.pp-ledit-content-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pp-ledit-stats { font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-faint, #8f887e); font-variant-numeric: tabular-nums; }
+.pp-ledit-stats[data-tone="warn"] { color: var(--wg-warning, var(--wg-accent, #d49a52)); }
+.pp-ledit-tools { display: flex; flex-wrap: wrap; gap: 5px; }
+.pp-ledit-tools button {
+  font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--wg-border-strong, #3a4048); background: var(--wg-surface, #121417); color: var(--wg-text-dim, #b8b0a4);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.pp-ledit-tools button:hover:not(:disabled) { border-color: var(--wg-accent, #d49a52); color: var(--wg-text, #f1eee8); }
+.pp-ledit-tools button:disabled { opacity: 0.4; cursor: default; }
+.pp-ledit .pp-ledit-content textarea { flex: 1 1 auto; min-height: 170px; margin: 0; resize: vertical; line-height: 1.5; padding: 8px; }
+
+/* Footer */
+.pp-ledit-btns { padding-top: 2px; }
+.pp-ledit-btns button:disabled { opacity: 0.4; cursor: default; transform: none; box-shadow: none; }
+.pp-ledit-btns button.pp-ledit-danger:hover:not(:disabled) { border-color: var(--wg-danger, #d86f70); color: var(--wg-danger, #d86f70); }
+.pp-ledit .wg-status { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-ledit-thumb, .pp-ledit-thumb-actions, .pp-ledit-badge::before { transition: none; animation: none; }
+}
+
+/* Prompt tools share the existing menus; the text stays a native editable surface. */
+.pp-ledit-help { margin: 0; font-size: calc(10px * var(--wg-ui-font-scale, 1)); line-height: 1.5; color: var(--wg-text-dim); }
+.pp-ledit-caret { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim); font-variant-numeric: tabular-nums; }
+.pp-ledit-shortcuts { font-size: calc(9px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-faint); }
+.pp-ledit .pp-ledit-content textarea { width: 100%; box-sizing: border-box; color: var(--wg-text); background: var(--wg-surface); border: 1px solid var(--wg-border-strong); border-radius: 7px; font: var(--wg-editor-font-size, 12px)/1.65 var(--wg-font-family, "SF Mono", Consolas, monospace); tab-size: 2; }
+.pp-ledit-cleanup { flex-basis: 100%; font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim); }
+.pp-ledit-cleanup summary { width: fit-content; cursor: pointer; padding: 4px 0; }
+.pp-ledit-cleanup > .pp-ledit-tools { padding: 5px 0; }
+.pp-ledit-find { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pp-ledit-find[hidden] { display: none; }
+.pp-ledit-find input { flex: 1 1 110px; width: 0; min-width: 60px; padding: 5px 7px; color: var(--wg-text); background: var(--wg-surface); border: 1px solid var(--wg-border-strong); border-radius: 6px; }
+.pp-ledit-find span { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim); }
+.pp-ledit-find button { flex: none; min-width: 26px; padding: 3px 6px; }
+.pp-ledit-btns { display: flex; flex-wrap: wrap; gap: 5px; flex-shrink: 0; }
+.pp-ledit-expanded .pp-ledit-hero, .pp-ledit-expanded .pp-ledit-help { display: none; }
+.pp-ledit-expanded .pp-ledit-content { min-height: 320px; }
+.pp-ledit-expanded .pp-ledit-content textarea { min-height: 280px; }
+.pp-ledit-badge[data-state="saving"] { color: var(--wg-accent); }
+.pp-ledit .pp-ledit-tools button[aria-pressed="true"] { color: var(--wg-accent-text); background: var(--wg-accent); }
+
+.pp-ledit .pp-ledit-use > button { flex: none; white-space: nowrap; word-break: normal; overflow-wrap: normal; }
+.pp-ledit .pp-ledit-use > button:not(.pp-ledit-icon) { min-width: 38px; padding: 4px 7px; }
+.pp-ledit .pp-ledit-btns button { flex: 1 0 auto; min-width: max-content; white-space: nowrap; }

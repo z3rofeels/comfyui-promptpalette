@@ -386,11 +386,12 @@ function installNodeGeometryGuard(node) {
 }
 
 function preparePromptBackingWidgets(node) {
+  installPositiveAntonymsState(node);
   installNegativePromptState(node);
   const combinatorial = (node.comfyClass || node.type) === "PromptPaletteCombinatorial";
   const names = combinatorial
-    ? new Set(["text", "mode", "count", "seed", "seed_mode", "max_prompts", "prepared_batch"])
-    : new Set(["text", "seed", "processing_mode", "prepared_batch"]);
+    ? new Set(["text", "mode", "count", "seed", "seed_mode", "max_prompts", "prepared_batch", "positive_antonyms"])
+    : new Set(["text", "seed", "processing_mode", "prepared_batch", "positive_antonyms"]);
   const socketWidgets = new Set(["mode", "count", "seed", "seed_mode", "max_prompts"]);
   for (const widget of node.widgets || []) {
     if (!names.has(widget.name) && !widget.__ppRecipeNegative && !/control.*generate/i.test(widget.name || "")) continue;
@@ -403,6 +404,48 @@ function preparePromptBackingWidgets(node) {
     hideNativeWidget(widget, { keepSocketForNodes2: combinatorial });
   }
   installNodeGeometryGuard(node);
+}
+
+// Use the same named property + backing-widget contract as local negatives.
+// Explicit commits can disable the flag; renderer-default writes cannot erase a
+// saved enabled value while Nodes 1/2 remount. Older positional text defaults off.
+function installPositiveAntonymsState(node) {
+  if (node._ppPositiveAntonymsState) return node._ppPositiveAntonymsState;
+  const widget = node.widgets?.find(candidate => candidate.name === "positive_antonyms");
+  if (!widget) return null;
+  const key = "prompt_palette_positive_antonyms_v1";
+  node.properties ||= {};
+  let current = typeof node.properties[key] === "boolean" ? node.properties[key] : widget.value === true;
+  const descriptor = Object.getOwnPropertyDescriptor(widget, "value");
+  function commit(value) {
+    if (typeof value !== "boolean") return current;
+    current = value; node.properties ||= {}; node.properties[key] = current;
+    if (descriptor?.set) descriptor.set.call(widget, current);
+    if (descriptor?.configurable === false) widget.value = current;
+    return current;
+  }
+  commit(current);
+  if (descriptor?.configurable !== false) Object.defineProperty(widget, "value", {
+    configurable: true, enumerable: true, get: () => current,
+    set: value => { if (value === true || !current) commit(value); },
+  });
+  widget.serializeValue = () => current;
+  const configured = node.onConfigure;
+  node.onConfigure = function (info) {
+    const saved = info?.properties?.[key], named = info?.widgets_values_named?.positive_antonyms;
+    const positional = info?.widgets_values?.[this.widgets?.indexOf(widget) ?? -1];
+    const result = configured?.apply(this, arguments);
+    commit(typeof saved === "boolean" ? saved : typeof named === "boolean" ? named : positional === true);
+    return result;
+  };
+  const serialized = node.onSerialize;
+  node.onSerialize = function (data) {
+    const result = serialized?.apply(this, arguments);
+    data.properties ||= {}; data.properties[key] = current;
+    if (data.widgets_values_named) data.widgets_values_named.positive_antonyms = current;
+    return result;
+  };
+  return node._ppPositiveAntonymsState = { commit, current: () => current };
 }
 
 // negative_text is a force-input socket. Locally compiled negatives need a
@@ -920,7 +963,7 @@ export {
   ensureNodeLifecycle, nodeIsActive,
   scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight,
-  installPromptStateGuard, installNegativePromptState, installPromptMetadataCapture, installNodeGeometryGuard, preparePromptBackingWidgets,
+  installPromptStateGuard, installNegativePromptState, installPositiveAntonymsState, installPromptMetadataCapture, installNodeGeometryGuard, preparePromptBackingWidgets,
   scheduleDomWidgetRemeasure,
   ioState,
   ioLabelsShown,

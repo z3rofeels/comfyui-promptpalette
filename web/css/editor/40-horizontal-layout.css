@@ -1,24 +1,18 @@
 /* One modular rail shared by Editor and Combinatorial. Original action buttons
    move between slots; Settings remains outside the scrolling track. */
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar {
-  --pp-toolbar-icon-size: clamp(22px, 4cqw, 28px);
-  --pp-toolbar-height: 32px;
+  --pp-toolbar-icon-size: max(24px, calc(28px * var(--pp-toolbar-scale, 1)));
+  --pp-toolbar-height: max(24px, calc(32px * var(--pp-toolbar-scale, 1)));
   box-sizing: border-box;
   display: flex; flex: 0 0 auto; flex-flow: row nowrap; align-items: center;
-  min-width: 0; min-height: 40px; gap: 5px; padding: 4px 6px;
+  min-width: 0; min-height: 0; gap: calc(5px * var(--pp-toolbar-scale, 1)); padding: calc(4px * var(--pp-toolbar-scale, 1)) calc(6px * var(--pp-toolbar-scale, 1));
   overflow: hidden; background: var(--wg-panel-bg);
 }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[hidden] { display: none !important; }
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="small"] {
-  --pp-toolbar-icon-size: 24px; --pp-toolbar-height: 28px; min-height: 36px;
-}
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"] {
-  --pp-toolbar-icon-size: 36px; --pp-toolbar-height: 40px; min-height: 48px;
-}
 .wg-root .wg-toolbar-track {
   display: flex; flex: 1 1 auto; flex-flow: row nowrap; align-items: center;
   justify-content: center; justify-content: safe center;
-  min-width: 0; gap: 2px; padding: 2px;
+  min-width: 0; gap: calc(2px * var(--pp-toolbar-scale, 1)); padding: calc(2px * var(--pp-toolbar-scale, 1));
   overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
   scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent;
   scroll-padding: 2px;
@@ -44,22 +38,22 @@
   align-items: center; justify-content: center;
   width: var(--pp-toolbar-icon-size); min-width: var(--pp-toolbar-icon-size); max-width: none;
   height: var(--pp-toolbar-height); margin: 0; padding: 0; white-space: nowrap;
-  font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.2;
-  border-radius: min(var(--wg-corner-radius, 10px), 8px);
+  font-size: calc(max(10px, 11px * var(--pp-toolbar-scale, 1)) * var(--wg-ui-font-scale, 1)); line-height: 1.2;
+  border-radius: min(var(--wg-corner-radius, 10px), calc(8px * var(--pp-toolbar-scale, 1)));
   color: var(--pp-toolbar-ink, var(--wg-text));
 }
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-svg-icon { flex: none; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-svg-icon { flex: none; width: max(12px, calc(16px * var(--pp-toolbar-scale, 1))); height: max(12px, calc(16px * var(--pp-toolbar-scale, 1))); }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-section-start { margin-left: 6px; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-pill {
-  width: auto; gap: 5px; padding-inline: 8px;
+  width: auto; gap: calc(5px * var(--pp-toolbar-scale, 1)); padding-inline: calc(8px * var(--pp-toolbar-scale, 1));
   border: 1px solid color-mix(in srgb, var(--wg-accent) 20%, var(--wg-border));
   background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-panel-bg));
 }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-pill { width: var(--pp-toolbar-icon-size); padding: 0; gap: 0; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-toolbar-label { display: none; }
 .wg-root .wg-toolbar-caption { display: none; }
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"] .wg-toolbar-track .wg-icon-btn { width: auto; gap: 6px; padding-inline: 10px; }
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"] .wg-toolbar-caption { display: inline; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"][data-compact="false"] .wg-toolbar-track .wg-icon-btn { width: auto; gap: calc(6px * var(--pp-toolbar-scale, 1)); padding-inline: calc(10px * var(--pp-toolbar-scale, 1)); }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-size="large"][data-compact="false"] .wg-toolbar-caption { display: inline; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-io-toggle-btn { width: auto; min-width: var(--pp-toolbar-icon-size); padding-inline: 4px; gap: 3px; }
 .wg-root .wg-toolbar .wg-io-toggle-btn [data-io-count]:empty { display: none; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-settings-anchor { background: var(--wg-panel-bg); border: 1px solid var(--wg-border); }
@@ -101,9 +95,9 @@
 .wg-root .wg-toolbar-options :is(label, fieldset) { display: grid; gap: 7px; margin: 0; min-width: 0; padding: 0; border: 0; color: var(--wg-text); font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
 .wg-root .wg-toolbar-options legend { padding: 0 0 7px; }
 .wg-root .wg-toolbar-options select { width: 100%; min-width: 0; }
-.wg-root .wg-toolbar-sizes { display: flex; min-width: 0; gap: 3px; }
+.wg-root .wg-toolbar-sizes { display: flex; flex-wrap: wrap; min-width: 0; gap: 4px; grid-column: 1 / -1; }
 .wg-root .wg-toolbar-designer button { min-height: 28px; border: 1px solid var(--wg-border); border-radius: min(var(--wg-corner-radius, 10px), 6px); background: var(--wg-surface); color: var(--wg-text); cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
-.wg-root .wg-toolbar-sizes button { flex: 1; min-width: 0; padding: 4px 6px; }
+.wg-root .wg-toolbar-sizes button { flex: 1 1 75px; min-width: 0; padding: 6px; }
 .wg-root .wg-toolbar-designer button:is(:hover, [aria-pressed="true"]):not(:disabled) { border-color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-surface)); }
 .wg-root .wg-toolbar-designer button:focus-visible { outline: 2px solid var(--pp-toolbar-accent-ink, var(--wg-accent)); outline-offset: 1px; }
 .wg-root .wg-toolbar-designer button:disabled { opacity: .45; cursor: default; }
@@ -281,8 +275,16 @@
 }
 
 /* Group dividers: a hairline at each action-group boundary reinforces the Run / Edit / Library / View / Clear hierarchy. */
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-section-start { margin-left: 10px; position: relative; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-section-start { margin-left: calc(10px * var(--pp-toolbar-scale, 1)); position: relative; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-toolbar-section-start::before {
-  content: ""; position: absolute; left: -7px; top: 22%; bottom: 22%; width: 1px; pointer-events: none;
+  content: ""; position: absolute; left: calc(-7px * var(--pp-toolbar-scale, 1)); top: 22%; bottom: 22%; width: 1px; pointer-events: none;
   background: var(--wg-border-strong, var(--wg-border)); opacity: .7;
 }
+
+.wg-root .wg-toolbar-options small { color: var(--wg-text-dim); line-height: 1.5; }
+.wg-root .wg-toolbar-options output { margin-left: auto; color: var(--wg-accent); font-variant-numeric: tabular-nums; }
+.wg-root .wg-toolbar-options input[type="range"] { width: 100%; min-width: 0; accent-color: var(--wg-accent); }
+.wg-root .wg-toolbar-preview { grid-column: 1 / -1; display: flex; align-items: center; gap: calc(4px * var(--pp-toolbar-scale, 1)); min-width: 0; overflow: hidden; padding: 8px; border-radius: var(--wg-corner-radius); background: var(--wg-surface); }
+.wg-root .wg-toolbar-preview span { display: inline-flex; align-items: center; flex: none; height: max(24px, calc(32px * var(--pp-toolbar-scale, 1))); padding: 0 calc(8px * var(--pp-toolbar-scale, 1)); color: var(--wg-text); font-size: calc(max(10px, 11px * var(--pp-toolbar-scale, 1)) * var(--wg-ui-font-scale, 1)); border-radius: min(var(--wg-corner-radius), calc(8px * var(--pp-toolbar-scale, 1))); background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-panel-bg)); }
+.wg-root .wg-toolbar-dock[data-mode="hidden"] { justify-content: flex-end; }
+.wg-root.wg-disable-animations .wg-toolbar, .wg-root.wg-reduce-motion .wg-toolbar { animation: none; }

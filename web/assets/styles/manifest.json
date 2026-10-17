@@ -1,0 +1,2254 @@
+{
+  "version": 2,
+  "description": "Real locally bundled reference images; no generated SVG stand-ins. Original work and rights records are linked per asset.",
+  "licenseScope": "Image rights only. Prompt Palette code retains its existing license.",
+  "assets": [
+    {
+      "asset": "ambient-fabric085.webp",
+      "title": "Fabric 085 · material reference",
+      "author": "Lennart Demes / ambientCG",
+      "date": "2026-10-10",
+      "institution": "ambientCG",
+      "source": "https://ambientcg.com/a/Fabric085",
+      "license": "CC0-1.0",
+      "rightsURL": "https://docs.ambientcg.com/license/",
+      "imageURL": "https://acg-media.struffelproductions.com/file/ambientCG-Web/media/thumbnail/1024-JPG-FFFFFF/Fabric085.jpg",
+      "licenseEvidence": {
+        "assetId": "Fabric085",
+        "policyCovers": "Downloadable files and material preview renders"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 960,
+      "imageSha256": "ec4347b42ad668c632790ec441d6ba509c310711286269e9f87ee45fb2d5699e",
+      "sourceImageSha256": "2334b03d9d2aa0d364faf969bc4e2fa0472f45076f825b9fba4eeaf8da74da12",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "ambient-metal009.webp",
+      "title": "Metal 009 · material reference",
+      "author": "Lennart Demes / ambientCG",
+      "date": "2018-08-16",
+      "institution": "ambientCG",
+      "source": "https://ambientcg.com/a/Metal009",
+      "license": "CC0-1.0",
+      "rightsURL": "https://docs.ambientcg.com/license/",
+      "imageURL": "https://acg-media.struffelproductions.com/file/ambientCG-Web/media/thumbnail/1024-JPG-FFFFFF/Metal009.jpg",
+      "licenseEvidence": {
+        "assetId": "Metal009",
+        "policyCovers": "Downloadable files and material preview renders"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 960,
+      "imageSha256": "f217e028eae6a60900a9a8faf02a7446db8343c6f2e7369ef903106aab4d68f4",
+      "sourceImageSha256": "2c3534eb2c688eb32010b4660d6cf82a1bafd55a4e4ab381ccadea37f05ae094",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "ambient-rock064.webp",
+      "title": "Rock 064 · material reference",
+      "author": "Lennart Demes / ambientCG",
+      "date": "2026-04-14",
+      "institution": "ambientCG",
+      "source": "https://ambientcg.com/a/Rock064",
+      "license": "CC0-1.0",
+      "rightsURL": "https://docs.ambientcg.com/license/",
+      "imageURL": "https://acg-media.struffelproductions.com/file/ambientCG-Web/media/thumbnail/1024-JPG-FFFFFF/Rock064.jpg",
+      "licenseEvidence": {
+        "assetId": "Rock064",
+        "policyCovers": "Downloadable files and material preview renders"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 960,
+      "imageSha256": "f4efc075a985e4bb7a69fbae111c9d8f98bf7cbd82636025573b6f25eb029225",
+      "sourceImageSha256": "71e64ed02ef733f2ae50545f60295fd4b7a77cc6e30a0bbd9681eecfa175f5d1",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-101181665.webp",
+      "title": "Ficus retusa · herbarium sheet",
+      "author": "Naturalis Biodiversity Center",
+      "date": "2013-09-10",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Ficus_retusa_herbarium_sheet.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Ficus_retusa_herbarium_sheet.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/c/cf/Ficus_retusa_herbarium_sheet.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 101181665
+      },
+      "recordedAt": "2026-10-14",
+      "width": 547,
+      "height": 960,
+      "imageSha256": "f77e4cc32f248126f9f41c968943f53a21ffefef61db945fb8be19414e4b71d2",
+      "sourceImageSha256": "ad2c1fa0e2d43551928b690c6838e903ca7cfa36bb8bbcffafdf7a9e5814dfee",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-103598727.webp",
+      "title": "Rushing Water",
+      "author": "John Singer Sargent",
+      "date": "1901",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_Rushing_Water_-_Inl%C3%A5n_JSS_522-05_-_Nationalmuseum.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_Rushing_Water_-_Inl%C3%A5n_JSS_522-05_-_Nationalmuseum.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/f/f3/John_Singer_Sargent_-_Rushing_Water_-_Inl%C3%A5n_JSS_522-05_-_Nationalmuseum.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 103598727
+      },
+      "recordedAt": "2026-10-14",
+      "width": 680,
+      "height": 960,
+      "imageSha256": "49627d246db54104890a6299b028a85d917d061f5abc595d28e6e145e1ec7ec0",
+      "sourceImageSha256": "904e493dc026d880ceae7a111f74da36d257317bc40b7cd974aaa7ebdc5fd697",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-112240322.webp",
+      "title": "Chauve-Souris program · color halftone",
+      "author": "Ralph Barton",
+      "date": "circa 1922",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Chauve-Souris_program_by_Ralph_Barton,_c._1922,_color_halftone_on_paper,_from_the_National_Portrait_Gallery_-_NPG-S-NPG_92_12_a.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Chauve-Souris_program_by_Ralph_Barton,_c._1922,_color_halftone_on_paper,_from_the_National_Portrait_Gallery_-_NPG-S-NPG_92_12_a.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Chauve-Souris_program_by_Ralph_Barton%2C_c._1922%2C_color_halftone_on_paper%2C_from_the_National_Portrait_Gallery_-_NPG-S-NPG_92_12_a.jpg/1280px-Chauve-Souris_program_by_Ralph_Barton%2C_c._1922%2C_color_halftone_on_paper%2C_from_the_National_Portrait_Gallery_-_NPG-S-NPG_92_12_a.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 112240322
+      },
+      "recordedAt": "2026-10-14",
+      "width": 731,
+      "height": 960,
+      "imageSha256": "9d3389cffd4ce789772144d91e9384edc49217e08e8e1be3a7664882875d83a5",
+      "sourceImageSha256": "5568544073149565438138d328cd54967eec9bbb39c34273547fdb87c0ee38ff",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-113474485.webp",
+      "title": "Eight-line Pica Antique · shaded slab-serif specimen",
+      "author": "Caslon Type Foundry, 1841",
+      "date": "1841",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Caslon_1841_specimen_Eight-line_Pica_antique_(slab-serif)_shaded_typeface.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Caslon_1841_specimen_Eight-line_Pica_antique_(slab-serif)_shaded_typeface.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Caslon_1841_specimen_Eight-line_Pica_antique_%28slab-serif%29_shaded_typeface.jpg/1280px-Caslon_1841_specimen_Eight-line_Pica_antique_%28slab-serif%29_shaded_typeface.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 113474485
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 553,
+      "imageSha256": "e70f9db49540a12d6517cf5b3d1354742991813fbc1cc0409275a675768bf182",
+      "sourceImageSha256": "8eee70a45ae1bb696421f5d6e7676a9483e85ef3425f816d3aa65d12ddd05c7d",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-113987656.webp",
+      "title": "Colorful Fractal Spiral",
+      "author": "Abyssal",
+      "date": "2022-01-04",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Colorful_Fractal_Spiral.png",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Colorful_Fractal_Spiral.png",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Colorful_Fractal_Spiral.png/1280px-Colorful_Fractal_Spiral.png",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 113987656
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 606,
+      "imageSha256": "ad02218496d316451d937423be61b3c68016a0bcde53de259e9ddce35894e3a2",
+      "sourceImageSha256": "ee0d5a057a0941033e188553b1b92d31b5cc8144e4aed15cec7320e0b25d852d",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-131897774.webp",
+      "title": "Daisy · macro photograph",
+      "author": "Free Nature Stock",
+      "date": "before 2021",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/Macro_flower_wallpaper.jpg/1280px-Macro_flower_wallpaper.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 131897774
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 640,
+      "imageSha256": "5ba9debacfb019763b155092d70d551712fdf851c9f85daeecd5c6e3468c0707",
+      "sourceImageSha256": "a9294bd4319541fa4f349c06b7c8689aedd5a331ca92ed94e12fd8e41dc56cb6",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-13703.webp",
+      "title": "The Peacock Skirt",
+      "author": "Aubrey Beardsley",
+      "date": "1894",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Beardsley-peacockskirt.PNG",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Beardsley-peacockskirt.PNG",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Beardsley-peacockskirt.PNG/1280px-Beardsley-peacockskirt.PNG",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 13703
+      },
+      "recordedAt": "2026-10-14",
+      "width": 689,
+      "height": 960,
+      "imageSha256": "91efb5daf4215074714f6af0049d5773ade31510527f6c8d895b213dca49db03",
+      "sourceImageSha256": "294c87bd9a04ca91af9a16ae1441364aae6c4ff7f4245a99b9bb795890afc1e6",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-138263075.webp",
+      "title": "Time of Lazy Joy",
+      "author": "Fons Heijnsbroek",
+      "date": "1993-09-14",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:1993_Time_of_Lazy_Joy_-_small_abstract_acrylic_painting_on_canvas_by_Dutch_artist_Fons_Heijnsbroek;_free_download_art_image,_CCO.png",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:1993_Time_of_Lazy_Joy_-_small_abstract_acrylic_painting_on_canvas_by_Dutch_artist_Fons_Heijnsbroek;_free_download_art_image,_CCO.png",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/1993_Time_of_Lazy_Joy_-_small_abstract_acrylic_painting_on_canvas_by_Dutch_artist_Fons_Heijnsbroek%3B_free_download_art_image%2C_CCO.png/1280px-1993_Time_of_Lazy_Joy_-_small_abstract_acrylic_painting_on_canvas_by_Dutch_artist_Fons_Heijnsbroek%3B_free_download_art_image%2C_CCO.png",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 138263075
+      },
+      "recordedAt": "2026-10-14",
+      "width": 778,
+      "height": 960,
+      "imageSha256": "fae271167150904340c4d24d6cfa3bfd2e58e61c3879cec42ad635e3cd385d6a",
+      "sourceImageSha256": "ade5ab3bc65f790dd60be7648c70f5c560bc6d473653f844ade12d1378bfd01f",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-138270865.webp",
+      "title": "Abstract Sky",
+      "author": "Fons Heijnsbroek",
+      "date": "1993-06-14",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:%27Abstract_sky%27,_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek;_free_download_abstract_art_image,_CCO.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:%27Abstract_sky%27,_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek;_free_download_abstract_art_image,_CCO.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/%27Abstract_sky%27%2C_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek%3B_free_download_abstract_art_image%2C_CCO.jpg/1280px-%27Abstract_sky%27%2C_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek%3B_free_download_abstract_art_image%2C_CCO.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 138270865
+      },
+      "recordedAt": "2026-10-14",
+      "width": 745,
+      "height": 960,
+      "imageSha256": "e947275acced034a06c5e4770ebf1134ac0b1afe7a02f564efa904cf0a60123b",
+      "sourceImageSha256": "a2d3a10991e39af7fe4a9839b5f9b2c5160520d8d90c1efe4b4173834d9dcad0",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-151083.webp",
+      "title": "Landscape by Caspar David Friedrich",
+      "author": "Caspar David Friedrich",
+      "date": "circa 1816-1817",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Caspar_David_Friedrich_036.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Caspar_David_Friedrich_036.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Caspar_David_Friedrich_036.jpg/1280px-Caspar_David_Friedrich_036.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 151083
+      },
+      "recordedAt": "2026-10-14",
+      "width": 743,
+      "height": 960,
+      "imageSha256": "a3704ac411062f17fa851b89acbed6f7322c397b8ddd30f935d2cac34856b1f2",
+      "sourceImageSha256": "3cb78676ee621a2065ab0a1e5ec3997fff9f60442409c960ded99960e0735d33",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-152331092.webp",
+      "title": "Unglazed vase · Guadix, Spain",
+      "author": "Daderot",
+      "date": "2024-05-26 07:44:37",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Unglazed_vase,_Spain,_probably_Guadix,_1872,_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London,_England_-_DSC04727.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Unglazed_vase,_Spain,_probably_Guadix,_1872,_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London,_England_-_DSC04727.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/Unglazed_vase%2C_Spain%2C_probably_Guadix%2C_1872%2C_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London%2C_England_-_DSC04727.jpg/1280px-Unglazed_vase%2C_Spain%2C_probably_Guadix%2C_1872%2C_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London%2C_England_-_DSC04727.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 152331092
+      },
+      "recordedAt": "2026-10-14",
+      "width": 640,
+      "height": 960,
+      "imageSha256": "b7b63d7883feac689a00ec88f92ba1f9b9111c3d60cdf3076f368da291b82810",
+      "sourceImageSha256": "3cb11549f1a9398751e4f1f6b9808a340646111ea87e65e06c19bd14bed8228f",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-15442524.webp",
+      "title": "Mona Lisa",
+      "author": "Leonardo da Vinci",
+      "date": "between 1503 and 1506",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_retouched.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/1280px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 15442524
+      },
+      "recordedAt": "2026-10-14",
+      "width": 644,
+      "height": 960,
+      "imageSha256": "3d14ac42fff7ef8c7e0b8bb91c450d4de30a55bbc0627cae4ccbcdae40ec75e1",
+      "sourceImageSha256": "8056105c343c16563f8afd4615b4653067e168ec41f344ef5b7e8aaea97463ad",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-157224662.webp",
+      "title": "Self-Portrait in a Striped T-shirt",
+      "author": "Henri Matisse",
+      "date": "1906",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Autoportrait,_par_Henri_Matisse.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Autoportrait,_par_Henri_Matisse.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Autoportrait%2C_par_Henri_Matisse.jpg/1280px-Autoportrait%2C_par_Henri_Matisse.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 157224662
+      },
+      "recordedAt": "2026-10-14",
+      "width": 806,
+      "height": 960,
+      "imageSha256": "5112ef19ebd9fe9ca30abf6b27a1cb60d97b569979a2005b5b2da08aa9e1d55f",
+      "sourceImageSha256": "0826080e261edba80c820ef17cc96b0ddda74cab76ef3d8198e8846e4b6db492",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-158282310.webp",
+      "title": "3D wireframe render of an enamel pot.jpg",
+      "author": "Apinanaivot",
+      "date": "2022-06-20",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:3D_wireframe_render_of_an_enamel_pot.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:3D_wireframe_render_of_an_enamel_pot.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/3D_wireframe_render_of_an_enamel_pot.jpg/1280px-3D_wireframe_render_of_an_enamel_pot.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 158282310
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 788,
+      "imageSha256": "4b26101c6068ecba98f264d19068ba44badb181f004a09f004d4922f0aef5443",
+      "sourceImageSha256": "7ac3d68dc9006fd5262e474b6f0be93399a635c4710329c4cb5f7d55a9b96aaa",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-175139022.webp",
+      "title": "Landsat 4 · exploded view",
+      "author": "NASA",
+      "date": "11 September 2025, 18:42:59 (upload date)",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Exploded-view_Landsat_4.png",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Exploded-view_Landsat_4.png",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Exploded-view_Landsat_4.png/1280px-Exploded-view_Landsat_4.png",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 175139022
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 540,
+      "imageSha256": "3ec71cfe3501e7a489c023738a067ae60122836fec02684c8c3a77e34c812f2e",
+      "sourceImageSha256": "0188038affe7afdd282c286e0b947dc3428a307401ceabcec7d79a3c964b9f03",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-176706862.webp",
+      "title": "Xylosma senticosa · herbarium specimen",
+      "author": "Conveyor Belt",
+      "date": "1930-10-27",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Xylosma_senticosa_herbarium_specimen.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Xylosma_senticosa_herbarium_specimen.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Xylosma_senticosa_herbarium_specimen.jpg/1280px-Xylosma_senticosa_herbarium_specimen.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 176706862
+      },
+      "recordedAt": "2026-10-14",
+      "width": 731,
+      "height": 960,
+      "imageSha256": "4a020fc091f0bdbf068eb94351790c20f45b3034f0fd1c6cc8f86d139a5db1bd",
+      "sourceImageSha256": "2e6a8754f05b8877bfd4fdcc8f6ed435302104cf50699da4b398274eba6eac35",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-178738786.webp",
+      "title": "Suminagashi · marbled paper",
+      "author": "N.N.",
+      "date": "1899-01-01",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Franz_Bartsch_Suminagashi_12_05316.tif",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Franz_Bartsch_Suminagashi_12_05316.tif",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/Franz_Bartsch_Suminagashi_12_05316.tif/lossy-page1-1280px-Franz_Bartsch_Suminagashi_12_05316.tif.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 178738786
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 640,
+      "imageSha256": "e21ea56bb1580813bf144d4b8e868fea97f583a084625d9726dc8fe4f80d00f1",
+      "sourceImageSha256": "12ce5c824c419572b82641aa213db677a1662e4623587a46c97e38f35d46adb3",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-18813667.webp",
+      "title": "Under the Wave off Kanagawa · The Great Wave",
+      "author": "Katsushika Hokusai",
+      "date": "from 1823 until 1829",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg/1280px-Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 18813667
+      },
+      "recordedAt": "2026-10-14",
+      "width": 864,
+      "height": 960,
+      "imageSha256": "9a2a675e54dd942468c04d0ccccac557860842a3cdfc72c338528bb2e0873505",
+      "sourceImageSha256": "0fca186fd1a3027e76d5f4451dd8700f2423097fecfd0696665785ee2f33a6b3",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-188561996.webp",
+      "title": "Charles E. Keene House · front elevation blueprint",
+      "author": "John Mackenzie Moore (d. 1930) and John Vicar Munro (d. 1936)",
+      "date": "1912-1913",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Charles_E._Keene_House,_London,_Ontario,_front_elevation_(blueprint),_signed_Moore_and_Munro,_1912-1913.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Charles_E._Keene_House,_London,_Ontario,_front_elevation_(blueprint),_signed_Moore_and_Munro,_1912-1913.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/3/33/Charles_E._Keene_House%2C_London%2C_Ontario%2C_front_elevation_%28blueprint%29%2C_signed_Moore_and_Munro%2C_1912-1913.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 188561996
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 693,
+      "imageSha256": "7dfe278b226b9ce2c78c9fab267aedf0c18e44600f736c5cc73e423baa1e8a9b",
+      "sourceImageSha256": "5aec6df3073e8b915913f98c430b3f21a170f7bccd76b5bb26ce5036df9bee50",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-19106312.webp",
+      "title": "Zodiac",
+      "author": "Alphonse Mucha",
+      "date": "2012-04-16 01:08:40",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Alphonse_Mucha_-_Zodiac.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Alphonse_Mucha_-_Zodiac.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/5/54/Alphonse_Mucha_-_Zodiac.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 19106312
+      },
+      "recordedAt": "2026-10-14",
+      "width": 686,
+      "height": 960,
+      "imageSha256": "29ae354ddd8f65c14098ff1afb4355f80c8b512771ac8ead19e4004c87c1f8c7",
+      "sourceImageSha256": "bbd0f93b64c7822ed6186eca85c54a3d78dd8ec1a6abef6b17164cc961c5d8fd",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-23594212.webp",
+      "title": "Self-Portrait",
+      "author": "Rembrandt",
+      "date": "1659",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Rembrandt_van_Rijn_-_Self-Portrait_-_Google_Art_Project.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Rembrandt_van_Rijn_-_Self-Portrait_-_Google_Art_Project.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/Rembrandt_van_Rijn_-_Self-Portrait_-_Google_Art_Project.jpg/1280px-Rembrandt_van_Rijn_-_Self-Portrait_-_Google_Art_Project.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 23594212
+      },
+      "recordedAt": "2026-10-14",
+      "width": 741,
+      "height": 960,
+      "imageSha256": "4f4d4eaa6e2e09c9765a70ba5e4fa546720f0c8664d1db51773ffd9b6a9543a3",
+      "sourceImageSha256": "e576afd759a0e5ff4568b380219816af67334f7182e1e21db02e982415e62896",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-23981153.webp",
+      "title": "The Madonna of the Book",
+      "author": "Sandro Botticelli",
+      "date": "between 1480 and 1481",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Sandro_Botticelli_-_The_Virgin_and_Child_(The_Madonna_of_the_Book)_-_Google_Art_Project.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Sandro_Botticelli_-_The_Virgin_and_Child_(The_Madonna_of_the_Book)_-_Google_Art_Project.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Sandro_Botticelli_-_The_Virgin_and_Child_%28The_Madonna_of_the_Book%29_-_Google_Art_Project.jpg/1280px-Sandro_Botticelli_-_The_Virgin_and_Child_%28The_Madonna_of_the_Book%29_-_Google_Art_Project.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 23981153
+      },
+      "recordedAt": "2026-10-14",
+      "width": 654,
+      "height": 960,
+      "imageSha256": "883febcf7a478e338290633e01a2c8ac612fa0fb0c2fca25e5b2681b9f0f26f1",
+      "sourceImageSha256": "45ecf78ae74a8e458329bd72c87142eec98fecc03c20b66f079d780a14f185c4",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-24217637.webp",
+      "title": "Church of Saint Augustin · architectural elevation",
+      "author": "Victor Baltard",
+      "date": "(1868 - 1871)",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Victor_Baltard_-_Church_of_Saint_Augustin,_Paris,_elevation_of_the_main_facade_-_Google_Art_Project.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Victor_Baltard_-_Church_of_Saint_Augustin,_Paris,_elevation_of_the_main_facade_-_Google_Art_Project.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Victor_Baltard_-_Church_of_Saint_Augustin%2C_Paris%2C_elevation_of_the_main_facade_-_Google_Art_Project.jpg/1280px-Victor_Baltard_-_Church_of_Saint_Augustin%2C_Paris%2C_elevation_of_the_main_facade_-_Google_Art_Project.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 24217637
+      },
+      "recordedAt": "2026-10-14",
+      "width": 673,
+      "height": 960,
+      "imageSha256": "2085c0c161028e3ad2876c8cf2f2a1763e215e51dd75571a17194e654af30eaa",
+      "sourceImageSha256": "0bd858ca452300e18fad40f9361e84fc33a0374f39e09ef7a11bc24eab10cf32",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-29562993.webp",
+      "title": "Saint Peter’s Basilica · blue hour",
+      "author": "Jebulon",
+      "date": "2013-08-20",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Basilica_Sancti_Petri_blue_hour.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Basilica_Sancti_Petri_blue_hour.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Basilica_Sancti_Petri_blue_hour.jpg/1280px-Basilica_Sancti_Petri_blue_hour.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 29562993
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 684,
+      "imageSha256": "d0d91695b207bd499c223308a92f7e83fe772bcb7144a6762a4d4f7542ac0c30",
+      "sourceImageSha256": "8e0c6bb9c39178898b46f8b68b65b54dae6a51b334541253a30cd0de20ef92f3",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-30354564.webp",
+      "title": "Seated dancer · Tang dynasty earthenware",
+      "author": "Daderot",
+      "date": "2013-06-14 15:21:50",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Figure_of_seated_dancer,_China,_Tang_dynasty,_618-906_AD,_unglazed_earthenware,_painted_-_Fitchburg_Art_Museum_-_DSC08747.JPG",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Figure_of_seated_dancer,_China,_Tang_dynasty,_618-906_AD,_unglazed_earthenware,_painted_-_Fitchburg_Art_Museum_-_DSC08747.JPG",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Figure_of_seated_dancer%2C_China%2C_Tang_dynasty%2C_618-906_AD%2C_unglazed_earthenware%2C_painted_-_Fitchburg_Art_Museum_-_DSC08747.JPG/1280px-Figure_of_seated_dancer%2C_China%2C_Tang_dynasty%2C_618-906_AD%2C_unglazed_earthenware%2C_painted_-_Fitchburg_Art_Museum_-_DSC08747.JPG",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 30354564
+      },
+      "recordedAt": "2026-10-14",
+      "width": 673,
+      "height": 960,
+      "imageSha256": "0a876bd9d18f1128c15999afcfb0fa91f7ed3d5969ae59f6c212dcaee910f646",
+      "sourceImageSha256": "ee2c8fea0d8798b803f0e83d5774ba16c4ffe3101c6c9561e7d98eda09e3055d",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-31526367.webp",
+      "title": "Japan Travel Poster · 1930s",
+      "author": "Japanese Government Railways",
+      "date": "1930s",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:1930s_Japan_Travel_Poster_-_01.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:1930s_Japan_Travel_Poster_-_01.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/1930s_Japan_Travel_Poster_-_01.jpg/1280px-1930s_Japan_Travel_Poster_-_01.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 31526367
+      },
+      "recordedAt": "2026-10-14",
+      "width": 658,
+      "height": 960,
+      "imageSha256": "54cb1d32a58862b528ee75ef7ba69ee1eebde3488769687ae56d095df8ab7613",
+      "sourceImageSha256": "4c9ef182c9a058c81a6101b0caea2ba4a880b32474b200c4b7f6c1cfefeff6a3",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-37619232.webp",
+      "title": "Composition VII",
+      "author": "Wassily Kandinsky",
+      "date": "1913",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Vassily_Kandinsky,_1913_-_Composition_7.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Vassily_Kandinsky,_1913_-_Composition_7.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/b/b4/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 37619232
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 631,
+      "imageSha256": "c2c657ff926594e8adf3f5f84daa327e240d2a9feda56ca01281a541013dc545",
+      "sourceImageSha256": "a291314b5dc7bafd293cbbfc70baf0b003e479a9be61d13579032acd44fac784",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-37642335.webp",
+      "title": "Lozenge Composition with Yellow, Black, Blue, Red, and Gray",
+      "author": "Piet Mondrian",
+      "date": "1921",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Piet_Mondrian_-_Lozenge_Composition_with_Yellow,_Black,_Blue,_Red,_and_Gray_-_1921_-_The_Art_Institute_of_Chicago.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Piet_Mondrian_-_Lozenge_Composition_with_Yellow,_Black,_Blue,_Red,_and_Gray_-_1921_-_The_Art_Institute_of_Chicago.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/a/a5/Piet_Mondrian_-_Lozenge_Composition_with_Yellow%2C_Black%2C_Blue%2C_Red%2C_and_Gray_-_1921_-_The_Art_Institute_of_Chicago.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 37642335
+      },
+      "recordedAt": "2026-10-14",
+      "width": 717,
+      "height": 723,
+      "imageSha256": "1ad6ea2c16b372b4181f68173e58099b943ffd6e056f171aef5aaf89e511dc55",
+      "sourceImageSha256": "ff6ed106731d90fe559a3ff9d3e10bd3c5003c752936b5c67dc319d18c6ae996",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-39142029.webp",
+      "title": "Stencil typeface specimen",
+      "author": "Flamon",
+      "date": "2015-03-22",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Stencil_(typeface_name).png",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Stencil_(typeface_name).png",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/7/78/Stencil_%28typeface_name%29.png",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 39142029
+      },
+      "recordedAt": "2026-10-14",
+      "width": 440,
+      "height": 79,
+      "imageSha256": "a82a16455619f06fce397ab7c2b1c834a4aaf009f277b362bef7d9543eb9ece7",
+      "sourceImageSha256": "8786883a26e69e6c65c7a01d95f79972e59bb9ce3042efc56358c30c1b3b98d9",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-40054762.webp",
+      "title": "Mackerel Beach House · axonometric perspective",
+      "author": "kathy eeles",
+      "date": "2015-05-14",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Mackerel_Beach_House_-_Axonometric_Perspective.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Mackerel_Beach_House_-_Axonometric_Perspective.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/6/64/Mackerel_Beach_House_-_Axonometric_Perspective.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 40054762
+      },
+      "recordedAt": "2026-10-14",
+      "width": 467,
+      "height": 478,
+      "imageSha256": "b719616bf95f5ca7e0c63abc29fcb2e92ecb33b093210cde848b79b7e2c9ae0d",
+      "sourceImageSha256": "4143389a588b45ef160409737e02c450dcea8af12c7a9e62a700fd95b4194147",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-45156473.webp",
+      "title": "Botanical plate 99 · Choix des plus belles fleurs et des plus beaux fruits",
+      "author": "Redouté, P.J.",
+      "date": "1827",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Redout%C3%A9,_P.J.,_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits,_t._99_(1827).png",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Redout%C3%A9,_P.J.,_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits,_t._99_(1827).png",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Redout%C3%A9%2C_P.J.%2C_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits%2C_t._99_%281827%29.png/1280px-Redout%C3%A9%2C_P.J.%2C_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits%2C_t._99_%281827%29.png",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 45156473
+      },
+      "recordedAt": "2026-10-14",
+      "width": 685,
+      "height": 960,
+      "imageSha256": "a3b4f9ecab57ed3a06a31fdbb925e4e1577610aaae1a6b9d9561bde98167ef92",
+      "sourceImageSha256": "5507402974454f9f5de2a7161f39211d2087775bc44085ed9763f76e899f51af",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-50693422.webp",
+      "title": "Courtyard Zappeion Athens, Greece.jpg",
+      "author": "Jebulon",
+      "date": "2016-04-23 10:53:21",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Courtyard_Zappeion_Athens,_Greece.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Courtyard_Zappeion_Athens,_Greece.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Courtyard_Zappeion_Athens%2C_Greece.jpg/1280px-Courtyard_Zappeion_Athens%2C_Greece.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 50693422
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 670,
+      "imageSha256": "d02d541bf5c9c251276661b38f030a14e3863159c24fd3d64f38db2a6e65277d",
+      "sourceImageSha256": "b9776e8d48a42685c6f758502fd7e3fb44647b3f731e69023168b669c6e04727",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-51526472.webp",
+      "title": "Field and Trees · linocut",
+      "author": "Fons Heijnsbroek",
+      "date": "1988",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:1988_linocut_in_black-white;_field_and_trees,_Dutch_artist_Fons_Heijnsbroek.tif",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:1988_linocut_in_black-white;_field_and_trees,_Dutch_artist_Fons_Heijnsbroek.tif",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/1988_linocut_in_black-white%3B_field_and_trees%2C_Dutch_artist_Fons_Heijnsbroek.tif/lossy-page1-1280px-1988_linocut_in_black-white%3B_field_and_trees%2C_Dutch_artist_Fons_Heijnsbroek.tif.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 51526472
+      },
+      "recordedAt": "2026-10-14",
+      "width": 720,
+      "height": 960,
+      "imageSha256": "b4a5908d92ea1a8ed86deb0d55de01284a35e8b7a7a1d5ec4f522c06a9a11893",
+      "sourceImageSha256": "8fa1706e08fd7af1ef3fb0b8e6e01a52340c5048f243e6b4baf5875da05ab652",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-541408.webp",
+      "title": "Stephoidea · Art Forms in Nature",
+      "author": "Ernst Haeckel",
+      "date": "1904",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Haeckel_Stephoidea.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Haeckel_Stephoidea.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Haeckel_Stephoidea.jpg/1280px-Haeckel_Stephoidea.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 541408
+      },
+      "recordedAt": "2026-10-14",
+      "width": 677,
+      "height": 960,
+      "imageSha256": "b12d23b462c52b24b8bc3341ac209807a1c3c2d0f0a2cc98174a5b9583a6bcaa",
+      "sourceImageSha256": "eafe235805fd1cf7a7e3b8303c5309769775697c1054ca4c8a579966d81ee813",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-54680880.webp",
+      "title": "Brutalist architecture around AUT",
+      "author": "Ingolfson",
+      "date": "2011-09",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Brutalist_Architecture_Around_the_AUT.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Brutalist_Architecture_Around_the_AUT.jpg",
+      "imageURL": "https://upload.wikimedia.org/wikipedia/commons/1/17/Brutalist_Architecture_Around_the_AUT.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 54680880
+      },
+      "recordedAt": "2026-10-14",
+      "width": 720,
+      "height": 960,
+      "imageSha256": "77c39a7ecb00203190afe68c7b0b807d222fa8983f9b6f6c01a9944762e57231",
+      "sourceImageSha256": "f64d76177cfba429b36f1014ecd84b12ef9b0b9ba04518f505cbbb4432eef191",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-60277642.webp",
+      "title": "Paper cut-out with The Lord's Prayer MET DP372401.jpg",
+      "author": "Martha Ann Honeywell",
+      "date": "circa 1830",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Paper_cut-out_with_The_Lord%27s_Prayer_MET_DP372401.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Paper_cut-out_with_The_Lord%27s_Prayer_MET_DP372401.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Paper_cut-out_with_The_Lord%27s_Prayer_MET_DP372401.jpg/1280px-Paper_cut-out_with_The_Lord%27s_Prayer_MET_DP372401.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 60277642
+      },
+      "recordedAt": "2026-10-14",
+      "width": 884,
+      "height": 960,
+      "imageSha256": "3735328f294a12c7a29e5ef741df28ad5934d065ccc2c1b0b6ff2328958ceecc",
+      "sourceImageSha256": "f2d2d4962d782c6593a0cf6c32ae906039e4f1fc695cf898998274409bfef4e0",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-60950618.webp",
+      "title": "Cut-glass cup",
+      "author": "Unknown creator",
+      "date": "8th–9th century",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Cut-Glass_Cup_MET_65.172.1%282%29.jpg/1280px-Cut-Glass_Cup_MET_65.172.1%282%29.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 60950618
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 746,
+      "imageSha256": "9fc9e9458ad95f1f5335061466236d6efa2007c83da799b0a9b435c0c2a2eb3c",
+      "sourceImageSha256": "108a253cec3e4c64df6bc1119d8d7ae1d7fbee0af73cf28b04039eb875a06275",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-63880393.webp",
+      "title": "Water Lilies",
+      "author": "Claude Monet",
+      "date": "1915",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Claude_Monet_-_Seerosen.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Claude_Monet_-_Seerosen.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Claude_Monet_-_Seerosen.jpg/1280px-Claude_Monet_-_Seerosen.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 63880393
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 712,
+      "imageSha256": "41ebed2fb79999932fd5b56b20a3f9190521664dc90e806a908e5d3bd546f2a2",
+      "sourceImageSha256": "1bb7434942a654ca611c7c6344b23002993015c5c7d5bee9479d2e96bce674d2",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-65091406.webp",
+      "title": "Olive glass cup · iridescent surface",
+      "author": "Creator:Barovier family glasshouse",
+      "date": "19th century",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Olive_glass_cup_with_iridescent_effect_MET_ES8547.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Olive_glass_cup_with_iridescent_effect_MET_ES8547.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Olive_glass_cup_with_iridescent_effect_MET_ES8547.jpg/1280px-Olive_glass_cup_with_iridescent_effect_MET_ES8547.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 65091406
+      },
+      "recordedAt": "2026-10-14",
+      "width": 755,
+      "height": 960,
+      "imageSha256": "ec35f9b4a53d245eb857e1fa195b3aafed66423b8a458f29ebd925cf3ac726b6",
+      "sourceImageSha256": "cc4082233dbb3e0c0b338fc0f4ccad8e2c8929600b28f2815be5032759e9a648",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-70784686.webp",
+      "title": "Farm Garden",
+      "author": "Gustav Klimt",
+      "date": "1907",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Bauerngarten_Klimt_1907.jpg/1280px-Bauerngarten_Klimt_1907.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 70784686
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 960,
+      "imageSha256": "8bf4594d38fc2f9323df3321647ba8dd1f05efd74dbcae69add2dfe8d679e3e0",
+      "sourceImageSha256": "520e303efab522fe5ec0e19b16798361cb88f12bf0268ef094a297919e09190e",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-74116019.webp",
+      "title": "The Basket of Apples",
+      "author": "Paul Cézanne",
+      "date": "1893",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg/1280px-Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 74116019
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 769,
+      "imageSha256": "972f5f5d917d079a870371f2015c62cb5e78bba53e211610627cbce6cd5924e1",
+      "sourceImageSha256": "81f4824083bab332f456ef4260b32ab65fd863aa8503056a1b23607ef588f3a3",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-80950146.webp",
+      "title": "Ferns · Specimen of Cyanotype",
+      "author": "Anna Atkins",
+      "date": "1840s",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Anna_Atkins,_Ferns._Specimen_of_Cyanotype,_1840s,_NGA_136477.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Anna_Atkins,_Ferns._Specimen_of_Cyanotype,_1840s,_NGA_136477.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Anna_Atkins%2C_Ferns._Specimen_of_Cyanotype%2C_1840s%2C_NGA_136477.jpg/1280px-Anna_Atkins%2C_Ferns._Specimen_of_Cyanotype%2C_1840s%2C_NGA_136477.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 80950146
+      },
+      "recordedAt": "2026-10-14",
+      "width": 744,
+      "height": 960,
+      "imageSha256": "cb8e172400f561f6722380d2bcc63c8e0d372ca1f30aa82c6160c21e48e94f4a",
+      "sourceImageSha256": "1a2ce6530f6c0966e56dabc7a05f594df8cb85e95ebd08668ddbdbbc9cd3e751",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-81306032.webp",
+      "title": "Flowers in a Vase",
+      "author": "Pierre-Auguste Renoir",
+      "date": "circa 1866",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Auguste_Renoir,_Flowers_in_a_Vase,_c._1866,_NGA_61382.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Auguste_Renoir,_Flowers_in_a_Vase,_c._1866,_NGA_61382.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Auguste_Renoir%2C_Flowers_in_a_Vase%2C_c._1866%2C_NGA_61382.jpg/1280px-Auguste_Renoir%2C_Flowers_in_a_Vase%2C_c._1866%2C_NGA_61382.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 81306032
+      },
+      "recordedAt": "2026-10-14",
+      "width": 769,
+      "height": 960,
+      "imageSha256": "921de147c10396279dcb8230fb0c6e7e612a1bda295df8822aadb628d57efc73",
+      "sourceImageSha256": "214608332038dbf12eb2df9b07f5fd33fab5c162c8ef698466ef8cdee99ac5ae",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-82832828.webp",
+      "title": "Bauhaus exhibition leaflet, 1923",
+      "author": "Oskar Schlemmer",
+      "date": "1923",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Schlemmer-Bauhaus_Werbeblatt_DSC8965.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Schlemmer-Bauhaus_Werbeblatt_DSC8965.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Schlemmer-Bauhaus_Werbeblatt_DSC8965.jpg/1280px-Schlemmer-Bauhaus_Werbeblatt_DSC8965.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 82832828
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 953,
+      "imageSha256": "a127ad538f5e790037ee9f8b5483f5c53b77ad48d84bad4bdc3ded36938ce2a5",
+      "sourceImageSha256": "175de7d03bce5c1858c371de2b6fa83a7047461e8fb4ee7b60627b197a718768",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-85118206.webp",
+      "title": "Backlit grass panicles 2.jpg",
+      "author": "W.carter",
+      "date": "2019-06-16 15:21:12",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Backlit_grass_panicles_2.jpg/1280px-Backlit_grass_panicles_2.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 85118206
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 640,
+      "imageSha256": "e9c411432425f03d637a5a7d66fa88f04fac19f41daf6b90165994d1377e5f62",
+      "sourceImageSha256": "b34e5a9d38f550e7a2b217901fd3c40d133711f2d92305ffd6576b37d681ceae",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-89995718.webp",
+      "title": "Long Exposure of Golden Gate Bridge.jpg",
+      "author": "Ian Simmonds",
+      "date": "Published on 1 June 2017",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Long_Exposure_of_Golden_Gate_Bridge.jpg",
+      "license": "CC0-1.0",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Long_Exposure_of_Golden_Gate_Bridge.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Long_Exposure_of_Golden_Gate_Bridge.jpg/1280px-Long_Exposure_of_Golden_Gate_Bridge.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "CC0",
+        "UsageTerms": "Creative Commons Zero, Public Domain Dedication",
+        "LicenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "pageid": 89995718
+      },
+      "recordedAt": "2026-10-14",
+      "width": 756,
+      "height": 960,
+      "imageSha256": "8e5dbc610f7ade86b4cd3c2cc8ff13650a2aead0c5b1a706e4f38482f2cda233",
+      "sourceImageSha256": "da96f28cd2f50c3d60b375eaecbfdf6da8fdadddc38bb317d8416ad25d1726a7",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-92156906.webp",
+      "title": "Shaded slab-serif specimen · Gin",
+      "author": "Henry Caslon type foundry",
+      "date": "1841-01-01",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Caslon_shaded_slab_serif,_1841_%22Gin%22.jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Caslon_shaded_slab_serif,_1841_%22Gin%22.jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Caslon_shaded_slab_serif%2C_1841_%22Gin%22.jpg/1280px-Caslon_shaded_slab_serif%2C_1841_%22Gin%22.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 92156906
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 407,
+      "imageSha256": "797fdca9579678a0dd05e4242f33b4cb224ce0a6b3ac748c9d1fad4ff9410d22",
+      "sourceImageSha256": "04a608210a47fffa1e109968aa7674755c366ca5fba722c057af330788594c31",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "commons-93729955.webp",
+      "title": "Ballet (The Star)",
+      "author": "Edgar Degas",
+      "date": "circa 1876–1877",
+      "institution": "Wikimedia Commons · source documented in file record",
+      "source": "https://commons.wikimedia.org/wiki/File:Edgar_Degas_-_Ballet_(L%27%C3%89toile).jpg",
+      "license": "Public domain",
+      "rightsURL": "https://commons.wikimedia.org/wiki/File:Edgar_Degas_-_Ballet_(L%27%C3%89toile).jpg",
+      "imageURL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Edgar_Degas_-_Ballet_%28L%27%C3%89toile%29.jpg/1280px-Edgar_Degas_-_Ballet_%28L%27%C3%89toile%29.jpg",
+      "licenseEvidence": {
+        "LicenseShortName": "Public domain",
+        "UsageTerms": "Public domain",
+        "LicenseUrl": null,
+        "pageid": 93729955
+      },
+      "recordedAt": "2026-10-14",
+      "width": 660,
+      "height": 960,
+      "imageSha256": "40adceb2fbae444219c85aff3006c9a92ff7d692d7c9dd6a975db5cd5b6f81ab",
+      "sourceImageSha256": "e675a9ba41c5afa8b442635df348cbf7ad59a125a1ccc11488ffc4e42b1ae9bd",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "kenney-city-kit-suburban-preview-png.webp",
+      "title": "City Kit Suburban · Preview.png",
+      "author": "Kenney",
+      "date": "",
+      "institution": "Kenney asset collection",
+      "source": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "rightsURL": "https://kenney.nl/support",
+      "imageURL": "",
+      "licenseEvidence": {
+        "archive": "kenney-city-kit-suburban.zip",
+        "member": "Preview.png",
+        "includedLicense": "\t\r\n\r\n\tCity Kit Suburban (2.0)\r\n\r\n\tCreated/distributed by Kenney (www.kenney.nl)\r\n\tCreation date: 23-04-2025 20:22\r\n\t\r\n\t\t\t------------------------------\r\n\r\n\tLicense: (Creative Commons Zero, CC0)\r\n\thttp://creativecommons.org/publicdomain/zero/1.0/\r\n\r\n\tYou can use this content for personal, educational, and commercial purposes.\r\n\r\n\tSupport by crediting 'Kenney' or 'www.kenney.nl' (this is not a requirement)\r\n\r\n\t\t\t------------------------------\r\n\r\n\t• Website : www.kenney.nl\r\n\t• Donate  : www.kenney.nl/donate\r\n\r\n\t• Patreon : patreon.com/kenney\r\n\t\r\n\tFollow on social media for updates:\r\n\r\n\t• Twitter:\t twitter.com/KenneyNL\r\n\t• BlueSky:\t kenney.bsky.social\r\n\t• Instagram: instagram.com/kenney_nl"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 918,
+      "height": 515,
+      "imageSha256": "611c6d72731be83134e36ad2826337d5b41127942fba3ffad223739d605d9f7f",
+      "sourceImageSha256": "3684e9eb1850ab9eb5b329ac5bd8d89c92b1cc54aa62d7afe24cfb5fabacb6c1",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "kenney-city-kit-suburban-preview-variation-a-png.webp",
+      "title": "City Kit Suburban · Preview (Variation A).png",
+      "author": "Kenney",
+      "date": "",
+      "institution": "Kenney asset collection",
+      "source": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "rightsURL": "https://kenney.nl/support",
+      "imageURL": "",
+      "licenseEvidence": {
+        "archive": "kenney-city-kit-suburban.zip",
+        "member": "Preview (Variation A).png",
+        "includedLicense": "\t\r\n\r\n\tCity Kit Suburban (2.0)\r\n\r\n\tCreated/distributed by Kenney (www.kenney.nl)\r\n\tCreation date: 23-04-2025 20:22\r\n\t\r\n\t\t\t------------------------------\r\n\r\n\tLicense: (Creative Commons Zero, CC0)\r\n\thttp://creativecommons.org/publicdomain/zero/1.0/\r\n\r\n\tYou can use this content for personal, educational, and commercial purposes.\r\n\r\n\tSupport by crediting 'Kenney' or 'www.kenney.nl' (this is not a requirement)\r\n\r\n\t\t\t------------------------------\r\n\r\n\t• Website : www.kenney.nl\r\n\t• Donate  : www.kenney.nl/donate\r\n\r\n\t• Patreon : patreon.com/kenney\r\n\t\r\n\tFollow on social media for updates:\r\n\r\n\t• Twitter:\t twitter.com/KenneyNL\r\n\t• BlueSky:\t kenney.bsky.social\r\n\t• Instagram: instagram.com/kenney_nl"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 918,
+      "height": 515,
+      "imageSha256": "b45f7540e7d3d7a81133cbe2b98074ea8f36489205707a116a48c51973bd194b",
+      "sourceImageSha256": "8aa131e1477e278fc41650b59bd7bfa6f340d4c6bc6a0cd84e74a1b0a003e355",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "kenney-pattern-pack-png-default-pattern-01-png.webp",
+      "title": "Pattern Pack · PNG/Default/pattern_01.png",
+      "author": "Kenney",
+      "date": "",
+      "institution": "Kenney asset collection",
+      "source": "https://kenney.nl/assets/pattern-pack",
+      "license": "CC0-1.0",
+      "rightsURL": "https://kenney.nl/support",
+      "imageURL": "",
+      "licenseEvidence": {
+        "archive": "kenney-pattern-pack.zip",
+        "member": "PNG/Default/pattern_01.png",
+        "includedLicense": "\t\r\n\r\n\tPattern Pack (1.1)\r\n\r\n\tCreated/distributed by Kenney (www.kenney.nl)\r\n\tCreation date: 25-07-2024\r\n\r\n\t\t\t------------------------------\r\n\r\n\tLicense: (Creative Commons Zero, CC0)\r\n\thttp://creativecommons.org/publicdomain/zero/1.0/\r\n\r\n\tThis content is free to use in personal, educational and commercial projects.\r\r\n\tSupport us by crediting Kenney or www.kenney.nl (this is not mandatory)\r\n\r\n\t\t\t------------------------------\r\n\r\n\tDonate:   http://support.kenney.nl\r\n\tPatreon:  http://patreon.com/kenney/\r\n\r\n\tFollow on Twitter for updates:\r\n\thttp://twitter.com/KenneyNL"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 256,
+      "height": 256,
+      "imageSha256": "6aa52356d68d620d1afd16ed32920d1acfad9032b0168cdddc20999a24258ce1",
+      "sourceImageSha256": "efd2d1a0e7f823d8e84147e07306f98b163973cbad819a55b4776c33fef1e5cc",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "kenney-pixel-platformer-sampleb-png.webp",
+      "title": "Pixel Platformer · SampleB.png",
+      "author": "Kenney",
+      "date": "",
+      "institution": "Kenney asset collection",
+      "source": "https://kenney.nl/assets/pixel-platformer",
+      "license": "CC0-1.0",
+      "rightsURL": "https://kenney.nl/support",
+      "imageURL": "",
+      "licenseEvidence": {
+        "archive": "kenney-pixel-platformer.zip",
+        "member": "SampleB.png",
+        "includedLicense": "\t\r\n\r\n\tPixel Platformer (1.2)\r\n\r\n\tCreated/distributed by Kenney (www.kenney.nl)\r\n\tCreation date: 07-10-2023\r\n\r\n\t\t\t------------------------------\r\n\r\n\tLicense: (Creative Commons Zero, CC0)\r\n\thttp://creativecommons.org/publicdomain/zero/1.0/\r\n\r\n\tYou can use this content for personal, educational, and commercial purposes.\r\n\r\n\tSupport by crediting 'Kenney' or 'www.kenney.nl' (this is not a requirement)\r\n\r\n\t\t\t------------------------------\r\n\r\n\t• Website : www.kenney.nl\r\n\t• Donate  : www.kenney.nl/donate\r\n\r\n\t• Patreon : patreon.com/kenney\r\n\t\r\n\tFollow on social media for updates:\r\n\r\n\t• Twitter:\ttwitter.com/KenneyNL\r\n\t• Instagram: \tinstagram.com/kenney_nl\r\n\t• Mastodon:\tmastodon.gamedev.place/@kenney"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 918,
+      "height": 515,
+      "imageSha256": "76d2c5de5b327d8cf25fceafe55be623df440fca338b61988a27ff96c78a4df2",
+      "sourceImageSha256": "06bb9a3605bf5391ae910b4f8af056e09e7af3db8a1588a7a030f865edc3f233",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "kenney-pixel-platformer-tilemap-tilemap-characters-png.webp",
+      "title": "Pixel Platformer · Tilemap/tilemap-characters.png",
+      "author": "Kenney",
+      "date": "",
+      "institution": "Kenney asset collection",
+      "source": "https://kenney.nl/assets/pixel-platformer",
+      "license": "CC0-1.0",
+      "rightsURL": "https://kenney.nl/support",
+      "imageURL": "",
+      "licenseEvidence": {
+        "archive": "kenney-pixel-platformer.zip",
+        "member": "Tilemap/tilemap-characters.png",
+        "includedLicense": "\t\r\n\r\n\tPixel Platformer (1.2)\r\n\r\n\tCreated/distributed by Kenney (www.kenney.nl)\r\n\tCreation date: 07-10-2023\r\n\r\n\t\t\t------------------------------\r\n\r\n\tLicense: (Creative Commons Zero, CC0)\r\n\thttp://creativecommons.org/publicdomain/zero/1.0/\r\n\r\n\tYou can use this content for personal, educational, and commercial purposes.\r\n\r\n\tSupport by crediting 'Kenney' or 'www.kenney.nl' (this is not a requirement)\r\n\r\n\t\t\t------------------------------\r\n\r\n\t• Website : www.kenney.nl\r\n\t• Donate  : www.kenney.nl/donate\r\n\r\n\t• Patreon : patreon.com/kenney\r\n\t\r\n\tFollow on social media for updates:\r\n\r\n\t• Twitter:\ttwitter.com/KenneyNL\r\n\t• Instagram: \tinstagram.com/kenney_nl\r\n\t• Mastodon:\tmastodon.gamedev.place/@kenney"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 224,
+      "height": 74,
+      "imageSha256": "4b52ea54f0800e2fc544499aa8a8f4c5fb0661fa2d07bf1f63dc47ec1d260b08",
+      "sourceImageSha256": "b4f63a99b228021c7c8106a09af47b1c9635e1a20b9dd9e6e666c9b36cc7d259",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "kenney-voxel-kit-preview-png.webp",
+      "title": "Voxel Kit · Preview.png",
+      "author": "Kenney",
+      "date": "",
+      "institution": "Kenney asset collection",
+      "source": "https://kenney.nl/assets/voxel-kit",
+      "license": "CC0-1.0",
+      "rightsURL": "https://kenney.nl/support",
+      "imageURL": "",
+      "licenseEvidence": {
+        "archive": "kenney-voxel-kit.zip",
+        "member": "Preview.png",
+        "includedLicense": "\t\r\n\r\n\tVoxel Kit (1.0)\r\n\r\n\tCreated/distributed by Kenney (www.kenney.nl)\r\n\r\n\t\t\t------------------------------\r\n\r\n\tLicense: (Creative Commons Zero, CC0)\r\n\thttp://creativecommons.org/publicdomain/zero/1.0/\r\n\r\n\tThis content is free to use in personal, educational and commercial projects.\r\r\n\tSupport us by crediting (Kenney or www.kenney.nl), this is not mandatory.\r\n\r\n\t\t\t------------------------------\r\n\r\n\tDonate:   http://support.kenney.nl\r\n\tRequest:  http://request.kenney.nl\r\n\tPatreon:  http://patreon.com/kenney/\r\n\r\n\tFollow on Twitter for updates:\r\n\t@KenneyNL"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 918,
+      "height": 515,
+      "imageSha256": "0bd439e0fc675f59d0e2fc3a88035d1bf062f5d482ccfe142b5563c5adb5a2bc",
+      "sourceImageSha256": "f10327041d1ab7cde6ff10a10ed87101ced4ce151fbc8f5d728722e8d8e30345",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "loc-type-125.webp",
+      "title": "Specimen Book of Type Styles · scan 125",
+      "author": "American Type Founders Company",
+      "date": "1915",
+      "institution": "Library of Congress",
+      "source": "https://www.loc.gov/resource/gdc.00387017501/?sp=125",
+      "license": "Public domain",
+      "rightsURL": "https://www.loc.gov/item/16004767/",
+      "imageURL": "https://tile.loc.gov/image-services/iiif/public:gdc:00387017501:0125/full/1000,/0/default.jpg",
+      "licenseEvidence": {
+        "rightsStatement": "The books in this collection are in the public domain and are free to use and reuse.",
+        "item": "16004767"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 960,
+      "height": 633,
+      "imageSha256": "f3d559f0d1f43160474cbfbdd996719f4fd897bee1622448098440afde9fff11",
+      "sourceImageSha256": "25721f2358030ce42dd8779d4a0f59fa4e3bd6566a2607f2dbb63f4f57d8b44c",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-12025.webp",
+      "title": "Abriès",
+      "author": "John Singer Sargent",
+      "date": "ca. 1912",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/12025",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ad/web-large/DT287187.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 12025,
+        "accessionNumber": "50.130.81m"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 473,
+      "height": 624,
+      "imageSha256": "5ea2c518198a251faca2a6c92593f144c1dc272411c3eabbde2ce3da5ef17e2e",
+      "sourceImageSha256": "6273641a2fe71ef0464c347bbd77219eb596964b5acf4ac071bb5dbca5b88d6c",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-12027.webp",
+      "title": "Alhambra, Granada",
+      "author": "John Singer Sargent",
+      "date": "1912",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/12027",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ad/web-large/217022.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 12027,
+        "accessionNumber": "50.130.80n"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 509,
+      "height": 624,
+      "imageSha256": "a3de2fa8d0ec631b6097a84e456a5777a007c2028cd0ba1e9665a28a02df1dc9",
+      "sourceImageSha256": "cc5c2908a9b1f3175f825a37d8b1f980e0c78853d9331a3852d49fb010042891",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-17053.webp",
+      "title": "Boys in a Dory",
+      "author": "Winslow Homer",
+      "date": "1873",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/17053",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ad/web-large/DT5026.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 17053,
+        "accessionNumber": "2001.608.1"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 599,
+      "height": 423,
+      "imageSha256": "31dba132a2d24fc9b6cd07f62a1b1df60e8568cf91935e396d6a208a13767ffc",
+      "sourceImageSha256": "708d48653dc7d927dfb9da638e22230319cfe2f612587486b8e0af04e5e19bfe",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-334369.webp",
+      "title": "Entrance to a Garden",
+      "author": "Paul Cézanne",
+      "date": "1878–80",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/334369",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/dp/web-large/DP809512.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 334369,
+        "accessionNumber": "1982.375"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 412,
+      "height": 625,
+      "imageSha256": "e14dbf41d87b98ceb8aac061dfebb75cd50da70add36ed359c0e720041852b50",
+      "sourceImageSha256": "8eccbcf94161dd17fe08fbdb2ddb1c405aa8d94fb48ecb88a31d17fb94acc4c4",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-335537.webp",
+      "title": "Wheat Field",
+      "author": "Vincent van Gogh",
+      "date": "July 1888",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/335537",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/dp/web-large/DP108507.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 335537,
+        "accessionNumber": "64.125.3"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 599,
+      "height": 459,
+      "imageSha256": "326745c2d2a7908bc54281b07450101f3aca622de50d84af3300608dde50b5cd",
+      "sourceImageSha256": "ac7f2f734048cb429510e362dc9bfcc20bb29ff48ed4669689fb8baafa4a3249",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-337494.webp",
+      "title": "Compositional Sketches for the Virgin Adoring the Christ Child, with and without the Infant St. John the Baptist; Diagram of a Perspectival Projection (recto); Slight Doodles (verso)",
+      "author": "Leonardo da Vinci",
+      "date": "1480–85",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/337494",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/dp/web-large/DP832657.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 337494,
+        "accessionNumber": "17.142.1"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 528,
+      "height": 625,
+      "imageSha256": "f040c083cc2e23e6050c3c839f0aa4b4013ce63b1d0880c04a4d1774bc13a03d",
+      "sourceImageSha256": "5e3b6b8f2453d13bd7acd9a3f6612f0abc2620fc6eeec2bafaf1e99d9e4b4acf",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-337497.webp",
+      "title": "Studies for the Libyan Sibyl (recto); Studies for the Libyan Sibyl and a small Sketch for a Seated Figure (verso)",
+      "author": "Michelangelo Buonarroti",
+      "date": "ca. 1510–11",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/337497",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/dp/web-large/DP826907.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 337497,
+        "accessionNumber": "24.197.2"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 460,
+      "height": 624,
+      "imageSha256": "3b02ff605b937a3071acb2f3676a923808e3e2a69ceb35d5fdb97fbd6b3e38e6",
+      "sourceImageSha256": "6ffd1914d9a5017b0955bbffb3d663cf84068fb0e9cba8479d86026aa5cc9b59",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-337499.webp",
+      "title": "The Lake of Zug",
+      "author": "Joseph Mallord William Turner",
+      "date": "1843",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/337499",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/dp/web-large/DP821057.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 337499,
+        "accessionNumber": "59.120"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 599,
+      "height": 390,
+      "imageSha256": "15780454bd279888785d63cd4c11a403728326ac16753618a36ebbf300c237a9",
+      "sourceImageSha256": "aa07eed76edb966cd8636f6bc6b6b9562c5c2b90c272550c0e955f9bc70a864d",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-339674.webp",
+      "title": "Young Woman with a Muff",
+      "author": "Auguste Renoir",
+      "date": "1860–1919",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/339674",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/dp/web-large/DP212939.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 339674,
+        "accessionNumber": "29.100.195"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 436,
+      "height": 625,
+      "imageSha256": "fb3cafb81e49d98b960672bafad28e211f9d879d3a9ea721d22024389c3cb071",
+      "sourceImageSha256": "6d08473ac2e44def6775befe9bcef6887da88283bd027405378182db32c45348",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-435844.webp",
+      "title": "The Musicians",
+      "author": "Caravaggio (Michelangelo Merisi)",
+      "date": "1597",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/435844",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-687-001.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 435844,
+        "accessionNumber": "52.81"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 599,
+      "height": 465,
+      "imageSha256": "95dee55e6380b8955f89ac6534d49ba41639ffe6244f87abccbee68bf8a77452",
+      "sourceImageSha256": "4fcfc9c757f22dc2196d6f91596ea917d431500496775d88d1d612b4aec61c1c",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-436524.webp",
+      "title": "Sunflowers",
+      "author": "Vincent van Gogh",
+      "date": "1887",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/436524",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-41223-001.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 436524,
+        "accessionNumber": "49.41"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 599,
+      "height": 423,
+      "imageSha256": "f8dd663164557dd936e6032a9f9c3563ac471d949daf5ff684ce38246ee172b7",
+      "sourceImageSha256": "e84f82f453c52151d3a28ef22a22faeefdd5dda51f656c4b089c4b88dab8b508",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-436535.webp",
+      "title": "Wheat Field with Cypresses",
+      "author": "Vincent van Gogh",
+      "date": "1889",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/436535",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-42549-001.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 436535,
+        "accessionNumber": "1993.132"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 599,
+      "height": 477,
+      "imageSha256": "8fe27991a46e48160dd82fc1034053912da7130e0635c567da4a932b29812901",
+      "sourceImageSha256": "af0e3486621c210b54932d055294051b5601aa3362af4b84ab97e2831f8163bc",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-437853.webp",
+      "title": "Venice, from the Porch of Madonna della Salute",
+      "author": "Joseph Mallord William Turner",
+      "date": "ca. 1835",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/437853",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ep/web-large/DP169568.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 437853,
+        "accessionNumber": "99.31"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 599,
+      "height": 447,
+      "imageSha256": "5639841bac334db7736db9425f69716e5a99476fc3655d42758875650a0b0600",
+      "sourceImageSha256": "6f1c4b129cc7302098a4bfc3c835e5b932c3b0fa8566544bdb54a694ab4c7656",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-437881.webp",
+      "title": "Young Woman with a Water Pitcher",
+      "author": "Johannes Vermeer",
+      "date": "ca. 1662",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/437881",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/ep/web-large/DP353257.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 437881,
+        "accessionNumber": "89.15.21"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 555,
+      "height": 624,
+      "imageSha256": "996fc138d26078a0a7c47dd2a12ee74f399f53296459ebd29217033d0d4ad3a0",
+      "sourceImageSha256": "13120aa067755f1f50d2b900417807ef9da3f8b2b63a1bbea428fe3f2d8d00a9",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    },
+    {
+      "asset": "met-770740.webp",
+      "title": "Calligraphy Painting",
+      "author": "Isma'il Jalayir",
+      "date": "ca. 1860",
+      "institution": "The Metropolitan Museum of Art",
+      "source": "https://www.metmuseum.org/art/collection/search/770740",
+      "license": "CC0-1.0",
+      "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+      "imageURL": "https://images.metmuseum.org/CRDImages/is/web-large/DP-15525-001.jpg",
+      "licenseEvidence": {
+        "isPublicDomain": true,
+        "objectID": 770740,
+        "accessionNumber": "2018.26"
+      },
+      "recordedAt": "2026-10-14",
+      "width": 504,
+      "height": 624,
+      "imageSha256": "81a4e5b853fc8ecf175529a1f230e5eec7a33b96ec46444cfcd57906cb69def8",
+      "sourceImageSha256": "6189c0fcf886b4516d34ace445912175777a587fff4468f8e7a1d57a3935fae4",
+      "transform": "Whole-image resize to at most 960 px; white matte for transparency; WebP encoding; no AI regeneration"
+    }
+  ],
+  "mappings": [
+    {
+      "collection": "visual",
+      "id": "transparent-washes",
+      "name": "Transparent washes",
+      "asset": "met-17053.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "wet-on-wet",
+      "name": "Wet on wet",
+      "asset": "met-337499.webp",
+      "referenceNote": "A real atmospheric watercolor reference. The source does not document which passages were painted wet on wet."
+    },
+    {
+      "collection": "visual",
+      "id": "dry-brush",
+      "name": "Dry brush",
+      "asset": "commons-103598727.webp",
+      "referenceNote": "A real watercolor showing varied mark-making. The catalog does not establish the exact dry-brush procedure."
+    },
+    {
+      "collection": "visual",
+      "id": "watercolor-glazing",
+      "name": "Watercolor glazing",
+      "asset": "met-334369.webp",
+      "referenceNote": "Watercolor color-layering reference; not a claim that a specific glazing procedure is documented."
+    },
+    {
+      "collection": "visual",
+      "id": "ink-and-wash",
+      "name": "Ink and wash",
+      "asset": "met-12027.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "granulating-pigments",
+      "name": "Granulating pigments",
+      "asset": "met-12025.webp",
+      "referenceNote": "A real watercolor landscape reference. Pigment granulation and pigment brands are not established by the source."
+    },
+    {
+      "collection": "visual",
+      "id": "botanical-watercolor",
+      "name": "Botanical watercolor",
+      "asset": "commons-45156473.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "contour-drawing",
+      "name": "Contour drawing",
+      "asset": "met-337494.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "cross-hatching",
+      "name": "Cross hatching",
+      "asset": "met-335537.webp",
+      "referenceNote": "Reed-pen drawing showing repeated directional marks; a mark-making reference rather than a claim that every passage is crosshatched."
+    },
+    {
+      "collection": "visual",
+      "id": "stipple-study",
+      "name": "Stipple study",
+      "asset": "commons-45156473.webp",
+      "referenceNote": "Historical botanical print reference; useful for fine marks and tonal detail, not a checkpoint render."
+    },
+    {
+      "collection": "visual",
+      "id": "woodcut-relief",
+      "name": "Woodcut relief",
+      "asset": "commons-18813667.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "linocut-poster",
+      "name": "Linocut poster",
+      "asset": "commons-51526472.webp",
+      "referenceNote": "An actual artist-created linocut, used for relief-print marks; not a poster layout."
+    },
+    {
+      "collection": "visual",
+      "id": "brush-ink",
+      "name": "Brush ink",
+      "asset": "met-770740.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "impasto-still-life",
+      "name": "Impasto still life",
+      "asset": "met-436524.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "oil-glazing",
+      "name": "Oil glazing",
+      "asset": "met-437881.webp",
+      "referenceNote": "A real oil painting with luminous transitions. The preview does not establish its precise paint-layer construction."
+    },
+    {
+      "collection": "visual",
+      "id": "opaque-gouache",
+      "name": "Opaque gouache",
+      "asset": "met-770740.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "acrylic-color-blocks",
+      "name": "Acrylic color blocks",
+      "asset": "commons-138270865.webp",
+      "referenceNote": "A real acrylic painting with broad color areas; composition reference, not a literal demonstration of every recipe facet."
+    },
+    {
+      "collection": "visual",
+      "id": "soft-pastel-atmosphere",
+      "name": "Soft pastel atmosphere",
+      "asset": "met-339674.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "chalk-on-toned-paper",
+      "name": "Chalk on toned paper",
+      "asset": "met-337497.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "art-deco-geometry",
+      "name": "Art Deco geometry",
+      "asset": "commons-31526367.webp",
+      "referenceNote": "A real 1930s Japanese travel poster, used as a period graphic composition reference."
+    },
+    {
+      "collection": "visual",
+      "id": "bauhaus-shapes",
+      "name": "Bauhaus shapes",
+      "asset": "commons-82832828.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "halftone-editorial",
+      "name": "Halftone editorial",
+      "asset": "commons-112240322.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "paper-cut-composition",
+      "name": "Paper cut composition",
+      "asset": "commons-60277642.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "slab-serif-poster",
+      "name": "Slab serif poster",
+      "asset": "commons-113474485.webp",
+      "referenceNote": "An actual 1841 type specimen, used for slab-serif letterforms; not a modern poster."
+    },
+    {
+      "collection": "visual",
+      "id": "stencil-lettering",
+      "name": "Stencil lettering",
+      "asset": "commons-39142029.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "dimensional-type",
+      "name": "Dimensional type",
+      "asset": "commons-92156906.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "brush-lettering",
+      "name": "Brush lettering",
+      "asset": "met-770740.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "letterpress-impression",
+      "name": "Letterpress impression",
+      "asset": "loc-type-125.webp",
+      "referenceNote": "Actual printed type specimen from 1915. This is an overview of letterpress typography, not a macro photograph of paper indentation."
+    },
+    {
+      "collection": "visual",
+      "id": "herbarium-plate",
+      "name": "Herbarium plate",
+      "asset": "commons-176706862.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "cyanotype-leaves",
+      "name": "Cyanotype leaves",
+      "asset": "commons-80950146.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "pressed-foliage",
+      "name": "Pressed foliage",
+      "asset": "commons-101181665.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "macro-botanical-study",
+      "name": "Macro botanical study",
+      "asset": "commons-131897774.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "fractal-branching",
+      "name": "Fractal branching",
+      "asset": "commons-113987656.webp",
+      "referenceNote": "A real CC0 digital fractal image; an algorithmic structure reference, not a botanical photograph."
+    },
+    {
+      "collection": "visual",
+      "id": "field-notebook",
+      "name": "Field notebook",
+      "asset": "met-334369.webp",
+      "referenceNote": "A real preparatory watercolor and graphite study; an observational sketch reference, not a notebook with field notes."
+    },
+    {
+      "collection": "visual",
+      "id": "marine-specimen",
+      "name": "Marine specimen",
+      "asset": "commons-541408.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "geometric-balance",
+      "name": "Geometric balance",
+      "asset": "commons-37642335.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "color-field",
+      "name": "Color field",
+      "asset": "commons-138270865.webp",
+      "referenceNote": "A real acrylic abstraction used for color-area relationships; not an attribution to the historical Color Field movement."
+    },
+    {
+      "collection": "visual",
+      "id": "op-art-rhythm",
+      "name": "Op art rhythm",
+      "asset": "kenney-pattern-pack-png-default-pattern-01-png.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "fluid-marbling",
+      "name": "Fluid marbling",
+      "asset": "commons-178738786.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "gestural-abstraction",
+      "name": "Gestural abstraction",
+      "asset": "commons-138263075.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "brushed-metal",
+      "name": "Brushed metal",
+      "asset": "ambient-metal009.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "unglazed-ceramic",
+      "name": "Unglazed ceramic",
+      "asset": "commons-152331092.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "translucent-glass",
+      "name": "Translucent glass",
+      "asset": "commons-60950618.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "woven-textile",
+      "name": "Woven textile",
+      "asset": "ambient-fabric085.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "weathered-stone",
+      "name": "Weathered stone",
+      "asset": "ambient-rock064.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "iridescent-film",
+      "name": "Iridescent film",
+      "asset": "commons-65091406.webp",
+      "referenceNote": "A real historic glass object with an iridescent surface; a material reference, not a thin-film photograph."
+    },
+    {
+      "collection": "visual",
+      "id": "soft-studio-light",
+      "name": "Soft studio light",
+      "asset": "commons-60950618.webp",
+      "referenceNote": "Real museum object photography with soft illumination. The original studio setup is not recorded."
+    },
+    {
+      "collection": "visual",
+      "id": "hard-rim-light",
+      "name": "Hard rim light",
+      "asset": "commons-85118206.webp",
+      "referenceNote": "Backlit grass with bright contours; a photographic edge-light reference, not a studio lighting setup."
+    },
+    {
+      "collection": "visual",
+      "id": "blue-hour-architecture",
+      "name": "Blue hour architecture",
+      "asset": "commons-29562993.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "low-key-still-life",
+      "name": "Low key still life",
+      "asset": "met-436524.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "long-exposure-trails",
+      "name": "Long exposure trails",
+      "asset": "commons-89995718.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "architectural-elevation",
+      "name": "Architectural elevation",
+      "asset": "commons-24217637.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "isometric-district",
+      "name": "Isometric district",
+      "asset": "kenney-city-kit-suburban-preview-png.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "brutalist-massing",
+      "name": "Brutalist massing",
+      "asset": "commons-54680880.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "mediterranean-courtyard",
+      "name": "Mediterranean courtyard",
+      "asset": "commons-50693422.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "scenic-depth-layers",
+      "name": "Scenic depth layers",
+      "asset": "met-337499.webp",
+      "referenceNote": "Real watercolor landscape with overlapping distance planes; spatial-composition reference."
+    },
+    {
+      "collection": "visual",
+      "id": "blueprint-study",
+      "name": "Blueprint study",
+      "asset": "commons-188561996.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "interior-axonometric",
+      "name": "Interior axonometric",
+      "asset": "commons-40054762.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "low-poly-scene",
+      "name": "Low poly scene",
+      "asset": "kenney-city-kit-suburban-preview-variation-a-png.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "exploded-assembly",
+      "name": "Exploded assembly",
+      "asset": "commons-175139022.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "voxel-world",
+      "name": "Voxel world",
+      "asset": "kenney-voxel-kit-preview-png.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "wireframe-study",
+      "name": "Wireframe study",
+      "asset": "commons-158282310.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "sculpted-miniature",
+      "name": "Sculpted miniature",
+      "asset": "commons-30354564.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "pixel-environment",
+      "name": "Pixel environment",
+      "asset": "kenney-pixel-platformer-sampleb-png.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "visual",
+      "id": "sprite-object-sheet",
+      "name": "Sprite object sheet",
+      "asset": "kenney-pixel-platformer-tilemap-tilemap-characters-png.webp",
+      "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+    },
+    {
+      "collection": "classic",
+      "id": "Vincent van Gogh",
+      "name": "Vincent van Gogh",
+      "asset": "met-436535.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Claude Monet",
+      "name": "Claude Monet",
+      "asset": "commons-63880393.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Pierre-Auguste Renoir",
+      "name": "Pierre-Auguste Renoir",
+      "asset": "commons-81306032.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Edgar Degas",
+      "name": "Edgar Degas",
+      "asset": "commons-93729955.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Paul Cézanne",
+      "name": "Paul Cézanne",
+      "asset": "commons-74116019.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Henri Matisse",
+      "name": "Henri Matisse",
+      "asset": "commons-157224662.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Wassily Kandinsky",
+      "name": "Wassily Kandinsky",
+      "asset": "commons-37619232.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Piet Mondrian",
+      "name": "Piet Mondrian",
+      "asset": "commons-37642335.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Gustav Klimt",
+      "name": "Gustav Klimt",
+      "asset": "commons-70784686.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Alphonse Mucha",
+      "name": "Alphonse Mucha",
+      "asset": "commons-19106312.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Aubrey Beardsley",
+      "name": "Aubrey Beardsley",
+      "asset": "commons-13703.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Rembrandt",
+      "name": "Rembrandt",
+      "asset": "commons-23594212.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Johannes Vermeer",
+      "name": "Johannes Vermeer",
+      "asset": "met-437881.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Leonardo da Vinci",
+      "name": "Leonardo da Vinci",
+      "asset": "commons-15442524.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Michelangelo",
+      "name": "Michelangelo",
+      "asset": "met-337497.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Sandro Botticelli",
+      "name": "Sandro Botticelli",
+      "asset": "commons-23981153.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Caravaggio",
+      "name": "Caravaggio",
+      "asset": "met-435844.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "J. M. W. Turner",
+      "name": "J. M. W. Turner",
+      "asset": "met-437853.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "Caspar David Friedrich",
+      "name": "Caspar David Friedrich",
+      "asset": "commons-151083.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    },
+    {
+      "collection": "classic",
+      "id": "John Singer Sargent",
+      "name": "John Singer Sargent",
+      "asset": "met-12025.webp",
+      "referenceNote": "Actual work by the named artist; not a model-generated imitation."
+    }
+  ]
+}

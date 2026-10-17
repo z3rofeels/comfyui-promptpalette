@@ -1,10 +1,16 @@
+import { workspaceGeneration, markedWorkspaceResult } from "./workspace_generation.js";
 import { fieldVariationSource } from "./recipe_variation_source.js";
 import { compileWorkspace, validateWorkspaceRecipe } from "./recipe_workspace_model.js";
 import { createExperimentPlan, readResolved, projectExperiment, experimentTargets } from "./recipe_experiment.js";
 import { analyzePromptSource } from "../prompt_palette_power_tools.js";
 import { hasVariationSyntax as hasDynamicSyntax } from "./recipe_variation_source.js";
 export { hasDynamicSyntax };
-export async function resolveWorkspacePreview(recipe, seed, mode, resolveVariations, { signal } = {}) {
+export async function resolveWorkspacePreview(recipe, seed, mode, resolveVariations, { signal, namespace = "" } = {}) {
+  if (resolveVariations.workspace) {
+    const [item] = await resolveVariations.workspace(workspaceGeneration(recipe, { namespace }), seed, mode, 1, { signal });
+    const plan = createExperimentPlan(recipe, "workspace", null, { preview: true });
+    return { plan, fields: item.fields, positive: item.positive, negative: item.negative, baseline: ["positive", "negative"].map(channel => ({ ...readResolved(plan, markedWorkspaceResult(plan, item, channel), channel) })) };
+  }
   const plan = createExperimentPlan(recipe, "workspace", null, { preview: true });
   const responses = await Promise.all(["positive", "negative"].map(channel => plan.sources[channel] ? resolveVariations(plan.sources[channel], seed, mode, 1, { signal }) : [{ resolved: "" }]));
   if (signal?.aborted) throw new DOMException("Preview cancelled", "AbortError");
@@ -32,7 +38,7 @@ export async function estimateWorkspaceCombinations(recipe, scope, currentId, se
     fields.push({ id, label: f.label, count: result.count, lowerBound: result.truncated });
   }
   const total = results.reduce((n, r) => n * Math.max(1, r.count), 1);
-  const coupled = targets.some(id => /\$\{|\[(?:if|elif)\b|__[A-Za-z0-9_\-/]+\(/i.test(values[id]));
+  const coupled = targets.some(id => /\$\{|\[(?:if|elif|switch)\b|__[A-Za-z0-9_\-/]+\(/i.test(values[id]));
   return { count: total, lowerBound: results.some(r => r.truncated), fields, targets,
     warning: total >= 1000 || results.some(r => r.truncated),
     notice: coupled ? "Estimate: variables, parameters and conditionals can couple fields. Verify the intended batch in Combinatorial." : "Estimate for this scope. Held fields use captured results; Follow fields count as possible targets. Fixed-pick modifiers contribute one choice." };
@@ -50,7 +56,7 @@ export function analyzeWorkspace(recipe, { libraryEntries = [], compiledPreview 
   for (const f of active) {
     const analysis = analyzePromptSource({ text: f.value, libraryEntries });
     analysis.issues.filter(issue => !["unreachable-variable", "unclosed-conditional", "orphan-conditional", "unclosed-brace", "extra-brace"].includes(issue.code)).forEach(issue => issues.push({ ...issue, title: `${f.label}: ${issue.title}`, fieldIds: [f.id], fieldToken: issue.token, token: undefined }));
-    if (f.experimentState === "lock" && hasDynamicSyntax(f.value)) add("info", "locked-dynamic", `${f.label}: locked syntax still resolves`, "Lock protects variation edits. Normal generation resolves this field again at its seed; use a captured literal value to hold the generated choice.", [f.id]);
+    if (f.experimentState === "lock" && hasDynamicSyntax(f.value)) add("info", "locked-dynamic", `${f.label}: locked syntax still resolves`, "This older workspace stores dynamic text under Lock. Generation holds its first resolved value for this session; choose Freeze current value to save the literal choice across restarts.", [f.id]);
     if (f.value.length > 2000 || f.value.length > 400 && f.value.length > totalLength * .55) add("warning", "dominant-field", `${f.label}: long field`, `${f.value.length.toLocaleString()} characters may dominate this workspace. Review repetition and priority.`, [f.id]);
     if (f.experimentState === "follow" && !f.dependsOn.length) add("info", "follow-without-source", `${f.label}: choose Follow sources`, "This field joins broad scopes. Set its dependencies to follow a specific source in Current Field or Vary Fields.", [f.id]);
     for (const term of f.value.split(/[,\n]/).map(t => t.trim().toLowerCase().replace(/_/g, " ")).filter(t => t && !hasDynamicSyntax(t) && t.length < 160)) {

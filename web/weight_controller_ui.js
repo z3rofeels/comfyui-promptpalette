@@ -1,3 +1,5 @@
+import { sidebarEditingHandlers } from "./editor/sidebar_targets.js";
+import { registerPromptPaletteCommandTarget } from "./prompt_palette_command_bus.js";
 import { saveEditorSelection } from "./editor/selection_library.js";
 import { attachEditorContextMenu } from "./editor/context_menu.js";
 import { openInjectMenuAtPoint, closeInjectMenu } from "./editor/injector.js";
@@ -24,6 +26,7 @@ const weightControllerStylesReady = loadExtensionStylesheet(CSS_HREF, "prompt-pa
   throw error;
 });
 const CONTROLLER_WIDGET_NAMES = ["text", "weighting_mode", "advanced_controls", "weight_clamping", "negative_routing"];
+const WEIGHT_MODES = ["SDXL / CLIP (Standard)", "Krea 2 / ZIT (Qwen)", "LTX 2.3 / T5 (LLM)", "Anima 1.0 (High-Scale Qwen)"];
 const IO_INPUT_DEFS = [
   { key: "clip", type: "CLIP", label: "CLIP", default: true, desc: "Optional CLIP input for direct conditioning output." },
   { key: "model", type: "MODEL", label: "Model", default: true, desc: "Optional model passthrough for compact workflow wiring." },
@@ -80,6 +83,7 @@ function buildSettingsPopup() {
           <div class="ppwc-help-card"><strong>Advanced controls</strong><span>When off, Weight Controller executes with None clamping and Direct routing.</span></div>
           <div class="ppwc-help-card"><strong>Soft Safety Clamp</strong><span>Compresses weights toward 1.0 as they move farther away, while barely touching values close to neutral.</span></div>
           <div class="ppwc-help-card"><strong>Zero Inversion Null</strong><span>For plain-prose model output, suppressed phrases are removed instead of rendered without their negative multiplier.</span></div>
+          <div class="ppwc-help-card"><strong>Anima 1.0</strong><span>Keep explicit weights up to 3.5 without boosting them. Higher values are capped. Clear standalone prose wrappers can be removed; ambiguous brackets and @Artist Name stay literal. Optional Soft Safety Clamp still applies when selected.</span></div>
           </details>
         </section>
       </div>
@@ -143,7 +147,7 @@ function setupSettingsUI(node) {
   const fillSelect = (select, widget, fallback = []) => {
     select.innerHTML = widgetOptions(widget, fallback).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
   };
-  fillSelect(modeSelect, modeWidget, ["SDXL / CLIP (Standard)", "Krea 2 / ZIT (Qwen)", "LTX 2.3 / T5 (LLM)"]);
+  fillSelect(modeSelect, modeWidget, WEIGHT_MODES);
   fillSelect(clampSelect, clampWidget, ["None", "Soft Safety Clamp"]);
   fillSelect(routingSelect, routingWidget, ["Direct", "Zero Inversion Null"]);
 
@@ -237,7 +241,7 @@ function setupSettingsUI(node) {
   textInput.__ppExtractSelectionToWildcard = (start, end) => saveEditorSelection(textInput, start, end, { onSaved: selectionSaved });
   const cleanupEditorContext = attachEditorContextMenu(textInput, {
     beforeOpen: () => { hideTip(); closeInjectMenu(); },
-    promptTools: { node, canResolve: false },
+    promptTools: { node, canResolve: false, apply: (text, start, end) => { textInput.value = text; textInput.setSelectionRange(start, end); textInput.dispatchEvent(new Event("input", { bubbles: true })); } },
     syntaxEnabled: () => loadTheme().syntaxInjectorEnabled !== false,
     tokenContext: (event, selection, handle) => {
       if (loadTheme().syntaxInjectorEnabled === false) return false;
@@ -279,7 +283,7 @@ function setupSettingsUI(node) {
   settingsAdvancedPanel = popup.querySelector('[data-el="settingsAdvancedPanel"]');
   settingsClampSelect = popup.querySelector('[data-el="settingsClampSelect"]');
   settingsRoutingSelect = popup.querySelector('[data-el="settingsRoutingSelect"]');
-  fillSelect(settingsModeSelect, modeWidget, ["SDXL / CLIP (Standard)", "Krea 2 / ZIT (Qwen)", "LTX 2.3 / T5 (LLM)"]);
+  fillSelect(settingsModeSelect, modeWidget, WEIGHT_MODES);
   fillSelect(settingsClampSelect, clampWidget, ["None", "Soft Safety Clamp"]);
   fillSelect(settingsRoutingSelect, routingWidget, ["Direct", "Zero Inversion Null"]);
   settingsModeSelect?.addEventListener("change", () => { commitWidget(modeWidget, settingsModeSelect.value); syncControls(); });
@@ -318,10 +322,21 @@ function setupSettingsUI(node) {
   popup.querySelector('[data-act="close"]').addEventListener("click", closePopup);
 
 
+  const commandTarget = registerPromptPaletteCommandTarget(node, {
+    ...sidebarEditingHandlers({ getEditor: () => textInput }),
+    sidebarRequiresResolvedText: true,
+    focusEditor: () => textInput.focus({ preventScroll: true }),
+  });
+  surface.addEventListener("pointerdown", commandTarget.activate, true);
+  surface.addEventListener("focusin", commandTarget.activate, true);
+
   return {
     surface,
     reapplyTheme: appearanceBinding.apply,
     cleanup() {
+      commandTarget.cleanup();
+      surface.removeEventListener("pointerdown", commandTarget.activate, true);
+      surface.removeEventListener("focusin", commandTarget.activate, true);
       cleanupLibrarySubscription();
       hideTip(); previewCache.clear(); autocompleteLibraryCache.clear();
       cleanupAutocompleteBinding?.();

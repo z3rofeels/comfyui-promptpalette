@@ -12,10 +12,10 @@ import {
   nodeIsActive, scheduleNodeTimer, cancelNodeTimer, scheduleNodeFrame, scheduleDomWidgetRemeasure,
 } from "../prompt_palette_compat.js";
 import {
-  savePinned, saveExpandedCats, saveCatOrder, savePickerView,
+  savePinned, saveExpandedCats, saveCatOrder, savePickerView, loadPinned, onLibraryPinsChanged,
 } from "./preferences.js";
 import {
-  categoryOf, isRecipeCategory, normalizeLibraryEntryPath, escapeHtml, highlightMatch, hashStr, categoryColorFromHue,
+  categoryOf, isRecipeCategory, normalizeLibraryEntryPath, escapeHtml, highlightMatch, hashStr, categoryColorFromHue, wildcardInsertionText,
 } from "./text_utils.js";
 import { getBooruAutocompleteMatches, attachAutocomplete } from "./autocomplete.js";
 import { libraryAcRows, recentAcRows, mergeUnifiedRows } from "./autocomplete_sources.js";
@@ -26,6 +26,7 @@ import {
 import { openCtxMenu, closeCtxMenu, ctxMenuOpen } from "./context_menu.js";
 import { pickThumbnailFile, thumbnailFileError } from "./thumbnails.js";
 import { notify } from "./notifications.js";
+import { createLibraryEntryEditor } from "./library_entry_editor.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
 
 export function createLibraryController(ctx) {
@@ -36,6 +37,7 @@ export function createLibraryController(ctx) {
     promptSaveRecipe, prepareStarterAutocomplete: externalPrepareStarterAutocomplete, performanceRuntime, profiler, libraryModel, renderLibrary,
   } = ctx;
 
+  const cleanupPins = onLibraryPinsChanged(() => { pinned.clear(); for (const path of loadPinned()) pinned.add(path); renderPickerList(searchInput.value); });
   const libraryIndex = libraryModel;
   let indexedLibraryRef = null;
   let starterAutocompleteLoad = null;
@@ -122,15 +124,13 @@ export function createLibraryController(ctx) {
   function insertWildcard(path) {
     const editor = node._ppActiveRecipeEditor?.isConnected ? node._ppActiveRecipeEditor : textarea;
     if (node._ppInsertAdjustableRecipe?.(path, {
-      fallback: /^\s*,/.test(editor.value.slice(editor.selectionEnd)) ? `__${path}__` : `__${path}__, `,
+      fallback: wildcardInsertionText(path, editor.value.slice(editor.selectionEnd)),
     })) return;
-    const tag = `__${path}__`;
     const pos = editor.selectionStart ?? editor.value.length;
     const before = editor.value.slice(0, pos);
     const after = editor.value.slice(editor.selectionEnd ?? pos);
 
-    const alreadySeparated = /^\s*,/.test(after);
-    const insertText = alreadySeparated ? tag : tag + ", ";
+    const insertText = wildcardInsertionText(path, after);
     editor.value = before + insertText + after;
     if (editor === textarea) node._ppRecipeWorkspace?.showEditor();
     editor.focus();
@@ -746,92 +746,17 @@ export function createLibraryController(ctx) {
   textarea.__ppExtractSelectionToWildcard = promptExtractSelectionToWildcard;
   textarea.__ppSaveSelectionAsList = promptSaveSelectionAsList;
 
-  const editName = el("editName");
-  const editContent = el("editContent");
-  const editStatus = el("editStatus");
-  let editLoadVersion = 0, loadedEditPath = null;
-
-  async function loadIntoEditDrawer(name) {
-    const request = ++editLoadVersion;
-    editName.value = name;
-    let data;
-    try { data = await API.content(name); }
-    catch (error) {
-      if (libraryDisposed || request !== editLoadVersion) return;
-      editStatus.textContent = error?.message || "couldn't load library entry";
-      editStatus.className = "wg-status err";
-      return;
-    }
-    if (libraryDisposed || request !== editLoadVersion || editName.value !== name) return;
-    loadedEditPath = data?.found ? name : null;
-    if (data && data.found) {
-      editContent.value = data.content;
-      editContent.disabled = !data.editable;
-      editStatus.textContent = data.editable ? "" : "YAML/JSON library entries are edited in their source file.";
-      editStatus.className = "wg-status";
-    } else {
-      editContent.value = "";
-      editContent.disabled = false;
-      editStatus.textContent = "new library entry \u2014 write one option per line, then save.";
-      editStatus.className = "wg-status";
-    }
-  }
-
+  const editPanel = createLibraryEntryEditor({
+    drawer: editDrawer, el, getLibrary: () => state.libraryCache, getMatches: getAcMatches, onCommit: commitAcItem,
+    onThumbnailChanged: async path => { state.thumbBust[path] = Date.now(); await refreshThumbMap(); },
+    onChanged: async path => { previewCache.delete(path); await refreshLibrary(); renderPickerList(searchInput.value); },
+  });
   function openEditForItem(path) {
-    closeSettings();
-    closeStash();
-    ioRail.close();
-    closePickerDrawer();
+    closeSettings(); closeStash(); ioRail.close(); closePickerDrawer();
     editDrawer.classList.add("open");
     root.querySelector('[data-act="edit"]').classList.add("active");
-    loadIntoEditDrawer(path);
+    editPanel.load(path, { confirm: true });
   }
-
-  async function saveEditDrawer() {
-    const name = editName.value.trim().replace(/\.txt$/i, "").replace(/\\/g, "/");
-    if (!name) { editStatus.textContent = "enter a name/path first"; editStatus.className = "wg-status err"; return; }
-    if (editContent.disabled) { editStatus.textContent = "This entry is read-only; edit its source file or create a TXT copy."; editStatus.className = "wg-status err"; return; }
-    try {
-      if (name !== loadedEditPath && (await API.content(name, { fresh: true }))?.found
-        && !await dialogConfirm({ title: "Overwrite Library Entry", message: `Overwrite "${name}"?` })) return;
-      const res = await API.save(name, editContent.value);
-      if (res.ok) {
-        loadedEditPath = name;
-        editStatus.textContent = "saved.";
-        editStatus.className = "wg-status";
-        previewCache.delete(name);
-        await refreshLibrary();
-        renderPickerList(searchInput.value);
-      } else {
-        editStatus.textContent = res.error || "save failed";
-        editStatus.className = "wg-status err";
-      }
-    } catch (error) { editStatus.textContent = error?.message || "save failed"; editStatus.className = "wg-status err"; }
-  }
-  root.querySelector('[data-act="save"]').addEventListener("click", saveEditDrawer);
-
-  editName.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    const name = editName.value.trim();
-    if (name) loadIntoEditDrawer(name);
-  });
-  root.querySelector('[data-act="delete"]').addEventListener("click", async () => {
-    const name = editName.value.trim();
-    if (!name) return;
-    const res = await API.del(name);
-    if (res.ok) {
-      editStatus.textContent = "deleted.";
-      editStatus.className = "wg-status";
-      previewCache.delete(name);
-      editContent.value = "";
-      await refreshLibrary();
-      renderPickerList(searchInput.value);
-    } else {
-      editStatus.textContent = res.error || "delete failed";
-      editStatus.className = "wg-status err";
-    }
-  });
 
   const starterPackController = createStarterPackController({
     root,
@@ -1022,6 +947,7 @@ export function createLibraryController(ctx) {
   });
 
   function closeEditDrawer() {
+    editPanel.suspend();
     editDrawer.classList.remove("open");
     root.querySelector('[data-act="edit"]').classList.remove("active");
   }
@@ -1033,20 +959,16 @@ export function createLibraryController(ctx) {
       ioRail.close();
       closePickerDrawer();
     }
+    if (!opening) editPanel.suspend();
     editDrawer.classList.toggle("open", opening);
     e.currentTarget.classList.toggle("active", opening);
   });
 
   root.querySelector('[data-act="closeEditDrawer"]').addEventListener("click", closeEditDrawer);
 
-  editDrawer.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-      e.preventDefault();
-      saveEditDrawer();
-    }
-  });
+
   return {
-    getAcMatches, commitAcItem, bindEditorHover, selectionSaved,
+    getAcMatches, commitAcItem, bindEditorHover, selectionSaved, insertWildcard,
     refreshLibrary,
     refreshThumbMap,
     renderPickerList,
@@ -1080,6 +1002,8 @@ export function createLibraryController(ctx) {
       hideTip(); previewCache.clear();
       cleanupEditorHover();
       cleanupAutocompleteBinding?.();
+      cleanupPins();
+      editPanel.cleanup();
       virtualManager.cleanup();
       starterPackController.cleanup();
     },

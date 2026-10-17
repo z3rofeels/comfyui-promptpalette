@@ -19,7 +19,7 @@ except Exception:
     logging.getLogger(__name__).exception("Prompt Palette could not register metadata restoration")
 
 WEB_DIRECTORY = "web"
-__version__ = "2.0.5"
+__version__ = "2.0.6"
 
 class PromptPaletteExtension(ComfyExtension):
     @override

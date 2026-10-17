@@ -67,6 +67,8 @@ def _loras_match_connection_state(metadata: dict[str, Any], inputs: dict[str, An
 
 
 def _editor_metadata_is_fresh(metadata: dict[str, Any], inputs: dict[str, Any]) -> bool:
+    if not _same_text(inputs, "workspace_runtime", metadata.get("workspace_runtime", "")):
+        return False
     if not _same_text(inputs, "text", metadata.get("source_text", "")):
         return False
     if not _same_text(
@@ -98,6 +100,8 @@ def _editor_metadata_is_fresh(metadata: dict[str, Any], inputs: dict[str, Any]) 
 
 
 def _combinatorial_metadata_is_fresh(metadata: dict[str, Any], inputs: dict[str, Any]) -> bool:
+    if not _same_text(inputs, "workspace_runtime", metadata.get("workspace_runtime", "")):
+        return False
     if not _same_text(inputs, "text", metadata.get("source_text", metadata.get("source_prompt", ""))):
         return False
     checks = (

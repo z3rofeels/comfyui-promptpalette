@@ -3,7 +3,9 @@ import { exportRecipePack } from "./recipe_io.js";
 import { sendPreparedPrompts } from "./prepared_handoff.js";
 import { getPowerToolPreferences } from "../prompt_palette_state.js";
 import { API } from "../prompt_palette_api.js";
-import { attachAutocomplete, getBooruAutocompleteMatches, closeAcMenu } from "./autocomplete.js";
+import { attachAutocomplete, getBooruAutocompleteMatches, closeAcMenu, acState } from "./autocomplete.js";
+import { app } from "../../../scripts/app.js";
+import { locateWeightTarget, applyWeightDelta } from "./weight_edit.js";
 import { libraryAcRows, rankLibraryPaths } from "./autocomplete_sources.js";
 import { loadTheme, loadPinned, savePinned } from "./preferences.js";
 import { categoryForTagKey, normalizeTagKey } from "./booru_tag_colors.js";
@@ -25,7 +27,7 @@ export function createRefinementController({ node, root, textarea, render, atomi
   const preparedState = installPreparedBatchState(node, preparedWidget);
   const cleanups = []; let disposed = false, version = 0, pending = null;
   let selection = null, session = null, recipeDraft = null, filling = null;
-  let panelKind = "", recipesEnabled = (!fieldOnly && getPowerToolPreferences().adjustableRecipes);
+  let panelKind = "", selectionToolsEnabled = getPowerToolPreferences().selectionTools !== false, recipesEnabled = (!fieldOnly && getPowerToolPreferences().adjustableRecipes);
   let alternatives = "", candidates = [], excluded = new Set(), fieldValues = {};
   const saved = fieldOnly ? null : node.properties?.[PERSIST_KEY];
   try { if (saved?.recipeDraft) recipeDraft = validateRecipe(saved.recipeDraft); } catch { /* invalid legacy draft */ }
@@ -135,8 +137,9 @@ export function createRefinementController({ node, root, textarea, render, atomi
   }
   function updateBar() {
     const valid = selection && selection.source === textarea.value && selection.end > selection.start;
-    selectionActions.hidden = !valid;
-    bar.hidden = !valid && !session && !(recipesEnabled && recipeDraft) && !preparedWidget?.value;
+    // The switch only hides the selection actions; Explore, Recipe draft and prepared-batch controls stay available.
+    selectionActions.hidden = !selectionToolsEnabled || !valid;
+    bar.hidden = selectionActions.hidden && !session && !(recipesEnabled && recipeDraft) && !preparedWidget?.value;
     savedActions.replaceChildren();
     if (recipesEnabled && recipeDraft) savedActions.appendChild(makeButton("Recipe draft", showRecipeBuilder));
     if (session) savedActions.appendChild(makeButton("Explore", () => showExploration()));
@@ -165,12 +168,21 @@ export function createRefinementController({ node, root, textarea, render, atomi
     panel.appendChild(row(makeButton("Apply replacement", () => { guard(selected.source); const next = replaceRange(selected.source, selected.start, selected.end, replacement.input.value); apply(next.text, next.start, next.end); closeHost(); })));
     replacement.input.focus(); replacement.input.select();
   }
-  function adjustWeight(change) {
-    const selected = currentSelection(), text = selected.source.slice(selected.start, selected.end);
-    const m = text.match(/^\((.*):([+-]?(?:\d+(?:\.\d*)?|\.\d+))\)$/);
-    const weight = Math.round(((m ? Number(m[2]) : 1) + change) * 100) / 100;
-    const next = replaceRange(selected.source, selected.start, selected.end, `(${m ? m[1] : text}:${weight})`, false);
+  // ComfyUI's "Ctrl+up/down precision" setting; the same step drives the keyboard and the panel buttons.
+  function weightStep() {
+    try {
+      const value = Number(app?.extensionManager?.setting?.get?.("Comfy.EditAttention.Delta") ?? app?.ui?.settings?.getSettingValue?.("Comfy.EditAttention.Delta"));
+      if (Number.isFinite(value) && value >= 0.01 && value <= 0.5) return Math.round(value * 100) / 100;
+    } catch { /* setting unavailable: use ComfyUI's default */ }
+    return 0.05;
+  }
+  function changeWeight(range, direction) {
+    const next = applyWeightDelta(textarea.value, range, direction * weightStep());
     apply(next.text, next.start, next.end);
+  }
+  function adjustWeight(direction) {
+    const selected = currentSelection();
+    changeWeight(locateWeightTarget(selected.source, selected.start, selected.end) || selected, direction);
   }
   function removeWeight() {
     const selected = currentSelection(), text = selected.source.slice(selected.start, selected.end);
@@ -405,7 +417,7 @@ export function createRefinementController({ node, root, textarea, render, atomi
   const importButton = makeButton("Import recipe", importRecipe, "Import an adjustable recipe with its wildcard lists");
   const libraryActions = root.querySelector(".wg-personal-head .wg-drawer-head-actions") || root.querySelector('[data-drawer="picker"] .wg-drawer-head');
   if (!fieldOnly) { libraryActions?.appendChild(importButton); textarea.__ppRecipeInsert = recipeHook; node._ppInsertAdjustableRecipe = recipeHook; }
-  selectionActions.append(makeButton("Replace", openReplace), makeButton("Vary this", capture), makeButton("Weight −", () => adjustWeight(-0.1)), makeButton("Weight +", () => adjustWeight(0.1)), makeButton("Reset weight", removeWeight), makeButton("Favorite", () => {
+  selectionActions.append(makeButton("Replace", openReplace), makeButton("Vary this", capture), makeButton("Weight −", () => adjustWeight(-1), "Lower the weight of the selection by ComfyUI's Ctrl+up/down precision"), makeButton("Weight +", () => adjustWeight(1), "Raise the weight of the selection by ComfyUI's Ctrl+up/down precision"), makeButton("Reset weight", removeWeight), makeButton("Favorite", () => {
     const s = currentSelection(), value = s.source.slice(s.start, s.end), wildcard = value.match(/^__[+\-*%~@]?([A-Za-z0-9_\-\/]+)__$/);
     if (wildcard) { const pins = loadPinned(); pins.add(wildcard[1]); savePinned(pins); }
     else { const store = createPromptUsageStore(); if (!store.isTagFavorite("custom", value)) store.toggleTagFavorite("custom", value, categoryForTagKey(normalizeTagKey(value)) || "custom"); }
@@ -413,7 +425,19 @@ export function createRefinementController({ node, root, textarea, render, atomi
   const makeRecipeButton = makeButton("Make recipe", () => { recipeDraft = null; return addRecipeField(); });
   const addFieldButton = makeButton("Add field", addRecipeField);
   selectionActions.append(makeRecipeButton, addFieldButton);
+  // Ctrl/Cmd+Up/Down: weight the selection, or the tag / (group) at the caret. Works whether or not the
+  // Selection bar is shown. Autocomplete keeps its own arrow navigation while its menu is open.
+  function weightShortcut(event) {
+    if (disposed || event.isComposing || event.keyCode === 229 || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) return;
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    if (acState && acState.textarea === textarea) return;
+    const range = locateWeightTarget(textarea.value, textarea.selectionStart, textarea.selectionEnd);
+    if (!range) return;
+    event.preventDefault(); event.stopPropagation();
+    changeWeight(range, event.key === "ArrowUp" ? 1 : -1);
+  }
   function syncRecipeSettings() {
+    selectionToolsEnabled = getPowerToolPreferences().selectionTools !== false;
     recipesEnabled = (!fieldOnly && getPowerToolPreferences().adjustableRecipes);
     makeRecipeButton.hidden = addFieldButton.hidden = importButton.hidden = !recipesEnabled;
     if (!recipesEnabled && panelKind === "recipe") {
@@ -428,6 +452,7 @@ export function createRefinementController({ node, root, textarea, render, atomi
   cleanups.push(observeEditorSelection(textarea, updateSelection));
   listen(host, "pp-refinement-owner", event => { if (event.detail !== panel) { version++; pending?.abort(); panel.hidden = true; } });
   listen(textarea, "focus", updateSelection); listen(textarea, "blur", updateSelection); listen(textarea, "select", updateSelection); listen(textarea, "keyup", updateSelection); listen(textarea, "mouseup", updateSelection); listen(textarea, "input", onSourceChanged);
+  listen(textarea, "keydown", weightShortcut);
   listen(root, "keydown", event => { if (event.key === "Escape" && ownHost && host.classList.contains("open")) closeHost(); });
   if (preparedWidget) hideNativeWidget(preparedWidget);
   updateBar();

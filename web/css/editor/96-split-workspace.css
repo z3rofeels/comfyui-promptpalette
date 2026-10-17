@@ -1,0 +1,119 @@
+/* Split Workspace: a slim rail, text fields that share the node height, and one settings surface.
+   Loaded after the other editor partials so it wins over their per-card chrome. */
+
+/* ── rail ─────────────────────────────────────────────────────────────── */
+.wg-root .pp-recipe-mode.pp-split-rail { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; padding: 3px 4px; min-width: 0; }
+.wg-root .pp-split-seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--wg-border); border-radius: 6px; background: var(--wg-surface); }
+.wg-root .pp-split-seg .wg-button { min-height: 22px; padding: 1px 9px; border: 0; border-radius: 4px; background: transparent; color: var(--wg-text-dim); font-size: calc(11px * var(--wg-ui-font-scale, 1)); box-shadow: none; }
+.wg-root .pp-split-seg .wg-button[aria-pressed="true"] { background: color-mix(in srgb, var(--wg-accent) 18%, transparent); color: var(--wg-text); }
+.wg-root .pp-split-rail .pp-refine-label { flex: 1 1 60px; min-width: 0; font-size: calc(10.5px * var(--wg-ui-font-scale, 1)); }
+.wg-root .pp-split-rail .pp-refine-label:empty { display: none; }
+.wg-root .pp-split-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; margin-left: auto; }
+.wg-root .pp-split-actions[hidden], .wg-root .pp-split-actions:empty { display: none; }
+.wg-root .pp-split-rail .wg-button { min-height: 24px; padding: 2px 8px; font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .pp-split-rail .pp-split-settings-toggle[aria-expanded="true"] { background: color-mix(in srgb, var(--wg-accent) 16%, transparent); color: var(--wg-text); }
+.wg-root .pp-split-rail .wg-button[data-tone="danger"] { margin-left: 0; }
+
+/* ── workspace body ───────────────────────────────────────────────────── */
+.wg-root .pp-recipe-workspace.is-split { display: flex; flex-direction: column; flex: 1 1 0; position: relative; min-height: 0; min-width: 0; overflow: hidden; padding: 0 5px 5px; gap: 0; }
+.wg-root .pp-recipe-workspace.is-split[hidden] { display: none !important; }
+.wg-root .pp-split-fields { display: flex; flex-direction: column; gap: 6px; flex: 1 1 0; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent; }
+.wg-root .pp-split-fields > .pp-recipe-static { flex: 0 0 auto; max-height: 4.5em; overflow: auto; padding: 3px 10px; background: transparent; }
+
+/* ── field card ───────────────────────────────────────────────────────── */
+.wg-root .pp-split-fields > .pp-recipe-field {
+  --pp-field-bar: var(--pp-field-accent, var(--pp-field-tone));
+  display: flex; flex-direction: column; flex: 1 1 0; box-sizing: border-box; min-width: 0; min-height: 92px; margin: 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--wg-border); border-left: 3px solid var(--pp-field-bar); border-radius: var(--wg-corner-radius, 6px); background: var(--wg-surface);
+}
+.wg-root .pp-split-fields > .pp-recipe-field[data-experiment-state="follow"] { border-left-style: dashed; }
+.wg-root .pp-split-fields > .pp-recipe-field.is-expanded { flex-grow: 2; }
+.wg-root .pp-split-fields > .pp-recipe-field.is-collapsed { flex: 0 0 auto; min-height: 0; }
+.wg-root .pp-split-fields > .pp-recipe-field[data-sized="true"] { flex: 0 0 auto; }
+.wg-root .pp-split-fields > .pp-recipe-field.is-disabled { opacity: .62; border-left-style: dotted; }
+.wg-root .pp-split-fields > .pp-recipe-field[data-accent="custom"] { border-color: color-mix(in srgb, var(--pp-field-accent) 40%, var(--wg-border)); border-left-color: var(--pp-field-accent); }
+.wg-root .pp-split-fields > .pp-recipe-field:focus-within { background: var(--wg-surface); border-color: color-mix(in srgb, var(--pp-field-bar) 55%, var(--wg-border-strong)); border-left-color: var(--pp-field-bar); }
+.wg-root .pp-split-fields .pp-recipe-field-head { flex: none; display: flex; align-items: center; gap: 5px; min-height: 26px; padding: 1px 6px 1px 2px; }
+.wg-root .pp-split-fields .pp-recipe-field-head .wg-button { min-height: 22px; padding: 1px 6px; border: 0; background: transparent; box-shadow: none; color: var(--wg-text-dim); }
+.wg-root .pp-split-fields .pp-recipe-field-head .pp-recipe-field-label { max-width: 60%; min-width: 0; color: var(--wg-text); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.wg-root .pp-split-fields .pp-recipe-summary { display: none; flex: 1; min-width: 0; font-size: 11px; color: var(--wg-text-faint); }
+.wg-root .pp-split-fields .is-collapsed .pp-recipe-summary { display: block; }
+.wg-root .pp-split-fields .pp-recipe-field-head::after { content: ""; order: 1; flex: 1 1 0; min-width: 0; }
+.wg-root .pp-split-fields .is-collapsed .pp-recipe-field-head::after { display: none; }
+.wg-root .pp-split-fields .pp-recipe-field-head > * { order: 2; }
+.wg-root .pp-split-fields .pp-recipe-field-head > .pp-recipe-field-label, .wg-root .pp-split-fields .pp-recipe-field-head > .pp-recipe-summary { order: 0; }
+.wg-root .pp-split-fields .pp-recipe-channel { font-size: 10px; font-weight: 650; letter-spacing: .02em; }
+.wg-root .pp-split-fields .pp-recipe-state { padding: 1px 6px; border-radius: 9px; font-size: 10px; font-weight: 650; color: var(--pp-field-tone); background: color-mix(in srgb, var(--pp-field-tone) 12%, transparent); }
+.wg-root .pp-split-fields .pp-recipe-field-head input[type="checkbox"] { flex: none; width: 14px; height: 14px; margin: 0 2px; }
+.wg-root .pp-split-fields .pp-recipe-field-gear { opacity: .6; }
+.wg-root .pp-split-fields .pp-recipe-field:is(:hover, :focus-within) .pp-recipe-field-gear { opacity: 1; }
+
+/* editor fills the card; the grip pins a manual height */
+.wg-root .pp-split-fields .pp-recipe-editor { flex: 1 1 0; height: auto; min-height: 36px; min-width: 0; margin: 0; border: 0; border-radius: 0; resize: none; background: transparent; box-shadow: none; }
+.wg-root .pp-split-fields .pp-recipe-field[data-sized="true"] .pp-recipe-editor { flex: 0 0 auto; }
+.wg-root .pp-split-fields .pp-recipe-editor:focus-within { box-shadow: inset 2px 0 var(--pp-field-bar); }
+.wg-root .pp-split-fields .pp-recipe-editor .wg-editor-layer { padding: 8px 12px; caret-color: var(--pp-field-accent, var(--wg-accent)); }
+.wg-root .pp-split-grip { flex: none; height: 6px; cursor: ns-resize; background: linear-gradient(to bottom, transparent 2px, var(--wg-border) 2px, var(--wg-border) 3px, transparent 3px); opacity: .6; touch-action: none; }
+.wg-root .pp-split-grip:is(:hover, :focus-visible) { opacity: 1; background: linear-gradient(to bottom, transparent 1px, var(--pp-field-bar) 1px, var(--pp-field-bar) 3px, transparent 3px); outline: none; }
+.wg-root .pp-split-footer { flex: none; display: flex; align-items: center; gap: 4px; min-height: 24px; padding: 0 4px 2px 10px; border-top: 1px solid color-mix(in srgb, var(--wg-border) 60%, transparent); }
+.wg-root .pp-split-count { flex: 1; min-width: 0; font-size: 10px; color: var(--wg-text-faint); }
+.wg-root .pp-split-footer .wg-button.pp-split-quiet { min-height: 20px; padding: 0 6px; border: 0; background: transparent; box-shadow: none; font-size: 10px; font-weight: 500; color: var(--wg-text-faint); }
+.wg-root .pp-split-footer .wg-button.pp-split-quiet:hover { color: var(--wg-text); }
+.wg-root .pp-split-footer .wg-button.pp-split-quiet[aria-pressed="true"] { color: var(--wg-accent); }
+
+/* ── settings surface ─────────────────────────────────────────────────── */
+.wg-root .pp-split-settings { position: absolute; inset: 0 5px 5px; z-index: 20; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--wg-border); border-radius: var(--wg-corner-radius, 6px); background: var(--wg-panel-bg); }
+.wg-root .pp-split-settings[hidden] { display: none !important; }
+.wg-root .pp-split-settings-head { flex: none; display: flex; align-items: center; gap: 6px; padding: 3px 4px 0 6px; border-bottom: 1px solid var(--wg-border); }
+.wg-root .pp-split-tabbar { display: flex; flex: 1; min-width: 0; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.wg-root .pp-split-tab { flex: none; padding: 6px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--wg-text-dim); font: inherit; font-size: calc(11px * var(--wg-ui-font-scale, 1)); font-weight: 600; cursor: pointer; }
+.wg-root .pp-split-tab:hover { color: var(--wg-text); }
+.wg-root .pp-split-tab[aria-selected="true"] { color: var(--wg-text); border-bottom-color: var(--wg-accent); }
+.wg-root .pp-split-tab:focus-visible, .wg-root .pp-accent-swatch:focus-visible, .wg-root .pp-split-grip:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: -2px; }
+.wg-root .pp-split-close { flex: none; min-height: 24px; padding: 0 8px; }
+.wg-root .pp-split-settings-body { flex: 1 1 0; min-height: 0; overflow: auto; padding: 8px 10px 12px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent; }
+.wg-root .pp-split-pane[hidden] { display: none !important; }
+.wg-root .pp-split-group { margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--wg-border); }
+.wg-root .pp-split-group-title { display: block; margin-bottom: 6px; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--wg-text-faint); }
+.wg-root .pp-split-field-options { margin: 0 0 6px; border: 1px solid var(--wg-border); border-radius: 5px; background: var(--pp-workspace-row); }
+.wg-root .pp-split-field-options[open] { border-color: var(--wg-border-strong); }
+.wg-root .pp-split-options-head { display: flex; align-items: center; gap: 8px; padding: 6px 9px; cursor: pointer; font-size: 11px; font-weight: 650; color: var(--wg-text); }
+.wg-root .pp-split-options-head::marker { color: var(--wg-text-faint); }
+.wg-root .pp-split-options-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-root .pp-split-options-body { padding: 2px 9px 9px; }
+.wg-root .pp-split-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; min-width: 0; }
+.wg-root .pp-split-caption { flex: 0 0 76px; font-size: 11px; color: var(--wg-text-dim); }
+.wg-root .pp-split-row select, .wg-root .pp-split-title-input { flex: 1; min-width: 0; max-width: none; }
+.wg-root .pp-split-title-input { box-sizing: border-box; min-height: 28px; padding: 4px 7px; border: 1px solid var(--wg-border-strong); border-radius: var(--wg-corner-radius, 6px); background: var(--wg-surface); color: var(--wg-text); font: inherit; font-size: 11px; }
+.wg-root .pp-split-title-input:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 1px; }
+.wg-root .pp-split-field-actions { gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.wg-root .pp-split-global-actions { gap: 5px; flex-wrap: wrap; }
+
+/* ── accent picker ────────────────────────────────────────────────────── */
+.wg-root .pp-accent-picker { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
+.wg-root .pp-accent-swatch { flex: none; width: 18px; height: 18px; min-height: 0; padding: 0; border: 1px solid color-mix(in srgb, var(--swatch, var(--wg-text-faint)) 55%, var(--wg-border-strong)); border-radius: 50%; background: var(--swatch, transparent); cursor: pointer; }
+.wg-root .pp-accent-swatch[data-auto] { background: linear-gradient(135deg, transparent 46%, var(--wg-text-faint) 46%, var(--wg-text-faint) 54%, transparent 54%); }
+.wg-root .pp-accent-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--wg-panel-bg), 0 0 0 3.5px var(--wg-text); }
+.wg-root .pp-accent-custom { flex: none; width: 26px; height: 22px; padding: 1px; border: 1px solid var(--wg-border-strong); border-radius: 5px; background: var(--wg-surface); cursor: pointer; }
+.wg-root .pp-accent-custom[data-active="true"] { box-shadow: 0 0 0 1.5px var(--wg-text); }
+
+@container (max-width: 430px) {
+  .wg-root .pp-split-fields .pp-recipe-channel, .wg-root .pp-split-fields .pp-field-inheritance { display: none; }
+  .wg-root .pp-split-caption { flex-basis: 60px; }
+}
+@media (prefers-reduced-motion: reduce) { .wg-root .pp-split-fields > .pp-recipe-field { transition: none; } }
+
+/* Layout browsing lives in the existing workspace settings, behind one action. */
+.wg-root .pp-workspace-layout-picker { margin-bottom: 12px; border-bottom: 1px solid var(--wg-border); padding-bottom: 10px; }
+.wg-root .pp-workspace-layout-picker > summary { cursor: pointer; font-weight: 650; color: var(--wg-text); padding: 8px 0; }
+.wg-root .pp-workspace-layout-picker .pp-iteration-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.wg-root .pp-layout-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; width: 100%; }
+.wg-root .pp-layout-card { display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 10px; border: 1px solid var(--wg-border); border-radius: min(var(--wg-corner-radius, 8px), 8px); background: linear-gradient(140deg, color-mix(in srgb, var(--wg-accent) 6%, var(--wg-panel-bg)), var(--wg-surface)); color: var(--wg-text); text-align: left; cursor: pointer; }
+.wg-root .pp-layout-card:is(:hover, [aria-pressed="true"]) { border-color: var(--wg-accent); box-shadow: 0 0 10px color-mix(in srgb, var(--wg-accent) 10%, transparent); }
+.wg-root .pp-layout-card:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 2px; }
+.wg-root .pp-layout-card strong { font-size: 12px; }
+.wg-root .pp-layout-card small { color: var(--wg-text-dim); font-size: 10px; line-height: 1.45; }
+.wg-root .pp-layout-fields { display: flex; flex-wrap: wrap; gap: 3px; }
+.wg-root .pp-layout-fields > span { font-size: 9px; line-height: 1.5; padding: 2px 5px; border-radius: 4px; background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-surface)); color: var(--wg-text-dim); }
+.wg-root .pp-layout-starter-values { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--wg-text-dim); }
+@container (max-width: 600px) { .wg-root .pp-layout-gallery { grid-template-columns: 1fr; } }

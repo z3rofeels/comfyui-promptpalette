@@ -14,6 +14,7 @@ const WORKSPACE_DEFAULTS = Object.freeze({
 });
 
 const POWER_TOOL_DEFAULTS = Object.freeze({
+  selectionTools: true,
   promptDoctor: false,
   variationLab: false,
   resolvedDiff: false,

@@ -1,6 +1,7 @@
 import { app } from "../../../scripts/app.js";
-import { installPromptStateGuard, installNegativePromptState } from "../prompt_palette_compat.js";
+import { installPromptStateGuard, installNegativePromptState, installPositiveAntonymsState } from "../prompt_palette_compat.js";
 import { preparedBatch, installPreparedBatchState } from "./prompt_refinement.js";
+import { positiveAntonymsEnabled } from "./positive_antonyms.js";
 
 // One handoff for selection exploration and workspace scopes. It never queues.
 export function sendPreparedPrompts({ node, source, prompts, seed, session = {}, negative = "" }) {
@@ -14,6 +15,7 @@ export function sendPreparedPrompts({ node, source, prompts, seed, session = {},
   installPromptStateGuard(target, text).commit(source);
   installPreparedBatchState(target, batch).commit(serialized);
   installNegativePromptState(target).commit(negative);
+  installPositiveAntonymsState(target)?.commit(positiveAntonymsEnabled(node));
   target._wgRefreshFromHidden?.();
   target.pos = [(node.pos?.[0] || 0) + (node.size?.[0] || 400) + 60, node.pos?.[1] || 0];
   const seedWidget = target.widgets.find(w => w.name === "seed"); if (seedWidget) seedWidget.value = seed;

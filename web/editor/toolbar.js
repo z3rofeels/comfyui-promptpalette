@@ -36,6 +36,7 @@ export function setToolbarLabel(button, text) {
 // Stable action IDs, independent of translated captions, visibility and node type.
 const MODULES = [
   ["resolve", "Preview", "run"], ["variations", "Variations", "run"],
+  ["positiveAntonyms", "Positive Antonyms", "run"],
   ["undo", "Undo", "edit"], ["redo", "Redo", "edit"], ["copy", "Copy", "edit"],
   ["picker", "Library", "source"], ["importImage", "Import image", "source"],
   ["stash", "Stash", "source"], ["recipesShortcut", "Recipes", "source"], ["edit", "Edit library", "source"],
@@ -45,13 +46,20 @@ const MODULES = [
 ];
 export const DEFAULT_TOOLBAR_ORDER = Object.freeze(MODULES.map(([key]) => key));
 
+export const TOOLBAR_SCALE_PRESETS = Object.freeze([
+  [60, "Ultra compact"], [80, "Compact"], [100, "Balanced"], [130, "Comfortable"], [180, "Extra large"],
+]);
 export function normalizeToolbarPreferences(theme = {}) {
   const allowed = new Set(DEFAULT_TOOLBAR_ORDER);
   const supplied = Array.isArray(theme.toolbarOrder) ? theme.toolbarOrder : [];
   const order = [...new Set(supplied.filter(key => allowed.has(key)))];
+  const legacyScale = { small: 80, medium: 100, large: 130 }[theme.toolbarSize] || 100;
+  const scale = Number(theme.toolbarScale);
+  const toolbarScale = Math.max(60, Math.min(180, Number.isFinite(scale) && scale > 0 ? scale : legacyScale));
   return {
-    toolbarMode: ["always", "click", "auto"].includes(theme.toolbarMode) ? theme.toolbarMode : "always",
-    toolbarSize: ["small", "medium", "large"].includes(theme.toolbarSize) ? theme.toolbarSize : "medium",
+    toolbarMode: ["always", "click", "auto", "hidden"].includes(theme.toolbarMode) ? theme.toolbarMode : "always",
+    toolbarScale,
+    toolbarSize: toolbarScale < 90 ? "small" : toolbarScale < 120 ? "medium" : "large",
     toolbarOrder: [...order, ...DEFAULT_TOOLBAR_ORDER.filter(key => !order.includes(key))],
   };
 }
@@ -62,15 +70,17 @@ export function toolbarDesignerMarkup() {
     <div class="wg-panel-title"><div><h3>Toolbar layout</h3><p>Shared by Prompt Palette editors and Combinatorial.</p></div></div>
     <div class="wg-toolbar-options">
       <label><span>Presentation</span><select data-toolbar-mode aria-label="Toolbar presentation">
-        <option value="always">Always visible</option><option value="click">Click to open</option><option value="auto">Auto-hide</option>
-      </select></label>
-      <fieldset><legend>Button size</legend><div class="wg-toolbar-sizes" role="group" aria-label="Toolbar button size">
-        <button type="button" data-toolbar-size="small" aria-pressed="false">Small</button>
-        <button type="button" data-toolbar-size="medium" aria-pressed="false">Medium</button>
-        <button type="button" data-toolbar-size="large" aria-pressed="false">Large</button>
-      </div></fieldset>
+        <option value="always">Always visible</option><option value="auto">Auto hide</option><option value="click">Collapsed · click to expand</option><option value="hidden">Hidden · Settings only</option>
+      </select><small>Settings always stays within reach.</small></label>
+      <label class="wg-range-field"><span>Toolbar size <output data-toolbar-scale-value>100%</output></span>
+        <input type="range" data-toolbar-scale min="60" max="180" step="1" value="100" aria-label="Toolbar size">
+      </label>
+      <div class="wg-toolbar-sizes" role="group" aria-label="Toolbar size presets">
+        ${TOOLBAR_SCALE_PRESETS.map(([value, label]) => `<button type="button" data-toolbar-scale-preset="${value}" aria-pressed="false">${label}</button>`).join("")}
+      </div>
+      <div class="wg-toolbar-preview" aria-hidden="true"><span>↶</span><span>↷</span><span>✧ Preview</span><span>⊕ Library</span></div>
     </div>
-    <p class="wg-toolbar-help">Small uses icons. Medium keeps adaptive preview labels. Large adds action labels. Retractable modes keep Tools and Settings visible.</p>
+    <p class="wg-toolbar-help">Adjust from 60–180% or choose a preset. Labels adapt to available space; arrow buttons reach overflow actions. Auto hide opens on hover, keyboard focus or tap. Collapsed stays open until you close it.</p>
     <details class="wg-toolbar-arrange"><summary>Arrange buttons</summary>
       <p class="wg-toolbar-help">Drag a grip or use the arrows. Hidden actions keep their place. Settings stays at the edge.</p>
       <ol data-toolbar-order aria-label="Toolbar button order"></ol>
@@ -154,6 +164,7 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
   }
   function setExpanded(value) {
     if (preferences.toolbarMode === "always") value = true;
+    if (preferences.toolbarMode === "hidden") value = false;
     expanded = value;
     toolbar.hidden = !value; toolbar.inert = !value;
     toolbar.dataset.retractable = String(preferences.toolbarMode !== "always");
@@ -164,7 +175,7 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
   }
   function queueHide() {
     cancelHide();
-    if (preferences.toolbarMode === "always" || held || !expanded) return;
+    if (preferences.toolbarMode !== "auto" || held || !expanded) return;
     hideTimer = setTimeout(() => {
       hideTimer = null;
       if (disposed || held || toolbar.matches(":hover") || dock.matches(":hover") ||
@@ -216,15 +227,23 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
     const changedMode = next.toolbarMode !== preferences.toolbarMode;
     preferences = next;
     toolbar.dataset.size = next.toolbarSize;
+    const scale = String(next.toolbarScale / 100);
+    toolbar.style.setProperty("--pp-toolbar-scale", scale);
+    dock.style.setProperty("--pp-toolbar-scale", scale);
+    designer?.style.setProperty("--pp-toolbar-scale", scale);
+    dock.dataset.mode = next.toolbarMode;
+    reveal.hidden = next.toolbarMode === "hidden";
     dock.hidden = next.toolbarMode === "always";
     if (settings) (dock.hidden ? anchor : dockAnchor).appendChild(settings);
     // Append only when the actual order changed: no observer feedback loop.
     const current = [...track.children].map(slot => slot.firstElementChild?.dataset.toolbarKey);
     const wanted = next.toolbarOrder.filter(key => slots.has(key));
     if (current.join("|") !== wanted.join("|")) wanted.forEach(key => track.appendChild(slots.get(key).slot));
-    if (changedMode) { cancelHide(); setHeld(false); setExpanded(next.toolbarMode === "always" || blocked() || toolbar.contains(document.activeElement)); }
+    if (changedMode) { cancelHide(); setHeld(false); setExpanded(next.toolbarMode === "always" || blocked() || toolbar.contains(document.activeElement) || (next.toolbarMode === "auto" && (dock.matches(":hover") || dock.contains(document.activeElement)))); }
     else setExpanded(expanded);
-    designer?.querySelectorAll("[data-toolbar-size]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.toolbarSize === next.toolbarSize)));
+    designer?.querySelectorAll("[data-toolbar-scale-preset]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.toolbarScalePreset) === next.toolbarScale)));
+    const slider = designer?.querySelector("[data-toolbar-scale]"); if (slider) slider.value = String(next.toolbarScale);
+    const output = designer?.querySelector("[data-toolbar-scale-value]"); if (output) output.textContent = `${Math.round(next.toolbarScale)}%`;
     const mode = designer?.querySelector("[data-toolbar-mode]"); if (mode) mode.value = next.toolbarMode;
     renderOrder(); schedule();
   }
@@ -259,7 +278,7 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
       const css = getComputedStyle(button);
       return width + parseFloat(css.width) + (parseFloat(css.marginLeft) || 0) + (parseFloat(css.marginRight) || 0);
     }, Math.max(0, buttons.length - 1) * (parseFloat(style.columnGap) || 0));
-    toolbar.dataset.compact = String(preferences.toolbarSize === "small" || (preferences.toolbarSize === "medium" && measure() > available + 0.5));
+    toolbar.dataset.compact = String(preferences.toolbarSize === "small" || measure() > available + 0.5);
     const overflow = measure() > available + 1;
     toolbar.dataset.overflow = String(overflow);
     for (const button of [previous, next]) if (button.hidden === overflow) {
@@ -290,7 +309,9 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
   listen(document, "close", queueHide, true);
   listen(dock, "pointerenter", () => { cancelHide(); if (preferences.toolbarMode === "auto") setExpanded(true); });
   listen(toolbar, "pointerenter", cancelHide);
-  for (const surface of [dock, toolbar]) { listen(surface, "pointerleave", queueHide); listen(surface, "focusout", queueHide); listen(surface, "focusin", cancelHide); }
+  for (const surface of [dock, toolbar]) { listen(surface, "pointerleave", queueHide); listen(surface, "focusout", queueHide); listen(surface, "focusin", () => {
+    cancelHide(); if (preferences.toolbarMode === "auto") setExpanded(true);
+  }); }
   listen(reveal, "click", () => {
     cancelHide(); if (preferences.toolbarMode === "auto" && expanded && !held) setHeld(true);
     else if (expanded) { setHeld(false); setExpanded(false); }
@@ -343,9 +364,10 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
     const target = keys[keys.indexOf(key) + (direction === "earlier" ? -1 : 1)];
     if (target) move(key, target, direction === "later");
   }
+  listen(designer, "input", event => { if (event.target.matches("[data-toolbar-scale]")) write({ toolbarScale: Number(event.target.value) }); });
   listen(designer, "change", event => { if (event.target.matches("[data-toolbar-mode]")) write({ toolbarMode: event.target.value }); });
   listen(designer, "click", event => {
-    const size = event.target.closest("[data-toolbar-size]"); if (size) write({ toolbarSize: size.dataset.toolbarSize });
+    const size = event.target.closest("[data-toolbar-scale-preset]"); if (size) write({ toolbarScale: Number(size.dataset.toolbarScalePreset) });
     const direction = event.target.closest("[data-toolbar-move]"); if (direction) step(direction.closest("[data-toolbar-row]").dataset.toolbarRow, direction.dataset.toolbarMove);
     if (event.target.closest("[data-toolbar-reset]")) { write({ toolbarOrder: [...DEFAULT_TOOLBAR_ORDER] }); if (message) message.textContent = "Default order restored."; }
   });

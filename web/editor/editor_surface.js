@@ -381,6 +381,10 @@ export function upgradeEditorSurface(original) {
   // explicitly "true" and enforce plain text ourselves in beforeinput/paste/drop so
   // Backspace, printable keys, and sidebar shortcuts never escape into the canvas.
   editor.setAttribute("contenteditable", "true");
+  // Some ComfyUI frontends skip graph-level undo only when the focused element reports
+  // `type === "textarea"`. This surface is a contenteditable div (for syntax highlighting),
+  // so expose the same marker without changing how it is edited.
+  Object.defineProperty(editor, "type", { configurable: true, enumerable: true, writable: true, value: "textarea" });
   editor.setAttribute("spellcheck", original.spellcheck ? "true" : "false");
   editor.setAttribute("role", "textbox");
   editor.setAttribute("aria-multiline", "true");

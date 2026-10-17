@@ -1,3 +1,4 @@
+import { installSettingsDiscovery } from "./settings_discovery.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { scheduleDomWidgetRemeasure, scheduleNodeTimer } from "../prompt_palette_compat.js";
 import { registerPromptPaletteSettingsDrawer, navigatePromptPaletteTabs } from "../prompt_palette_shared.js";
@@ -49,6 +50,8 @@ export function createUtilityController(ctx) {
   }
   settingsTabs.forEach((tab) => tab.addEventListener("click", () => activateSettingsTab(tab.dataset.settingsTab)));
   settingsTabs.forEach(tab => tab.addEventListener("keydown", event => navigatePromptPaletteTabs(event, settingsTabs, next => activateSettingsTab(next.dataset.settingsTab))));
+
+  const cleanupSettingsDiscovery = installSettingsDiscovery(settingsPopup, activateSettingsTab);
 
   const popupIdBase = `prompt-palette-${String(node.id ?? "node")}`;
   settingsPopup.id = `${popupIdBase}-settings`;
@@ -348,6 +351,6 @@ export function createUtilityController(ctx) {
     closeStash,
     renderHistoryList,
     renderStashList,
-    cleanup() { settingsDrawer.unregister(); },
+    cleanup() { cleanupSettingsDiscovery(); settingsDrawer.unregister(); },
   };
 }

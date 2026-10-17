@@ -1,3 +1,8 @@
+// Text editors record one undo step per input event (coalesceMs: 0). A single paste, cut, drop
+// or programmatic replacement fires one input event, so it stays one step. The limit is larger
+// than the old 100 because keystroke-level history would otherwise cover very little typing.
+export const TEXT_UNDO_LIMIT = 300;
+
 export class EditorUndoManager {
   constructor({ initialValue = "", limit = 100, coalesceMs = 600, schedule = null, cancel = null, onState = null } = {}) {
     this.limit = Math.max(1, Number(limit) || 100);
@@ -10,6 +15,7 @@ export class EditorUndoManager {
     this.lastValue = String(initialValue ?? "");
     this.burstStart = null;
     this.timer = null;
+    this.holds = 0;
   }
 
   _changed() { this.onState?.(this.snapshot()); }
@@ -25,16 +31,36 @@ export class EditorUndoManager {
     this.redoStack.length = 0;
     this.lastValue = String(value ?? "");
     this.burstStart = null;
+    this.holds = 0;
     this._changed();
+  }
+
+  // Keeps several notes (an IME composition) together as one step until release().
+  hold() { this.holds += 1; }
+  release() {
+    if (this.holds > 0) this.holds -= 1;
+    return this.holds === 0 ? this.flush() : false;
   }
 
   note(value) {
     const current = String(value ?? "");
     if (current === this.lastValue) return false;
+    const stepwise = this.coalesceMs === 0 && this.holds === 0;
+    if (stepwise) {
+      this._cancelTimer();
+      // Fold in any pending burst first so it keeps its own start value.
+      if (this.burstStart !== null) { this._pushUndo(this.burstStart); this.burstStart = null; }
+      this._pushUndo(this.lastValue);
+      this.redoStack.length = 0;
+      this.lastValue = current;
+      this._changed();
+      return true;
+    }
     if (this.burstStart === null) this.burstStart = this.lastValue;
     this.redoStack.length = 0;
     this.lastValue = current;
     this._cancelTimer();
+    if (this.holds > 0) { this._changed(); return true; }
     this.timer = this.schedule(() => { this.timer = null; this.flush(); }, this.coalesceMs);
     this._changed();
     return true;
@@ -72,7 +98,7 @@ export class EditorUndoManager {
   canUndo() { return this.undoStack.length > 0 || this.burstStart !== null; }
   canRedo() { return this.redoStack.length > 0; }
   snapshot() { return { undo: this.undoStack.length, redo: this.redoStack.length, pendingBurst: this.burstStart !== null }; }
-  cleanup() { this._cancelTimer(); this.burstStart = null; }
+  cleanup() { this._cancelTimer(); this.burstStart = null; this.holds = 0; }
 }
 
 export class ReversibleLibraryHistory {

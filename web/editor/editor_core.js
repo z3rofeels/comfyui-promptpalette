@@ -1,5 +1,7 @@
+import { sidebarEditingHandlers } from "./sidebar_targets.js";
 import { createRecipeWorkspaceController } from "./recipe_workspace_controller.js";
 import { setToolbarLabel, installToolbarLayout } from "./toolbar.js";
+import { positiveAntonymsEnabled } from "./positive_antonyms.js";
 import { attachImageImport } from "./image_import.js";
 import { editCompiledPrompt } from "./recipe_text_edit.js";
 import { WORKSPACE_KEY } from "./recipe_workspace_model.js";
@@ -33,12 +35,13 @@ import { createPerformanceDiagnosticsController } from "./performance_diagnostic
 import { notify } from "./notifications.js";
 import { createReactiveRuntime } from "../runtime/reactive_runtime.js";
 import { WildcardWorkerClient } from "../engine/wildcard_worker_client.js";
-import { EditorUndoManager } from "./undo_manager.js";
+import { EditorUndoManager, TEXT_UNDO_LIMIT } from "./undo_manager.js";
 import { PromptLibraryModel } from "../library/library_model.js";
 import { createLibraryLookup } from "../engine/library_lookup.js";
 import { upgradeEditorSurface } from "./editor_surface.js";
 import { createSyntaxHighlighter } from "./syntax_highlighter.js";
 import { createTagPainter, onTagColorsChanged } from "./booru_tag_colors.js";
+import { historyShortcut } from "./history_keys.js";
 import { createStatusBar, wildcardStatusText } from "./status_bar.js";
 
 function buildWildcardWidget(node, hiddenWidget) {
@@ -206,6 +209,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   [seedWidget, controlWidget, modeWidget, node.widgets?.find(w => w.__ppRecipeNegative)].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
 
   function reassertHiddenWidgets() {
+    node._ppSyncPositiveAntonyms?.();
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
     [seedWidget, controlWidget, modeWidget, node.widgets?.find(w => w.__ppRecipeNegative)].forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget); });
   }
@@ -382,14 +386,15 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   const undoManager = new EditorUndoManager({
     initialValue: historyValue(),
-    limit: 100,
-    coalesceMs: 600,
+    limit: TEXT_UNDO_LIMIT,
+    coalesceMs: 0,
     schedule: (fn, ms) => scheduleNodeTimer(node, fn, ms),
     cancel: (handle) => cancelNodeTimer(node, handle),
     onState: () => updateUndoRedoButtons(),
   });
 
   function refreshFromHidden() {
+    syncPowerToolSettingsUI();
     recipeWorkspace?.refresh();
     const restored = recipeWorkspace?.snapshot() ? textarea.value : promptState.restore();
     if (restored !== textarea.value) {
@@ -691,6 +696,8 @@ function buildWildcardWidget(node, hiddenWidget) {
     if (typeof metadata.source_text !== "string" || metadata.source_text !== textarea.value) return null;
     const mode = modeWidget ? modeWidget.value : "entire text as one";
     if (metadata.processing_mode && metadata.processing_mode !== mode) return null;
+    if (!!metadata.positive_antonyms !== positiveAntonymsEnabled(node)) return null;
+    if ((metadata.workspace_runtime || "") !== (node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "")) return null;
     return typeof metadata.positive_prompt === "string" ? metadata : null;
   }
 
@@ -731,13 +738,17 @@ function buildWildcardWidget(node, hiddenWidget) {
     const source = textarea.value;
     const seed = seedWidget ? seedWidget.value : 0;
     const mode = modeWidget ? modeWidget.value : "entire text as one";
+    const positiveAntonyms = positiveAntonymsEnabled(node);
+    const workspaceRuntime = node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "";
     const requestController = performanceRuntime.beginRequest("preview");
     const stillCurrent = () => requestId === resolvedRequestId
       && nodeIsActive(node)
       && !requestController.signal.aborted
       && textarea.value === source
       && (seedWidget ? seedWidget.value : 0) === seed
-      && (modeWidget ? modeWidget.value : "entire text as one") === mode;
+      && (modeWidget ? modeWidget.value : "entire text as one") === mode
+      && positiveAntonymsEnabled(node) === positiveAntonyms
+      && (node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "") === workspaceRuntime;
 
     const saved = matchingExecutionMetadata();
     if (saved) {
@@ -751,7 +762,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
     setPreviewStatus("Resolving…", "loading");
     try {
-      const result = await profiler.measureAsync("preview.resolve", () => API.resolve(source, seed, mode, { signal: requestController.signal }));
+      const result = await profiler.measureAsync("preview.resolve", () => API.resolve(source, seed, mode, { signal: requestController.signal, positiveAntonyms, workspaceRuntime }));
       performanceRuntime.endRequest("preview", requestController);
       if (!stillCurrent()) return;
       renderResolvedText(result.resolved);
@@ -798,14 +809,18 @@ function buildWildcardWidget(node, hiddenWidget) {
   const unsubscribeTagColors = onTagColorsChanged(repaintEditorHighlights);
   textarea.addEventListener("scroll", () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });
 
-  textarea.addEventListener("keydown", (e) => {
-    if (e.isComposing || e.keyCode === 229) return;
-    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-    const key = e.key.toLowerCase();
-    if (key === "z" && e.shiftKey) { e.preventDefault(); performRedo(); }
-    else if (key === "z") { e.preventDefault(); performUndo(); }
-    else if (key === "y") { e.preventDefault(); performRedo(); }
-  });
+  const historyKey = (e) => {
+    const action = historyShortcut(e);
+    if (!action) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (action === "redo") performRedo(); else performUndo();
+  };
+  textarea.addEventListener("keydown", historyKey, true);
+  // An IME composition fires many input events but is one edit.
+  const holdUndoComposition = () => undoManager.hold();
+  const releaseUndoComposition = () => { undoManager.release(); noteValueChange(); undoManager.flush(); };
+  textarea.addEventListener("compositionstart", holdUndoComposition);
+  textarea.addEventListener("compositionend", releaseUndoComposition);
 
   const libraryState = {};
   Object.defineProperties(libraryState, {
@@ -887,7 +902,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   });
 
   recipeWorkspace = createRecipeWorkspaceController({
-    node, root, textarea, render: () => { render(); scheduleHistorySnapshot(); }, flushHistory: flushUndoBurst, onUndo: performUndo, onRedo: performRedo,
+    node, root, textarea, render: () => { render(); scheduleHistorySnapshot(); }, flushHistory: flushUndoBurst, holdHistory: () => undoManager.hold(), releaseHistory: () => { undoManager.release(); undoManager.flush(); }, onUndo: performUndo, onRedo: performRedo,
     onShowEditor: () => { editorReal.classList.remove("hidden"); resolvedView.classList.remove("on"); btnResolve.classList.remove("on"); setToolbarLabel(btnResolve, "Preview result"); },
     host: variationPopup.querySelector(".wg-settings-body"), openHost: () => powerToolsController.openSelectionLab(),
     openVariations: scope => powerToolsController.openVariations(scope),
@@ -922,9 +937,9 @@ function buildWildcardWidget(node, hiddenWidget) {
     const layout = next === "core" ? "minimal" : next === "power" ? "studio" : "balanced";
     settingsPopup.querySelector(`[data-layout-preset="${layout}"]`)?.click();
     if (next === "core" || next === "creator") {
-      powerTools = replacePowerToolPreferences({});
+      powerTools = replacePowerToolPreferences({ selectionTools: powerTools.selectionTools !== false });
     } else {
-      powerTools = replacePowerToolPreferences({ promptDoctor: true, variationLab: true, resolvedDiff: true, libraryManager: true, recipeBuilder2: true, adjustableRecipes: true, nativeCommands: powerTools.nativeCommands });
+      powerTools = replacePowerToolPreferences({ selectionTools: powerTools.selectionTools !== false, promptDoctor: true, variationLab: true, resolvedDiff: true, libraryManager: true, recipeBuilder2: true, adjustableRecipes: true, nativeCommands: powerTools.nativeCommands });
     }
     powerToolsController?.applyPowerToolSettings({ refreshPreview: true });
     syncWorkspaceSettingsUI();
@@ -1167,6 +1182,11 @@ function buildWildcardWidget(node, hiddenWidget) {
   undoManager.reset(historyValue());
 
   const commandTarget = registerPromptPaletteCommandTarget(node, {
+    ...sidebarEditingHandlers({
+      getEditor: () => recipeWorkspace?.editingSurface() || textarea,
+      useLibraryEntry: path => libraryController.insertWildcard(path),
+      openLibraryItem: path => { openPickerDrawer("personal"); searchInput.value = path; renderPickerList(path); },
+    }),
     openLibrary: () => openPickerDrawer("personal"),
     focusEditor: () => {
       closeAllPowerPopups(); closeSettings(); closeStash(); closePickerDrawer(); closeEditDrawer();
@@ -1234,6 +1254,9 @@ function buildWildcardWidget(node, hiddenWidget) {
       commandTarget.cleanup();
       cleanupKeyboardBoundary();
       undoManager.cleanup();
+      textarea.removeEventListener("keydown", historyKey, true);
+      textarea.removeEventListener("compositionstart", holdUndoComposition);
+      textarea.removeEventListener("compositionend", releaseUndoComposition);
       syntaxHighlighter.clear();
       textarea.removeEventListener("focus", repaintEditorHighlights);
       textarea.removeEventListener("blur", repaintEditorHighlights);

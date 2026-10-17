@@ -1,73 +1,180 @@
-==========================================
+# Prompt Palette: files that stay local and must not be newly committed.
+# Runtime Python/JS/CSS, catalogs, README, licenses and image credits stay tracked.
+# Keep .github/, .gitignore, .gitattributes and .comfyignore in the repository.
+# Registry-only exclusions belong in .comfyignore, not here.
 
-Prompt Palette / ComfyUI Custom Node
+# Python caches and generated databases (built from the bundled CSV at runtime)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.sqlite.tmp
+*.sqlite3.tmp
 
-Cross-platform Git Ignore
+# Root-level Python/build artifacts; do not hide runtime web/lib or web/dist.
+/build/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/wheels/
+*.egg-info/
+*.egg
 
-Windows + macOS + Linux
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
 
-==========================================
-
-Python
-
-pycache/ .py[cod] $py.class .so .pyd
-
-.Python build/ dist/ downloads/ eggs/ .eggs/ lib/ lib64/ parts/ sdist/
-wheels/ .egg-info/ .egg
-
-Virtual environments
-
-.venv/ venv/ env/ ENV/ env.bak/ venv.bak/ .python-version
-
-Testing / coverage
-
-.pytest_cache/ .coverage .coverage.* htmlcov/ .tox/ .nox/ test-results/
+# Tests, coverage and local QA
+/tests/
+/test/
+/qa/
+/audit-results/
+/test-results/
+__tests__/
+__snapshots__/
+test_*.py
+*_test.py
+*.test.js
+*.spec.js
+*.test.ts
+*.spec.ts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
 coverage/
+playwright-report/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.cache/
 
-Type checking / linting
+# Node/frontend tooling; runtime web/ files remain tracked
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+pnpm-debug.log
+.vite/
+.next/
 
-.mypy_cache/ .pyright/ .ruff_cache/ .cache/
+# Local ComfyUI installs, model files, outputs and experiments
+/ComfyUI/
+/comfyui/
+/output/
+/outputs/
+/models/
+/checkpoints/
+/loras/
+/vae/
+/workflows_local/
+/workflow_tests/
+/experimental_workflows/
+extra_model_paths.yaml
 
-Node/frontend tooling
+# Prompt Palette user data, imports and generated previews
+/wildcards/
+/wildcards_config.json
+/wildcards_config.example.json
+/user/
+/user_data/
+/.prompt_palette/
+/autocomplete.txt
+/prompt_library_local/
+/dev_library/
+/local_palettes/
+/exports/
+/exports_tmp/
+/thumbnails_generated/
+/generated_thumbnails/
 
-node_modules/ npm-debug.log yarn-debug.log yarn-error.log pnpm-debug.log
-.vite/ .next/
+# Private environment, editor and agent files
+.env
+.env.*
+.vscode/
+.idea/
+.codex/
+.claude/
+.agents/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+AGENTS.md
+CLAUDE.md
+AUDIT.md
+RELEASE_NOTES.md
+STYLE_LIBRARY_IMPLEMENTATION.md
+ERENODES_COMPARISON.md
+*HANDOFF*.md
+*Handoff*.md
+*handoff*.md
 
-ComfyUI local files
+# Logs, temporary files and release packages
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+~$*
+/release/
+/releases/
+/packages/
+/artifacts/
+/deliverables/
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.*
+*.tgz
+*.gz
 
-ComfyUI/ comfyui/ output/ outputs/ models/ checkpoints/ loras/ vae/
-
-Local workflows and experiments
-
-workflows_local/ workflow_tests/ experimental_workflows/
-
-ComfyUI local config/logs
-
-extra_model_paths.yaml extra_model_paths.yaml .log logs/
-
-Prompt Palette local development data
-
-prompt_library_local/ dev_library/ local_palettes/ exports/ exports_tmp/
-thumbnails_generated/ generated_thumbnails/
-
-macOS
-
-.DS_Store .AppleDouble .LSOverride ._* .Spotlight-V100 .Trashes
-.VolumeIcon.icns
-
-Windows
-
-Thumbs.db ehthumbs.db Desktop.ini $RECYCLE.BIN/ *.lnk
-
-Editors
-
-.vscode/ .idea/ .suo .user .userosscache .sln.docstates .swp .swo
-
-Temporary files
-
-.tmp .temp .bak .old .orig ~$
-
-Release build artifacts
-
-release/ releases/ packages/ artifacts/ .zip .tar *.gz
+# macOS / Windows metadata
 .DS_Store
+__MACOSX/
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.VolumeIcon.icns
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Bundled public assets stay trackable; generated databases remain ignored.
+!/assets/booru/*.csv
+!/assets/booru/metadata.json
+!/assets/styles/*.json
+!/assets/styles/*LICENSE*.txt
+!/assets/styles/image-licenses/*.txt
+!/assets/prompt-palette-icon.png
+!/assets/prompt-palette-banner.png
+!/web/assets/styles/*.webp
+!/web/assets/styles/manifest.json
+!/STYLE_IMAGE_CREDITS.md

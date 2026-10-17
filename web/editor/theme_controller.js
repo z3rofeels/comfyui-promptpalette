@@ -2,7 +2,7 @@ import { downloadJsonFile, pickJsonFile, normalizeThemeFilename, svgIcon, applyP
 import { replacePowerToolPreferences } from "../prompt_palette_state.js";
 import { searchPromptPaletteHelp } from "../prompt_quickness.js";
 import { scheduleNodeTimer, cancelNodeTimer } from "../prompt_palette_compat.js";
-import { TOOLBAR_BUTTONS, applyToolbarVisibility, setToolbarLabel } from "./toolbar.js";
+import { TOOLBAR_BUTTONS, applyToolbarVisibility, setToolbarLabel, normalizeToolbarPreferences } from "./toolbar.js";
 import {
   loadTheme, defaultTheme, saveTheme, loadCategoryPalettes, saveCategoryPalettes, categoryPaletteSnapshot,
   UI_THEME_KEYS, BUILTIN_UI_THEMES, THEME_PACKS, normalizeUiThemeName, loadUiThemes, saveUiThemes,
@@ -80,6 +80,8 @@ export function createThemeController(ctx) {
     promptTextColorAuto.checked = theme.promptTextColorMode !== "custom";
     promptTextColorInput.disabled = promptTextColorAuto.checked;
     promptTextColorInput.value = resolvedPromptTextColor();
+    const hex = el("promptTextColorHex"); if (hex) { hex.value = promptTextColorInput.value; hex.disabled = promptTextColorAuto.checked; }
+    const mode = el("promptTextColorStatus"); if (mode) mode.textContent = promptTextColorAuto.checked ? "Theme default" : "Custom override";
   }
   refreshFontControlsUI();
 
@@ -100,6 +102,15 @@ export function createThemeController(ctx) {
   promptTextColorInput.addEventListener("input", () => {
     theme.promptTextColor = promptTextColorInput.value;
     theme.promptTextColorMode = "custom";
+    saveTheme(theme); applyFontSettings(); refreshFontControlsUI(); updateThemeJson();
+  });
+  el("promptTextColorHex")?.addEventListener("change", event => {
+    const value = sanitizeHexColor(event.target.value, resolvedPromptTextColor());
+    theme.promptTextColor = value; theme.promptTextColorMode = "custom";
+    saveTheme(theme); applyFontSettings(); refreshFontControlsUI(); updateThemeJson();
+  });
+  settingsRoot.querySelector('[data-act="promptTextColorReset"]')?.addEventListener("click", () => {
+    theme.promptTextColorMode = "theme";
     saveTheme(theme); applyFontSettings(); refreshFontControlsUI(); updateThemeJson();
   });
   promptTextColorAuto.addEventListener("change", () => {
@@ -160,6 +171,7 @@ export function createThemeController(ctx) {
   const booruSourceDatabase = el("booruSourceDatabase");
   const booruSourceCustomWords = el("booruSourceCustomWords");
   const toggleBooruPromptColorsCb = el("toggleBooruPromptColors");
+  const toggleAnimaArtistFormatting = el("toggleAnimaArtistFormatting");
   const booruColorRoot = el("booruColors");
   let categoryFilter = "";
   let categoryPalettes = loadCategoryPalettes();
@@ -484,8 +496,8 @@ export function createThemeController(ctx) {
       },
       layout: Object.fromEntries(Object.entries(theme).filter(([key]) => key.startsWith("show") || [
         "syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "booruAutocompleteEnabled",
-        "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors",
-        "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme",
+        "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors", "animaArtistFormatting",
+        "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme", "toolbarMode", "toolbarScale", "toolbarSize", "toolbarOrder",
       ].includes(key))),
     };
   }
@@ -562,6 +574,7 @@ export function createThemeController(ctx) {
     if (pack.layout && typeof pack.layout === "object") {
       const defaults = defaultTheme();
       for (const [key, value] of Object.entries(pack.layout)) {
+        if (key === "toolbarOrder" && Array.isArray(value)) { theme.toolbarOrder = value.filter(item => typeof item === "string"); continue; }
         if (!(key in defaults) || !["boolean", "string", "number"].includes(typeof value)) continue;
         if (key === "booruAutocompleteMode") {
           theme[key] = ["auto", "onDemand", "off"].includes(value) ? value : "off";
@@ -576,6 +589,9 @@ export function createThemeController(ctx) {
         }
       }
     }
+    if (pack.layout && Object.hasOwn(pack.layout, "toolbarSize") && !Object.hasOwn(pack.layout, "toolbarScale")) {
+      Object.assign(theme, normalizeToolbarPreferences({ ...theme, toolbarScale: undefined }));
+    } else Object.assign(theme, normalizeToolbarPreferences(theme));
     saveTheme(theme);
     hueRange.value = theme.hueRotate; hueOut.textContent = `${theme.hueRotate}°`;
     satRange.value = theme.saturation; satOut.textContent = `${theme.saturation}%`;
@@ -820,10 +836,12 @@ export function createThemeController(ctx) {
       hex.maxLength = 7;
       hex.value = sanitizeHexColor(t[key], BUILTIN_UI_THEMES.Cinder[key]);
       hex.disabled = locked;
+      hex.setAttribute("aria-label", `${label} hex color`);
       const input = document.createElement("input");
       input.type = "color";
       input.value = hex.value;
       input.disabled = locked;
+      input.setAttribute("aria-label", `${label} color`);
       const commit = (value) => {
         if (locked) return;
         const safe = sanitizeHexColor(value, customUiThemes[activeUiThemeName][key]);
@@ -970,6 +988,7 @@ export function createThemeController(ctx) {
     booruSourceDatabase.checked = theme.booruSourceDatabase !== false;
     booruSourceCustomWords.checked = theme.booruSourceCustomWords !== false;
     toggleBooruPromptColorsCb.checked = theme.booruPromptColors !== false;
+    toggleAnimaArtistFormatting.checked = theme.animaArtistFormatting === true;
     toggleZenModeCb.checked = !!theme.zenMode;
     TOOLBAR_BTN_TOGGLES.forEach(([, key, cb]) => {
       cb.checked = theme[key] !== false;
@@ -1107,6 +1126,11 @@ export function createThemeController(ctx) {
     theme.booruPromptColors = toggleBooruPromptColorsCb.checked;
     saveTheme(theme);
     render();
+    updateThemeJson();
+  });
+  toggleAnimaArtistFormatting.addEventListener("change", () => {
+    theme.animaArtistFormatting = toggleAnimaArtistFormatting.checked;
+    saveTheme(theme);
     updateThemeJson();
   });
   [booruSourceDatabase, booruSourceCustomWords].forEach((input) => input.addEventListener("change", () => {

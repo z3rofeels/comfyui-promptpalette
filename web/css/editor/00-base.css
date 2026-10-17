@@ -68,6 +68,12 @@
 .wg-icon-btn.active { background: color-mix(in srgb, var(--wg-accent, #d49a52) 22%, var(--wg-bg, #17191c)); color: color-mix(in srgb, var(--wg-accent, #d49a52), white 25%); border-color: var(--wg-accent, #d49a52); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 22%, transparent); }
 .wg-icon-btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
 .wg-icon-btn[data-act="refresh"].active { animation: wg-spin 650ms linear infinite; }
+.wg-root .wg-icon-btn[data-act="positiveAntonyms"].active {
+  color: var(--wg-text);
+  background: color-mix(in srgb, var(--wg-accent) 20%, var(--wg-surface));
+  border-color: var(--wg-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent) 25%, transparent);
+}
 @keyframes wg-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .wg-icon-btn[data-act="copy"].active { color: var(--wg-success, #78b58b); border-color: var(--wg-success, #78b58b); background: color-mix(in srgb, var(--wg-success, #78b58b) 18%, var(--wg-bg, #17191c)); }
 

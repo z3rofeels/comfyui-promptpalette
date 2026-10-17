@@ -58,8 +58,10 @@ export class ClassicRendererAdapter extends RendererAdapter {
     const hiddenOutputs = outputGroups.hidden;
     const signature = JSON.stringify([
       width, startY, showLabels,
-      visibleInputs.map((slot) => slot?.name), visibleOutputs.map((slot) => slot?.name),
-      hiddenInputs.map((slot) => slot?.name), hiddenOutputs.map((slot) => slot?.name),
+      visibleInputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
+      visibleOutputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
+      hiddenInputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
+      hiddenOutputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
     ]);
     if (signature === this.signature) { this.onLayout?.(false); return false; }
     this.signature = signature;

@@ -1,0 +1,5006 @@
+{
+  "version": 2,
+  "name": "Visual styles · curated starter",
+  "description": "Real public-domain / CC0 visual references. Reference images illustrate vocabulary and do not predict checkpoint output. Unillustrated entries retain their exact prompt behavior.",
+  "source": "Locally bundled public-domain and CC0 reference images; see STYLE_IMAGE_CREDITS.md",
+  "entries": [
+    {
+      "id": "transparent-washes",
+      "kind": "curated_style",
+      "name": "Transparent washes",
+      "tag": "watercolor, transparent washes, soft edges",
+      "category": "general",
+      "description": "Layered translucent washes let the paper remain luminous; use for open skies and quiet landscapes.",
+      "tags": [
+        "watercolor",
+        "soft edges",
+        "illustrative",
+        "muted",
+        "quiet",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "soft edges"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, transparent washes, soft edges",
+        "natural": "transparent washes style, Layered translucent washes let the paper remain luminous."
+      },
+      "previewKind": "reference",
+      "asset": "met-17053.webp",
+      "provenance": {
+        "title": "Boys in a Dory",
+        "author": "Winslow Homer",
+        "date": "1873",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/17053",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "wet-on-wet",
+      "kind": "curated_style",
+      "name": "Wet on wet",
+      "tag": "watercolor, wet on wet, color bleeding",
+      "category": "general",
+      "description": "Pigment blooms into damp paper with diffused contours; useful for clouds and atmospheric scenery.",
+      "tags": [
+        "watercolor",
+        "bleeding edges",
+        "illustrative",
+        "muted",
+        "atmospheric",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "bleeding edges"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "atmospheric"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, wet on wet, color bleeding",
+        "natural": "wet on wet style, Pigment blooms into damp paper with diffused contours."
+      },
+      "previewKind": "reference",
+      "asset": "met-337499.webp",
+      "provenance": {
+        "title": "The Lake of Zug",
+        "author": "Joseph Mallord William Turner",
+        "date": "1843",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337499",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real atmospheric watercolor reference. The source does not document which passages were painted wet on wet."
+      }
+    },
+    {
+      "id": "dry-brush",
+      "kind": "curated_style",
+      "name": "Dry brush",
+      "tag": "watercolor, dry brush, paper texture",
+      "category": "general",
+      "description": "Broken brush marks reveal paper grain and give stone, wood and foliage a tactile edge.",
+      "tags": [
+        "watercolor",
+        "dry brush",
+        "illustrative",
+        "limited palette",
+        "earthy",
+        "texture"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "dry brush"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "earthy"
+        ],
+        "subject": [
+          "texture"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, dry brush, paper texture",
+        "natural": "dry brush style, Broken brush marks reveal paper grain and give stone, wood and foliage a tactile edge."
+      },
+      "previewKind": "reference",
+      "asset": "commons-103598727.webp",
+      "provenance": {
+        "title": "Rushing Water",
+        "author": "John Singer Sargent",
+        "date": "1901",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_Rushing_Water_-_Inl%C3%A5n_JSS_522-05_-_Nationalmuseum.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_Rushing_Water_-_Inl%C3%A5n_JSS_522-05_-_Nationalmuseum.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real watercolor showing varied mark-making. The catalog does not establish the exact dry-brush procedure."
+      }
+    },
+    {
+      "id": "watercolor-glazing",
+      "kind": "curated_style",
+      "name": "Watercolor glazing",
+      "tag": "watercolor, layered glazing, luminous color",
+      "category": "general",
+      "description": "Successive transparent layers deepen color without opaque shadows; try fruit or glassware.",
+      "tags": [
+        "watercolor",
+        "glazing",
+        "illustrative",
+        "vibrant",
+        "luminous",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "glazing"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "luminous"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, layered glazing, luminous color",
+        "natural": "watercolor glazing style, Successive transparent layers deepen color without opaque shadows."
+      },
+      "previewKind": "reference",
+      "asset": "met-334369.webp",
+      "provenance": {
+        "title": "Entrance to a Garden",
+        "author": "Paul Cézanne",
+        "date": "1878–80",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/334369",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Watercolor color-layering reference; not a claim that a specific glazing procedure is documented."
+      }
+    },
+    {
+      "id": "ink-and-wash",
+      "kind": "curated_style",
+      "name": "Ink and wash",
+      "tag": "watercolor, ink outlines, loose washes",
+      "category": "general",
+      "description": "Fine pen contours hold the structure while loose color describes light; useful for travel architecture.",
+      "tags": [
+        "watercolor",
+        "linework",
+        "travel sketch",
+        "limited palette",
+        "observational",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "travel sketch"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, ink outlines, loose washes",
+        "natural": "ink and wash style, Fine pen contours hold the structure while loose color describes light."
+      },
+      "previewKind": "reference",
+      "asset": "met-12027.webp",
+      "provenance": {
+        "title": "Alhambra, Granada",
+        "author": "John Singer Sargent",
+        "date": "1912",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/12027",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "granulating-pigments",
+      "kind": "curated_style",
+      "name": "Granulating pigments",
+      "tag": "watercolor, granulation, textured washes",
+      "category": "general",
+      "description": "Speckled sediment and uneven pooling suggest mineral pigments; try hills or weathered masonry.",
+      "tags": [
+        "watercolor",
+        "granulation",
+        "illustrative",
+        "muted",
+        "earthy",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "granulation"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "earthy"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, granulation, textured washes",
+        "natural": "granulating pigments style, Speckled sediment and uneven pooling suggest mineral pigments."
+      },
+      "previewKind": "reference",
+      "asset": "met-12025.webp",
+      "provenance": {
+        "title": "Abriès",
+        "author": "John Singer Sargent",
+        "date": "ca. 1912",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/12025",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real watercolor landscape reference. Pigment granulation and pigment brands are not established by the source."
+      }
+    },
+    {
+      "id": "negative-painting",
+      "kind": "curated_style",
+      "name": "Negative painting",
+      "tag": "watercolor, negative painting, layered silhouettes",
+      "category": "general",
+      "description": "Paint around light shapes to reveal foliage or branching forms through layered surrounding color.",
+      "tags": [
+        "watercolor",
+        "layered silhouettes",
+        "illustrative",
+        "limited palette",
+        "quiet",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "layered silhouettes"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, negative painting, layered silhouettes",
+        "natural": "negative painting style, Paint around light shapes to reveal foliage or branching forms through layered surrounding color."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "botanical-watercolor",
+      "kind": "curated_style",
+      "name": "Botanical watercolor",
+      "tag": "watercolor, botanical illustration, delicate washes",
+      "category": "general",
+      "description": "Controlled washes and careful edges describe leaves and petals on a spacious paper ground.",
+      "tags": [
+        "watercolor",
+        "precise edges",
+        "scientific",
+        "muted",
+        "observational",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "watercolor"
+        ],
+        "medium": [
+          "watercolor"
+        ],
+        "treatment": [
+          "precise edges"
+        ],
+        "design": [
+          "scientific"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "watercolor, botanical illustration, delicate washes",
+        "natural": "botanical watercolor style, Controlled washes and careful edges describe leaves and petals on a spacious paper ground."
+      },
+      "previewKind": "reference",
+      "asset": "commons-45156473.webp",
+      "provenance": {
+        "title": "Botanical plate 99 · Choix des plus belles fleurs et des plus beaux fruits",
+        "author": "Redouté, P.J.",
+        "date": "1827",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Redout%C3%A9,_P.J.,_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits,_t._99_(1827).png",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Redout%C3%A9,_P.J.,_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits,_t._99_(1827).png",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "contour-drawing",
+      "kind": "curated_style",
+      "name": "Contour drawing",
+      "tag": "lineart, contour drawing, unshaded",
+      "category": "general",
+      "description": "Continuous contours explain an object with minimal interior detail; ideal for a recognizable product silhouette.",
+      "tags": [
+        "ink",
+        "linework",
+        "minimalist",
+        "monochrome",
+        "clear",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "minimalist"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "lineart, contour drawing, unshaded",
+        "natural": "contour drawing style, Continuous contours explain an object with minimal interior detail."
+      },
+      "previewKind": "reference",
+      "asset": "met-337494.webp",
+      "provenance": {
+        "title": "Compositional Sketches for the Virgin Adoring the Christ Child, with and without the Infant St. John the Baptist; Diagram of a Perspectival Projection (recto); Slight Doodles (verso)",
+        "author": "Leonardo da Vinci",
+        "date": "1480–85",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337494",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "cross-hatching",
+      "kind": "curated_style",
+      "name": "Cross hatching",
+      "tag": "ink drawing, crosshatching, fine lines",
+      "category": "general",
+      "description": "Intersecting line families build shadow density while keeping highlights open.",
+      "tags": [
+        "ink",
+        "crosshatching",
+        "illustrative",
+        "monochrome",
+        "dramatic",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "crosshatching"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "dramatic"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "ink drawing, crosshatching, fine lines",
+        "natural": "cross hatching style, Intersecting line families build shadow density while keeping highlights open."
+      },
+      "previewKind": "reference",
+      "asset": "met-335537.webp",
+      "provenance": {
+        "title": "Wheat Field",
+        "author": "Vincent van Gogh",
+        "date": "July 1888",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/335537",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Reed-pen drawing showing repeated directional marks; a mark-making reference rather than a claim that every passage is crosshatched."
+      }
+    },
+    {
+      "id": "stipple-study",
+      "kind": "curated_style",
+      "name": "Stipple study",
+      "tag": "ink drawing, stippling, dotted shading",
+      "category": "general",
+      "description": "Dots build tonal form without continuous shading; use with shells, ceramics or botanical details.",
+      "tags": [
+        "ink",
+        "stippling",
+        "scientific",
+        "monochrome",
+        "observational",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "stippling"
+        ],
+        "design": [
+          "scientific"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "ink drawing, stippling, dotted shading",
+        "natural": "stipple study style, Dots build tonal form without continuous shading."
+      },
+      "previewKind": "reference",
+      "asset": "commons-45156473.webp",
+      "provenance": {
+        "title": "Botanical plate 99 · Choix des plus belles fleurs et des plus beaux fruits",
+        "author": "Redouté, P.J.",
+        "date": "1827",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Redout%C3%A9,_P.J.,_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits,_t._99_(1827).png",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Redout%C3%A9,_P.J.,_Choix_des_plus_belles_fleurs_et_des_plus_beaux_fruits,_t._99_(1827).png",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Historical botanical print reference; useful for fine marks and tonal detail, not a checkpoint render."
+      }
+    },
+    {
+      "id": "woodcut-relief",
+      "kind": "curated_style",
+      "name": "Woodcut relief",
+      "tag": "woodcut, bold outlines, carved texture",
+      "category": "general",
+      "description": "Carved light channels and heavy dark masses simplify a scene into decisive printed shapes.",
+      "tags": [
+        "print",
+        "carved marks",
+        "editorial",
+        "limited palette",
+        "bold",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "carved marks"
+        ],
+        "design": [
+          "editorial"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "bold"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "woodcut, bold outlines, carved texture",
+        "natural": "woodcut relief style, Carved light channels and heavy dark masses simplify a scene into decisive printed shapes."
+      },
+      "previewKind": "reference",
+      "asset": "commons-18813667.webp",
+      "provenance": {
+        "title": "Under the Wave off Kanagawa · The Great Wave",
+        "author": "Katsushika Hokusai",
+        "date": "from 1823 until 1829",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "linocut-poster",
+      "kind": "curated_style",
+      "name": "Linocut poster",
+      "tag": "linocut, flat colors, bold shapes",
+      "category": "general",
+      "description": "Broad cut shapes and few colors create a graphic scene with strong edge contrast.",
+      "tags": [
+        "print",
+        "flat colors",
+        "poster",
+        "limited palette",
+        "bold",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "poster"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "bold"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "linocut, flat colors, bold shapes",
+        "natural": "linocut poster style, Broad cut shapes and few colors create a graphic scene with strong edge contrast."
+      },
+      "previewKind": "reference",
+      "asset": "commons-51526472.webp",
+      "provenance": {
+        "title": "Field and Trees · linocut",
+        "author": "Fons Heijnsbroek",
+        "date": "1988",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:1988_linocut_in_black-white;_field_and_trees,_Dutch_artist_Fons_Heijnsbroek.tif",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:1988_linocut_in_black-white;_field_and_trees,_Dutch_artist_Fons_Heijnsbroek.tif",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "An actual artist-created linocut, used for relief-print marks; not a poster layout."
+      }
+    },
+    {
+      "id": "etched-architecture",
+      "kind": "curated_style",
+      "name": "Etched architecture",
+      "tag": "etching, architectural drawing, fine hatching",
+      "category": "general",
+      "description": "Dense fine lines and precise perspective give buildings a measured printmaking character.",
+      "tags": [
+        "print",
+        "crosshatching",
+        "architectural",
+        "monochrome",
+        "observational",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "crosshatching"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "etching, architectural drawing, fine hatching",
+        "natural": "etched architecture style, Dense fine lines and precise perspective give buildings a measured printmaking character."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "brush-ink",
+      "kind": "curated_style",
+      "name": "Brush ink",
+      "tag": "ink painting, brush strokes, negative space",
+      "category": "general",
+      "description": "Expressive tapered strokes alternate with open paper; try reeds, branches or a simple landscape.",
+      "tags": [
+        "ink",
+        "brushwork",
+        "minimalist",
+        "monochrome",
+        "quiet",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "brushwork"
+        ],
+        "design": [
+          "minimalist"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "ink painting, brush strokes, negative space",
+        "natural": "brush ink style, Expressive tapered strokes alternate with open paper."
+      },
+      "previewKind": "reference",
+      "asset": "met-770740.webp",
+      "provenance": {
+        "title": "Calligraphy Painting",
+        "author": "Isma'il Jalayir",
+        "date": "ca. 1860",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/770740",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "technical-pen",
+      "kind": "curated_style",
+      "name": "Technical pen",
+      "tag": "technical drawing, lineart, measured detail",
+      "category": "general",
+      "description": "Consistent line weights and exposed construction detail suit diagrams and industrial objects.",
+      "tags": [
+        "ink",
+        "precise edges",
+        "technical",
+        "monochrome",
+        "clear",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "ink & print"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "precise edges"
+        ],
+        "design": [
+          "technical"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "technical drawing, lineart, measured detail",
+        "natural": "technical pen style, Consistent line weights and exposed construction detail suit diagrams and industrial objects."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "impasto-still-life",
+      "kind": "curated_style",
+      "name": "Impasto still life",
+      "tag": "oil painting, impasto, visible brush strokes",
+      "category": "general",
+      "description": "Thick raised-looking paint catches the light and gives everyday objects sculptural weight.",
+      "tags": [
+        "oil",
+        "impasto",
+        "fine art",
+        "vibrant",
+        "tactile",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "oil"
+        ],
+        "treatment": [
+          "impasto"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "oil painting, impasto, visible brush strokes",
+        "natural": "impasto still life style, Thick raised-looking paint catches the light and gives everyday objects sculptural weight."
+      },
+      "previewKind": "reference",
+      "asset": "met-436524.webp",
+      "provenance": {
+        "title": "Sunflowers",
+        "author": "Vincent van Gogh",
+        "date": "1887",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436524",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "alla-prima-landscape",
+      "kind": "curated_style",
+      "name": "Alla prima landscape",
+      "tag": "oil painting, alla prima, loose brushwork",
+      "category": "general",
+      "description": "Direct wet paint and economical strokes prioritize light relationships over small details.",
+      "tags": [
+        "oil",
+        "brushwork",
+        "fine art",
+        "muted",
+        "luminous",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "oil"
+        ],
+        "treatment": [
+          "brushwork"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "luminous"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "oil painting, alla prima, loose brushwork",
+        "natural": "alla prima landscape style, Direct wet paint and economical strokes prioritize light relationships over small details."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "oil-glazing",
+      "kind": "curated_style",
+      "name": "Oil glazing",
+      "tag": "oil painting, glazing, deep shadows",
+      "category": "general",
+      "description": "Layered luminous darks and smooth transitions suit reflective objects and restrained dramatic light.",
+      "tags": [
+        "oil",
+        "glazing",
+        "fine art",
+        "muted",
+        "dramatic",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "oil"
+        ],
+        "treatment": [
+          "glazing"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "dramatic"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "oil painting, glazing, deep shadows",
+        "natural": "oil glazing style, Layered luminous darks and smooth transitions suit reflective objects and restrained dramatic light."
+      },
+      "previewKind": "reference",
+      "asset": "met-437881.webp",
+      "provenance": {
+        "title": "Young Woman with a Water Pitcher",
+        "author": "Johannes Vermeer",
+        "date": "ca. 1662",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/437881",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real oil painting with luminous transitions. The preview does not establish its precise paint-layer construction."
+      }
+    },
+    {
+      "id": "opaque-gouache",
+      "kind": "curated_style",
+      "name": "Opaque gouache",
+      "tag": "gouache, matte paint, flat shapes",
+      "category": "general",
+      "description": "Opaque matte color and crisp overlapping shapes make a readable scenic illustration.",
+      "tags": [
+        "gouache",
+        "flat colors",
+        "illustrative",
+        "limited palette",
+        "clear",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "gouache"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "gouache, matte paint, flat shapes",
+        "natural": "opaque gouache style, Opaque matte color and crisp overlapping shapes make a readable scenic illustration."
+      },
+      "previewKind": "reference",
+      "asset": "met-770740.webp",
+      "provenance": {
+        "title": "Calligraphy Painting",
+        "author": "Isma'il Jalayir",
+        "date": "ca. 1860",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/770740",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "acrylic-color-blocks",
+      "kind": "curated_style",
+      "name": "Acrylic color blocks",
+      "tag": "acrylic painting, color blocking, bold forms",
+      "category": "general",
+      "description": "Opaque interlocking color masses simplify an object or abstract arrangement into bold planes.",
+      "tags": [
+        "acrylic",
+        "flat colors",
+        "geometric",
+        "vibrant",
+        "bold",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "acrylic"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "bold"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "acrylic painting, color blocking, bold forms",
+        "natural": "acrylic color blocks style, Opaque interlocking color masses simplify an object or abstract arrangement into bold planes."
+      },
+      "previewKind": "reference",
+      "asset": "commons-138270865.webp",
+      "provenance": {
+        "title": "Abstract Sky",
+        "author": "Fons Heijnsbroek",
+        "date": "1993-06-14",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:%27Abstract_sky%27,_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek;_free_download_abstract_art_image,_CCO.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:%27Abstract_sky%27,_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek;_free_download_abstract_art_image,_CCO.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real acrylic painting with broad color areas; composition reference, not a literal demonstration of every recipe facet."
+      }
+    },
+    {
+      "id": "soft-pastel-atmosphere",
+      "kind": "curated_style",
+      "name": "Soft pastel atmosphere",
+      "tag": "pastel drawing, soft edges, powdery texture",
+      "category": "general",
+      "description": "Powdery layered color softens contours and creates a hazy scenic light.",
+      "tags": [
+        "pastel",
+        "soft edges",
+        "fine art",
+        "muted",
+        "atmospheric",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "pastel"
+        ],
+        "treatment": [
+          "soft edges"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "atmospheric"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "pastel drawing, soft edges, powdery texture",
+        "natural": "soft pastel atmosphere style, Powdery layered color softens contours and creates a hazy scenic light."
+      },
+      "previewKind": "reference",
+      "asset": "met-339674.webp",
+      "provenance": {
+        "title": "Young Woman with a Muff",
+        "author": "Auguste Renoir",
+        "date": "1860–1919",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/339674",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "palette-knife",
+      "kind": "curated_style",
+      "name": "Palette knife",
+      "tag": "painting, palette knife, angular strokes",
+      "category": "general",
+      "description": "Broad angular smears and sharp scraped edges emphasize rock, buildings and fractured reflections.",
+      "tags": [
+        "oil",
+        "scraped paint",
+        "fine art",
+        "limited palette",
+        "tactile",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "oil"
+        ],
+        "treatment": [
+          "scraped paint"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "painting, palette knife, angular strokes",
+        "natural": "palette knife style, Broad angular smears and sharp scraped edges emphasize rock, buildings and fractured reflections."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "chalk-on-toned-paper",
+      "kind": "curated_style",
+      "name": "Chalk on toned paper",
+      "tag": "chalk drawing, toned paper, lifted highlights",
+      "category": "general",
+      "description": "Light chalk accents and dark marks share a middle-tone ground for economical object studies.",
+      "tags": [
+        "chalk",
+        "dry brush",
+        "fine art",
+        "limited palette",
+        "quiet",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "paint & pastel"
+        ],
+        "medium": [
+          "chalk"
+        ],
+        "treatment": [
+          "dry brush"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "chalk drawing, toned paper, lifted highlights",
+        "natural": "chalk on toned paper style, Light chalk accents and dark marks share a middle-tone ground for economical object studies."
+      },
+      "previewKind": "reference",
+      "asset": "met-337497.webp",
+      "provenance": {
+        "title": "Studies for the Libyan Sibyl (recto); Studies for the Libyan Sibyl and a small Sketch for a Seated Figure (verso)",
+        "author": "Michelangelo Buonarroti",
+        "date": "ca. 1510–11",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337497",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "swiss-editorial",
+      "kind": "curated_style",
+      "name": "Swiss editorial",
+      "tag": "graphic design, grid layout, asymmetric composition",
+      "category": "general",
+      "description": "A disciplined asymmetric grid, restrained color and strong hierarchy organize information clearly.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "editorial",
+        "limited palette",
+        "clear",
+        "graphic"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "editorial"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "graphic"
+        ]
+      },
+      "insertion": {
+        "tags": "graphic design, grid layout, asymmetric composition",
+        "natural": "swiss editorial style, A disciplined asymmetric grid, restrained color and strong hierarchy organize information clearly."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "art-deco-geometry",
+      "kind": "curated_style",
+      "name": "Art Deco geometry",
+      "tag": "art deco, geometric patterns, stepped forms",
+      "category": "general",
+      "description": "Stepped silhouettes, radial motifs and precise symmetry give objects or layouts an architectural rhythm.",
+      "tags": [
+        "vector",
+        "precise edges",
+        "art deco",
+        "limited palette",
+        "elegant",
+        "graphic"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "precise edges"
+        ],
+        "design": [
+          "art deco"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "elegant"
+        ],
+        "subject": [
+          "graphic"
+        ]
+      },
+      "insertion": {
+        "tags": "art deco, geometric patterns, stepped forms",
+        "natural": "art deco geometry style, Stepped silhouettes, radial motifs and precise symmetry give objects or layouts an architectural rhythm."
+      },
+      "previewKind": "reference",
+      "asset": "commons-31526367.webp",
+      "provenance": {
+        "title": "Japan Travel Poster · 1930s",
+        "author": "Japanese Government Railways",
+        "date": "1930s",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:1930s_Japan_Travel_Poster_-_01.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:1930s_Japan_Travel_Poster_-_01.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real 1930s Japanese travel poster, used as a period graphic composition reference."
+      }
+    },
+    {
+      "id": "bauhaus-shapes",
+      "kind": "curated_style",
+      "name": "Bauhaus shapes",
+      "tag": "geometric abstraction, primary colors, simple shapes",
+      "category": "general",
+      "description": "Circles, triangles and rectangles balance playful structure with a small primary palette.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "geometric",
+        "primary",
+        "playful",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "primary"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "geometric abstraction, primary colors, simple shapes",
+        "natural": "bauhaus shapes style, Circles, triangles and rectangles balance playful structure with a small primary palette."
+      },
+      "previewKind": "reference",
+      "asset": "commons-82832828.webp",
+      "provenance": {
+        "title": "Bauhaus exhibition leaflet, 1923",
+        "author": "Oskar Schlemmer",
+        "date": "1923",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Schlemmer-Bauhaus_Werbeblatt_DSC8965.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Schlemmer-Bauhaus_Werbeblatt_DSC8965.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "risograph-layers",
+      "kind": "curated_style",
+      "name": "Risograph layers",
+      "tag": "risograph, misregistration, grainy print",
+      "category": "general",
+      "description": "Few ink layers, visible overlap and slight offset suggest an economical tactile printed poster.",
+      "tags": [
+        "print",
+        "misregistration",
+        "poster",
+        "limited palette",
+        "playful",
+        "graphic"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "misregistration"
+        ],
+        "design": [
+          "poster"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "graphic"
+        ]
+      },
+      "insertion": {
+        "tags": "risograph, misregistration, grainy print",
+        "natural": "risograph layers style, Few ink layers, visible overlap and slight offset suggest an economical tactile printed poster."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "halftone-editorial",
+      "kind": "curated_style",
+      "name": "Halftone editorial",
+      "tag": "halftone, graphic design, dotted gradients",
+      "category": "general",
+      "description": "Screened dots turn tone into a visible graphic pattern; useful for objects and editorial layouts.",
+      "tags": [
+        "print",
+        "halftone",
+        "editorial",
+        "limited palette",
+        "bold",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "halftone"
+        ],
+        "design": [
+          "editorial"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "bold"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "halftone, graphic design, dotted gradients",
+        "natural": "halftone editorial style, Screened dots turn tone into a visible graphic pattern."
+      },
+      "previewKind": "reference",
+      "asset": "commons-112240322.webp",
+      "provenance": {
+        "title": "Chauve-Souris program · color halftone",
+        "author": "Ralph Barton",
+        "date": "circa 1922",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Chauve-Souris_program_by_Ralph_Barton,_c._1922,_color_halftone_on_paper,_from_the_National_Portrait_Gallery_-_NPG-S-NPG_92_12_a.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Chauve-Souris_program_by_Ralph_Barton,_c._1922,_color_halftone_on_paper,_from_the_National_Portrait_Gallery_-_NPG-S-NPG_92_12_a.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "paper-cut-composition",
+      "kind": "curated_style",
+      "name": "Paper cut composition",
+      "tag": "paper cutout, layered shapes, subtle shadows",
+      "category": "general",
+      "description": "Overlapping cut-paper silhouettes build depth through clean edges and small contact shadows.",
+      "tags": [
+        "paper",
+        "layered silhouettes",
+        "illustrative",
+        "vibrant",
+        "playful",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "paper"
+        ],
+        "treatment": [
+          "layered silhouettes"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "paper cutout, layered shapes, subtle shadows",
+        "natural": "paper cut composition style, Overlapping cut-paper silhouettes build depth through clean edges and small contact shadows."
+      },
+      "previewKind": "reference",
+      "asset": "commons-60277642.webp",
+      "provenance": {
+        "title": "Paper cut-out with The Lord's Prayer MET DP372401.jpg",
+        "author": "Martha Ann Honeywell",
+        "date": "circa 1830",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Paper_cut-out_with_The_Lord%27s_Prayer_MET_DP372401.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Paper_cut-out_with_The_Lord%27s_Prayer_MET_DP372401.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "minimal-pictograms",
+      "kind": "curated_style",
+      "name": "Minimal pictograms",
+      "tag": "pictogram, vector art, simplified silhouette",
+      "category": "general",
+      "description": "Reduce each concept to a clear flat symbol and preserve consistent visual weight.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "minimalist",
+        "monochrome",
+        "clear",
+        "graphic"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "minimalist"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "graphic"
+        ]
+      },
+      "insertion": {
+        "tags": "pictogram, vector art, simplified silhouette",
+        "natural": "minimal pictograms style, Reduce each concept to a clear flat symbol and preserve consistent visual weight."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "memphis-pattern",
+      "kind": "curated_style",
+      "name": "Memphis pattern",
+      "tag": "memphis design, geometric patterns, playful colors",
+      "category": "general",
+      "description": "Scattered squiggles and simple geometric forms create a lively patterned surface.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "pattern",
+        "vibrant",
+        "playful",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "graphic design"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "pattern"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "memphis design, geometric patterns, playful colors",
+        "natural": "memphis pattern style, Scattered squiggles and simple geometric forms create a lively patterned surface."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "monoline-lettering",
+      "kind": "curated_style",
+      "name": "Monoline lettering",
+      "tag": "lettering, monoline, clean curves",
+      "category": "general",
+      "description": "Even-width letter strokes and generous spacing suit short marks and simple typographic studies.",
+      "tags": [
+        "vector",
+        "linework",
+        "lettering",
+        "monochrome",
+        "clear",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "lettering"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "lettering, monoline, clean curves",
+        "natural": "monoline lettering style, Even-width letter strokes and generous spacing suit short marks and simple typographic studies."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "slab-serif-poster",
+      "kind": "curated_style",
+      "name": "Slab serif poster",
+      "tag": "typography, slab serif, bold hierarchy",
+      "category": "general",
+      "description": "Heavy rectangular serifs and compact hierarchy give a short headline a sturdy printed presence.",
+      "tags": [
+        "print",
+        "flat colors",
+        "poster",
+        "limited palette",
+        "bold",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "poster"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "bold"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "typography, slab serif, bold hierarchy",
+        "natural": "slab serif poster style, Heavy rectangular serifs and compact hierarchy give a short headline a sturdy printed presence."
+      },
+      "previewKind": "reference",
+      "asset": "commons-113474485.webp",
+      "provenance": {
+        "title": "Eight-line Pica Antique · shaded slab-serif specimen",
+        "author": "Caslon Type Foundry, 1841",
+        "date": "1841",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Caslon_1841_specimen_Eight-line_Pica_antique_(slab-serif)_shaded_typeface.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Caslon_1841_specimen_Eight-line_Pica_antique_(slab-serif)_shaded_typeface.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "An actual 1841 type specimen, used for slab-serif letterforms; not a modern poster."
+      }
+    },
+    {
+      "id": "stencil-lettering",
+      "kind": "curated_style",
+      "name": "Stencil lettering",
+      "tag": "typography, stencil, cut bridges",
+      "category": "general",
+      "description": "Interrupted letter forms suggest a cut stencil and utilitarian signage.",
+      "tags": [
+        "vector",
+        "precise edges",
+        "industrial",
+        "monochrome",
+        "clear",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "precise edges"
+        ],
+        "design": [
+          "industrial"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "typography, stencil, cut bridges",
+        "natural": "stencil lettering style, Interrupted letter forms suggest a cut stencil and utilitarian signage."
+      },
+      "previewKind": "reference",
+      "asset": "commons-39142029.webp",
+      "provenance": {
+        "title": "Stencil typeface specimen",
+        "author": "Flamon",
+        "date": "2015-03-22",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Stencil_(typeface_name).png",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Stencil_(typeface_name).png",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "dimensional-type",
+      "kind": "curated_style",
+      "name": "Dimensional type",
+      "tag": "typography, dimensional lettering, extruded forms",
+      "category": "general",
+      "description": "Offset faces and visible side planes turn a short word into a sculptural graphic object.",
+      "tags": [
+        "3d",
+        "extrusion",
+        "lettering",
+        "vibrant",
+        "playful",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "extrusion"
+        ],
+        "design": [
+          "lettering"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "typography, dimensional lettering, extruded forms",
+        "natural": "dimensional type style, Offset faces and visible side planes turn a short word into a sculptural graphic object."
+      },
+      "previewKind": "reference",
+      "asset": "commons-92156906.webp",
+      "provenance": {
+        "title": "Shaded slab-serif specimen · Gin",
+        "author": "Henry Caslon type foundry",
+        "date": "1841-01-01",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Caslon_shaded_slab_serif,_1841_%22Gin%22.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Caslon_shaded_slab_serif,_1841_%22Gin%22.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "brush-lettering",
+      "kind": "curated_style",
+      "name": "Brush lettering",
+      "tag": "brush lettering, tapered strokes, expressive curves",
+      "category": "general",
+      "description": "Variable stroke width and energetic joins produce an expressive hand-painted word study.",
+      "tags": [
+        "ink",
+        "brushwork",
+        "lettering",
+        "monochrome",
+        "expressive",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "brushwork"
+        ],
+        "design": [
+          "lettering"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "expressive"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "brush lettering, tapered strokes, expressive curves",
+        "natural": "brush lettering style, Variable stroke width and energetic joins produce an expressive hand-painted word study."
+      },
+      "previewKind": "reference",
+      "asset": "met-770740.webp",
+      "provenance": {
+        "title": "Calligraphy Painting",
+        "author": "Isma'il Jalayir",
+        "date": "ca. 1860",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/770740",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "modular-type",
+      "kind": "curated_style",
+      "name": "Modular type",
+      "tag": "typography, modular grid, geometric lettering",
+      "category": "general",
+      "description": "Letters assembled from repeated geometric units make the grid part of the visual identity.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "geometric",
+        "limited palette",
+        "playful",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "typography, modular grid, geometric lettering",
+        "natural": "modular type style, Letters assembled from repeated geometric units make the grid part of the visual identity."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "letterpress-impression",
+      "kind": "curated_style",
+      "name": "Letterpress impression",
+      "tag": "letterpress, typography, debossed paper",
+      "category": "general",
+      "description": "Restrained ink and shallow-looking paper impressions give a tactile printed type specimen.",
+      "tags": [
+        "print",
+        "debossed",
+        "editorial",
+        "limited palette",
+        "tactile",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "debossed"
+        ],
+        "design": [
+          "editorial"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "letterpress, typography, debossed paper",
+        "natural": "letterpress impression style, Restrained ink and shallow-looking paper impressions give a tactile printed type specimen."
+      },
+      "previewKind": "reference",
+      "asset": "loc-type-125.webp",
+      "provenance": {
+        "title": "Specimen Book of Type Styles · scan 125",
+        "author": "American Type Founders Company",
+        "date": "1915",
+        "institution": "Library of Congress",
+        "source": "https://www.loc.gov/resource/gdc.00387017501/?sp=125",
+        "license": "Public domain",
+        "rightsURL": "https://www.loc.gov/item/16004767/",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Actual printed type specimen from 1915. This is an overview of letterpress typography, not a macro photograph of paper indentation."
+      }
+    },
+    {
+      "id": "kinetic-type-composition",
+      "kind": "curated_style",
+      "name": "Kinetic type composition",
+      "tag": "typography, repeated lettering, rhythmic layout",
+      "category": "general",
+      "description": "Repeated words, shifting scale and directional arrangement imply movement in a static composition.",
+      "tags": [
+        "vector",
+        "repetition",
+        "editorial",
+        "monochrome",
+        "energetic",
+        "typography"
+      ],
+      "facets": {
+        "discipline": [
+          "typography & lettering"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "repetition"
+        ],
+        "design": [
+          "editorial"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "energetic"
+        ],
+        "subject": [
+          "typography"
+        ]
+      },
+      "insertion": {
+        "tags": "typography, repeated lettering, rhythmic layout",
+        "natural": "kinetic type composition style, Repeated words, shifting scale and directional arrangement imply movement in a static composition."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "herbarium-plate",
+      "kind": "curated_style",
+      "name": "Herbarium plate",
+      "tag": "botanical illustration, herbarium, specimen layout",
+      "category": "general",
+      "description": "Isolated plant structures and spacious specimen placement emphasize readable shape and growth.",
+      "tags": [
+        "ink",
+        "precise edges",
+        "scientific",
+        "muted",
+        "observational",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "precise edges"
+        ],
+        "design": [
+          "scientific"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "botanical illustration, herbarium, specimen layout",
+        "natural": "herbarium plate style, Isolated plant structures and spacious specimen placement emphasize readable shape and growth."
+      },
+      "previewKind": "reference",
+      "asset": "commons-176706862.webp",
+      "provenance": {
+        "title": "Xylosma senticosa · herbarium specimen",
+        "author": "Conveyor Belt",
+        "date": "1930-10-27",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Xylosma_senticosa_herbarium_specimen.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Xylosma_senticosa_herbarium_specimen.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "cyanotype-leaves",
+      "kind": "curated_style",
+      "name": "Cyanotype leaves",
+      "tag": "cyanotype, botanical silhouettes, blue monochrome",
+      "category": "general",
+      "description": "Pale plant silhouettes on a deep blue ground suggest contact-print exposure.",
+      "tags": [
+        "print",
+        "silhouettes",
+        "scientific",
+        "blue monochrome",
+        "quiet",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "silhouettes"
+        ],
+        "design": [
+          "scientific"
+        ],
+        "color": [
+          "blue monochrome"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "cyanotype, botanical silhouettes, blue monochrome",
+        "natural": "cyanotype leaves style, Pale plant silhouettes on a deep blue ground suggest contact-print exposure."
+      },
+      "previewKind": "reference",
+      "asset": "commons-80950146.webp",
+      "provenance": {
+        "title": "Ferns · Specimen of Cyanotype",
+        "author": "Anna Atkins",
+        "date": "1840s",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Anna_Atkins,_Ferns._Specimen_of_Cyanotype,_1840s,_NGA_136477.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Anna_Atkins,_Ferns._Specimen_of_Cyanotype,_1840s,_NGA_136477.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "pressed-foliage",
+      "kind": "curated_style",
+      "name": "Pressed foliage",
+      "tag": "pressed flowers, flat arrangement, paper background",
+      "category": "general",
+      "description": "Flattened organic shapes and orderly spacing create a collected botanical composition.",
+      "tags": [
+        "paper",
+        "flat colors",
+        "specimen",
+        "muted",
+        "quiet",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "paper"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "specimen"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "pressed flowers, flat arrangement, paper background",
+        "natural": "pressed foliage style, Flattened organic shapes and orderly spacing create a collected botanical composition."
+      },
+      "previewKind": "reference",
+      "asset": "commons-101181665.webp",
+      "provenance": {
+        "title": "Ficus retusa · herbarium sheet",
+        "author": "Naturalis Biodiversity Center",
+        "date": "2013-09-10",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Ficus_retusa_herbarium_sheet.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Ficus_retusa_herbarium_sheet.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "macro-botanical-study",
+      "kind": "curated_style",
+      "name": "Macro botanical study",
+      "tag": "macro photography, leaf veins, shallow depth of field",
+      "category": "general",
+      "description": "Close framing isolates fine plant structures; keep the subject and focus plane explicit.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "scientific",
+        "muted",
+        "observational",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "scientific"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "macro photography, leaf veins, shallow depth of field",
+        "natural": "macro botanical study style, Close framing isolates fine plant structures."
+      },
+      "previewKind": "reference",
+      "asset": "commons-131897774.webp",
+      "provenance": {
+        "title": "Daisy · macro photograph",
+        "author": "Free Nature Stock",
+        "date": "before 2021",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "scientific-cutaway",
+      "kind": "curated_style",
+      "name": "Scientific cutaway",
+      "tag": "scientific illustration, cutaway, precise linework",
+      "category": "general",
+      "description": "Expose internal structures with crisp layered shapes and a clear section boundary.",
+      "tags": [
+        "vector",
+        "linework",
+        "technical",
+        "limited palette",
+        "clear",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "technical"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "scientific illustration, cutaway, precise linework",
+        "natural": "scientific cutaway style, Expose internal structures with crisp layered shapes and a clear section boundary."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "fractal-branching",
+      "kind": "curated_style",
+      "name": "Fractal branching",
+      "tag": "fractal, branching forms, organic geometry",
+      "category": "general",
+      "description": "Repeated branching rules create a structured organic abstract study rather than a named species.",
+      "tags": [
+        "digital",
+        "repetition",
+        "geometric",
+        "vibrant",
+        "playful",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "repetition"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "fractal, branching forms, organic geometry",
+        "natural": "fractal branching style, Repeated branching rules create a structured organic abstract study rather than a named species."
+      },
+      "previewKind": "reference",
+      "asset": "commons-113987656.webp",
+      "provenance": {
+        "title": "Colorful Fractal Spiral",
+        "author": "Abyssal",
+        "date": "2022-01-04",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Colorful_Fractal_Spiral.png",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Colorful_Fractal_Spiral.png",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real CC0 digital fractal image; an algorithmic structure reference, not a botanical photograph."
+      }
+    },
+    {
+      "id": "field-notebook",
+      "kind": "curated_style",
+      "name": "Field notebook",
+      "tag": "nature sketch, field notebook, observational drawing",
+      "category": "general",
+      "description": "Loose specimen sketches and open page space convey observation; labels need separate verification.",
+      "tags": [
+        "ink",
+        "linework",
+        "scientific",
+        "limited palette",
+        "observational",
+        "botanical"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "scientific"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "botanical"
+        ]
+      },
+      "insertion": {
+        "tags": "nature sketch, field notebook, observational drawing",
+        "natural": "field notebook style, Loose specimen sketches and open page space convey observation."
+      },
+      "previewKind": "reference",
+      "asset": "met-334369.webp",
+      "provenance": {
+        "title": "Entrance to a Garden",
+        "author": "Paul Cézanne",
+        "date": "1878–80",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/334369",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real preparatory watercolor and graphite study; an observational sketch reference, not a notebook with field notes."
+      }
+    },
+    {
+      "id": "marine-specimen",
+      "kind": "curated_style",
+      "name": "Marine specimen",
+      "tag": "scientific illustration, seashell, detailed contours",
+      "category": "general",
+      "description": "Curving layered contours describe shells and marine forms on a restrained specimen ground.",
+      "tags": [
+        "ink",
+        "crosshatching",
+        "scientific",
+        "monochrome",
+        "observational",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "botanical & scientific"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "crosshatching"
+        ],
+        "design": [
+          "scientific"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "scientific illustration, seashell, detailed contours",
+        "natural": "marine specimen style, Curving layered contours describe shells and marine forms on a restrained specimen ground."
+      },
+      "previewKind": "reference",
+      "asset": "commons-541408.webp",
+      "provenance": {
+        "title": "Stephoidea · Art Forms in Nature",
+        "author": "Ernst Haeckel",
+        "date": "1904",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Haeckel_Stephoidea.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Haeckel_Stephoidea.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "geometric-balance",
+      "kind": "curated_style",
+      "name": "Geometric balance",
+      "tag": "geometric abstraction, balanced shapes, negative space",
+      "category": "general",
+      "description": "A few carefully weighted planes and circles form a calm nonfigurative arrangement.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "geometric",
+        "limited palette",
+        "quiet",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "geometric abstraction, balanced shapes, negative space",
+        "natural": "geometric balance style, A few carefully weighted planes and circles form a calm nonfigurative arrangement."
+      },
+      "previewKind": "reference",
+      "asset": "commons-37642335.webp",
+      "provenance": {
+        "title": "Lozenge Composition with Yellow, Black, Blue, Red, and Gray",
+        "author": "Piet Mondrian",
+        "date": "1921",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Piet_Mondrian_-_Lozenge_Composition_with_Yellow,_Black,_Blue,_Red,_and_Gray_-_1921_-_The_Art_Institute_of_Chicago.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Piet_Mondrian_-_Lozenge_Composition_with_Yellow,_Black,_Blue,_Red,_and_Gray_-_1921_-_The_Art_Institute_of_Chicago.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "color-field",
+      "kind": "curated_style",
+      "name": "Color field",
+      "tag": "color field painting, broad color planes, soft boundaries",
+      "category": "general",
+      "description": "Large uninterrupted color regions emphasize spatial tension and color relationships.",
+      "tags": [
+        "acrylic",
+        "soft edges",
+        "minimalist",
+        "vibrant",
+        "quiet",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "acrylic"
+        ],
+        "treatment": [
+          "soft edges"
+        ],
+        "design": [
+          "minimalist"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "color field painting, broad color planes, soft boundaries",
+        "natural": "color field style, Large uninterrupted color regions emphasize spatial tension and color relationships."
+      },
+      "previewKind": "reference",
+      "asset": "commons-138270865.webp",
+      "provenance": {
+        "title": "Abstract Sky",
+        "author": "Fons Heijnsbroek",
+        "date": "1993-06-14",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:%27Abstract_sky%27,_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek;_free_download_abstract_art_image,_CCO.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:%27Abstract_sky%27,_1993_-_small_acrylic_painting_by_Dutch_artist_Fons_Heijnsbroek;_free_download_abstract_art_image,_CCO.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real acrylic abstraction used for color-area relationships; not an attribution to the historical Color Field movement."
+      }
+    },
+    {
+      "id": "op-art-rhythm",
+      "kind": "curated_style",
+      "name": "Op art rhythm",
+      "tag": "op art, high contrast, repeating curves",
+      "category": "general",
+      "description": "Alternating narrow lines and deliberate distortions create optical vibration.",
+      "tags": [
+        "vector",
+        "repetition",
+        "geometric",
+        "monochrome",
+        "energetic",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "repetition"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "energetic"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "op art, high contrast, repeating curves",
+        "natural": "op art rhythm style, Alternating narrow lines and deliberate distortions create optical vibration."
+      },
+      "previewKind": "reference",
+      "asset": "kenney-pattern-pack-png-default-pattern-01-png.webp",
+      "provenance": {
+        "title": "Pattern Pack · PNG/Default/pattern_01.png",
+        "author": "Kenney",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/pattern-pack",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "constructed-collage",
+      "kind": "curated_style",
+      "name": "Constructed collage",
+      "tag": "collage, cut paper, angular composition",
+      "category": "general",
+      "description": "Fragments of paper and angular planes create a deliberately assembled abstract structure.",
+      "tags": [
+        "paper",
+        "layered silhouettes",
+        "editorial",
+        "limited palette",
+        "bold",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "paper"
+        ],
+        "treatment": [
+          "layered silhouettes"
+        ],
+        "design": [
+          "editorial"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "bold"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "collage, cut paper, angular composition",
+        "natural": "constructed collage style, Fragments of paper and angular planes create a deliberately assembled abstract structure."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "fluid-marbling",
+      "kind": "curated_style",
+      "name": "Fluid marbling",
+      "tag": "marbling, fluid patterns, flowing color",
+      "category": "general",
+      "description": "Long interleaved color streams suggest pigment dragged across a liquid surface.",
+      "tags": [
+        "digital",
+        "flowing lines",
+        "pattern",
+        "vibrant",
+        "energetic",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "flowing lines"
+        ],
+        "design": [
+          "pattern"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "energetic"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "marbling, fluid patterns, flowing color",
+        "natural": "fluid marbling style, Long interleaved color streams suggest pigment dragged across a liquid surface."
+      },
+      "previewKind": "reference",
+      "asset": "commons-178738786.webp",
+      "provenance": {
+        "title": "Suminagashi · marbled paper",
+        "author": "N.N.",
+        "date": "1899-01-01",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Franz_Bartsch_Suminagashi_12_05316.tif",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Franz_Bartsch_Suminagashi_12_05316.tif",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "generative-line-field",
+      "kind": "curated_style",
+      "name": "Generative line field",
+      "tag": "generative art, curved line field, fine strokes",
+      "category": "general",
+      "description": "Many smoothly varying lines create density and motion through a consistent geometric rule.",
+      "tags": [
+        "digital",
+        "linework",
+        "geometric",
+        "limited palette",
+        "atmospheric",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "atmospheric"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "generative art, curved line field, fine strokes",
+        "natural": "generative line field style, Many smoothly varying lines create density and motion through a consistent geometric rule."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "gestural-abstraction",
+      "kind": "curated_style",
+      "name": "Gestural abstraction",
+      "tag": "abstract painting, gestural marks, expressive brushwork",
+      "category": "general",
+      "description": "Large free marks and visible overlaps prioritize rhythm and physical gesture.",
+      "tags": [
+        "acrylic",
+        "brushwork",
+        "fine art",
+        "vibrant",
+        "expressive",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "acrylic"
+        ],
+        "treatment": [
+          "brushwork"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "expressive"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "abstract painting, gestural marks, expressive brushwork",
+        "natural": "gestural abstraction style, Large free marks and visible overlaps prioritize rhythm and physical gesture."
+      },
+      "previewKind": "reference",
+      "asset": "commons-138263075.webp",
+      "provenance": {
+        "title": "Time of Lazy Joy",
+        "author": "Fons Heijnsbroek",
+        "date": "1993-09-14",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:1993_Time_of_Lazy_Joy_-_small_abstract_acrylic_painting_on_canvas_by_Dutch_artist_Fons_Heijnsbroek;_free_download_art_image,_CCO.png",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:1993_Time_of_Lazy_Joy_-_small_abstract_acrylic_painting_on_canvas_by_Dutch_artist_Fons_Heijnsbroek;_free_download_art_image,_CCO.png",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "minimal-spatial-study",
+      "kind": "curated_style",
+      "name": "Minimal spatial study",
+      "tag": "minimalism, sparse forms, quiet composition",
+      "category": "general",
+      "description": "Few small forms in a large open field draw attention to placement, scale and proportion.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "minimalist",
+        "monochrome",
+        "quiet",
+        "abstract"
+      ],
+      "facets": {
+        "discipline": [
+          "abstract composition"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "minimalist"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "abstract"
+        ]
+      },
+      "insertion": {
+        "tags": "minimalism, sparse forms, quiet composition",
+        "natural": "minimal spatial study style, Few small forms in a large open field draw attention to placement, scale and proportion."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "brushed-metal",
+      "kind": "curated_style",
+      "name": "Brushed metal",
+      "tag": "brushed metal, directional grain, soft reflections",
+      "category": "general",
+      "description": "Parallel grain and broad restrained reflections describe a machined metallic surface.",
+      "tags": [
+        "digital",
+        "directional grain",
+        "industrial",
+        "monochrome",
+        "tactile",
+        "texture"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "directional grain"
+        ],
+        "design": [
+          "industrial"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "texture"
+        ]
+      },
+      "insertion": {
+        "tags": "brushed metal, directional grain, soft reflections",
+        "natural": "brushed metal style, Parallel grain and broad restrained reflections describe a machined metallic surface."
+      },
+      "previewKind": "reference",
+      "asset": "ambient-metal009.webp",
+      "provenance": {
+        "title": "Metal 009 · material reference",
+        "author": "Lennart Demes / ambientCG",
+        "date": "2018-08-16",
+        "institution": "ambientCG",
+        "source": "https://ambientcg.com/a/Metal009",
+        "license": "CC0-1.0",
+        "rightsURL": "https://docs.ambientcg.com/license/",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "unglazed-ceramic",
+      "kind": "curated_style",
+      "name": "Unglazed ceramic",
+      "tag": "unglazed ceramic, matte surface, subtle speckles",
+      "category": "general",
+      "description": "A dry diffuse surface and irregular small speckles suggest porous handmade clay.",
+      "tags": [
+        "digital",
+        "speckled",
+        "product",
+        "earth tones",
+        "tactile",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "speckled"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "earth tones"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "unglazed ceramic, matte surface, subtle speckles",
+        "natural": "unglazed ceramic style, A dry diffuse surface and irregular small speckles suggest porous handmade clay."
+      },
+      "previewKind": "reference",
+      "asset": "commons-152331092.webp",
+      "provenance": {
+        "title": "Unglazed vase · Guadix, Spain",
+        "author": "Daderot",
+        "date": "2024-05-26 07:44:37",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Unglazed_vase,_Spain,_probably_Guadix,_1872,_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London,_England_-_DSC04727.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Unglazed_vase,_Spain,_probably_Guadix,_1872,_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London,_England_-_DSC04727.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "translucent-glass",
+      "kind": "curated_style",
+      "name": "Translucent glass",
+      "tag": "glass, translucency, edge highlights",
+      "category": "general",
+      "description": "Layered overlapping outlines and narrow highlights suggest transparent objects without opaque shading.",
+      "tags": [
+        "digital",
+        "translucency",
+        "product",
+        "limited palette",
+        "luminous",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "translucency"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "luminous"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "glass, translucency, edge highlights",
+        "natural": "translucent glass style, Layered overlapping outlines and narrow highlights suggest transparent objects without opaque shading."
+      },
+      "previewKind": "reference",
+      "asset": "commons-60950618.webp",
+      "provenance": {
+        "title": "Cut-glass cup",
+        "author": "Unknown creator",
+        "date": "8th–9th century",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "woven-textile",
+      "kind": "curated_style",
+      "name": "Woven textile",
+      "tag": "woven fabric, interlaced fibers, textile texture",
+      "category": "general",
+      "description": "Alternating warp and weft bands reveal a repeating interlaced material structure.",
+      "tags": [
+        "digital",
+        "woven",
+        "pattern",
+        "muted",
+        "tactile",
+        "texture"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "woven"
+        ],
+        "design": [
+          "pattern"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "texture"
+        ]
+      },
+      "insertion": {
+        "tags": "woven fabric, interlaced fibers, textile texture",
+        "natural": "woven textile style, Alternating warp and weft bands reveal a repeating interlaced material structure."
+      },
+      "previewKind": "reference",
+      "asset": "ambient-fabric085.webp",
+      "provenance": {
+        "title": "Fabric 085 · material reference",
+        "author": "Lennart Demes / ambientCG",
+        "date": "2026-10-10",
+        "institution": "ambientCG",
+        "source": "https://ambientcg.com/a/Fabric085",
+        "license": "CC0-1.0",
+        "rightsURL": "https://docs.ambientcg.com/license/",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "weathered-stone",
+      "kind": "curated_style",
+      "name": "Weathered stone",
+      "tag": "weathered stone, mineral texture, irregular cracks",
+      "category": "general",
+      "description": "Broken boundaries, mineral flecks and worn surfaces give masonry a long-used character.",
+      "tags": [
+        "digital",
+        "granulation",
+        "architectural",
+        "earth tones",
+        "earthy",
+        "texture"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "granulation"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "earth tones"
+        ],
+        "mood": [
+          "earthy"
+        ],
+        "subject": [
+          "texture"
+        ]
+      },
+      "insertion": {
+        "tags": "weathered stone, mineral texture, irregular cracks",
+        "natural": "weathered stone style, Broken boundaries, mineral flecks and worn surfaces give masonry a long-used character."
+      },
+      "previewKind": "reference",
+      "asset": "ambient-rock064.webp",
+      "provenance": {
+        "title": "Rock 064 · material reference",
+        "author": "Lennart Demes / ambientCG",
+        "date": "2026-04-14",
+        "institution": "ambientCG",
+        "source": "https://ambientcg.com/a/Rock064",
+        "license": "CC0-1.0",
+        "rightsURL": "https://docs.ambientcg.com/license/",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "iridescent-film",
+      "kind": "curated_style",
+      "name": "Iridescent film",
+      "tag": "iridescence, thin film, shifting colors",
+      "category": "general",
+      "description": "Bands of changing color and curved reflection contours suggest a thin interference surface.",
+      "tags": [
+        "digital",
+        "iridescence",
+        "product",
+        "vibrant",
+        "luminous",
+        "texture"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "iridescence"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "luminous"
+        ],
+        "subject": [
+          "texture"
+        ]
+      },
+      "insertion": {
+        "tags": "iridescence, thin film, shifting colors",
+        "natural": "iridescent film style, Bands of changing color and curved reflection contours suggest a thin interference surface."
+      },
+      "previewKind": "reference",
+      "asset": "commons-65091406.webp",
+      "provenance": {
+        "title": "Olive glass cup · iridescent surface",
+        "author": "Creator:Barovier family glasshouse",
+        "date": "19th century",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Olive_glass_cup_with_iridescent_effect_MET_ES8547.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Olive_glass_cup_with_iridescent_effect_MET_ES8547.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A real historic glass object with an iridescent surface; a material reference, not a thin-film photograph."
+      }
+    },
+    {
+      "id": "embossed-paper",
+      "kind": "curated_style",
+      "name": "Embossed paper",
+      "tag": "embossed paper, raised pattern, soft side light",
+      "category": "general",
+      "description": "Small relief edges and quiet shadows make paper texture readable without saturated color.",
+      "tags": [
+        "paper",
+        "embossed",
+        "editorial",
+        "monochrome",
+        "tactile",
+        "texture"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "paper"
+        ],
+        "treatment": [
+          "embossed"
+        ],
+        "design": [
+          "editorial"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "texture"
+        ]
+      },
+      "insertion": {
+        "tags": "embossed paper, raised pattern, soft side light",
+        "natural": "embossed paper style, Small relief edges and quiet shadows make paper texture readable without saturated color."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "wood-end-grain",
+      "kind": "curated_style",
+      "name": "Wood end grain",
+      "tag": "wood grain, concentric rings, organic texture",
+      "category": "general",
+      "description": "Irregular growth rings and radial cracks describe a cut wooden surface.",
+      "tags": [
+        "digital",
+        "linework",
+        "natural",
+        "earth tones",
+        "earthy",
+        "texture"
+      ],
+      "facets": {
+        "discipline": [
+          "materials & texture"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "natural"
+        ],
+        "color": [
+          "earth tones"
+        ],
+        "mood": [
+          "earthy"
+        ],
+        "subject": [
+          "texture"
+        ]
+      },
+      "insertion": {
+        "tags": "wood grain, concentric rings, organic texture",
+        "natural": "wood end grain style, Irregular growth rings and radial cracks describe a cut wooden surface."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "soft-studio-light",
+      "kind": "curated_style",
+      "name": "Soft studio light",
+      "tag": "product photography, softbox lighting, soft shadows",
+      "category": "general",
+      "description": "Broad soft illumination clarifies an object while keeping shadow edges gentle.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "product",
+        "muted",
+        "soft light",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "soft light"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "product photography, softbox lighting, soft shadows",
+        "natural": "soft studio light style, Broad soft illumination clarifies an object while keeping shadow edges gentle."
+      },
+      "previewKind": "reference",
+      "asset": "commons-60950618.webp",
+      "provenance": {
+        "title": "Cut-glass cup",
+        "author": "Unknown creator",
+        "date": "8th–9th century",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Real museum object photography with soft illumination. The original studio setup is not recorded."
+      }
+    },
+    {
+      "id": "hard-rim-light",
+      "kind": "curated_style",
+      "name": "Hard rim light",
+      "tag": "rim lighting, hard light, dark background",
+      "category": "general",
+      "description": "A narrow bright edge separates the silhouette from a restrained dark ground.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "product",
+        "limited palette",
+        "dramatic",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "dramatic"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "rim lighting, hard light, dark background",
+        "natural": "hard rim light style, A narrow bright edge separates the silhouette from a restrained dark ground."
+      },
+      "previewKind": "reference",
+      "asset": "commons-85118206.webp",
+      "provenance": {
+        "title": "Backlit grass panicles 2.jpg",
+        "author": "W.carter",
+        "date": "2019-06-16 15:21:12",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Backlit grass with bright contours; a photographic edge-light reference, not a studio lighting setup."
+      }
+    },
+    {
+      "id": "golden-hour-landscape",
+      "kind": "curated_style",
+      "name": "Golden hour landscape",
+      "tag": "landscape photography, golden hour, long shadows",
+      "category": "general",
+      "description": "Low warm light produces long directional shadows and a luminous horizon.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "scenic",
+        "warm",
+        "golden hour",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "scenic"
+        ],
+        "color": [
+          "warm"
+        ],
+        "mood": [
+          "golden hour"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "landscape photography, golden hour, long shadows",
+        "natural": "golden hour landscape style, Low warm light produces long directional shadows and a luminous horizon."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "blue-hour-architecture",
+      "kind": "curated_style",
+      "name": "Blue hour architecture",
+      "tag": "architectural photography, blue hour, illuminated windows",
+      "category": "general",
+      "description": "Cool ambient sky contrasts with small warm interiors after sunset.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "architectural",
+        "cool",
+        "blue hour",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "cool"
+        ],
+        "mood": [
+          "blue hour"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "architectural photography, blue hour, illuminated windows",
+        "natural": "blue hour architecture style, Cool ambient sky contrasts with small warm interiors after sunset."
+      },
+      "previewKind": "reference",
+      "asset": "commons-29562993.webp",
+      "provenance": {
+        "title": "Saint Peter’s Basilica · blue hour",
+        "author": "Jebulon",
+        "date": "2013-08-20",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Basilica_Sancti_Petri_blue_hour.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Basilica_Sancti_Petri_blue_hour.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "high-key-object",
+      "kind": "curated_style",
+      "name": "High key object",
+      "tag": "high key, product photography, bright background",
+      "category": "general",
+      "description": "A pale ground and gentle low-contrast shadows give a simple object an airy presentation.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "product",
+        "muted",
+        "soft light",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "soft light"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "high key, product photography, bright background",
+        "natural": "high key object style, A pale ground and gentle low-contrast shadows give a simple object an airy presentation."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "low-key-still-life",
+      "kind": "curated_style",
+      "name": "Low key still life",
+      "tag": "low key, still life, chiaroscuro",
+      "category": "general",
+      "description": "A small lit region emerging from deep shadow directs attention to volume and texture.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "fine art",
+        "monochrome",
+        "dramatic",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "fine art"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "dramatic"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "low key, still life, chiaroscuro",
+        "natural": "low key still life style, A small lit region emerging from deep shadow directs attention to volume and texture."
+      },
+      "previewKind": "reference",
+      "asset": "met-436524.webp",
+      "provenance": {
+        "title": "Sunflowers",
+        "author": "Vincent van Gogh",
+        "date": "1887",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436524",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "long-exposure-trails",
+      "kind": "curated_style",
+      "name": "Long exposure trails",
+      "tag": "long exposure, light trails, night photography",
+      "category": "general",
+      "description": "Continuous luminous paths imply motion while stationary structures stay readable.",
+      "tags": [
+        "photography",
+        "light trails",
+        "scenic",
+        "vibrant",
+        "night",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "light trails"
+        ],
+        "design": [
+          "scenic"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "night"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "long exposure, light trails, night photography",
+        "natural": "long exposure trails style, Continuous luminous paths imply motion while stationary structures stay readable."
+      },
+      "previewKind": "reference",
+      "asset": "commons-89995718.webp",
+      "provenance": {
+        "title": "Long Exposure of Golden Gate Bridge.jpg",
+        "author": "Ian Simmonds",
+        "date": "Published on 1 June 2017",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Long_Exposure_of_Golden_Gate_Bridge.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Long_Exposure_of_Golden_Gate_Bridge.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "diffuse-overcast",
+      "kind": "curated_style",
+      "name": "Diffuse overcast",
+      "tag": "overcast lighting, diffuse light, subtle contrast",
+      "category": "general",
+      "description": "Even cool illumination reveals local color and material with few strong cast shadows.",
+      "tags": [
+        "photography",
+        "photorealistic",
+        "scenic",
+        "muted",
+        "quiet",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "photography & light"
+        ],
+        "medium": [
+          "photography"
+        ],
+        "treatment": [
+          "photorealistic"
+        ],
+        "design": [
+          "scenic"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "overcast lighting, diffuse light, subtle contrast",
+        "natural": "diffuse overcast style, Even cool illumination reveals local color and material with few strong cast shadows."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "architectural-elevation",
+      "kind": "curated_style",
+      "name": "Architectural elevation",
+      "tag": "architectural drawing, elevation, orthographic view",
+      "category": "general",
+      "description": "Front-facing orthographic structure emphasizes proportion and repeated facade details.",
+      "tags": [
+        "ink",
+        "linework",
+        "architectural",
+        "monochrome",
+        "clear",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "architectural drawing, elevation, orthographic view",
+        "natural": "architectural elevation style, Front-facing orthographic structure emphasizes proportion and repeated facade details."
+      },
+      "previewKind": "reference",
+      "asset": "commons-24217637.webp",
+      "provenance": {
+        "title": "Church of Saint Augustin · architectural elevation",
+        "author": "Victor Baltard",
+        "date": "(1868 - 1871)",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Victor_Baltard_-_Church_of_Saint_Augustin,_Paris,_elevation_of_the_main_facade_-_Google_Art_Project.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Victor_Baltard_-_Church_of_Saint_Augustin,_Paris,_elevation_of_the_main_facade_-_Google_Art_Project.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "isometric-district",
+      "kind": "curated_style",
+      "name": "Isometric district",
+      "tag": "isometric, cityscape, diagrammatic view",
+      "category": "general",
+      "description": "Parallel axes and small repeated building volumes make a compact neighborhood easy to read.",
+      "tags": [
+        "vector",
+        "flat colors",
+        "architectural",
+        "limited palette",
+        "clear",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "isometric, cityscape, diagrammatic view",
+        "natural": "isometric district style, Parallel axes and small repeated building volumes make a compact neighborhood easy to read."
+      },
+      "previewKind": "reference",
+      "asset": "kenney-city-kit-suburban-preview-png.webp",
+      "provenance": {
+        "title": "City Kit Suburban · Preview.png",
+        "author": "Kenney",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/city-kit-suburban",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "brutalist-massing",
+      "kind": "curated_style",
+      "name": "Brutalist massing",
+      "tag": "brutalism, concrete architecture, monolithic forms",
+      "category": "general",
+      "description": "Heavy simple volumes and recessed openings foreground structure and shadow.",
+      "tags": [
+        "3d",
+        "flat planes",
+        "architectural",
+        "monochrome",
+        "dramatic",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "flat planes"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "dramatic"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "brutalism, concrete architecture, monolithic forms",
+        "natural": "brutalist massing style, Heavy simple volumes and recessed openings foreground structure and shadow."
+      },
+      "previewKind": "reference",
+      "asset": "commons-54680880.webp",
+      "provenance": {
+        "title": "Brutalist architecture around AUT",
+        "author": "Ingolfson",
+        "date": "2011-09",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Brutalist_Architecture_Around_the_AUT.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Brutalist_Architecture_Around_the_AUT.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "mediterranean-courtyard",
+      "kind": "curated_style",
+      "name": "Mediterranean courtyard",
+      "tag": "courtyard, warm masonry, architectural illustration",
+      "category": "general",
+      "description": "Layered arches, a planted central space and warm surfaces build a welcoming architectural scene.",
+      "tags": [
+        "gouache",
+        "flat colors",
+        "architectural",
+        "warm",
+        "quiet",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "gouache"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "warm"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "courtyard, warm masonry, architectural illustration",
+        "natural": "mediterranean courtyard style, Layered arches, a planted central space and warm surfaces build a welcoming architectural scene."
+      },
+      "previewKind": "reference",
+      "asset": "commons-50693422.webp",
+      "provenance": {
+        "title": "Courtyard Zappeion Athens, Greece.jpg",
+        "author": "Jebulon",
+        "date": "2016-04-23 10:53:21",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Courtyard_Zappeion_Athens,_Greece.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Courtyard_Zappeion_Athens,_Greece.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "scenic-depth-layers",
+      "kind": "curated_style",
+      "name": "Scenic depth layers",
+      "tag": "landscape, atmospheric perspective, layered silhouettes",
+      "category": "general",
+      "description": "Progressively softer and lighter distance layers make landscape depth readable.",
+      "tags": [
+        "digital",
+        "layered silhouettes",
+        "scenic",
+        "cool",
+        "atmospheric",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "layered silhouettes"
+        ],
+        "design": [
+          "scenic"
+        ],
+        "color": [
+          "cool"
+        ],
+        "mood": [
+          "atmospheric"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "landscape, atmospheric perspective, layered silhouettes",
+        "natural": "scenic depth layers style, Progressively softer and lighter distance layers make landscape depth readable."
+      },
+      "previewKind": "reference",
+      "asset": "met-337499.webp",
+      "provenance": {
+        "title": "The Lake of Zug",
+        "author": "Joseph Mallord William Turner",
+        "date": "1843",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337499",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "Real watercolor landscape with overlapping distance planes; spatial-composition reference."
+      }
+    },
+    {
+      "id": "blueprint-study",
+      "kind": "curated_style",
+      "name": "Blueprint study",
+      "tag": "blueprint, architectural plan, technical linework",
+      "category": "general",
+      "description": "Light construction lines on a dark blue field suggest a technical planning study.",
+      "tags": [
+        "ink",
+        "linework",
+        "technical",
+        "blue monochrome",
+        "clear",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "technical"
+        ],
+        "color": [
+          "blue monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "blueprint, architectural plan, technical linework",
+        "natural": "blueprint study style, Light construction lines on a dark blue field suggest a technical planning study."
+      },
+      "previewKind": "reference",
+      "asset": "commons-188561996.webp",
+      "provenance": {
+        "title": "Charles E. Keene House · front elevation blueprint",
+        "author": "John Mackenzie Moore (d. 1930) and John Vicar Munro (d. 1936)",
+        "date": "1912-1913",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Charles_E._Keene_House,_London,_Ontario,_front_elevation_(blueprint),_signed_Moore_and_Munro,_1912-1913.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Charles_E._Keene_House,_London,_Ontario,_front_elevation_(blueprint),_signed_Moore_and_Munro,_1912-1913.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "interior-axonometric",
+      "kind": "curated_style",
+      "name": "Interior axonometric",
+      "tag": "axonometric, interior cutaway, architectural diagram",
+      "category": "general",
+      "description": "A removed wall or roof exposes the arrangement of a room in parallel projection.",
+      "tags": [
+        "vector",
+        "precise edges",
+        "architectural",
+        "limited palette",
+        "clear",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "vector"
+        ],
+        "treatment": [
+          "precise edges"
+        ],
+        "design": [
+          "architectural"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "axonometric, interior cutaway, architectural diagram",
+        "natural": "interior axonometric style, A removed wall or roof exposes the arrangement of a room in parallel projection."
+      },
+      "previewKind": "reference",
+      "asset": "commons-40054762.webp",
+      "provenance": {
+        "title": "Mackerel Beach House · axonometric perspective",
+        "author": "kathy eeles",
+        "date": "2015-05-14",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Mackerel_Beach_House_-_Axonometric_Perspective.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Mackerel_Beach_House_-_Axonometric_Perspective.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "world-map-engraving",
+      "kind": "curated_style",
+      "name": "World map engraving",
+      "tag": "map, engraving, topographic lines",
+      "category": "general",
+      "description": "Dense contours and carefully separated geographic regions suggest an engraved world map.",
+      "tags": [
+        "print",
+        "crosshatching",
+        "cartographic",
+        "monochrome",
+        "observational",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "architecture & worlds"
+        ],
+        "medium": [
+          "print"
+        ],
+        "treatment": [
+          "crosshatching"
+        ],
+        "design": [
+          "cartographic"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "observational"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "map, engraving, topographic lines",
+        "natural": "world map engraving style, Dense contours and carefully separated geographic regions suggest an engraved world map."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "clay-render",
+      "kind": "curated_style",
+      "name": "Clay render",
+      "tag": "clay render, neutral material, ambient occlusion",
+      "category": "general",
+      "description": "One neutral matte material reveals form, contact and silhouette before surface decoration.",
+      "tags": [
+        "3d",
+        "matte",
+        "product",
+        "monochrome",
+        "soft light",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "matte"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "soft light"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "clay render, neutral material, ambient occlusion",
+        "natural": "clay render style, One neutral matte material reveals form, contact and silhouette before surface decoration."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "low-poly-scene",
+      "kind": "curated_style",
+      "name": "Low poly scene",
+      "tag": "low poly, faceted forms, geometric landscape",
+      "category": "general",
+      "description": "Visible polygon planes and simple lighting turn scenery into a readable geometric miniature.",
+      "tags": [
+        "3d",
+        "faceted",
+        "geometric",
+        "limited palette",
+        "playful",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "faceted"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "low poly, faceted forms, geometric landscape",
+        "natural": "low poly scene style, Visible polygon planes and simple lighting turn scenery into a readable geometric miniature."
+      },
+      "previewKind": "reference",
+      "asset": "kenney-city-kit-suburban-preview-variation-a-png.webp",
+      "provenance": {
+        "title": "City Kit Suburban · Preview (Variation A).png",
+        "author": "Kenney",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/city-kit-suburban",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "exploded-assembly",
+      "kind": "curated_style",
+      "name": "Exploded assembly",
+      "tag": "exploded view, product design, separated components",
+      "category": "general",
+      "description": "Aligned component separation explains how a product fits together without changing its parts.",
+      "tags": [
+        "3d",
+        "precise edges",
+        "technical",
+        "limited palette",
+        "clear",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "precise edges"
+        ],
+        "design": [
+          "technical"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "exploded view, product design, separated components",
+        "natural": "exploded assembly style, Aligned component separation explains how a product fits together without changing its parts."
+      },
+      "previewKind": "reference",
+      "asset": "commons-175139022.webp",
+      "provenance": {
+        "title": "Landsat 4 · exploded view",
+        "author": "NASA",
+        "date": "11 September 2025, 18:42:59 (upload date)",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Exploded-view_Landsat_4.png",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Exploded-view_Landsat_4.png",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "toon-shaded-object",
+      "kind": "curated_style",
+      "name": "Toon shaded object",
+      "tag": "toon shading, cel shading, bold outline",
+      "category": "general",
+      "description": "Stepped tones and an explicit contour simplify a 3D object into an illustrated form.",
+      "tags": [
+        "3d",
+        "cel shading",
+        "illustrative",
+        "vibrant",
+        "playful",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "cel shading"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "toon shading, cel shading, bold outline",
+        "natural": "toon shaded object style, Stepped tones and an explicit contour simplify a 3D object into an illustrated form."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "voxel-world",
+      "kind": "curated_style",
+      "name": "Voxel world",
+      "tag": "voxel art, cubic forms, miniature landscape",
+      "category": "general",
+      "description": "Repeated small cubes create terrain, vegetation and structures with a modular spatial rhythm.",
+      "tags": [
+        "3d",
+        "voxel",
+        "geometric",
+        "vibrant",
+        "playful",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "voxel"
+        ],
+        "design": [
+          "geometric"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "voxel art, cubic forms, miniature landscape",
+        "natural": "voxel world style, Repeated small cubes create terrain, vegetation and structures with a modular spatial rhythm."
+      },
+      "previewKind": "reference",
+      "asset": "kenney-voxel-kit-preview-png.webp",
+      "provenance": {
+        "title": "Voxel Kit · Preview.png",
+        "author": "Kenney",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/voxel-kit",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "wireframe-study",
+      "kind": "curated_style",
+      "name": "Wireframe study",
+      "tag": "wireframe, mesh topology, technical view",
+      "category": "general",
+      "description": "Visible edges reveal a surface mesh and construction logic rather than material appearance.",
+      "tags": [
+        "3d",
+        "linework",
+        "technical",
+        "monochrome",
+        "clear",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "linework"
+        ],
+        "design": [
+          "technical"
+        ],
+        "color": [
+          "monochrome"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "wireframe, mesh topology, technical view",
+        "natural": "wireframe study style, Visible edges reveal a surface mesh and construction logic rather than material appearance."
+      },
+      "previewKind": "reference",
+      "asset": "commons-158282310.webp",
+      "provenance": {
+        "title": "3D wireframe render of an enamel pot.jpg",
+        "author": "Apinanaivot",
+        "date": "2022-06-20",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:3D_wireframe_render_of_an_enamel_pot.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:3D_wireframe_render_of_an_enamel_pot.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "satin-product-render",
+      "kind": "curated_style",
+      "name": "Satin product render",
+      "tag": "product render, satin material, restrained reflections",
+      "category": "general",
+      "description": "Soft broad reflections and careful contact shadows present a manufactured object cleanly.",
+      "tags": [
+        "3d",
+        "satin",
+        "product",
+        "muted",
+        "soft light",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "satin"
+        ],
+        "design": [
+          "product"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "soft light"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "product render, satin material, restrained reflections",
+        "natural": "satin product render style, Soft broad reflections and careful contact shadows present a manufactured object cleanly."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "sculpted-miniature",
+      "kind": "curated_style",
+      "name": "Sculpted miniature",
+      "tag": "miniature, sculpted forms, handcrafted texture",
+      "category": "general",
+      "description": "Rounded compact forms and visible handmade surface cues suggest a small physical maquette.",
+      "tags": [
+        "3d",
+        "sculpted",
+        "illustrative",
+        "muted",
+        "tactile",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "3d & product"
+        ],
+        "medium": [
+          "3d"
+        ],
+        "treatment": [
+          "sculpted"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "tactile"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "miniature, sculpted forms, handcrafted texture",
+        "natural": "sculpted miniature style, Rounded compact forms and visible handmade surface cues suggest a small physical maquette."
+      },
+      "previewKind": "reference",
+      "asset": "commons-30354564.webp",
+      "provenance": {
+        "title": "Seated dancer · Tang dynasty earthenware",
+        "author": "Daderot",
+        "date": "2013-06-14 15:21:50",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Figure_of_seated_dancer,_China,_Tang_dynasty,_618-906_AD,_unglazed_earthenware,_painted_-_Fitchburg_Art_Museum_-_DSC08747.JPG",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Figure_of_seated_dancer,_China,_Tang_dynasty,_618-906_AD,_unglazed_earthenware,_painted_-_Fitchburg_Art_Museum_-_DSC08747.JPG",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "cel-shaded-landscape",
+      "kind": "curated_style",
+      "name": "Cel shaded landscape",
+      "tag": "cel shading, landscape, hard shadow shapes",
+      "category": "general",
+      "description": "Discrete flat shadow regions simplify scenic forms for a readable animated background.",
+      "tags": [
+        "digital",
+        "cel shading",
+        "animation",
+        "vibrant",
+        "clear",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "cel shading"
+        ],
+        "design": [
+          "animation"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "cel shading, landscape, hard shadow shapes",
+        "natural": "cel shaded landscape style, Discrete flat shadow regions simplify scenic forms for a readable animated background."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "pixel-environment",
+      "kind": "curated_style",
+      "name": "Pixel environment",
+      "tag": "pixel art, limited palette, crisp pixels",
+      "category": "general",
+      "description": "Deliberate stepped silhouettes and a small palette make a scene readable at low resolution.",
+      "tags": [
+        "pixel",
+        "pixel clusters",
+        "game art",
+        "limited palette",
+        "playful",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "pixel"
+        ],
+        "treatment": [
+          "pixel clusters"
+        ],
+        "design": [
+          "game art"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "pixel art, limited palette, crisp pixels",
+        "natural": "pixel environment style, Deliberate stepped silhouettes and a small palette make a scene readable at low resolution."
+      },
+      "previewKind": "reference",
+      "asset": "kenney-pixel-platformer-sampleb-png.webp",
+      "provenance": {
+        "title": "Pixel Platformer · SampleB.png",
+        "author": "Kenney",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/pixel-platformer",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "anime-background-study",
+      "kind": "curated_style",
+      "name": "Anime background study",
+      "tag": "anime background, scenic illustration, painted scenery",
+      "category": "general",
+      "description": "Environment-focused painted shapes and selective detail support anime-style scenic discovery.",
+      "tags": [
+        "digital",
+        "painterly",
+        "animation",
+        "vibrant",
+        "luminous",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "painterly"
+        ],
+        "design": [
+          "animation"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "luminous"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "anime background, scenic illustration, painted scenery",
+        "natural": "anime background study style, Environment-focused painted shapes and selective detail support anime-style scenic discovery."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "comic-architecture",
+      "kind": "curated_style",
+      "name": "Comic architecture",
+      "tag": "comic, bold outlines, architectural scene",
+      "category": "general",
+      "description": "Heavy contours and controlled graphic shadows describe buildings with strong sequential-art readability.",
+      "tags": [
+        "ink",
+        "bold outlines",
+        "comic",
+        "limited palette",
+        "bold",
+        "architecture"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "ink"
+        ],
+        "treatment": [
+          "bold outlines"
+        ],
+        "design": [
+          "comic"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "bold"
+        ],
+        "subject": [
+          "architecture"
+        ]
+      },
+      "insertion": {
+        "tags": "comic, bold outlines, architectural scene",
+        "natural": "comic architecture style, Heavy contours and controlled graphic shadows describe buildings with strong sequential-art readability."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "storybook-paper-world",
+      "kind": "curated_style",
+      "name": "Storybook paper world",
+      "tag": "storybook illustration, paper texture, simplified forms",
+      "category": "general",
+      "description": "Soft textured shapes and friendly proportions create a scenic picture-book atmosphere.",
+      "tags": [
+        "gouache",
+        "paper texture",
+        "illustrative",
+        "muted",
+        "quiet",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "gouache"
+        ],
+        "treatment": [
+          "paper texture"
+        ],
+        "design": [
+          "illustrative"
+        ],
+        "color": [
+          "muted"
+        ],
+        "mood": [
+          "quiet"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "storybook illustration, paper texture, simplified forms",
+        "natural": "storybook paper world style, Soft textured shapes and friendly proportions create a scenic picture-book atmosphere."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "sprite-object-sheet",
+      "kind": "curated_style",
+      "name": "Sprite object sheet",
+      "tag": "pixel art, object study, isolated silhouette",
+      "category": "general",
+      "description": "A clear isolated object and disciplined pixel clusters support game-asset concept exploration.",
+      "tags": [
+        "pixel",
+        "pixel clusters",
+        "game art",
+        "limited palette",
+        "clear",
+        "object"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "pixel"
+        ],
+        "treatment": [
+          "pixel clusters"
+        ],
+        "design": [
+          "game art"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "clear"
+        ],
+        "subject": [
+          "object"
+        ]
+      },
+      "insertion": {
+        "tags": "pixel art, object study, isolated silhouette",
+        "natural": "sprite object sheet style, A clear isolated object and disciplined pixel clusters support game-asset concept exploration."
+      },
+      "previewKind": "reference",
+      "asset": "kenney-pixel-platformer-tilemap-tilemap-characters-png.webp",
+      "provenance": {
+        "title": "Pixel Platformer · Tilemap/tilemap-characters.png",
+        "author": "Kenney",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/pixel-platformer",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced visual reference for the recipe’s medium, surface or composition. It does not establish every technique or predict model output."
+      }
+    },
+    {
+      "id": "animation-color-script",
+      "kind": "curated_style",
+      "name": "Animation color script",
+      "tag": "color script, cinematic color, simplified scenes",
+      "category": "general",
+      "description": "Broad value groups and purposeful color relationships study a scene beat before final detail.",
+      "tags": [
+        "digital",
+        "flat colors",
+        "animation",
+        "vibrant",
+        "dramatic",
+        "environment"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "animation"
+        ],
+        "color": [
+          "vibrant"
+        ],
+        "mood": [
+          "dramatic"
+        ],
+        "subject": [
+          "environment"
+        ]
+      },
+      "insertion": {
+        "tags": "color script, cinematic color, simplified scenes",
+        "natural": "animation color script style, Broad value groups and purposeful color relationships study a scene beat before final detail."
+      },
+      "previewKind": "none"
+    },
+    {
+      "id": "character-shape-study",
+      "kind": "curated_style",
+      "name": "Character shape study",
+      "tag": "character design, simplified silhouette, shape language",
+      "category": "general",
+      "description": "Simple body proportions and broad silhouette cues test character readability; character is an optional subject.",
+      "tags": [
+        "digital",
+        "flat colors",
+        "animation",
+        "limited palette",
+        "playful",
+        "character"
+      ],
+      "facets": {
+        "discipline": [
+          "animation & game art"
+        ],
+        "medium": [
+          "digital"
+        ],
+        "treatment": [
+          "flat colors"
+        ],
+        "design": [
+          "animation"
+        ],
+        "color": [
+          "limited palette"
+        ],
+        "mood": [
+          "playful"
+        ],
+        "subject": [
+          "character"
+        ]
+      },
+      "insertion": {
+        "tags": "character design, simplified silhouette, shape language",
+        "natural": "character shape study style, Simple body proportions and broad silhouette cues test character readability."
+      },
+      "previewKind": "none"
+    }
+  ]
+}

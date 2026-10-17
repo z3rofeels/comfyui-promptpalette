@@ -15,6 +15,7 @@ import { createToolRegistry } from "../tools/tool_registry.js";
 import { ReversibleLibraryHistory } from "./undo_manager.js";
 import { WORKSPACE_SCOPES, resolveExperiment } from "./recipe_experiment.js";
 import { fieldVariationSource, hasVariationSyntax } from "./recipe_variation_source.js";
+import { positiveAntonymsEnabled, projectPositiveOutput, installPositiveAntonymsControl } from "./positive_antonyms.js";
 
 export function createPowerToolsController(ctx) {
   const {
@@ -31,6 +32,12 @@ export function createPowerToolsController(ctx) {
     performanceRuntime, profiler,
   } = ctx;
   const settingsRoot = settingsPopup || root;
+  const antonyms = installPositiveAntonymsControl({ node, root, settingsRoot, onChange: () => {
+    variationRequestId++;
+    clearResultView();
+    if (resolvedView.classList.contains("on")) refreshResolvedView();
+    if (variationPopup.classList.contains("open") && ctx.state.powerTools.variationLab) refreshVariations();
+  } });
 
   const toolRegistry = createToolRegistry();
   toolRegistry.register({ id: "promptDoctor", elements: [doctorChip, doctorPopup], unmount: () => { closePowerPopup(doctorPopup); performanceRuntime?.cancelTimer("doctor"); } });
@@ -62,7 +69,7 @@ export function createPowerToolsController(ctx) {
   clearKept.addEventListener("click", () => resetKept?.());
   copyKept.addEventListener("click", async () => {
     if (!keptItems.length) return;
-    const count = keptItems.length, text = keptItems.map(item => String(item.resolved ?? "")).join("\n\n");
+    const count = keptItems.length, text = keptItems.map(item => String(item.outputPositive ?? item.resolved ?? "")).join("\n\n");
     const requestId = variationRequestId;
     try {
       await navigator.clipboard.writeText(text);
@@ -85,7 +92,7 @@ export function createPowerToolsController(ctx) {
     const selected = new Set(), checks = [];
     const seen = new Map();
     const firstIndices = items.map((item, index) => {
-      const key = JSON.stringify([String(item.resolved ?? ""), String(item.negative ?? "")]);
+      const key = JSON.stringify([String(item.outputPositive ?? item.resolved ?? ""), String(item.negative ?? "")]);
       if (!seen.has(key)) seen.set(key, index);
       return seen.get(key);
     });
@@ -144,7 +151,7 @@ export function createPowerToolsController(ctx) {
     if (plan.scope === "workspace") line("Entire Workspace also resamples dynamic text outside fields. Locked field results remain held.");
     line("Lock holds the captured result in these previews and exact batches. Apply updates targeted fields; Freeze current value in a field also fixes its generation value across seeds.", "pp-experiment-note");
     if (!items?.length) return;
-    const unique = new Set(items.map(item => JSON.stringify([item.resolved, item.negative]))).size;
+    const unique = new Set(items.map(item => JSON.stringify([item.outputPositive ?? item.resolved, item.negative]))).size;
     if (unique === 1 && !fixed.length) line("These samples resolve alike. Your list may have one choice, nearby seeds may repeat, or a fixed-pick modifier may hold a choice. Check the source or sample more seeds.", "pp-experiment-warning");
     const held = recipe.fields.filter(f => plan.markers.some(m => m.id === f.id) && !plan.targets.includes(f.id));
     if (held.length) {
@@ -312,7 +319,7 @@ export function createPowerToolsController(ctx) {
       const tokens = Number(item?.token_stats?.tokens);
       const wildcardCount = Array.isArray(item?.wildcards) ? item.wildcards.length : 0;
       card.innerHTML = `<div class="wg-variation-meta"><strong>#${index + 1} · seed ${escapeHtml(String(item.seed ?? ""))}</strong><span>${Number.isFinite(tokens) ? `${tokens} tokens · ` : ""}${wildcardCount} wildcard${wildcardCount === 1 ? "" : "s"}</span></div><div class="wg-variation-text"></div><div class="wg-power-actions"><button type="button" data-use>Use seed</button><button type="button" data-preview>Use + preview</button><button type="button" data-copy>Copy resolved</button></div>`;
-      card.querySelector(".wg-variation-text").textContent = String(item.resolved || "");
+      card.querySelector(".wg-variation-text").textContent = String(item.outputPositive ?? item.resolved ?? "");
       card.querySelector("[data-use]").addEventListener("click", () => {
         try {
           assertCurrent(); useVariationSeed(item.seed); didUseSeed();
@@ -324,7 +331,7 @@ export function createPowerToolsController(ctx) {
         catch (error) { setVariationStatus(error.message, true); }
       });
       card.querySelector("[data-copy]").addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(String(item.resolved || "")); setVariationStatus(`Variation ${index + 1} copied.`); }
+        try { await navigator.clipboard.writeText(String(item.outputPositive ?? item.resolved ?? "")); setVariationStatus(`Variation ${index + 1} copied.`); }
         catch { setVariationStatus("Clipboard permission was denied.", true); }
       });
       variationList.appendChild(card);
@@ -336,6 +343,7 @@ export function createPowerToolsController(ctx) {
     const requestId = ++variationRequestId;
     clearResultView();
     const source = textarea.value;
+    const positiveAntonyms = positiveAntonymsEnabled(node);
     const seed = seedWidget?.value ?? 0;
     const mode = modeWidget?.value || "entire text as one";
     const count = Math.max(1, Math.min(16, Number(variationCount.value) || 4));
@@ -358,6 +366,7 @@ export function createPowerToolsController(ctx) {
       && variationPopup.classList.contains("open")
       && ctx.state.powerTools.variationLab
       && textarea.value === source
+      && positiveAntonymsEnabled(node) === positiveAntonyms
       && (seedWidget?.value ?? 0) === seed
       && (modeWidget?.value || "entire text as one") === mode
       && !!node._ppRecipeWorkspace?.isActive() === !!workspace
@@ -367,7 +376,11 @@ export function createPowerToolsController(ctx) {
     const requestController = performanceRuntime?.beginRequest("variations") || new AbortController();
     try {
       const resolve = () => workspace ? resolveExperiment(plan, seed, mode, count, API.resolveVariations, { signal: requestController.signal }) : API.resolveVariations(source, seed, mode, count, { signal: requestController.signal });
-      const items = profiler ? await profiler.measureAsync("variations.resolve", resolve) : await resolve();
+      let items = profiler ? await profiler.measureAsync("variations.resolve", resolve) : await resolve();
+      if (positiveAntonyms) items = await Promise.all(items.map(async item => {
+        const output = await projectPositiveOutput(item.resolved || "", true, { signal: requestController.signal });
+        return { ...item, outputPositive: output.resolved, token_stats: output.tokenStats || item.token_stats };
+      }));
       performanceRuntime?.endRequest("variations", requestController);
       if (!stillCurrent() || requestController.signal.aborted) {
         if (requestId === variationRequestId && variationPopup.classList.contains("open") && !requestController.signal.aborted) setVariationStatus("The prompt, workspace or seed changed. Resolve again to preview the current values.", true);
@@ -382,7 +395,7 @@ export function createPowerToolsController(ctx) {
       let acceptedSeed = seed;
       renderVariations(items, () => {
         if (requestId !== variationRequestId || !nodeIsActive(node) || !ctx.state.powerTools.variationLab ||
-            textarea.value !== source || (seedWidget?.value ?? 0) !== acceptedSeed ||
+            textarea.value !== source || positiveAntonymsEnabled(node) !== positiveAntonyms || (seedWidget?.value ?? 0) !== acceptedSeed ||
             (modeWidget?.value || "entire text as one") !== mode || node._ppRecipeWorkspace?.isActive())
           throw new Error("The prompt or seed changed. Resolve again before using a preview.");
         if (node.inputs?.some(input => ["seed", "external_seed"].includes(input.name) && input.link != null))
@@ -392,7 +405,7 @@ export function createPowerToolsController(ctx) {
       setVariationStatus(hasUnseeded
         ? `${items.length} seed-stepped version${items.length === 1 ? "" : "s"}. Unseeded * / ~ syntax remains intentionally random. Nothing was queued.`
         : `${items.length} deterministic version${items.length === 1 ? "" : "s"}. No image generation was queued.`);
-      if (items.length > 1 && new Set(items.map(item => String(item.resolved ?? ""))).size === 1)
+      if (items.length > 1 && new Set(items.map(item => String(item.outputPositive ?? item.resolved ?? ""))).size === 1)
         setVariationStatus(hasVariationSyntax(source)
           ? "These seeds produced the same result. Check your choices or resolve more versions; filtering repeats does not create new alternatives."
           : "This prompt has one fixed result. Add {choice A|choice B} or a library wildcard to explore alternatives.");
@@ -404,9 +417,9 @@ export function createPowerToolsController(ctx) {
   }
   function renderWorkspaceVariations(workspace, plan, items, seed, mode) {
     variationList.replaceChildren();
-    const renderedRequestId = variationRequestId;
+    const renderedRequestId = variationRequestId, outputMode = positiveAntonymsEnabled(node);
     const assertCurrent = () => {
-      if (renderedRequestId !== variationRequestId || !nodeIsActive(node) || !ctx.state.powerTools.variationLab)
+      if (renderedRequestId !== variationRequestId || positiveAntonymsEnabled(node) !== outputMode || !nodeIsActive(node) || !ctx.state.powerTools.variationLab)
         throw new Error("This preview has expired. Resolve again before applying or sending it.");
       workspace.assertPlan(plan);
       if ((seedWidget?.value ?? 0) !== seed || (modeWidget?.value || "entire text as one") !== mode || scopeSelect.value !== plan.scope) throw new Error("The scope or seed changed. Refresh variations first.");
@@ -418,7 +431,7 @@ export function createPowerToolsController(ctx) {
     }
     const seen = new Map();
     const versions = items.map((item, originalIndex) => {
-      const key = JSON.stringify([item.resolved, item.negative]), duplicateOf = seen.get(key);
+      const key = JSON.stringify([item.outputPositive ?? item.resolved, item.negative]), duplicateOf = seen.get(key);
       if (!seen.has(key)) seen.set(key, originalIndex);
       const changed = item.changes.some(change => change.changed) || item.resolved !== items[0].resolved || item.negative !== items[0].negative;
       return { item, originalIndex, duplicateOf, priority: duplicateOf != null ? 2 : changed ? 0 : 1 };
@@ -444,12 +457,12 @@ export function createPowerToolsController(ctx) {
       const repeated = document.createElement("p"); repeated.className = "pp-candidate-repeat"; repeated.hidden = duplicate == null; repeated.textContent = `Same resolved result as #${duplicate}.`;
       if (!changed.length && plan.scope === "workspace" && (item.resolved !== items[0].resolved || item.negative !== items[0].negative)) status.textContent = "Dynamic text outside fields changed";
       const preview = document.createElement("details"), summary = document.createElement("summary"); summary.textContent = "Resolved prompt";
-      const text = document.createElement("div"); text.className = "wg-variation-text"; text.textContent = item.resolved + (item.negative ? `\n\nNegative:\n${item.negative}` : ""); preview.append(summary, text);
+      const text = document.createElement("div"); text.className = "wg-variation-text"; text.textContent = (item.outputPositive ?? item.resolved) + (item.negative ? `\n\nNegative:\n${item.negative}` : ""); preview.append(summary, text);
       const actions = document.createElement("div"); actions.className = "wg-power-actions";
       const apply = action("Use version", () => { assertCurrent(); workspace.applyVariation(plan, item.values); setVariationStatus(`Applied values to ${item.changes.map(change => change.label).join(", ")}. Original choices were kept. Press Resolve to explore again, or Restore choices in a field to return to its template. Held fields retain their authored text.`); });
       apply.title = "Apply the selected values to target fields. Original choices stay available for future previews. Undo restores the previous workspace.";
       actions.append(apply,
-        action("Copy resolved", () => navigator.clipboard.writeText(item.resolved)));
+        action("Copy resolved", () => navigator.clipboard.writeText(item.outputPositive ?? item.resolved)));
       card.append(title, status, repeated, fields, waiting, preview, actions); variationList.appendChild(card);
     });
     let batchItems = [];
@@ -802,6 +815,7 @@ export function createPowerToolsController(ctx) {
   }
 
   function syncPowerToolSettingsUI() {
+    antonyms.sync();
     settingsRoot.querySelectorAll("[data-power-tool]").forEach((input) => { input.checked = !!ctx.state.powerTools[input.dataset.powerTool]; });
     const enabledCount = Object.values(ctx.state.powerTools).filter(Boolean).length;
     const status = el("powerToolsStatus");
@@ -840,7 +854,7 @@ export function createPowerToolsController(ctx) {
     notify("info", "Power tools enabled", "Prompt Palette command-palette actions appear after restart; no keyboard shortcuts are assigned.");
   });
   settingsRoot.querySelector('[data-act="powerToolsAllOff"]').addEventListener("click", () => {
-    ctx.state.powerTools = replacePowerToolPreferences({});
+    ctx.state.powerTools = replacePowerToolPreferences({ selectionTools: ctx.state.powerTools.selectionTools !== false });
     updateThemeJson();
   });
 
@@ -911,7 +925,7 @@ export function createPowerToolsController(ctx) {
     applyPowerToolSettings,
     syncPowerToolSettingsUI,
     promptSaveRecipe,
-    cleanup() { cleanupLibrarySubscription(); window.removeEventListener("pp-power-tools-changed", syncSharedPowerPreferences); closeAllPowerPopups(); libraryHistory.clear(); toolRegistry.cleanup(); scopeRow.remove(); },
+    cleanup() { antonyms.cleanup(); cleanupLibrarySubscription(); window.removeEventListener("pp-power-tools-changed", syncSharedPowerPreferences); closeAllPowerPopups(); libraryHistory.clear(); toolRegistry.cleanup(); scopeRow.remove(); },
     toolRegistry,
   };
 }

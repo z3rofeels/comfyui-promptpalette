@@ -15,10 +15,13 @@ COMBO_SCAN_RE = re.compile(r"(__%[A-Za-z0-9_\-\/]+__)|(\{%[^{}]*\})")
 
 # Native Prompt Palette conditionals.  Square-bracket syntax is deliberately
 # distinct from existing wildcard/variable/choice syntax.
-CONDITIONAL_TAG_RE = re.compile(r"\[(if|elif|else|/if)(?:\s+([^\]]+))?\]", re.IGNORECASE)
+CONDITIONAL_TAG_RE = re.compile(r"\[(if|elif|else|/if|switch|case|default|/switch)(?:\s+([^\]]+))?\]", re.IGNORECASE)
 
 
-SINGLE_PICK_MODES = ("+", "-", "*", "~", "@", "%")
+# These modifiers deliberately choose one value during a Cartesian expansion.
+# % is Cartesian syntax: Editor.resolve cycles it across runs, while the
+# Combinatorial node expands its full product just like an unmarked group.
+SINGLE_PICK_MODES = ("+", "-", "*", "~", "@")
 
 _ZW = "\u2060"
 
@@ -442,8 +445,14 @@ class WildcardResolver:
 
     def _eval_condition(self, expression, env=None, rng=None, combo_map=None, depth=0):
         expression = str(expression or "").strip()
+        self._check_depth(depth)
         if not expression:
             return False
+        while expression.startswith("(") and expression.endswith(")"):
+            # Peel only a group enclosing the entire expression.
+            if not self._condition_outer_group(expression):
+                break
+            expression = expression[1:-1].strip()
         # Small deterministic expression grammar: comparisons, membership,
         # truthiness, and/or/not. No Python eval and no executable expressions.
         parts = self._split_condition_logic(expression, "or")
@@ -475,26 +484,55 @@ class WildcardResolver:
         return str(value).strip().lower() not in {"", "0", "false", "none", "null", "no"}
 
     @staticmethod
-    def _split_condition_logic(expression, operator):
-        # Quoted names such as "black and white" are literals, not boolean logic.
-        # Keep the existing unquoted grammar and precedence; never execute code.
-        quote = None
-        cuts = []
-        for match in re.finditer(r"['\"]|\s+" + operator + r"\s+", expression, re.IGNORECASE):
-            token = match.group(0)
-            if token in {"'", '"'}:
-                if quote is None and (match.start() == 0 or expression[match.start() - 1].isspace() or expression[match.start() - 1] in "=<>!"):
-                    quote = token
-                elif quote == token:
+    def _condition_outer_group(expression):
+        level, quote, escaped = 0, None, False
+        for i, char in enumerate(expression):
+            if escaped:
+                escaped = False
+                continue
+            if quote:
+                if char == "\\":
+                    escaped = True
+                elif char == quote:
                     quote = None
-            elif quote is None:
-                cuts.append((match.start(), match.end()))
-        parts = []
-        start = 0
+            elif char in "\"'":
+                quote = char
+            elif char == "(":
+                level += 1
+            elif char == ")":
+                level -= 1
+                if level == 0 and i != len(expression) - 1:
+                    return False
+        return level == 0 and quote is None
+
+    @staticmethod
+    def _split_condition_logic(expression, operator):
+        # Split only unquoted, top-level operators. Parentheses give users explicit precedence.
+        quote, level, escaped, cuts = None, 0, False, []
+        for i, char in enumerate(expression):
+            if escaped:
+                escaped = False
+                continue
+            if quote:
+                if char == "\\":
+                    escaped = True
+                elif char == quote:
+                    quote = None
+            elif char in "\"'" and (i == 0 or expression[i - 1].isspace() or expression[i - 1] in "=<>!(|"):
+                quote = char
+            elif char == "(":
+                level += 1
+            elif char == ")":
+                level -= 1
+            elif level == 0 and expression[i:i + len(operator)].lower() == operator:
+                end = i + len(operator)
+                if i > 0 and expression[i - 1].isspace() and end < len(expression) and expression[end].isspace():
+                    cuts.append((i, end))
+        parts, start = [], 0
         for left, right in cuts:
-            parts.append(expression[start:left])
+            parts.append(expression[start:left].strip())
             start = right
-        return parts + [expression[start:]]
+        return parts + [expression[start:].strip()]
 
     def _resolve_conditionals(self, text, rng, combo_map=None, env=None, depth=0):
         """Resolve native [if]/[elif]/[else]/[/if] blocks without executing code."""
@@ -509,42 +547,43 @@ class WildcardResolver:
             output.append(text[cursor:token.start()] if active else "")
             kind = token.group(1).lower()
             expr = (token.group(2) or "").strip()
-            if kind == "if":
+            if kind in {"if", "switch"}:
                 if len(stack) >= MAX_NESTED_RESOLUTION_DEPTH:
                     raise ValueError("prompt conditional nesting is too deep")
-                parent_active = active
-                branch_active = parent_active and self._eval_condition(expr, env, rng, combo_map, depth + 1)
-                stack.append((parent_active, branch_active, branch_active))
+                if not expr:
+                    raise ValueError(f"[{kind}] requires an expression")
+                branch_active = active and self._eval_condition(expr, env, rng, combo_map, depth + 1) if kind == "if" else False
+                value = self._condition_value(expr, env, rng, combo_map, depth + 1) if kind == "switch" and active else ""
+                stack.append({"kind": kind, "parent": active, "active": branch_active, "taken": branch_active, "fallback": False, "value": value})
                 active = branch_active
-            elif kind == "elif":
-                if not stack:
-                    raise ValueError("[elif] has no matching [if]")
-                parent_active, _current_active, any_taken = stack[-1]
-                if any_taken:
-                    active = False
-                    # Nested blocks restore their parent's current branch flag.
-                    # A skipped elif must not retain the earlier taken branch.
-                    stack[-1] = (parent_active, False, any_taken)
+            elif kind in {"elif", "else", "case", "default"}:
+                expected = "switch" if kind in {"case", "default"} else "if"
+                if not stack or stack[-1]["kind"] != expected:
+                    raise ValueError(f"[{kind}] has no matching [{expected}]")
+                frame = stack[-1]
+                if frame["fallback"]:
+                    raise ValueError(f"[{kind}] cannot follow a fallback branch")
+                if kind in {"elif", "case"} and not expr:
+                    raise ValueError(f"[{kind}] requires an expression")
+                eligible = frame["parent"] and not frame["taken"]
+                if kind == "elif":
+                    active = eligible and self._eval_condition(expr, env, rng, combo_map, depth + 1)
+                elif kind == "case":
+                    active = eligible and frame["value"] == self._condition_value(expr, env, rng, combo_map, depth + 1)
                 else:
-                    branch_active = parent_active and self._eval_condition(expr, env, rng, combo_map, depth + 1)
-                    stack[-1] = (parent_active, branch_active, any_taken or branch_active)
-                    active = branch_active
-            elif kind == "else":
-                if not stack:
-                    raise ValueError("[else] has no matching [if]")
-                parent_active, _current_active, any_taken = stack[-1]
-                active = parent_active and not any_taken
-                stack[-1] = (parent_active, active, True)
-            elif kind == "/if":
-                if not stack:
-                    raise ValueError("[/if] has no matching [if]")
-                parent_frame = stack[-2] if len(stack) > 1 else None
+                    active = eligible
+                    frame["fallback"] = True
+                frame["active"] = active
+                frame["taken"] = frame["taken"] or active
+            else:
+                if not stack or stack[-1]["kind"] != kind[1:]:
+                    raise ValueError(f"[{kind}] has no matching opening block")
                 stack.pop()
-                active = parent_frame[1] if parent_frame else True
+                active = stack[-1]["active"] if stack else True
             cursor = token.end()
         output.append(text[cursor:] if active else "")
         if stack:
-            raise ValueError("[if] is missing a closing [/if]")
+            raise ValueError(f"[{stack[-1]['kind']}] is missing a closing tag")
         return "".join(output)
 
     def _run_passes(self, text, rng, combo_map=None, depth=0):

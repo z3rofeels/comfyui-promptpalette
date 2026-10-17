@@ -1,5 +1,5 @@
 {
-  "PromptPaletteEditor": "Prompt library, wildcard editor, conditional resolver, booru tag autocomplete, metadata output, and optional encoder",
-  "PromptPaletteCombinatorial": "Random and Cartesian wildcard prompt batch generator with conditional resolution and resolved prompt metadata",
-  "PromptPaletteWeightController": "Prompt weight translation and optional conditioning controller"
+  "PromptPaletteEditor": "Prompt editor with reusable wildcard libraries, sidebar style browsing, offline Booru and Anima artist autocomplete, field variations, conditional logic, and optional conditioning",
+  "PromptPaletteCombinatorial": "Batch prompt generator with random variations, Cartesian wildcard combinations, structured workspaces, positive/negative prompts, and optional conditioning",
+  "PromptPaletteWeightController": "Model-aware prompt weighting with phrase controls, optional positive antonyms, negative routing, and conditioning outputs"
 }

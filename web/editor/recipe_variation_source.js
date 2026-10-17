@@ -1,5 +1,5 @@
 // Authored alternatives remain ordinary Prompt Palette resolver syntax.
-export const hasVariationSyntax = text => /__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^\n]*?\))?__|\$\{|\{[^{}]*\||\[(?:if|elif)\b/i.test(text);
+export const hasVariationSyntax = text => /__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^\n]*?\))?__|\$\{|\{[^{}]*\||\[(?:if|elif|switch)\b/i.test(text);
 export const fieldVariationSource = field => field.variationTemplate || field.value;
 export function choicesFromLines(text) {
   const choices = [...new Set(String(text).split(/\r?\n/).map(line => line.trim()).filter(Boolean))];
@@ -17,19 +17,16 @@ export function editableChoiceLines(field) {
   return match && !/^[+*~@%\-]/.test(match[1]) ? match[1].split('|').map(choice => choice.trim()).join('\n') : source;
 }
 export function fieldVariationHint(field, fields) {
-  if (!field.enabled) return 'Disabled: excluded from the compiled prompt and variation.';
-  if (!field.value.trim()) return 'Empty: enter a value, set choices or use a library wildcard.';
+  if (!field.enabled) return 'Disabled: omitted from generation.';
+  if (!field.value.trim()) return 'Empty: add text, set choices or insert a library wildcard.';
+  if (field.experimentState === 'lock') return 'Locked: the captured value stays fixed across seeds and reloads. Original choices are kept for reuse.';
   const dynamic = hasVariationSyntax(fieldVariationSource(field));
-  if (field.experimentState === 'lock') return hasVariationSyntax(field.value)
-    ? 'Lock holds its resolved choice during this preview. Freeze current value to keep that choice across generation seeds.'
-    : 'Lock protects this fixed value from variation. It stays the same across generation seeds.';
+  const method = { cycle: 'Cycles in order on each generation, including at a fixed seed.', shuffle: 'Shuffles choices on each generation, avoiding immediate repeats.', seed: 'Uses the seed: a fixed seed intentionally repeats its choice.', syntax: 'Uses the operators written in the field; generation follows those operators.' }[field.variationMode || 'cycle'];
   if (field.experimentState === 'follow') {
     const sources = fields.filter(f => field.dependsOn.includes(f.id)).map(f => f.label);
-    return !sources.length ? 'Follow in Vary Fields needs sources: choose the trigger fields below. Vary field can explore it directly.'
-      : `Follow ${sources.join(', ')}: explores its choices only when a selected source changes.${dynamic ? '' : ' This field still needs choices to produce different values.'}`;
+    if (!dynamic) return "Follow has one fixed value. Set choices to let it change when its sources change.";
+    return sources.length ? `Follows ${sources.join(', ')}: holds its last choice until a source changes. ${method} Lists are not automatically matched by meaning.` : 'Choose a source below. Follow needs at least one source field.';
   }
-  if (!dynamic) return `${field.experimentState === 'vary' ? 'Vary is selected, but this is fixed text.' : 'This field has one fixed value.'} Set choices or use a library wildcard to get alternatives.`;
-  if (field.variationTemplate) return 'Selected value is in the prompt. Your original choices remain available for another preview; Restore choices puts them back in the editor.';
-  return field.experimentState === 'vary' ? 'Vary explores these choices. Lock other fields to protect their captured results.'
-    : 'Choices are ready. Select Vary to include this field in Vary Fields, or use Vary field to explore it alone.';
+  if (!dynamic) return 'This is one fixed value. Set choices or insert a library wildcard to make it vary.';
+  return field.experimentState === 'vary' ? method + ' Plain choice lists and library lists support cycling; complex expressions use their written syntax.' : 'Default: ordinary seed-driven prompt syntax. Choose Vary to change choices on each generation.';
 }

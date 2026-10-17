@@ -1,6 +1,6 @@
 import { createLibraryLookup } from "./library_lookup.js";
 const WILDCARD_RE = /__([+\-*%~@]?)([A-Za-z0-9_\-/*]+)(?:\(([^()]*)\))?__/g;
-const SIMPLE_TOKEN_RE = /(__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
+const SIMPLE_TOKEN_RE = /(__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if|switch|case|default|\/switch)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
 const LORA_RE = /<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)>/gi;
 const CACHE_LIMIT = 768;
 
@@ -46,7 +46,7 @@ function parseLine(raw) {
       const split = assign >= 0 ? assign : fallback;
       segment = { type: "variable", text: token, name: (split >= 0 ? inner.slice(0, split) : inner).trim(), operator: assign >= 0 ? "=" : fallback >= 0 ? ":" : "", value: split >= 0 ? inner.slice(split + 1).trim() : "", start: match.index, end: match.index + token.length };
       variables.push(segment);
-    } else if (/^\[(?:if|elif|else|\/if)(?:\s+[^\]]+)?\]$/i.test(token)) segment = { type: "conditional", text: token, start: match.index, end: match.index + token.length };
+    } else if (/^\[(?:if|elif|else|\/if|switch|case|default|\/switch)(?:\s+[^\]]+)?\]$/i.test(token)) segment = { type: "conditional", text: token, start: match.index, end: match.index + token.length };
     else if (/^\d+::$/.test(token)) segment = { type: "weight", text: token, start: match.index, end: match.index + token.length };
     else if (/^(?:\d+(?:-\d+)?\$\$|\d+#)/.test(token)) segment = { type: "modifier", text: token, start: match.index, end: match.index + token.length };
     else if (token === "{" || token === "}") {
@@ -121,15 +121,22 @@ export class UnifiedWildcardEngine {
     if (underscores % 2) add("error", "unclosed-wildcard", "Unclosed wildcard token", "A double-underscore wildcard delimiter is missing its closing pair.");
 
     const conditionalStack = [];
-    for (const match of source.matchAll(/\[(if|elif|else|\/if)(?:\s+([^\]]+))?\]/gi)) {
-      const kind = String(match[1]).toLowerCase();
-      if (kind === "if") conditionalStack.push(match.index ?? 0);
-      else if (kind === "elif" || kind === "else") {
-        if (!conditionalStack.length) add("error", "orphan-conditional", "Conditional branch without if", `[${kind}] has no matching [if].`, { index: match.index ?? 0 });
-      } else if (!conditionalStack.length) add("error", "orphan-conditional", "Conditional close without if", "[/if] has no matching [if].", { index: match.index ?? 0 });
-      else conditionalStack.pop();
+    for (const match of source.matchAll(/\[(if|elif|else|\/if|switch|case|default|\/switch)(?:\s+([^\]]+))?\]/gi)) {
+      const kind = match[1].toLowerCase(), top = conditionalStack.at(-1);
+      const problem = detail => add("error", "invalid-conditional", "Invalid branch", detail, { index: match.index ?? 0 });
+      if (["if", "elif", "switch", "case"].includes(kind) && !String(match[2] || "").trim()) problem(`[${kind}] requires an expression.`);
+      if (kind === "if" || kind === "switch") conditionalStack.push({ kind, fallback: false });
+      else if (kind.startsWith("/")) {
+        if (top?.kind !== kind.slice(1)) problem(`[${kind}] has no matching opening block.`);
+        else conditionalStack.pop();
+      } else {
+        const expected = ["case", "default"].includes(kind) ? "switch" : "if";
+        if (top?.kind !== expected) problem(`[${kind}] requires [${expected}].`);
+        else if (top.fallback) problem(`[${kind}] cannot follow [${expected === "if" ? "else" : "default"}].`);
+        else if (["else", "default"].includes(kind)) top.fallback = true;
+      }
     }
-    if (conditionalStack.length) add("error", "unclosed-conditional", "Unclosed conditional", "One or more [if] blocks are missing a closing [/if].");
+    if (conditionalStack.length) add("error", "unclosed-conditional", "Unclosed conditional", "Close each [if] with [/if] and each [switch] with [/switch].");
 
     const duplicateWildcards = new Map();
     for (const token of parsed?.wildcards || []) {
@@ -208,6 +215,12 @@ export class UnifiedWildcardEngine {
     }
     if (/\$\{[^}]*$/.test(before)) return null;
     const minChars = Math.max(1, Math.min(12, Math.round(Number(options?.booruMinChars) || 2)));
+    // Explicit Anima artist queries may contain spaces. Wildcard @ selection
+    // above remains authoritative; emails and escaped @ are not artist queries.
+    const artist = before.match(/(?:^|[\s,])(@(?:[\p{L}\p{N}_+():'\/\\.\-][\p{L}\p{N}_+():'\/\\. \-]*)?)$/u);
+    if (artist) {
+      return { kind: "booru", query: artist[1], modifier: "", start: before.length - artist[1].length, end: before.length };
+    }
 
     // A Library card inserts a complete `__name__` token. When the user keeps
     // typing immediately after that token (for example `__characters__artist`),

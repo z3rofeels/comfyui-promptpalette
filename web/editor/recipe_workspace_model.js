@@ -21,6 +21,7 @@ export function cloneWorkspaceData(value) {
 export const separators = { comma: ", ", newline: "\n", space: " ", none: "" };
 export function fieldId() { return globalThis.crypto?.randomUUID?.() || `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`; }
 export const EXPERIMENT_STATES = ["lock", "vary", "follow"];
+export const FIELD_ACCENT = /^#[0-9a-f]{6}$/i;
 export function newField(label = "Section") { return { id: fieldId(), name: label, label, value: "", default: "", enabled: true, collapsed: false, channel: "positive", fieldType: "text", separator: null, experimentState: null, dependsOn: [] }; }
 export function validateWorkspaceRecipe(recipe, { coreOnly = false } = {}) {
   if (recipe?.schema !== WORKSPACE_SCHEMA || !Array.isArray(recipe.fields) || recipe.fields.length > 32 || !Array.isArray(recipe.segments) || recipe.segments.length > 256) throw new Error("Invalid workspace recipe.");
@@ -33,11 +34,24 @@ export function validateWorkspaceRecipe(recipe, { coreOnly = false } = {}) {
     if (f.separator != null && (typeof f.separator !== "string" || f.separator.length > 1024)) throw new Error("Invalid field separator.");
     if (f.channel != null && !["positive", "negative"].includes(f.channel)) throw new Error("Invalid prompt channel.");
     if (f.experimentState != null && !EXPERIMENT_STATES.includes(f.experimentState)) throw new Error("Invalid field experiment state.");
+    if (f.variationMode != null && !["cycle", "shuffle", "seed", "syntax"].includes(f.variationMode)) throw new Error("Invalid generation variation method.");
     if (f.fieldType != null && (typeof f.fieldType !== "string" || f.fieldType.length > 80)) throw new Error("Invalid field type.");
     if (f.dependsOn != null && (!Array.isArray(f.dependsOn) || f.dependsOn.length > 32 || f.dependsOn.some(id => typeof id !== "string"))) throw new Error("Invalid Follow dependencies.");
-    return { ...f, dependsOn: [...new Set(f.dependsOn || [])], label: String(f.label ?? f.name ?? "Section"), default: f.default ?? f.value, enabled: f.enabled !== false, collapsed: !!f.collapsed, channel: f.channel || "positive", experimentState: f.experimentState ?? null };
+    const field = { ...f, dependsOn: [...new Set(f.dependsOn || [])], label: String(f.label ?? f.name ?? "Section"), default: f.default ?? f.value, enabled: f.enabled !== false, collapsed: !!f.collapsed, channel: f.channel || "positive", experimentState: f.experimentState ?? null };
+    // Cosmetic properties: an invalid value is dropped instead of rejecting the whole recipe.
+    if (typeof field.accent !== "string" || !FIELD_ACCENT.test(field.accent)) delete field.accent; else field.accent = field.accent.toLowerCase();
+    if (field.titleHidden) field.titleHidden = true; else delete field.titleHidden;
+    return field;
   });
   for (const f of fields) if (f.dependsOn.some(id => id === f.id || !ids.has(id))) throw new Error("Follow dependencies must reference other existing fields.");
+  const visited = new Set(), visiting = new Set(), lookup = new Map(fields.map(f => [f.id, f]));
+  function visit(id) {
+    if (visiting.has(id)) throw new Error("Follow sources cannot form a cycle.");
+    if (visited.has(id)) return;
+    visiting.add(id); if (lookup.get(id).experimentState === "follow") for (const dep of lookup.get(id).dependsOn) visit(dep);
+    visiting.delete(id); visited.add(id);
+  }
+  fields.forEach(f => visit(f.id));
   const referenced = new Set();
   const segments = recipe.segments.map(s => {
     if (s.type === "field") {

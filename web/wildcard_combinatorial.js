@@ -1,4 +1,8 @@
+import { installSettingsDiscovery } from "./editor/settings_discovery.js";
+import { sidebarEditingHandlers } from "./editor/sidebar_targets.js";
+import { registerPromptPaletteCommandTarget } from "./prompt_palette_command_bus.js";
 import { bindEditorWildcardHover } from "./editor/editor_hover.js";
+import { historyShortcut } from "./editor/history_keys.js";
 import { saveEditorSelection } from "./editor/selection_library.js";
 import { attachEditorContextMenu } from "./editor/context_menu.js";
 import { app } from "../../scripts/app.js";
@@ -20,7 +24,7 @@ import { mountCombinatorialTools, createCombinatorialTools } from "./editor/comb
 import { attachImageImport } from "./editor/image_import.js";
 import { editCompiledPrompt } from "./editor/recipe_text_edit.js";
 import { tagSearch } from "./editor/tag_search.js";
-import { EditorUndoManager } from "./editor/undo_manager.js";
+import { EditorUndoManager, TEXT_UNDO_LIMIT } from "./editor/undo_manager.js";
 import { createSyntaxHighlighter } from "./editor/syntax_highlighter.js";
 import { PromptSyntaxCache, renderPromptSyntax } from "./editor/prompt_parser.js";
 import { createLibraryLookup } from "./engine/library_lookup.js";
@@ -256,6 +260,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function reassertHiddenWidgets() {
+    node._ppSyncPositiveAntonyms?.();
     if (preparedWidget) hideNativeWidget(preparedWidget);
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
     nativeBackingWidgets.forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); });
@@ -272,6 +277,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   buildSeedModeOptions();
 
   function syncControlsFromWidgets() {
+    node._ppSyncPositiveAntonyms?.();
+    const artistToggle = el("toggleAnimaArtistFormatting");
+    if (artistToggle) artistToggle.checked = loadTheme().animaArtistFormatting === true;
     if (countWidget) countInput.value = countWidget.value;
     if (maxPromptsWidget) maxPromptsInput.value = maxPromptsWidget.value;
     if (seedWidget) {
@@ -422,6 +430,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   node._wgSyncExternalControlState = syncExternalControlState;
 
   const settingsPopup = el("settingsPopup");
+  el("toggleAnimaArtistFormatting")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), animaArtistFormatting: event.target.checked });
+  });
   detachedSettingsPopup = settingsPopup;
   const settingsBtn = action("settings");
   settingsPopup.id = `prompt-palette-combinatorial-${String(node.id ?? "node")}-settings`;
@@ -453,6 +464,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     }
     button.addEventListener("keydown", event => navigatePromptPaletteTabs(event, settingsTabs, next => activateSettingsTab(next.dataset.settingsTab)));
   });
+  const cleanupSettingsDiscovery = installSettingsDiscovery(settingsPopup, activateSettingsTab);
   const settingsDrawer = registerPromptPaletteSettingsDrawer({
     popup: settingsPopup,
     trigger: settingsBtn,
@@ -564,18 +576,20 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function updateEstimate() {
+    // Invalidate an in-flight response as soon as text or controls change,
+    // including while the replacement request is still being debounced.
+    estimateSeq++;
     if (preparedWidget?.value) {
       try {
         const batch = JSON.parse(preparedWidget.value);
         if (batch.source === textarea.value && Array.isArray(batch.prompts)) {
-          estimateSeq++; cancelNodeTimer(node, estimateDebounceTimer); estimateDebounceTimer = null;
+          cancelNodeTimer(node, estimateDebounceTimer); estimateDebounceTimer = null;
           estimateBox.classList.remove("pp-loading");
           renderEstimate(batch.prompts.length, false, batch.prompts.length); return;
         }
       } catch { /* normal estimate below */ }
     }
     if (["mode", "count", "seed", "seed_mode", "max_prompts"].some(inputSocketLinked)) {
-      estimateSeq++;
       cancelNodeTimer(node, estimateDebounceTimer);
       estimateDebounceTimer = null;
       estimateCount.textContent = "Connected inputs";
@@ -708,7 +722,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   // Same provider the main Prompt Palette node uses: the library is already cached locally, so no
   // request goes to the server per keystroke. Recents are shared between nodes through the same
   // stored usage list.
-  refinementUndo = new EditorUndoManager({ initialValue: historyValue() });
+  refinementUndo = new EditorUndoManager({ initialValue: historyValue(), limit: TEXT_UNDO_LIMIT, coalesceMs: 0 });
   refinementController = createRefinementController({
     node, root, textarea, render, preparedWidget,
     onOpenWorkspace: (...args) => recipeWorkspace.open(...args),
@@ -720,14 +734,17 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   });
   const noteRefinementInput = () => refinementUndo.note(historyValue());
   const undoRefinementKey = event => {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-    const key = event.key.toLowerCase();
-    if (key !== "z" && key !== "y") return;
-    event.preventDefault(); event.stopPropagation();
-    if (key === "y" || event.shiftKey) performRedo(); else performUndo();
+    const action = historyShortcut(event);
+    if (!action) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (action === "redo") performRedo(); else performUndo();
   };
   textarea.addEventListener("input", noteRefinementInput);
-  textarea.addEventListener("keydown", undoRefinementKey);
+  textarea.addEventListener("keydown", undoRefinementKey, true);
+  const holdRefinementComposition = () => refinementUndo.hold();
+  const releaseRefinementComposition = () => { refinementUndo.release(); noteRefinementInput(); refinementUndo.flush(); };
+  textarea.addEventListener("compositionstart", holdRefinementComposition);
+  textarea.addEventListener("compositionend", releaseRefinementComposition);
   const usageStore = createPromptUsageStore();
   async function getAcMatches(query, contextKind = "wildcard") {
     const q = String(contextKind === "booru" ? tagSearch(query).query : query || "").trim().toLowerCase();
@@ -795,13 +812,13 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const cleanupEditorHover = bindEditorWildcardHover({ node, editor: textarea, getRanges: () => tokenRanges,
     show: showTipForName, hide: hideTip });
   powerTools = createCombinatorialTools({
-    node, root, settingsPopup, el, textarea, seedWidget, ioRail, previewCache, expandedCats, searchInput,
+    node, root, settingsPopup, el, textarea, seedWidget, ioRail, previewCache, expandedCats, searchInput, getMatches: getAcMatches,
     getLibrary: () => libraryCache, getKnown: () => knownSet, getSourcePaths: () => tokenRanges.flatMap(t => lookupWildcard(t.name).map(entry => entry.path)),
     closeSettings, closePickerDrawer, openPickerDrawer, syncControlsFromWidgets, refreshLibrary, renderPickerList,
     applyEdit: atomicEdit, undo: performUndo, redo: performRedo, canUndo: () => refinementUndo.canUndo(), canRedo: () => refinementUndo.canRedo(),
   });
   recipeWorkspace = createRecipeWorkspaceController({
-    node, root, textarea, render, flushHistory: () => refinementUndo.flush(), onUndo: performUndo, onRedo: performRedo,
+    node, root, textarea, render, flushHistory: () => refinementUndo.flush(), holdHistory: () => refinementUndo.hold(), releaseHistory: () => { refinementUndo.release(); refinementUndo.flush(); }, onUndo: performUndo, onRedo: performRedo,
     onShowEditor: powerTools.showEditor,
     host: el("variationPopup").querySelector(".wg-settings-body"), openHost: () => powerTools.openSelectionLab(),
     openVariations: scope => powerTools.openVariations(scope),
@@ -1240,6 +1257,23 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     console.error("Prompt Palette: initial combinatorial refresh failed", error);
   });
 
+  const commandTarget = registerPromptPaletteCommandTarget(node, {
+    ...sidebarEditingHandlers({
+      getEditor: () => recipeWorkspace?.editingSurface() || textarea,
+      useLibraryEntry: insertWildcard,
+      openLibraryItem: path => { searchInput.value = path; openPickerDrawer(); renderPickerList(path); },
+    }),
+    openLibrary: openPickerDrawer,
+    focusEditor: () => { powerTools.closeAllPowerPopups(); closeSettings(); closePickerDrawer(); powerTools.showEditor(); recipeWorkspace?.showEditor(); textarea.focus({ preventScroll: true }); },
+    openDoctor: powerTools.openDoctor,
+    openVariations: powerTools.openVariations,
+    openLibraryManager: powerTools.openLibraryManager,
+    togglePreview: () => el("btnResolve").click(),
+    toggleIo: () => root.querySelector('[data-act="ioRailToggle"]')?.click(),
+  });
+  root.addEventListener("pointerdown", commandTarget.activate, true);
+  root.addEventListener("focusin", commandTarget.activate, true);
+
   const frame = document.createElement("div");
   frame.className = "wg-node-frame pp-node-frame";
   frame.appendChild(root);
@@ -1263,6 +1297,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     reassertHiddenWidgets,
     reapplyTheme: appearanceBinding.apply,
     cleanup: () => {
+      commandTarget.cleanup();
+      root.removeEventListener("pointerdown", commandTarget.activate, true);
+      root.removeEventListener("focusin", commandTarget.activate, true);
       cleanupImageImport();
       libraryDisposed = true; libraryRequestVersion++;
       cleanupLibrarySubscription();
@@ -1272,7 +1309,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       refinementController.cleanup(); refinementUndo.cleanup();
       recipeWorkspace?.cleanup(); powerTools?.cleanup();
       if (node._ppRecipeWorkspace === recipeWorkspace) delete node._ppRecipeWorkspace;
-      textarea.removeEventListener("input", noteRefinementInput); textarea.removeEventListener("keydown", undoRefinementKey);
+      textarea.removeEventListener("input", noteRefinementInput); textarea.removeEventListener("keydown", undoRefinementKey, true);
+      textarea.removeEventListener("compositionstart", holdRefinementComposition); textarea.removeEventListener("compositionend", releaseRefinementComposition);
       delete node._wgBeforeIoRailOpen;
       ioRail.cleanup();
       syntaxHighlighter.clear();
@@ -1301,6 +1339,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       clearNodeTimers(node);
       appearanceBinding.cleanup();
       settingsDrawer.unregister();
+      cleanupSettingsDiscovery();
       cleanupSettingsKeyboardBoundary();
       settingsPopup.remove();
       cleanupKeyboardBoundary();
