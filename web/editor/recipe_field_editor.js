@@ -6,7 +6,7 @@ import { openInjectMenuAtPoint, closeInjectMenu, injectState } from "./injector.
 import { onTagColorsChanged } from "./booru_tag_colors.js";
 import { historyShortcut } from "./history_keys.js";
 import { createRefinementController } from "./refinement_controller.js";
-import { attachEditorContextMenu } from "./context_menu.js";
+import { attachEditorContextMenu, contextWildcardAtPoint } from "./context_menu.js";
 import { saveEditorSelection } from "./selection_library.js";
 import { loadTheme } from "./preferences.js";
 
@@ -38,7 +38,7 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
     syntaxEnabled: () => loadTheme().syntaxInjectorEnabled !== false,
     tokenContext: (event, selection, handle) => {
       if (loadTheme().syntaxInjectorEnabled === false) return false;
-      const hit = paintSyntax(editor.value).ranges.find(r => r.start <= selection.start && selection.start < r.end);
+      const hit = contextWildcardAtPoint(editor, event, selection, paintSyntax(editor.value).ranges);
       if (!hit) return false;
       handle(); editor.setSelectionRange(hit.start, hit.end);
       openInjectMenuAtPoint(event.clientX, event.clientY, hit.name, editor, change, hit);

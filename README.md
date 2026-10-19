@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Prompt Palette by z3rofeels</strong><br>
+  <strong>Your new best friend when it comes to prompting in ComfyUI</strong><br>
   Prompt editing, wildcard libraries, batch generation, and model-aware weighting for ComfyUI.
 </p>
 <p align="center">
@@ -17,7 +17,7 @@
 > **Start with Prompt Palette.** The Combinatorial and Weight Controller nodes are specialized companions—not requirements. Add them only when your workflow needs batch expansion or dedicated prompt-weight routing.
 
 <p align="center">
-  <a href="#recent-features">Recent features</a> ·
+  <a href="#recent-updates”>Recent updates</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#choose-your-node">Choose a node</a> ·
   <a href="#prompt-palette">Prompt Palette</a> ·
@@ -30,7 +30,47 @@
 
 ---
 
-<a id="recent-features"></a>
+<a id="recent-updates”></a>
+## Recent updates — 2.0.7
+
+### Library thumbnails, everywhere you browse
+
+- Right-click a wildcard in the node’s slide-out **Library**, in list or gallery view, to **Set**, **Change**, or **Remove Thumbnail**. The same actions are available on main-sidebar library entries and library autocomplete suggestions.
+- The shared library editor keeps its Add/Replace/Remove controls. Replacements refresh across open editors, galleries, autocomplete, and their image previews, including other browser tabs.
+- PNG/JPEG images up to **8 MB** stay beside their TXT entries. New-entry images attach when you save; failed uploads keep staged images available to retry.
+
+### A clearer prompting sidebar
+
+- **Artists** brings Anima, Booru artist tags, and classic references into one workspace with a remembered catalog picker. **Booru tags** stays separate for subjects and details. Favorites, your previews, and imported words have direct shortcuts.
+- **Syntax → Choose your prompting language** offers editable starters for plain language (Krea 2 / Qwen-Image), tag-based prompting, MOSS captions/layout guidance, and image editing instructions.
+- The sidebar’s **gear** has its own controls for tabs, collections, introductions, and model guidance. Hide what you don’t use or choose **Show all sections** to restore it. Main editor settings stay separate.
+- Tighter sidebar spacing and narrow-width labels; collection switching handles loading and retries cleanly. Edited prompt starters stay intact when you switch guide categories.
+
+### Editing and visual autocomplete
+
+- Attached thumbnails appear in autocomplete, with a small hover preview where there is room. Entries without images stay as text. Use **Images** in the menu or **Settings → Editor & suggestions → Autocomplete images** to switch them off; saved choices are retained.
+- **Ctrl/Cmd+Enter** passes through to ComfyUI to start a run while editing, including with autocomplete open.
+- **Right-click** opens Prompt Palette actions; right-click a `__library entry__` to choose random, next, previous or cycle modes. **Alt/Option+right-click** opens browser/Desktop spelling and editing suggestions. Spellcheck is enabled in Fields and library editing too.
+
+### MOSS-Image prompting
+
+- New **MOSS caption**, **ordered tags**, and **1024×1024 layout JSON** starters in **Layouts**. Keep exact lettering separate and retain normal field variation tools.
+- Complete valid JSON objects stay literal through prompt resolution and batches, preserving layout braces and quoted text. Choices and wildcards outside JSON work normally.
+- Local **Base INT8**, **toxicdog Turbo AIO**, and **regular-SFT** workflow examples. Use ComfyUI **0.42.1+** for native MOSS support and its template crash fixes. 
+### Compare one prompt change at a time
+
+- In a Fields workspace, open **Variation Lab → Explore → One field at a time**. Capture a baseline, then test each selected field while every other resolved phrase stays fixed—including Follow fields and negative text.
+- Review exactly what changed, keep useful trials, and send the resolved batch to Combinatorial with **Fixed** seed mode. Original choices stay available. Previewing never queues images.
+- Prepared batches now keep each positive prompt with its matching negative. New **Negative prompt list** and **Negative conditioning list** outputs support negative-prompt comparisons too.
+
+### More visual sidebar browsing
+
+- **193 bundled images** now include **120 SFW Anima portrait references** alongside the existing **73 public-domain/CC0 references**. **64 Booru concept tags** link to these reference images. Each image keeps its source and rights information; Anima previews are model interpretations, not original artist works.
+- Choose **Studio**, **Showcase**, or **Minimal**, control visible card text and guidance, and fit the full image or fill its frame. Existing gallery/list layouts and 10–150% item sizing remain available.
+- **Explore** groups styles, artists, Booru tags, favorites, personal previews, and imported words beside the canvas.
+
+---
+
 ## Recent features — 2.0.6
 
 ### Prompt Palette in the main sidebar
@@ -146,7 +186,9 @@ All three nodes appear under the **PromptPalette** category and share autocomple
 
 ### Standard ComfyUI
 
-Download from the extension manager
+Use **Python 3.10+** and a current ComfyUI build with the V3 custom-node API. The optional MOSS examples require **ComfyUI 0.42.1+** and the model files listed in the [MOSS guide](MOSS_PROMPTING.md). Prompt Palette contains node code and bundled reference data, not model weights.
+
+Search for **Prompt Palette** by **z3rofeels** in ComfyUI’s extension manager (Registry ID: `zf-prompt-palette`).
 
 or manually:
 
@@ -257,6 +299,10 @@ For example, let **Lighting** follow **Pose**: when the resolved pose changes, l
 Open **Layouts** for a starter suited to your task. Choose natural language for Krea 2/Qwen-style prompts, tags for Illustrious/Booru, or Anima scene prose and character tags. **Include starter choices** adds example content; turn it off for empty fields. Save your own **field presets** with structure only or with default values. Use **Snapshots & variants** to save checkpoints, keep alternate versions, and compare field differences.
 
 In **Variation Lab**, compare previews, hide duplicates, and check **Keep** on results you want to reuse. Apply a preview to the targeted fields while keeping their choices available, or send kept full versions to Combinatorial for batch generation.
+
+Choose **One field at a time** to find out what one lighting, camera, style, or negative-prompt change contributes. The first card is the resolved **Baseline**. Each following trial replaces one field and holds all other resolved text fixed; Follow is held during these comparisons. **Samples per field** sets the search budget, with duplicates skipped. It samples alternatives rather than exhaustively expanding them; large workspaces share a budget of at most 256 total trials. **Use field value** applies that field only; the rest of your workspace keeps its authored text and generation behavior.
+
+**Send to Combinatorial** creates an exact batch in preview order and starts its seed mode at **Fixed**. Connect **Seed list** to your sampler's seed input and keep its other settings unchanged to compare with the same noise seed. When negatives differ, connect **Negative conditioning list** (with CLIP connected), or **Negative prompt list** to your text encoder. Those outputs appear automatically for a batch with varying negatives. Single-value negative outputs return the first trial. Keep selects the trials to send; without a shortlist, all visible trials are sent. The sampler and model still determine the images.
 
 Customize the Editor toolbar under **Settings → Workspace → Toolbar layout**; Combinatorial has the same controls under **Settings → Generation**. Use the **60–180%** size slider or a size preset, choose a visibility mode, then use **Arrange buttons** to drag buttons or move them with arrows. **Reset order** restores the default arrangement. In retractable modes, **Tools** opens the toolbar and **Keep open** holds it open. **Hidden** keeps shortcuts out of the way while Settings stays accessible.
 
@@ -440,7 +486,7 @@ A group carrying an explicit sampler marker such as `+`, `-`, `*`, `~`, `@`, or 
 
 The node has two kinds of outputs. Open the **I/O** button on the node to show or hide any of them.
 
-**List outputs** hold one entry per generated prompt: `Model list`, `CLIP list`, `Conditioning list`, `Prompt list`, `Seed list`, `Wildcards used`, and `Prompt metadata (JSON) list`.
+**List outputs** hold one entry per generated prompt: `Model list`, `CLIP list`, `Conditioning list`, `Prompt list`, `Seed list`, `Wildcards used`, `Prompt metadata (JSON) list`, `Negative prompt list`, and `Negative conditioning list`. Positive and negative lists use the same order. Ordinary batches repeat their shared negative; prepared batches can carry different negatives.
 
 **Single-value outputs** are not lists, so whatever they feed runs once per queue, not once per prompt:
 
@@ -448,9 +494,9 @@ The node has two kinds of outputs. Open the **I/O** button on the node to show o
 |---|---|
 | `Model (passthrough)` / `CLIP (passthrough)` | The connected Model / CLIP, unchanged |
 | `Conditioning (first)` | Conditioning for the first generated prompt (needs CLIP) |
-| `Negative conditioning` | The negative prompt encoded once with the unpatched CLIP (needs CLIP) |
+| `Negative conditioning` | The first negative prompt encoded with the unpatched CLIP (needs CLIP) |
 | `Prompt (first)` / `Seed used (first)` | The first generated prompt and its seed |
-| `Negative prompt` | Negative text resolved once for the whole batch |
+| `Negative prompt` | The first resolved negative text; ordinary batches share it across all prompts |
 | `Wildcards used (JSON)` / `Wildcards used (count)` | Wildcard files picked during the batch, as one JSON value / a count |
 | `Raw text (unresolved)` | The template before resolution |
 | `Used enhancer override` | True when the enhancer override replaced the prompts |
@@ -686,6 +732,9 @@ To create a wildcard list from a prompt, select comma- or newline-separated tags
 | `Ctrl/Cmd + F` in a library editor | Find text within the current entry |
 | `Ctrl+Space` in a library editor | Open available suggestions at the cursor |
 | `Esc` | Close the active drawer, menu, or popup |
+| `Ctrl/Cmd + Enter` | Pass the run shortcut through to ComfyUI |
+| Right-click prompt text | Open Prompt Palette actions |
+| `Alt/Option` + right-click prompt text | Open native spelling and editing tools |
 | Right-click a wildcard token | Open the Syntax Injector for that occurrence |
 | Double-click a wildcard token | Open that wildcard in the Edit drawer |
 
@@ -725,6 +774,8 @@ Confirm the selected mode matches the connected text encoder. Standard ComfyUI C
 </details>
 
 ### Compatibility
+
+Native spelling suggestions depend on the browser/Desktop spellchecker and installed language dictionaries. Use **Alt/Option+right-click** inside prompt text to access them.
 
 - ComfyUI Nodes **1.x and 2.x**
 - ComfyUI Desktop and portable installations

@@ -104,7 +104,7 @@ export function attachLibraryEditPromptTools({ drawer, el, getLibrary, getMatche
   on(el("editFindPrev"), "click", () => go(-1));
   on(el("editFindNext"), "click", () => go(1));
   on(find, "keydown", event => {
-    if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); go(event.shiftKey ? -1 : 1); }
+    if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey) { event.preventDefault(); event.stopPropagation(); go(event.shiftKey ? -1 : 1); }
   });
   on(drawer, "keydown", event => {
     if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "f") {

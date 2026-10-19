@@ -176,13 +176,30 @@ def _booru_index(path, mtime, artists):
     with sqlite3.connect(path) as connection:
         rows = connection.execute("SELECT tag, category, post_count, aliases FROM tags WHERE category " +
                                   ("='artist'" if artists else "!='artist'") + " ORDER BY post_count DESC").fetchall()
+    # Enrich the existing directory; tag identities, counts and insertion stay
+    # authoritative in the Booru database. No second search/index or network.
+    try:
+        if artists:
+            references = get_index("builtin:anima")["entries"]
+        else:
+            preview_path = BUNDLE / "gallery" / "tag-previews.json"
+            references = normalize_index(json.loads(preview_path.read_text(encoding="utf-8")), trusted=True)["entries"] if preview_path.is_file() else []
+    except (OSError, ValueError):
+        # Optional image catalogs must never take the existing tag directory down.
+        references = []
+    previews = {row["tag"].replace("_", " ").casefold(): row for row in references if row.get("asset")}
+    entries = [
+        {"tag": tag, "name": tag.replace("_", " "), "kind": "artist" if category == "artist" else "tag",
+         "category": category, "count": count, "aliases": aliases.split(",") if aliases else [],
+         "tags": [], "facets": {}, "description": "", "thumbnail": "", "previewKind": "none"}
+        for tag, category, count, aliases in rows]
+    for entry in entries:
+        reference = previews.get(entry["tag"].replace("_", " ").casefold())
+        if reference:
+            entry.update({key: reference[key] for key in ("asset", "previewKind", "provenance", "description")})
     return {"version": 2, "name": "Artists · local Booru directory" if artists else "Tags · local Booru directory",
             "description": "Literal tags from the existing local Booru database. Frequency is not model support. Artists without evidence have no inferred style labels or previews.",
-            "source": "Existing bundled Danbooru CSV · PYU224/tagdb-updater", "entries": [
-                {"tag": tag, "name": tag.replace("_", " "), "kind": "artist" if category == "artist" else "tag",
-                 "category": category, "count": count, "aliases": aliases.split(",") if aliases else [],
-                 "tags": [], "facets": {}, "description": "", "thumbnail": "", "previewKind": "none"}
-                for tag, category, count, aliases in rows]}
+            "source": "Existing bundled Danbooru CSV · PYU224/tagdb-updater", "entries": entries}
 
 
 def get_index(index_id):
@@ -305,6 +322,56 @@ def annotations(index_id):
     # Collection identity stays separate; restoring the snapshot never overwrites
     # annotations made in the standard Booru directory.
     return dict(_stored_annotations(index_id))
+
+
+@lru_cache(maxsize=4)
+def _completion_defaults(path, mtime, size):
+    """Sparse image lookup, built once per bundled catalog revision, not per keypress."""
+    if size > MAX_INDEX_BYTES:
+        raise ValueError("Preview catalog exceeds the size limit.")
+    raw = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    if isinstance(raw, list):
+        raw = {"entries": raw}
+    sparse = [row for row in raw.get("entries", raw.get("artists", []))
+              if isinstance(row, dict) and (row.get("thumbnail") or row.get("asset"))]
+    if not sparse:
+        return {}
+    data = normalize_index({**raw, "entries": sparse}, trusted=True)
+    return {(row["category"], row["tag"].replace("_", " ").casefold()):
+            {key: row[key] for key in ("thumbnail", "asset", "previewKind")}
+            for row in data["entries"] if row.get("thumbnail") or row.get("asset")}
+
+
+def completion_previews(items):
+    """Only requested Booru/Anima identities; explicit empty overrides suppress defaults."""
+    if not isinstance(items, list) or len(items) > 100:
+        raise ValueError("Choose at most 100 completion previews.")
+    result, overrides, defaults = [], {}, {}
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid completion identity.")
+        tag = _text(item.get("value", ""), 300)
+        category = _text(item.get("category", "general"), 30)
+        source = item.get("source", "")
+        if item.get("kind") != "booru" or category not in CATEGORIES:
+            result.append({}); continue
+        index_id = "builtin:anima" if source == "anima" else "booru" if category == "artist" else "tags"
+        if index_id not in overrides:
+            overrides[index_id] = annotations(index_id)
+        override = overrides[index_id].get(tag, {})
+        if "thumbnail" in override:
+            result.append({"thumbnail": override["thumbnail"], "asset": "", "previewKind": override.get("previewKind", "none")})
+            continue
+        path = BUNDLE / "anima.json" if category == "artist" else BUNDLE / "gallery" / "tag-previews.json"
+        path_key = str(path)
+        if path_key not in defaults:
+            try:
+                stat = path.stat()
+                defaults[path_key] = _completion_defaults(path_key, stat.st_mtime_ns, stat.st_size)
+            except (OSError, ValueError):
+                defaults[path_key] = {}
+        result.append(defaults[path_key].get((category, tag.replace("_", " ").casefold()), {}))
+    return result
 
 def save_annotation(data):
     index_id = _text(data.get("index", ""), 200)

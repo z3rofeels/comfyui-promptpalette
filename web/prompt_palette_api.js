@@ -25,6 +25,8 @@ async function readApiJson(response, { allowNotFound = false } = {}) {
 const libraryEventsKey = Symbol.for("comfyui.prompt-palette.library-events.v1");
 const libraryEvents = globalThis[libraryEventsKey] ||= new EventTarget();
 const libraryChannelKey = Symbol.for("comfyui.prompt-palette.library-channel.v1");
+const previewRevisionKey = Symbol.for("comfyui.prompt-palette.preview-revision.v1");
+globalThis[previewRevisionKey] ||= 0;
 
 // Bridge the existing notifications to other tabs. Only an invalidation travels:
 // each subscriber reads its own authoritative server snapshot. This keeps large
@@ -39,6 +41,7 @@ function getLibraryChannel() {
     const channel = new BroadcastChannel(`comfyui.prompt-palette.library:${endpoint}`);
     channel.addEventListener("message", event => {
       if (event.data?.type !== "library-changed" || event.data.version !== 1) return;
+      globalThis[previewRevisionKey] += 1;
       // Receiving a change must never publish it again: no echo between tabs.
       libraryEvents.dispatchEvent(new CustomEvent("change", { detail: { ok: true, remote: true } }));
     });
@@ -52,6 +55,7 @@ function getLibraryChannel() {
 
 function publishLibraryChange(result) {
   if (result && !result.error && result.ok !== false) {
+    globalThis[previewRevisionKey] += 1;
     libraryEvents.dispatchEvent(new CustomEvent("change", { detail: result }));
     try { getLibraryChannel()?.postMessage({ type: "library-changed", version: 1 }); }
     catch { /* A channel failure must not turn a successful server write into an error. */ }
@@ -75,6 +79,12 @@ let booruTagsAbort = null;
 let animaTagsAbort = null;
 
 const API = {
+  previewRevision() { return globalThis[previewRevisionKey]; },
+  async completionPreviews(items) {
+    return readApiJson(await api.fetchApi("/prompt_palette/completion_previews", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }),
+    }));
+  },
   async styleIndexes(index = "") {
     return readApiJson(await api.fetchApi(`/prompt_palette/styles?index=${encodeURIComponent(index)}`));
   },
@@ -85,7 +95,7 @@ const API = {
     return readApiJson(await api.fetchApi(`/prompt_palette/style_annotations?index=${encodeURIComponent(index)}`));
   },
   async saveStyleAnnotation(data) {
-    return readApiJson(await api.fetchApi("/prompt_palette/style_annotations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }));
+    return publishLibraryChange(await readApiJson(await api.fetchApi("/prompt_palette/style_annotations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })));
   },
   onLibraryChanged(listener) {
     const handle = event => {
@@ -98,7 +108,7 @@ const API = {
     return () => libraryEvents.removeEventListener("change", handle);
   },
   thumbnailUrl(file, suffix = "") {
-    return promptPaletteUrl(`/prompt_palette/thumb?file=${encodeURIComponent(file)}${suffix}`);
+    return promptPaletteUrl(`/prompt_palette/thumb?file=${encodeURIComponent(file)}&ppv=${API.previewRevision()}${suffix}`);
   },
   async list() {
     return (await readApiJson(await api.fetchApi("/prompt_palette/list"))).items || [];
@@ -194,13 +204,13 @@ const API = {
     const form = new FormData();
     form.append("name", name);
     form.append("file", file, file.name);
-    return await fetchApiResult("/prompt_palette/set_thumbnail", { method: "POST", body: form });
+    return publishLibraryChange(await fetchApiResult("/prompt_palette/set_thumbnail", { method: "POST", body: form }));
   },
   async removeThumbnail(name) {
-    return await fetchApiResult("/prompt_palette/remove_thumbnail", {
+    return publishLibraryChange(await fetchApiResult("/prompt_palette/remove_thumbnail", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
-    });
+    }));
   },
   async resolve(text, seed, mode, { signal, positiveAntonyms = false, resolve = true, workspaceRuntime = "" } = {}) {
     if (resolve && workspaceRuntime) {

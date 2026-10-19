@@ -100,7 +100,7 @@ export function createRefinementController({ node, root, textarea, render, atomi
     const input = document.createElement(multiline ? "textarea" : "input");
     input.className = "wg-theme-select"; input.value = value;
     if (!multiline) input.type = "text"; else input.rows = 3;
-    input.setAttribute("aria-label", title); input.spellcheck = false; l.append(caption, input); return { label: l, input };
+    input.setAttribute("aria-label", title); input.spellcheck = true; l.append(caption, input); return { label: l, input };
   }
   function preview(title, text) {
     const box = document.createElement("div"); box.className = "pp-refine-preview";
@@ -144,8 +144,13 @@ export function createRefinementController({ node, root, textarea, render, atomi
     if (recipesEnabled && recipeDraft) savedActions.appendChild(makeButton("Recipe draft", showRecipeBuilder));
     if (session) savedActions.appendChild(makeButton("Explore", () => showExploration()));
     if (preparedWidget?.value) {
-      let count = ""; try { count = JSON.parse(preparedWidget.value).prompts.length; } catch { count = "invalid"; }
-      const tag = document.createElement("span"); tag.className = "pp-refine-label"; tag.textContent = `${count} prepared variations`;
+      let count = "", batch;
+      try { batch = JSON.parse(preparedWidget.value); count = batch.prompts.length; } catch { count = "invalid"; }
+      const tag = document.createElement("span"); tag.className = "pp-refine-label";
+      const fixed = node.widgets?.find(w => w.name === "seed_mode")?.value === "fixed";
+      tag.textContent = batch?.comparison === "one-field" ? `${count} controlled trials · ${fixed ? "Fixed seed mode" : "Choose Fixed seed mode for equal seeds"}` : `${count} prepared variations`;
+      if (batch?.negative_prompts && new Set(batch.negative_prompts).size > 1) tag.textContent += " · paired negatives";
+      tag.title = "Wire Seed list to the sampler for equal noise seeds. Use the matching negative list output when negatives vary. Existing single-value negative outputs return the first item.";
       savedActions.append(tag, makeButton("Clear batch", () => { preparedState.commit(""); node.setDirtyCanvas?.(true, true); updateBar(); render(); }));
     }
   }

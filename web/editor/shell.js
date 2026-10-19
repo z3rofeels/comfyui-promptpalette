@@ -309,7 +309,8 @@ export function createEditorShell() {
             <section role="tabpanel" class="wg-settings-panel" data-settings-panel="editor">
               <div class="wg-panel-title"><div><h3>Editor &amp; suggestions</h3><p>Local history, syntax helpers and artist autocomplete. All suggestions stay on your machine.</p></div></div>
               <div class="wg-toggle-grid">
-                <label class="wg-toggle-card"><div><strong>Syntax injector</strong><small>Contextual wildcard syntax, plus a menu when you type { (or press Ctrl+Space).</small></div><input type="checkbox" data-el="toggleSyntaxInjector"></label>
+                <label class="wg-toggle-card"><div><strong>Syntax injector</strong><small>Type { or press Ctrl+Space. Right-click opens Palette actions and wildcard modes; Alt/Option + right-click checks spelling.</small></div><input type="checkbox" data-el="toggleSyntaxInjector"></label>
+                <label class="wg-toggle-card"><div><strong>Autocomplete images</strong><small>Show attached thumbnails and hover previews. Suggestions without images stay as text.</small></div><input type="checkbox" data-el="toggleAutocompletePreviews"></label>
                 <label class="wg-toggle-card"><div><strong>Automatic history</strong><small>Keep local recovery checkpoints after editing pauses and queues.</small></div><input type="checkbox" data-el="togglePromptHistory"></label>
                 <label class="wg-toggle-card"><div><strong>Recent items in autocomplete</strong><small>How many recent picks the autocomplete menu keeps (5-10). Use Clear or &times; on a recent row to leave only the ones you want.</small></div><select data-el="autocompleteRecentLimit" aria-label="Recent items kept in autocomplete"><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label>
                 <label class="wg-toggle-card"><div><strong>Booru autocomplete</strong><small>Suggest database tags while typing ordinary prompt words. Wildcard name autocomplete is unaffected.</small></div><input type="checkbox" data-el="toggleBooruAutocomplete"></label>
@@ -412,8 +413,9 @@ export function createEditorShell() {
         </div>
         <div class="wg-settings-footer">
           <a class="wg-credit-link" href="https://github.com/z3rofeels/comfyui-promptpalette" target="_blank" rel="noopener noreferrer" title="Prompt Palette on GitHub">
-            <span class="wg-credit-icon">${svgIcon("github", 13)}</span><span>made by <strong>z3rofeels</strong></span>
+            <span class="wg-credit-icon">${svgIcon("github", 13)}</span><span>made by <strong>Z3rofeels</strong></span>
           </a>
+          <span class="wg-community-credit">Made with care for the community.</span>
         </div>
       </div>
     </div>

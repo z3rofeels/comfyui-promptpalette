@@ -1,5 +1,5 @@
 import { createLibraryLookup } from "./library_lookup.js";
-const WILDCARD_RE = /__([+\-*%~@]?)([A-Za-z0-9_\-/*]+)(?:\(([^()]*)\))?__/g;
+import { jsonObjectRanges, maskJsonObjects } from "./json_literals.js";
 const SIMPLE_TOKEN_RE = /(__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if|switch|case|default|\/switch)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
 const LORA_RE = /<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)>/gi;
 const CACHE_LIMIT = 768;
@@ -87,6 +87,7 @@ export class UnifiedWildcardEngine {
     const source = normalize(sourceText);
     if (source === this.lastSource && this.lastAnalysis) return this.lastAnalysis;
     const lines = source.split("\n");
+    const literalRanges = jsonObjectRanges(source), maskedLines = literalRanges.length ? maskJsonObjects(source, literalRanges).split("\n") : null;
     const ast = [];
     const wildcards = [];
     const variables = [];
@@ -94,7 +95,11 @@ export class UnifiedWildcardEngine {
     let offset = 0;
     for (let index = 0; index < lines.length; index++) {
       const raw = lines[index];
-      const parsed = this._parseLine(raw);
+      let parsed;
+      if (maskedLines && maskedLines[index] !== raw) {
+        const masked = parseLine(maskedLines[index]);
+        parsed = { ...masked, raw, segments: masked.segments.map(segment => ({ ...segment, text: raw.slice(segment.start, segment.end) })) };
+      } else parsed = this._parseLine(raw);
       const line = { raw, offset, index, parsed };
       ast.push(line);
       for (const token of parsed.wildcards) {
@@ -104,7 +109,7 @@ export class UnifiedWildcardEngine {
       for (const token of parsed.variables) variables.push({ ...token, start: offset + token.start, end: offset + token.end, line: index });
       offset += raw.length + (index < lines.length - 1 ? 1 : 0);
     }
-    const result = { source, ast, lines: ast, wildcards, variables, names: Array.from(names), chars: source.length };
+    const result = { source, ast, lines: ast, wildcards, variables, names: Array.from(names), chars: source.length, literalRanges };
     this.lastSource = source; this.lastAnalysis = result;
     return result;
   }
@@ -112,7 +117,7 @@ export class UnifiedWildcardEngine {
     const parsed = typeof parsedOrText === "string" ? this.parse(parsedOrText) : parsedOrText;
     // Ignore the same full-line comments as the backend while retaining token
     // offsets for "Show in editor" and Unicode selections.
-    const source = (parsed?.source || "").split("\n").map(line => /^\s*#/.test(line) ? " ".repeat(line.length) : line).join("\n");
+    const source = maskJsonObjects(parsed?.source || "", parsed?.literalRanges).split("\n").map(line => /^\s*#/.test(line) ? " ".repeat(line.length) : line).join("\n");
     const lookup = createLibraryLookup(libraryEntries || []);
     const issues = [];
     const add = (severity, code, title, detail, extra = {}) => issues.push({ severity, code, title, detail, ...extra });
@@ -187,6 +192,7 @@ export class UnifiedWildcardEngine {
   }
   autocompleteContext(sourceText, caret, options = {}) {
     const source = normalize(sourceText);
+    if (this.parse(source).literalRanges.some(range => range.start <= caret && caret < range.end)) return null;
     const before = source.slice(0, Math.max(0, Number(caret) || 0));
     const wildcard = before.match(/__([+\-*%~@]?)([A-Za-z0-9_\-/]*)$/);
     if (wildcard) {

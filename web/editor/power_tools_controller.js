@@ -14,6 +14,7 @@ import { notify } from "./notifications.js";
 import { createToolRegistry } from "../tools/tool_registry.js";
 import { ReversibleLibraryHistory } from "./undo_manager.js";
 import { WORKSPACE_SCOPES, resolveExperiment } from "./recipe_experiment.js";
+import { resolveFieldComparisons } from "./recipe_comparison.js";
 import { fieldVariationSource, hasVariationSyntax } from "./recipe_variation_source.js";
 import { positiveAntonymsEnabled, projectPositiveOutput, installPositiveAntonymsControl } from "./positive_antonyms.js";
 
@@ -128,6 +129,19 @@ export function createPowerToolsController(ctx) {
   const scopeSelect = document.createElement("select"); scopeSelect.className = "wg-theme-select"; scopeSelect.setAttribute("aria-label", "Workspace variation scope");
   WORKSPACE_SCOPES.forEach(([value, label]) => { const option = document.createElement("option"); option.value = value; option.textContent = label; scopeSelect.appendChild(option); });
   scopeRow.append(scopeLabel, scopeSelect); variationStatus.before(scopeRow);
+  const strategyRow = document.createElement("label"); strategyRow.className = "pp-refine-field pp-workspace-scope"; strategyRow.hidden = true;
+  const strategyLabel = document.createElement("span"); strategyLabel.textContent = "Explore";
+  const strategySelect = document.createElement("select"); strategySelect.className = "wg-theme-select"; strategySelect.setAttribute("aria-label", "Variation strategy");
+  for (const [value, label] of [["together", "Vary together"], ["one-field", "One field at a time"]]) {
+    const option = document.createElement("option"); option.value = value; option.textContent = label; strategySelect.appendChild(option);
+  }
+  strategySelect.value = node.properties?.prompt_palette_variation_strategy_v1 === "one-field" ? "one-field" : "together";
+  strategySelect.addEventListener("change", () => {
+    node.properties ||= {}; node.properties.prompt_palette_variation_strategy_v1 = strategySelect.value;
+    node.setDirtyCanvas?.(true, true); refreshVariations();
+  });
+  strategyRow.append(strategyLabel, strategySelect); scopeRow.after(strategyRow);
+  const countLabel = variationCount.closest("label")?.querySelector("span");
   const workspacePlan = document.createElement("section"); workspacePlan.className = "pp-experiment-plan"; workspacePlan.hidden = true; scopeRow.after(workspacePlan);
   const labHeading = variationPopup.querySelector(".wg-panel-title h3"), labIntro = variationPopup.querySelector(".wg-panel-title p");
   scopeSelect.addEventListener("change", () => refreshVariations());
@@ -140,6 +154,11 @@ export function createPowerToolsController(ctx) {
     if (!plan) { line("Choose Vary on at least one enabled field. Plain text needs choices or a __library_wildcard__ to produce alternatives."); return; }
     const targets = recipe.fields.filter(f => plan.primaryTargets.includes(f.id));
     line(`Exploring: ${targets.map(f => f.label).join(", ")}.`);
+    if (plan.strategy === "one-field") {
+      line("Baseline first, then one changed field per trial. All other resolved text, including Follow fields and text outside fields, stays identical. Samples per field is a search budget; repeats are skipped.", "pp-experiment-note");
+      line("The new batch starts with Fixed seed mode. Connect Seed list and the matching positive/negative list outputs to compare at the same sampler seed. Applying a field value keeps the rest of your authored workspace.", "pp-experiment-note");
+      return;
+    }
     const following = recipe.fields.filter(f => plan.targets.includes(f.id) && !plan.primaryTargets.includes(f.id));
     if (following.length) line(`Follow when a source changes: ${following.map(f => f.label).join(", ")}.`);
     const fixed = targets.filter(f => !hasVariationSyntax(fieldVariationSource(f)));
@@ -349,6 +368,9 @@ export function createPowerToolsController(ctx) {
     const count = Math.max(1, Math.min(16, Number(variationCount.value) || 4));
     const workspace = node._ppRecipeWorkspace?.isActive() ? node._ppRecipeWorkspace : null;
     scopeRow.hidden = !workspace;
+    strategyRow.hidden = !workspace || scopeSelect.value === "selection";
+    const strategy = workspace && scopeSelect.value !== "selection" ? strategySelect.value : "together";
+    if (countLabel) countLabel.textContent = strategy === "one-field" ? "Samples per field" : "Versions";
     if (labHeading) labHeading.textContent = workspace ? "Explore choices without changing held fields" : "Resolve before you queue";
     if (labIntro) labIntro.textContent = workspace ? "Choices come from inline alternatives or library wildcards. Previewing does not edit or queue anything." : "Same source prompt, predictable seed steps. Nothing is generated.";
     describeWorkspacePlan(workspace);
@@ -358,7 +380,7 @@ export function createPowerToolsController(ctx) {
       return;
     }
     let plan;
-    try { if (workspace) plan = workspace.experimentPlan(scopeSelect.value); }
+    try { if (workspace) { plan = workspace.experimentPlan(scopeSelect.value); plan.strategy = strategy; } }
     catch (error) { variationList.replaceChildren(); setVariationStatus(error.message, true); return; }
     if (workspace) describeWorkspacePlan(workspace, plan);
     const stillCurrent = () => requestId === variationRequestId
@@ -370,12 +392,20 @@ export function createPowerToolsController(ctx) {
       && (seedWidget?.value ?? 0) === seed
       && (modeWidget?.value || "entire text as one") === mode
       && !!node._ppRecipeWorkspace?.isActive() === !!workspace
+      && (!workspace || strategySelect.value === strategy)
       && (!workspace || (workspace.isActive() && scopeSelect.value === plan.scope && (() => { try { workspace.assertPlan(plan); return true; } catch { return false; } })()));
-    setVariationStatus(`Resolving ${count} versions…`);
+    setVariationStatus(strategy === "one-field" ? "Capturing baseline and comparing fields…" : `Resolving ${count} versions…`);
     variationList.innerHTML = "";
     const requestController = performanceRuntime?.beginRequest("variations") || new AbortController();
     try {
-      const resolve = () => workspace ? resolveExperiment(plan, seed, mode, count, API.resolveVariations, { signal: requestController.signal }) : API.resolveVariations(source, seed, mode, count, { signal: requestController.signal });
+      let comparison = null;
+      const resolve = async () => {
+        if (strategy === "one-field") {
+          comparison = await resolveFieldComparisons(plan, seed, mode, count, API.resolveVariations, { signal: requestController.signal });
+          return comparison.items;
+        }
+        return workspace ? resolveExperiment(plan, seed, mode, count, API.resolveVariations, { signal: requestController.signal }) : API.resolveVariations(source, seed, mode, count, { signal: requestController.signal });
+      };
       let items = profiler ? await profiler.measureAsync("variations.resolve", resolve) : await resolve();
       if (positiveAntonyms) items = await Promise.all(items.map(async item => {
         const output = await projectPositiveOutput(item.resolved || "", true, { signal: requestController.signal });
@@ -389,7 +419,9 @@ export function createPowerToolsController(ctx) {
       if (workspace) {
         describeWorkspacePlan(workspace, plan, items);
         renderWorkspaceVariations(workspace, plan, items, seed, mode);
-        setVariationStatus(`${items.length} previews ready. Held values stay fixed; Use version keeps the original choices.`);
+        setVariationStatus(comparison
+          ? `Baseline + ${items.length - 1} distinct trials · up to ${comparison.samples} samples per field.${comparison.unchanged.length ? ` No new sampled value: ${comparison.unchanged.join(", ")}.` : ""} Send the batch to compare images; nothing was queued.`
+          : `${items.length} previews ready. Held values stay fixed; Use version keeps the original choices.`);
         return;
       }
       let acceptedSeed = seed;
@@ -422,7 +454,7 @@ export function createPowerToolsController(ctx) {
       if (renderedRequestId !== variationRequestId || positiveAntonymsEnabled(node) !== outputMode || !nodeIsActive(node) || !ctx.state.powerTools.variationLab)
         throw new Error("This preview has expired. Resolve again before applying or sending it.");
       workspace.assertPlan(plan);
-      if ((seedWidget?.value ?? 0) !== seed || (modeWidget?.value || "entire text as one") !== mode || scopeSelect.value !== plan.scope) throw new Error("The scope or seed changed. Refresh variations first.");
+      if ((seedWidget?.value ?? 0) !== seed || (modeWidget?.value || "entire text as one") !== mode || scopeSelect.value !== plan.scope || strategySelect.value !== plan.strategy) throw new Error("The scope, strategy or seed changed. Refresh variations first.");
     };
     function action(text, run) {
       const button = document.createElement("button"); button.type = "button"; button.textContent = text;
@@ -435,23 +467,25 @@ export function createPowerToolsController(ctx) {
       if (!seen.has(key)) seen.set(key, originalIndex);
       const changed = item.changes.some(change => change.changed) || item.resolved !== items[0].resolved || item.negative !== items[0].negative;
       return { item, originalIndex, duplicateOf, priority: duplicateOf != null ? 2 : changed ? 0 : 1 };
-    }).sort((a, b) => a.priority - b.priority || a.originalIndex - b.originalIndex);
+    }).sort((a, b) => plan.strategy === "one-field" ? a.originalIndex - b.originalIndex : a.priority - b.priority || a.originalIndex - b.originalIndex);
     versions.forEach(({ item, originalIndex, duplicateOf }, index) => {
       const card = document.createElement("article"); card.className = "wg-variation-card";
       card.dataset.previewBaseline = String(originalIndex === 0);
-      const title = document.createElement("strong"); title.textContent = `#${index + 1} · seed ${item.seed}`;
+      const title = document.createElement("strong"); title.textContent = `#${index + 1} · ${item.trial ? `${item.trial.label} · ` : ""}seed ${item.seed}`;
+      if (item.trial) card.dataset.trialKind = item.trial.kind;
       const fields = document.createElement("div"); fields.className = "pp-refine-text pp-workspace-changes";
       const changed = item.changes.filter(change => change.changed), same = item.changes.filter(change => !change.changed);
       const status = document.createElement("span"); status.className = "pp-candidate-status"; status.dataset.changed = String(changed.length > 0); status.textContent = changed.length ? `${changed.length} field${changed.length === 1 ? "" : "s"} changed` : "No target value changed";
-      if (!changed.length) fields.textContent = "Same target values at this seed.";
+      if (item.trial?.kind === "baseline") status.textContent = "Reference · all trials compare against this";
+      if (!changed.length) fields.textContent = item.trial?.kind === "baseline" ? "Reference prompt. Every trial holds this resolved context except for its named field." : "Same target values at this seed.";
       for (const change of changed) {
         const row = document.createElement("article"); row.className = "pp-candidate-change";
-        const name = document.createElement("strong"); name.textContent = `${change.label}${change.channel === "negative" ? " (negative)" : ""}${plan.recipe.fields.find(f => f.id === change.id).experimentState === "follow" ? " · Follow activated" : ""}`;
+        const name = document.createElement("strong"); name.textContent = `${change.label}${change.channel === "negative" ? " (negative)" : ""}${!item.trial && plan.recipe.fields.find(f => f.id === change.id).experimentState === "follow" ? " · Follow activated" : ""}`;
         const before = document.createElement("div"); before.className = "pp-candidate-before"; before.textContent = `Before: ${change.resolvedBefore}`;
         const after = document.createElement("div"); after.className = "pp-candidate-after"; after.textContent = `After: ${change.after}`; row.append(name, before, after); fields.appendChild(row);
       }
       if (same.length) { const note = document.createElement("p"); note.className = "pp-candidate-same"; note.textContent = `Unchanged targets: ${same.map(change => change.label).join(", ")}.`; fields.appendChild(note); }
-      const inactive = plan.recipe.fields.filter(f => plan.targets.includes(f.id) && !Object.hasOwn(item.values, f.id));
+      const inactive = item.trial ? [] : plan.recipe.fields.filter(f => plan.targets.includes(f.id) && !Object.hasOwn(item.values, f.id));
       const waiting = document.createElement("p"); waiting.className = "pp-candidate-follow"; waiting.hidden = !inactive.length; waiting.textContent = `Held until a source changes: ${inactive.map(f => f.label).join(", ")}.`;
       const duplicate = duplicateOf == null ? null : versions.findIndex(v => v.originalIndex === duplicateOf) + 1;
       const repeated = document.createElement("p"); repeated.className = "pp-candidate-repeat"; repeated.hidden = duplicate == null; repeated.textContent = `Same resolved result as #${duplicate}.`;
@@ -459,25 +493,28 @@ export function createPowerToolsController(ctx) {
       const preview = document.createElement("details"), summary = document.createElement("summary"); summary.textContent = "Resolved prompt";
       const text = document.createElement("div"); text.className = "wg-variation-text"; text.textContent = (item.outputPositive ?? item.resolved) + (item.negative ? `\n\nNegative:\n${item.negative}` : ""); preview.append(summary, text);
       const actions = document.createElement("div"); actions.className = "wg-power-actions";
-      const apply = action("Use version", () => { assertCurrent(); workspace.applyVariation(plan, item.values); setVariationStatus(`Applied values to ${item.changes.map(change => change.label).join(", ")}. Original choices were kept. Press Resolve to explore again, or Restore choices in a field to return to its template. Held fields retain their authored text.`); });
+      const apply = action(item.trial ? "Use field value" : "Use version", () => { assertCurrent(); workspace.applyVariation(plan, item.values); setVariationStatus(`Applied values to ${item.changes.map(change => change.label).join(", ")}. Original choices were kept. Press Resolve to explore again, or Restore choices in a field to return to its template. Held fields retain their authored text.`); });
+      apply.disabled = item.trial?.kind === "baseline";
       apply.title = "Apply the selected values to target fields. Original choices stay available for future previews. Undo restores the previous workspace.";
       actions.append(apply,
-        action("Copy resolved", () => navigator.clipboard.writeText(item.outputPositive ?? item.resolved)));
+        action(item.trial ? "Copy trial" : "Copy resolved", () => navigator.clipboard.writeText(item.trial
+          ? `${item.trial.label} · seed ${item.seed}\n\nPositive:\n${item.outputPositive ?? item.resolved}\n\nNegative:\n${item.negative}`
+          : item.outputPositive ?? item.resolved)));
       card.append(title, status, repeated, fields, waiting, preview, actions); variationList.appendChild(card);
     });
     let batchItems = [];
     const batch = action("Send to Combinatorial", async () => { assertCurrent(); const selected = batchItems.slice(); await workspace.sendVariations(plan, selected, seed); setVariationStatus(`${selected.length} exact version${selected.length === 1 ? "" : "s"} sent to a new Combinatorial node in preview order. Connect its existing outputs and queue normally.`); });
     batch.className = "wg-button";
     const note = document.createElement("p"); note.className = "pp-refine-note";
-    note.textContent = "These versions have different negative prompts. Keep versions with the same negative prompt, or apply one version.";
+    note.textContent = "Negative changes travel with their matching positive prompts. Use Negative prompt list / Negative conditioning list for every trial; the single-value negative outputs return the first item.";
     variationList.appendChild(note);
     variationList.appendChild(batch);
     showResultView(versions.map(v => v.item), (selected, keptCount) => {
       batchItems = selected;
-      const incompatible = selected.some(item => item.negative !== selected[0]?.negative);
-      batch.disabled = !selected.length || incompatible;
-      batch.title = incompatible ? note.textContent : "Send the exact resolved prompts in preview order; nothing is queued.";
-      note.hidden = !incompatible;
+      const variedNegative = selected.some(item => item.negative !== selected[0]?.negative);
+      batch.disabled = !selected.length;
+      batch.title = "Send the exact resolved positive/negative pairs in preview order; nothing is queued.";
+      note.hidden = !variedNegative;
       batch.textContent = `Send ${selected.length}${keptCount ? " kept" : ""} to Combinatorial`;
     });
   }
@@ -925,7 +962,7 @@ export function createPowerToolsController(ctx) {
     applyPowerToolSettings,
     syncPowerToolSettingsUI,
     promptSaveRecipe,
-    cleanup() { antonyms.cleanup(); cleanupLibrarySubscription(); window.removeEventListener("pp-power-tools-changed", syncSharedPowerPreferences); closeAllPowerPopups(); libraryHistory.clear(); toolRegistry.cleanup(); scopeRow.remove(); },
+    cleanup() { antonyms.cleanup(); cleanupLibrarySubscription(); window.removeEventListener("pp-power-tools-changed", syncSharedPowerPreferences); closeAllPowerPopups(); libraryHistory.clear(); toolRegistry.cleanup(); scopeRow.remove(); strategyRow.remove(); workspacePlan.remove(); },
     toolRegistry,
   };
 }

@@ -16,11 +16,9 @@
 # Development notes and root-level documentation; keep web/docs available
 /docs/
 AGENTS.md
-CLAUDE.md
 AUDIT.md
 RELEASE_NOTES.md
 STYLE_LIBRARY_IMPLEMENTATION.md
-ERENODES_COMPARISON.md
 *HANDOFF*.md
 *Handoff*.md
 *handoff*.md
@@ -175,3 +173,8 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
+
+# Internal release records and supplied agent mirrors stay separate from distribution.
+/RELEASE_AUDIT_*.md
+/RELEASE_CHANGES_*.md
+/GITHUB_DESKTOP_COMMIT_*.txt

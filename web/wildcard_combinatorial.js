@@ -4,7 +4,8 @@ import { registerPromptPaletteCommandTarget } from "./prompt_palette_command_bus
 import { bindEditorWildcardHover } from "./editor/editor_hover.js";
 import { historyShortcut } from "./editor/history_keys.js";
 import { saveEditorSelection } from "./editor/selection_library.js";
-import { attachEditorContextMenu } from "./editor/context_menu.js";
+import { libraryThumbnailActions } from "./editor/thumbnails.js";
+import { attachEditorContextMenu, attachLibraryContextMenu, contextWildcardAtPoint } from "./editor/context_menu.js";
 import { app } from "../../scripts/app.js";
 import {
   loadExtensionStylesheet, svgIcon, copyPromptPaletteThemeScope, positionPromptPaletteTip,
@@ -35,13 +36,12 @@ import { createStatusBar, statusBarMarkup, wildcardStatusText } from "./editor/s
 import {
   API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
   editorStylesReady,
-  sanitizeHexColor, categoryColorFromHue, currentUiSurface,
+  categoryColorFromHue, currentUiSurface,
   getBooruAutocompleteMatches, attachAutocomplete,
   loadPinned, savePinned, loadExpandedCats, saveExpandedCats, loadCatOrder, saveCatOrder,
   notify, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
 
   loadPickerView, savePickerView, openCtxMenu, closeCtxMenu, ctxMenuOpen,
-  pickThumbnailFile, thumbnailFileError,
 
   openInjectMenu, openInjectMenuAtPoint, closeInjectMenu, scheduleCloseInjectMenu, injectState,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
@@ -79,7 +79,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   let lookupWildcard = createLibraryLookup([]);
   const syntaxCache = new PromptSyntaxCache();
   let thumbMap = {};
-  let thumbBust = {};
   let pickerViewMode = loadPickerView();
   let tokenRanges = [];
   const previewCache = new Map();
@@ -320,6 +319,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     seedModeWidget.value = seedModeSelect.value;
     if (typeof seedModeWidget.callback === "function") seedModeWidget.callback(seedModeWidget.value, node.graph?.canvas, node);
     node.graph?.setDirtyCanvas(true, true);
+    refinementController?.sourceChanged();
   });
   settingsModeSelect?.addEventListener("change", () => {
     if (!modeWidget) return;
@@ -348,6 +348,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (typeof seedModeWidget.callback === "function") seedModeWidget.callback(seedModeWidget.value, node.graph?.canvas, node);
     node.graph?.setDirtyCanvas(true, true);
     syncControlsFromWidgets();
+    refinementController?.sourceChanged();
   });
   action("seedRandomizeNow").addEventListener("click", () => {
     if (!seedWidget) return;
@@ -391,9 +392,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     { key: "model_passthrough", slotIndex: 7, type: "MODEL", label: "Model (passthrough)", default: false, desc: "The connected Model, unchanged. Per-prompt LoRA-patched models are on Model list." },
     { key: "clip_passthrough", slotIndex: 8, type: "CLIP", label: "CLIP (passthrough)", default: false, desc: "The connected CLIP, unchanged. Per-prompt LoRA-patched CLIPs are on CLIP list." },
     { key: "first_conditioning", slotIndex: 9, type: "CONDITIONING", label: "Conditioning (first)", default: false, desc: "Conditioning for the first generated prompt. None unless a CLIP input is connected. Use Conditioning list for every prompt." },
-    { key: "negative_conditioning", slotIndex: 10, type: "CONDITIONING", label: "Negative conditioning", default: false, desc: "The resolved negative prompt encoded once with the connected CLIP (unpatched). None unless a CLIP input is connected." },
+    { key: "negative_conditioning", slotIndex: 10, type: "CONDITIONING", label: "Negative conditioning", default: false, desc: "First resolved negative encoded with the unpatched CLIP. For varying negatives use Negative conditioning list." },
     { key: "first_prompt", slotIndex: 11, type: "STRING", label: "Prompt (first)", default: false, desc: "The first generated prompt. Use Prompt list for every prompt." },
-    { key: "negative_prompt", slotIndex: 12, type: "STRING", label: "Negative prompt", default: false, desc: "Resolved text from the Negative prompt inputs, resolved once for the whole batch." },
+    { key: "negative_prompt", slotIndex: 12, type: "STRING", label: "Negative prompt", default: false, desc: "First resolved negative text. For varying negatives use Negative prompt list." },
     { key: "first_seed", slotIndex: 13, type: "INT", label: "Seed used (first)", default: false, desc: "Seed used for the first generated prompt. Use Seed list for every prompt." },
     { key: "wildcards_used_json", slotIndex: 14, type: "STRING", label: "Wildcards used (JSON)", default: false, desc: "A JSON list of every wildcard file picked during this batch, as one value." },
     { key: "raw_text", slotIndex: 15, type: "STRING", label: "Raw text (unresolved)", default: false, desc: "Exactly what is typed into this node before wildcard resolution." },
@@ -402,6 +403,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     { key: "clip_token_count", slotIndex: 18, type: "INT", label: "CLIP token count (max)", default: false, desc: "Highest CLIP-L token count across the batch. -1 if unavailable or the connected text encoder is not CLIP-based." },
     { key: "batch_metadata_json", slotIndex: 19, type: "STRING", label: "Batch metadata (JSON)", default: false, desc: "One JSON record for the whole batch, including every generated prompt's metadata." },
     { key: "prompt_count", slotIndex: 20, type: "INT", label: "Prompt count", default: false, desc: "How many prompts this batch generated." },
+    { key: "negative_prompt_list", slotIndex: 21, type: "STRING", label: "Negative prompt list", default: false, desc: "One negative text per positive prompt, in matching order. Use for prepared variations with different negatives." },
+    { key: "negative_conditioning_list", slotIndex: 22, type: "CONDITIONING", label: "Negative conditioning list", default: false, desc: "One negative conditioning per positive prompt, encoded with the unpatched CLIP. Needs CLIP connected." },
   ];
 
   node.properties = node.properties || {};
@@ -838,7 +841,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     syntaxEnabled: () => theme.syntaxInjectorEnabled !== false,
     tokenContext: (event, selection, handle) => {
       if (theme.syntaxInjectorEnabled === false) return false;
-      const tok = tokenRanges.find(t => t.start <= selection.start && selection.start < t.end);
+      const tok = contextWildcardAtPoint(textarea, event, selection, tokenRanges);
       if (!tok) return false;
       handle(); closeCtxMenu(); textarea.setSelectionRange(tok.start, tok.end);
       openInjectMenuAtPoint(event.clientX, event.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
@@ -882,6 +885,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       renderPickerList(searchInput.value);
     });
 
+    let openDelay = null;
     if (theme.syntaxInjectorEnabled !== false) {
       const trigger = document.createElement("button");
       trigger.type = "button";
@@ -890,7 +894,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       trigger.innerHTML = "&#9889;";
       trigger.setAttribute("draggable", "false");
       trigger.addEventListener("mousedown", (e) => e.stopPropagation());
-      let openDelay = null;
       trigger.addEventListener("click", (e) => {
         e.stopPropagation();
         cancelNodeTimer(node, openDelay);
@@ -907,11 +910,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       });
       row.insertBefore(trigger, row.querySelector(".wg-pin"));
     }
-    row.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      closeInjectMenu();
+    attachLibraryContextMenu(row, (e) => {
+      cancelNodeTimer(node, openDelay);
+      hideTip(); closeInjectMenu();
       const nowPinned = pinned.has(item.path);
-      const hasThumb = !!thumbMap[item.path];
       openCtxMenu(e.clientX, e.clientY, [
         { label: "Copy path", icon: "path", group: "item", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
         {
@@ -922,8 +924,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
             renderPickerList(searchInput.value);
           },
         },
-        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", icon: "image", group: "thumb", onSelect: () => setThumbnailForItem(item.path) },
-        ...(hasThumb ? [{ label: "Remove Thumbnail", icon: "trash", group: "thumb", danger: true, onSelect: () => removeThumbnailForItem(item.path) }] : []),
+        ...libraryThumbnailActions(item.path, { hasThumbnail: !!thumbMap[item.path], editable: !item.type || item.type === "txt",
+          isActive: () => !libraryDisposed && nodeIsActive(node) }),
         { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
       ]);
     });
@@ -939,10 +941,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const isPinned = pinned.has(item.path);
     const name = item.path.split("/").pop();
     const thumbRel = thumbMap[item.path];
-    const thumbBustQs = thumbBust[item.path] ? `&v=${thumbBust[item.path]}` : "";
 
     const thumbHtml = thumbRel
-      ? `<img class="wg-thumb-img" src="${escapeHtml(API.thumbnailUrl(thumbRel, thumbBustQs))}" alt="" loading="lazy">`
+      ? `<img class="wg-thumb-img" src="${escapeHtml(API.thumbnailUrl(thumbRel))}" alt="" loading="lazy">`
       : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #121417));"><span class="wg-thumb-fallback-glyph" style="color:${color};">&#128193;</span></div>`;
 
     const tile = document.createElement("div");
@@ -960,11 +961,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       savePinned(pinned);
       renderPickerList(searchInput.value);
     });
-    tile.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      closeInjectMenu();
+    attachLibraryContextMenu(tile, (e) => {
+      hideTip(); closeInjectMenu();
       const nowPinned = pinned.has(item.path);
-      const hasThumb = !!thumbMap[item.path];
       openCtxMenu(e.clientX, e.clientY, [
         { label: "Copy path", icon: "path", group: "item", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
         {
@@ -975,8 +974,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
             renderPickerList(searchInput.value);
           },
         },
-        { label: hasThumb ? "Change Thumbnail\u2026" : "Set Thumbnail\u2026", icon: "image", group: "thumb", onSelect: () => setThumbnailForItem(item.path) },
-        ...(hasThumb ? [{ label: "Remove Thumbnail", icon: "trash", group: "thumb", danger: true, onSelect: () => removeThumbnailForItem(item.path) }] : []),
+        ...libraryThumbnailActions(item.path, { hasThumbnail: !!thumbMap[item.path], editable: !item.type || item.type === "txt",
+          isActive: () => !libraryDisposed && nodeIsActive(node) }),
         { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
       ]);
     });
@@ -1010,37 +1009,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       header.classList.add("wg-jump-flash");
       scheduleNodeTimer(node, () => header.classList.remove("wg-jump-flash"), 900);
     });
-  }
-
-  async function refreshThumbMap() {
-    try { thumbMap = await API.categories(); } catch (e) {}
-    renderPickerList(searchInput.value);
-  }
-  async function setThumbnailForItem(path) {
-    const file = await pickThumbnailFile();
-    if (!file) return;
-    const err = thumbnailFileError(file);
-    if (err) { notify("error", "Thumbnail not set", err); return; }
-    try {
-      const res = await API.setThumbnail(path, file);
-      if (!res.ok) { notify("error", "Thumbnail not set", res.error || "the server rejected the upload"); return; }
-      thumbBust[path] = Date.now();
-      await refreshThumbMap();
-      notify("success", "Thumbnail updated", path.split("/").pop());
-    } catch (e) {
-      notify("error", "Thumbnail not set", "network error while uploading");
-    }
-  }
-  async function removeThumbnailForItem(path) {
-    try {
-      const res = await API.removeThumbnail(path);
-      if (!res.ok) { notify("error", "Thumbnail not removed", res.error || "the server rejected the request"); return; }
-      thumbBust[path] = Date.now();
-      await refreshThumbMap();
-      notify("success", "Thumbnail removed", path.split("/").pop());
-    } catch (e) {
-      notify("error", "Thumbnail not removed", "network error");
-    }
   }
 
   function renderPickerList(filter = "") {

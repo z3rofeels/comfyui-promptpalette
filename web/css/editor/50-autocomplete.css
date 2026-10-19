@@ -455,7 +455,7 @@
  * component in 00-base.css) so both popups stay in lockstep as the theme evolves.
  */
 .wg-ac-menu.wg-inject-menu {
-  z-index: 10000;
+  z-index: 100010;
   min-width: min(380px, calc(100vw - 16px));
   max-width: min(620px, calc(100vw - 16px));
   max-height: min(640px, calc(100vh - 16px));
@@ -663,3 +663,10 @@
 .wg-ac-item.active .wg-ac-remove { opacity: .7; }
 .wg-ac-star:hover,
 .wg-ac-remove:hover { opacity: 1 !important; background: color-mix(in srgb, currentColor 16%, transparent); }
+/* Attach only real images: no reserved tiles or blank placeholders. */
+.wg-ac-menu .wg-ac-thumb { width: 30px; height: 30px; object-fit: cover; border-radius: 5px; flex: 0 0 30px; }
+.wg-ac-menu .wg-ac-thumb[hidden] { display: none; }
+.wg-ac-menu .wg-ac-images { margin: 4px 8px; padding: 3px 9px; border: 1px solid var(--wg-border, #8886); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; font: inherit; opacity: .7; }
+.wg-ac-menu .wg-ac-images[aria-pressed="true"] { opacity: 1; border-color: currentColor; }
+.wg-ac-preview { position: fixed; z-index: 100000; width: 204px; height: 204px; padding: 4px; box-sizing: border-box; border-radius: 10px; background: var(--wg-panel, Canvas); box-shadow: 0 8px 28px #0004; pointer-events: none; overflow: hidden; }
+.wg-ac-preview img { width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }

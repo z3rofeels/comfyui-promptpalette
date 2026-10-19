@@ -1,4 +1,5 @@
 import { observeEditorSelection } from "./editor_selection.js";
+import { isComfyQueueShortcut } from "../editor_shortcuts.js";
 let surfaceCounter = 0;
 const EDITOR_SENTINEL = "\u200b";
 
@@ -312,6 +313,7 @@ function installTextareaCompatibility(root) {
   const onCompositionEnd = () => normalizePlainTextDom(root, state);
   const onFocusSelection = () => { if (!pointerSelecting) setLiveSelection(root, state.start, state.end, state.direction); };
   const onKeyDown = (event) => {
+    if (isComfyQueueShortcut(event)) return;
     if (event.key !== "Escape") event.stopPropagation();
     if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === "a") {
       event.preventDefault();
@@ -332,7 +334,7 @@ function installTextareaCompatibility(root) {
   root.addEventListener("compositionend", onCompositionEnd);
   root.addEventListener("drop", onDrop);
   root.addEventListener("input", onInputNormalize);
-  const onKeyBubbleStop = (event) => event.stopPropagation();
+  const onKeyBubbleStop = (event) => { if (!isComfyQueueShortcut(event)) event.stopPropagation(); };
   root.addEventListener("keydown", onKeyDown);
   root.addEventListener("keyup", onKeyBubbleStop);
   root.addEventListener("keypress", onKeyBubbleStop);

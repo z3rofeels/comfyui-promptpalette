@@ -1,7 +1,6 @@
 import { getPromptPaletteRenderer, cleanupPromptPaletteRenderer } from "./renderer/prompt_palette_renderer.js";
 import { ensureSchemaSocket as rendererEnsureSchemaSocket } from "./renderer/base_renderer_adapter.js";
 const IO_SLOT_HEIGHT = 20;
-const IO_RAIL_GAP = 6;
 const HIDDEN_SOCKET_LABEL = "\u200B";
 
 function escapeHtml(value) {
@@ -723,10 +722,6 @@ function ioSocketIndex(list, name) {
 
 function socketConnected(kind, slot) {
   return kind === "input" ? slot?.link != null : Number(slot?.links?.length) > 0;
-}
-
-function socketVisible(kind, slot) {
-  return !!slot && (!slot.ppHidden || socketConnected(kind, slot));
 }
 
 function ensureSchemaSocket(node, kind, def) {

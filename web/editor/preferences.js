@@ -78,6 +78,7 @@ function defaultTheme() {
     starterPacksEnabled: true,
 
     autocompleteRecentLimit: 5,
+    autocompletePreviews: true,
     booruAutocompleteEnabled: false,
     booruAutocompleteMode: "off",
     booruAutocompleteMinChars: 2,
@@ -161,13 +162,20 @@ const SIDEBAR_DISPLAY_KEY = "sidebarDisplayV1";
 export function loadSidebarDisplay() {
   const saved = readEditorPreference(SIDEBAR_DISPLAY_KEY, {}) || {};
   const old = readEditorPreference("prompt_palette_style_explorer_v1", {}) || {};
-  const layouts = { library: "list", styles: old.compact === true ? "list" : "gallery", classic: "gallery", artists: "list", anima: "list", tags: "list", favorites: "list", previews: "gallery", custom: "list" };
+  const layouts = { library: "list", styles: old.compact === true ? "list" : "gallery", classic: "gallery", artists: "gallery", anima: "gallery", tags: "gallery", favorites: "list", previews: "gallery", custom: "list" };
   if (saved.layouts && typeof saved.layouts === "object") for (const key of Object.keys(layouts)) if (["gallery", "list"].includes(saved.layouts[key])) layouts[key] = saved.layouts[key];
-  return { version: 1, scale: Math.max(.1, Math.min(1.5, Number(saved.scale) || .9)), layouts };
+  const chrome = { images: saved.chrome?.images !== false, prompt: saved.chrome?.prompt === true,
+    descriptions: saved.chrome?.descriptions === true, syntax: saved.chrome?.syntax !== false,
+    tools: saved.chrome?.tools !== false, styles: saved.chrome?.styles !== false,
+    intro: saved.chrome?.intro !== false, modelHelp: saved.chrome?.modelHelp !== false,
+    artists: saved.chrome?.artists !== false, tags: saved.chrome?.tags !== false,
+    favorites: saved.chrome?.favorites !== false, previews: saved.chrome?.previews !== false,
+    custom: saved.chrome?.custom !== false, fit: saved.chrome?.fit === "contain" ? "contain" : "cover" };
+  return { version: 1, chrome, scale: Math.max(.1, Math.min(1.5, Number(saved.scale) || .9)), layouts };
 }
 export function saveSidebarDisplay(changes = {}) {
   const current = loadSidebarDisplay();
-  const next = { ...current, ...changes, layouts: { ...current.layouts, ...changes.layouts } };
+  const next = { ...current, ...changes, layouts: { ...current.layouts, ...changes.layouts }, chrome: { ...current.chrome, ...changes.chrome } };
   next.scale = Math.max(.1, Math.min(1.5, Number(next.scale) || .9));
   for (const key of Object.keys(next.layouts)) if (!["gallery", "list"].includes(next.layouts[key])) next.layouts[key] = current.layouts[key] || "list";
   writeEditorPreference(SIDEBAR_DISPLAY_KEY, next); return next;

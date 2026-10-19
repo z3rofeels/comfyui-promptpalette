@@ -1,5 +1,6 @@
 import { workspaceGeneration, markedWorkspaceResult } from "./workspace_generation.js";
 import { fieldVariationSource, hasVariationSyntax } from "./recipe_variation_source.js";
+import { maskJsonObjects } from '../engine/json_literals.js';
 // Scope planning and mapping only. All prompt resolution uses the existing API.
 import { cloneWorkspaceData, compileWorkspace, validateWorkspaceRecipe, fieldId } from "./recipe_workspace_model.js";
 
@@ -56,7 +57,7 @@ export function createExperimentPlan(recipe, scope, currentId, { preview = false
 }
 const unresolved = /__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^\n]*?\))?__/;
 export function readResolved(plan, text, channel, { allowUnresolved = false } = {}) {
-  if (typeof text !== "string" || !allowUnresolved && unresolved.test(text)) throw new Error("Resolve missing wildcard lists before previewing workspace variations.");
+  if (typeof text !== "string" || !allowUnresolved && unresolved.test(maskJsonObjects(text))) throw new Error("Resolve missing wildcard lists before previewing workspace variations.");
   const fields = {}, spans = [];
   for (const m of plan.markers.filter(m => m.channel === channel)) {
     const start = text.indexOf(m.left), end = text.indexOf(m.right);

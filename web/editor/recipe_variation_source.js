@@ -1,5 +1,6 @@
 // Authored alternatives remain ordinary Prompt Palette resolver syntax.
-export const hasVariationSyntax = text => /__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^\n]*?\))?__|\$\{|\{[^{}]*\||\[(?:if|elif|switch)\b/i.test(text);
+import { maskJsonObjects } from '../engine/json_literals.js';
+export const hasVariationSyntax = text => /__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^\n]*?\))?__|\$\{|\{[^{}]*\||\[(?:if|elif|switch)\b/i.test(maskJsonObjects(String(text)));
 export const fieldVariationSource = field => field.variationTemplate || field.value;
 export function choicesFromLines(text) {
   const choices = [...new Set(String(text).split(/\r?\n/).map(line => line.trim()).filter(Boolean))];

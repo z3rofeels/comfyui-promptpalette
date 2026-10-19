@@ -5,7 +5,7 @@
 // stay owned by the host controllers, which still load, save and delete entries. The host tells
 // this panel what is on disk through `setBaseline()`; everything else is derived from the DOM.
 import { API } from "../prompt_palette_api.js";
-import { pickThumbnailFile, thumbnailFileError } from "./thumbnails.js";
+import { pickThumbnailFile, thumbnailFileError, changeLibraryThumbnail } from "./thumbnails.js";
 import { normalizeLibraryEntryPath, isRecipeCategory, categoryOf } from "./text_utils.js";
 import { notify } from "./notifications.js";
 import { attachLibraryEditPromptTools } from "./library_edit_prompt_tools.js";
@@ -74,17 +74,26 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
   let loading = false, disposed = false, busy = false, writing = false;
   let thumbMap = {}, thumbBust = 0, thumbVersion = 0;
   let pending = null; // { file, url } chosen for an entry that is not saved yet
+  let choiceVersion = 0, attaching = null;
   let copyTimer = null;
 
   const currentPath = () => entryPath(name.value);
-  let librarySnapshot = null, pathSet = new Set();
+  let librarySnapshot = null, pathSet = new Set(), entryTypes = new Map();
   const libraryPaths = () => {
     const items = getLibrary() || [];
-    if (items !== librarySnapshot) { librarySnapshot = items; pathSet = new Set(items.map(item => item.path)); }
+    if (items !== librarySnapshot) {
+      librarySnapshot = items; pathSet = new Set(items.map(item => item.path));
+      entryTypes = new Map(items.map(item => [item.path, item.type]));
+    }
     return pathSet;
   };
   const isRecipe = path => !!path && isRecipeCategory(categoryOf(path));
   const dirty = () => !loading && (currentPath() !== baseline.path || content.value !== baseline.content);
+  const thumbnailEditable = () => {
+    libraryPaths();
+    const path = currentPath(), type = entryTypes.get(path);
+    return type ? type === "txt" : path !== baseline.path || !baseline.found || baseline.editable;
+  };
 
   function fillFolders() {
     const set = new Set();
@@ -105,6 +114,7 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
   }
 
   function renderThumb() {
+    if (disposed) return;
     const path = currentPath();
     const rel = path ? thumbMap[path] : "";
     const src = pending?.url || (rel ? API.thumbnailUrl(rel, thumbBust ? `&v=${thumbBust}` : "") : "");
@@ -115,9 +125,10 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
     if (has) { if (thumbImg.getAttribute("src") !== src) thumbImg.src = src; } else thumbImg.removeAttribute("src");
     addBtn.hidden = has;
     replaceBtn.hidden = removeBtn.hidden = !has;
-    addBtn.disabled = replaceBtn.disabled = removeBtn.disabled = busy || loading || writing;
-    thumbNote.textContent = pending ? "Added when you save" : "";
-    thumbNote.hidden = !pending;
+    const editable = thumbnailEditable();
+    addBtn.disabled = replaceBtn.disabled = removeBtn.disabled = busy || loading || writing || !editable;
+    thumbNote.textContent = !editable ? "TXT entries only" : pending ? "Added when you save" : "";
+    thumbNote.hidden = !thumbNote.textContent;
   }
 
   function refresh() {
@@ -175,18 +186,13 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
   }
 
   async function uploadThumbnail(path, file) {
-    const problem = thumbnailFileError(file);
-    if (problem) { notify("error", "Thumbnail not set", problem); return false; }
     busy = true; renderThumb();
     try {
-      const res = await API.setThumbnail(path, file);
-      if (!res.ok) { notify("error", "Thumbnail not set", res.error || "the server rejected the upload"); return false; }
-      thumbBust = Date.now();
-      await loadThumbMap();
-      await onThumbnailChanged?.(path);
-      notify("success", "Thumbnail updated", path.split("/").pop());
-      return true;
-    } catch { notify("error", "Thumbnail not set", "network error while uploading"); return false; }
+      return await changeLibraryThumbnail(path, { file, isActive: () => !disposed, onChanged: async () => {
+        thumbBust = Date.now(); await loadThumbMap();
+        if (!disposed) await onThumbnailChanged?.(path);
+      } });
+    }
     finally { busy = false; if (!disposed) renderThumb(); }
   }
 
@@ -196,11 +202,12 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
   }
 
   async function chooseThumbnail() {
+    if (busy || loading || writing || !thumbnailEditable()) return;
+    const path = currentPath(), choice = ++choiceVersion;
     const file = await pickThumbnailFile();
-    if (!file || disposed) return;
+    if (!file || disposed || choice !== choiceVersion || path !== currentPath() || loading || writing) return;
     const problem = thumbnailFileError(file);
     if (problem) { notify("error", "Thumbnail not set", problem); return; }
-    const path = currentPath();
     if (path && libraryPaths().has(path)) { clearPending(); await uploadThumbnail(path, file); return; }
     // Not in the library yet: show it now and attach it once the entry is saved.
     clearPending();
@@ -209,39 +216,43 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
   }
 
   async function removeThumbnail() {
+    if (busy || loading || writing || !thumbnailEditable()) return;
     if (pending) { clearPending(); refresh(); return; }
     const path = currentPath();
     if (!path) return;
     busy = true; renderThumb();
     try {
-      const res = await API.removeThumbnail(path);
-      if (!res.ok) { notify("error", "Thumbnail not removed", res.error || "the server rejected the request"); return; }
-      thumbBust = Date.now();
-      await loadThumbMap();
-      await onThumbnailChanged?.(path);
-      notify("success", "Thumbnail removed", path.split("/").pop());
-    } catch { notify("error", "Thumbnail not removed", "network error"); }
+      await changeLibraryThumbnail(path, { remove: true, isActive: () => !disposed, onChanged: async () => {
+        thumbBust = Date.now(); await loadThumbMap();
+        if (!disposed) await onThumbnailChanged?.(path);
+      } });
+    }
     finally { busy = false; if (!disposed) renderThumb(); }
   }
 
   // A save published by the host makes the staged image attachable.
   const unsubscribe = API.onLibraryChanged(async () => {
+    if (disposed) return;
     fillFolders();
-    if (!pending || disposed) return;
-    const path = currentPath();
-    if (!path) return;
-    const found = (await API.content(path, { fresh: true }).catch(() => null))?.found;
-    if (!found || !pending || disposed) return;
-    const { file } = pending;
-    clearPending();
-    await uploadThumbnail(path, file);
+    loadThumbMap();
+    if (!pending || attaching || busy) return;
+    const path = currentPath(), staged = pending;
+    if (!path || !thumbnailEditable()) return;
+    attaching = staged;
+    try {
+      const found = (await API.content(path, { fresh: true }).catch(() => null))?.found;
+      if (!found || pending !== staged || disposed || path !== currentPath()) return;
+      if (await uploadThumbnail(path, staged.file)) {
+        if (pending === staged) { clearPending(); refresh(); }
+      }
+    } finally { if (attaching === staged) attaching = null; }
   });
 
   const announce = (text, tone = "") => { status.textContent = text; status.className = tone ? `wg-status ${tone}` : "wg-status"; };
   const listeners = [];
   const on = (target, type, fn) => { target.addEventListener(type, fn); listeners.push(() => target.removeEventListener(type, fn)); };
 
-  on(name, "input", refresh);
+  on(name, "input", () => { choiceVersion++; refresh(); });
   on(content, "input", refresh);
   on(addBtn, "click", chooseThumbnail);
   on(replaceBtn, "click", chooseThumbnail);
@@ -272,12 +283,13 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
   refresh();
 
   return {
-    beginLoad() { loading = true; promptTools.suspend(); refresh(); },
+    beginLoad() { choiceVersion++; loading = true; promptTools.suspend(); refresh(); },
     endLoad() { loading = false; refresh(); },
     setBusy(value) { writing = value; if (value) promptTools.suspend(); refresh(); },
     suspend: promptTools.suspend,
     // `keepPending` is for a save: the staged thumbnail belongs to the entry that was just written.
     setBaseline(next, { keepPending = false } = {}) {
+      choiceVersion++;
       baseline = { path: entryPath(next?.path), content: String(next?.content ?? ""), found: !!next?.found, editable: next?.editable !== false };
       loading = false;
       if (!keepPending) clearPending();
@@ -289,7 +301,7 @@ export function createLibraryEditPanel({ drawer, el, getLibrary = () => [], ente
     stagedThumbnail: () => pending?.file || null,
     restoreStagedThumbnail(file) { if (!file || thumbnailFileError(file)) return; clearPending(); pending = { file, url: URL.createObjectURL(file) }; refresh(); },
     cleanup() {
-      disposed = true; thumbVersion++;
+      disposed = true; thumbVersion++; choiceVersion++;
       clearTimeout(copyTimer); clearPending(); unsubscribe(); promptTools.cleanup();
       listeners.forEach(fn => fn());
     },

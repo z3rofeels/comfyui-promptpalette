@@ -419,6 +419,15 @@ async def save_style_annotation_route(request):
         return _error(str(error))
 
 
+@routes.post("/prompt_palette/completion_previews")
+async def completion_previews_route(request):
+    try:
+        data = await _read_json_object(request, 128 * 1024)
+        return web.json_response({"items": await asyncio.to_thread(style_indexes.completion_previews, data.get("items"))})
+    except (ValueError, OSError) as error:
+        return _error(str(error))
+
+
 @routes.post("/prompt_palette/import_image_prompts")
 async def import_image_prompt_route(request):
     try:

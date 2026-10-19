@@ -263,6 +263,7 @@ export class Nodes2RendererAdapter extends RendererAdapter {
     this.syncFrame = 0;
     this.signature = "";
     this.lastSyncedVueNode = null;
+    this.lastSyncedElements = [];
     this.inSync = false;
     this.mode = null;
   }
@@ -325,7 +326,15 @@ export class Nodes2RendererAdapter extends RendererAdapter {
         widgetSocketEntries.map((entry) => renderedLabelText(entry.element)),
         rail.outputElements.map((element) => renderedLabelText(element)),
       ]);
-      if (this.lastSyncedVueNode === nodeElement && this.signature === signature) return false;
+      // Vue can replace slot/widget rows without replacing the outer node, and
+      // with exactly the same labels/counts. Those new elements still need our
+      // visibility state; a value-only signature cannot identify a remount.
+      const elements = [rail.root, rail.inputGroup, rail.outputGroup, ...rail.inputElements,
+        ...widgetSocketEntries.flatMap(entry => [entry.element, entry.row]), ...rail.outputElements];
+      const sameElements = elements.length === this.lastSyncedElements.length
+        && elements.every((element, index) => element === this.lastSyncedElements[index]);
+      if (this.lastSyncedVueNode === nodeElement && sameElements && this.signature === signature) return false;
+      this.lastSyncedElements = elements;
       this.lastSyncedVueNode = nodeElement;
       this.signature = signature;
       let visibleCount = 0;
@@ -379,6 +388,7 @@ export class Nodes2RendererAdapter extends RendererAdapter {
     this.syncFrame = 0;
     this.signature = "";
     this.lastSyncedVueNode = null;
+    this.lastSyncedElements = [];
     this.inSync = false;
     this.mode = null;
     const vueNode = this.vueNode;

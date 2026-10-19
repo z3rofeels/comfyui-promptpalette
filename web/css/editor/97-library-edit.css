@@ -3,8 +3,9 @@
    .wg-drawer rules keep serving the other drawers. */
 
 .wg-node.wg-root > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
-  width: min(360px, 62%) !important;
-  flex-basis: min(360px, 62%) !important;
+  width: min(520px, 64%, calc(100% - 240px)) !important;
+  flex-basis: min(520px, 64%, calc(100% - 240px)) !important;
+  box-shadow: none !important;
 }
 @container (max-width: 560px) {
   .wg-node.wg-root > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
@@ -12,10 +13,10 @@
   }
 }
 
-.pp-ledit { width: 100%; min-width: 0; padding: 10px 10px 10px; gap: 8px; }
+.pp-ledit { width: 100%; min-width: 0; padding: 8px; gap: 6px; }
 .pp-ledit .wg-drawer-head { gap: 8px; margin: 0; }
 .pp-ledit .wg-drawer-head h4 { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pp-ledit-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 14px; padding: 2px 3px 2px 0; overscroll-behavior: contain; }
+.pp-ledit-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 9px; padding: 0 2px 0 0; overscroll-behavior: contain; }
 
 .pp-ledit-badge {
   flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px;
@@ -30,8 +31,8 @@
 @keyframes pp-ledit-pulse { 50% { opacity: 0.25; } }
 
 /* Identity row: thumbnail beside the path */
-.pp-ledit-hero { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; }
-@container (max-width: 560px) { .pp-ledit-hero { grid-template-columns: 80px minmax(0, 1fr); gap: 10px; } }
+.pp-ledit-hero { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: start; }
+@container (max-width: 560px) { .pp-ledit-hero { grid-template-columns: 56px minmax(0, 1fr); gap: 8px; } }
 
 .pp-ledit-thumb {
   position: relative; aspect-ratio: 1 / 1; width: 100%; border-radius: 10px; overflow: hidden;
@@ -67,7 +68,7 @@
 .pp-ledit-thumb-note[hidden] { display: none; }
 
 .pp-ledit-ident { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.pp-ledit label { margin: 0; font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); font-weight: 600; letter-spacing: 0.02em; color: var(--wg-text-dim, #b8b0a4); }
+.pp-ledit label { margin: 0; font-size: calc(10.5px * var(--wg-ui-font-scale, 1)); font-weight: 600; letter-spacing: 0.02em; color: var(--wg-text-dim, #b8b0a4); }
 .pp-ledit-ident input[type=text] { margin: 0; padding: 6px 8px; }
 .pp-ledit input[type=text]:focus, .pp-ledit textarea:focus { border-color: var(--wg-accent, #d49a52); box-shadow: 0 0 0 2px color-mix(in srgb, var(--wg-accent, #d49a52) 22%, transparent); }
 .pp-ledit-hint { font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); line-height: 1.4; color: var(--wg-text-faint, #8f887e); overflow-wrap: anywhere; min-height: 13px; }
@@ -75,9 +76,9 @@
 .pp-ledit-hint[data-tone="info"] { color: var(--wg-text-dim, #b8b0a4); }
 .pp-ledit-use { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 2px; }
 .pp-ledit-use code {
-  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 7px; border-radius: 6px;
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 0; border-radius: 0;
   font: 10px/1.4 "SF Mono", Consolas, monospace; color: var(--wg-text, #f1eee8);
-  background: var(--wg-surface, #121417); border: 1px solid var(--wg-border, #2a2e34);
+  background: transparent; border: 0;
 }
 .pp-ledit-use code.placeholder { color: var(--wg-text-faint, #8f887e); }
 .pp-ledit-icon {
@@ -95,8 +96,8 @@
 .pp-ledit-stats[data-tone="warn"] { color: var(--wg-warning, var(--wg-accent, #d49a52)); }
 .pp-ledit-tools { display: flex; flex-wrap: wrap; gap: 5px; }
 .pp-ledit-tools button {
-  font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); padding: 3px 8px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--wg-border-strong, #3a4048); background: var(--wg-surface, #121417); color: var(--wg-text-dim, #b8b0a4);
+  font-size: calc(9.5px * var(--wg-ui-font-scale, 1)); padding: 3px 7px; border-radius: 5px; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--wg-text-dim, #b8b0a4);
   transition: border-color 120ms ease, color 120ms ease;
 }
 .pp-ledit-tools button:hover:not(:disabled) { border-color: var(--wg-accent, #d49a52); color: var(--wg-text, #f1eee8); }

@@ -178,3 +178,8 @@ $RECYCLE.BIN/
 !/web/assets/styles/*.webp
 !/web/assets/styles/manifest.json
 !/STYLE_IMAGE_CREDITS.md
+
+# Internal release records and supplied agent mirrors stay separate from distribution.
+/RELEASE_AUDIT_*.md
+/RELEASE_CHANGES_*.md
+/GITHUB_DESKTOP_COMMIT_*.txt

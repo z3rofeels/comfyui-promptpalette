@@ -1,7 +1,9 @@
 import { escapeHtml } from "./text_utils.js";
+import { isComfyQueueShortcut } from "../editor_shortcuts.js";
 import { copyPromptPaletteThemeScope, svgIcon } from "../prompt_palette_shared.js";
 import { runTextareaEditCommand, closeInjectMenu, injectState } from "./injector.js";
 import { closeAcMenu } from "./autocomplete.js";
+import { editorOffsetAtPoint } from "./editor_hover.js";
 import { notify } from "./notifications.js";
 import { openPromptTools, closePromptToolsFor, canBuildPromptRules } from "./prompt_tools_panel.js";
 
@@ -38,6 +40,7 @@ function stepRow(from, delta) {
 }
 function handleContextKeyDown(event) {
   if (!ctxMenuOpen) return;
+  if (isComfyQueueShortcut(event)) { closeCtxMenu(); return; }
   const printable = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey && event.key !== " ";
   if (!printable && !["ArrowDown", "ArrowUp", "Home", "End", "Enter", " ", "Escape", "Tab"].includes(event.key)) return;
   if (event.key === "Tab") { closeCtxMenu(); return; }
@@ -111,9 +114,10 @@ function openCtxMenu(x, y, actions) {
       event.stopPropagation();
       if (row.getAttribute("aria-disabled") === "true") return;
       closeCtxMenu();
-      Promise.resolve().then(() => actions[i].onSelect()).catch(error => {
-        notify("error", "Editor action failed", error?.message || String(error));
-      });
+      const failed = error => notify("error", "Editor action failed", error?.message || String(error));
+      // File dialogs and clipboard APIs must start inside this user gesture.
+      try { Promise.resolve(actions[i].onSelect()).catch(failed); }
+      catch (error) { failed(error); }
     });
   });
   menu.style.display = "block";
@@ -150,13 +154,56 @@ export function cleanupContextMenu() {
   ctxMenu = null;
 }
 
+// Keep the secondary-button gesture inside the DOM library in both renderers.
+// Capture handles nested image/row controls before a widget swallows the event;
+// stopping the down events keeps the classic canvas from starting its own action.
+export function attachLibraryContextMenu(target, openMenu, matches = () => true) {
+  const stopSecondary = event => { if (event.button === 2 && matches(event)) event.stopPropagation(); };
+  const onContextMenu = event => {
+    if (!matches(event)) return;
+    event.preventDefault(); event.stopPropagation();
+    openMenu(event);
+  };
+  target.addEventListener("pointerdown", stopSecondary, true);
+  target.addEventListener("mousedown", stopSecondary, true);
+  target.addEventListener("contextmenu", onContextMenu, true);
+  return () => {
+    target.removeEventListener("pointerdown", stopSecondary, true);
+    target.removeEventListener("mousedown", stopSecondary, true);
+    target.removeEventListener("contextmenu", onContextMenu, true);
+  };
+}
+
+export function contextWildcardAtPoint(editor, event, selection, ranges) {
+  const rect = editor.getBoundingClientRect();
+  const inside = rect.width > 0 && rect.height > 0 && event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+  const offset = inside ? editorOffsetAtPoint(editor, event.clientX, event.clientY) : -1;
+  const caret = offset >= 0 ? offset : selection.start;
+  const token = ranges.find(range => range.start <= caret && caret < range.end);
+  if (!token) return null;
+  // A browser may select a word inside __name__ on secondary click. Keep that
+  // token's menu available, including on repeated clicks after a mode change.
+  // Selections extending beyond one token retain the normal selection actions.
+  if (selection.end > selection.start && (selection.start < token.start || selection.end > token.end)) return null;
+  return token;
+}
+
 export function attachEditorContextMenu(editor, {
   render = () => {}, beforeOpen = () => {}, tokenContext = null,
   selectionActions = () => [], syntaxAction = null, syntaxEnabled = () => true,
   promptTools = {},
 } = {}) {
   editor.__ppPromptTools = promptTools;
+  const originalTitle = editor.getAttribute("title");
+  editor.title = [originalTitle, "Right-click: Prompt Palette actions and wildcard modes. Alt/Option + right-click: spelling and browser editing."].filter(Boolean).join("\n");
   const onContextMenu = event => {
+    // Browsers expose no portable way to ask whether the clicked word is misspelled.
+    // Keep Palette's established gesture; the alternate opens only native tools.
+    if (event.altKey) {
+      event.stopPropagation();
+      closeAcMenu(); closeCtxMenu(); closeInjectMenu(); beforeOpen();
+      return;
+    }
     const snapshot = { source: editor.value, start: editor.selectionStart, end: editor.selectionEnd, direction: editor.selectionDirection };
     const selected = snapshot.end > snapshot.start;
     const hasText = selected && snapshot.source.slice(snapshot.start, snapshot.end).trim();
@@ -168,9 +215,7 @@ export function attachEditorContextMenu(editor, {
       editor.setSelectionRange(snapshot.start, snapshot.end, snapshot.direction);
       return true;
     };
-    // Selected text takes priority over a wildcard beneath either endpoint.
-    // Opening a syntax menu must never replace an existing multi-token range.
-    if (!selected && tokenContext?.(event, snapshot, handle)) { if (ctxMenuOpen) ctxMenuEditor = editor; return; }
+    if (tokenContext?.(event, snapshot, handle)) { if (ctxMenuOpen) ctxMenuEditor = editor; return; }
     handle();
     const action = (label, fn, meta = {}) => ({ ...meta, label, onSelect: () => { if (restore()) return fn(); } });
     const actions = [
@@ -203,6 +248,7 @@ export function attachEditorContextMenu(editor, {
   return () => {
     closePromptToolsFor(editor);
     delete editor.__ppPromptTools;
+    if (originalTitle === null) editor.removeAttribute("title"); else editor.setAttribute("title", originalTitle);
     if (ctxMenuEditor === editor) closeCtxMenu();
     if (injectState?.textarea === editor) closeInjectMenu();
     editor.removeEventListener("contextmenu", onContextMenu); editor.removeEventListener("keydown", onKeydown);

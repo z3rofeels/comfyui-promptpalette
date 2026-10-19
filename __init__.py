@@ -19,7 +19,7 @@ except Exception:
     logging.getLogger(__name__).exception("Prompt Palette could not register metadata restoration")
 
 WEB_DIRECTORY = "web"
-__version__ = "2.0.6"
+__version__ = "2.0.7"
 
 class PromptPaletteExtension(ComfyExtension):
     @override
@@ -27,6 +27,11 @@ class PromptPaletteExtension(ComfyExtension):
         return [PromptPaletteEditor, PromptPaletteCombinatorial, PromptPaletteWeightController]
 
 async def comfy_entrypoint() -> PromptPaletteExtension:
+    try:
+        from .startup_banner import announce_startup
+        announce_startup(__version__)
+    except Exception:
+        logging.getLogger(__name__).debug("Prompt Palette startup banner unavailable", exc_info=True)
     return PromptPaletteExtension()
 
 __all__ = ["comfy_entrypoint", "WEB_DIRECTORY", "__version__"]

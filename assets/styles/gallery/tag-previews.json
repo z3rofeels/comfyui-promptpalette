@@ -1,0 +1,1221 @@
+{
+  "name": "SFW Booru visual references",
+  "entries": [
+    {
+      "tag": "flower",
+      "name": "flower",
+      "category": "general",
+      "asset": "commons-131897774.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Daisy · macro photograph",
+        "author": "Free Nature Stock",
+        "date": "before 2021",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "sunflower",
+      "name": "sunflower",
+      "category": "general",
+      "asset": "met-436524.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Sunflowers",
+        "author": "Vincent van Gogh",
+        "date": "1887",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436524",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "tree",
+      "name": "tree",
+      "category": "general",
+      "asset": "commons-70784686.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Farm Garden",
+        "author": "Gustav Klimt",
+        "date": "1907",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "landscape",
+      "name": "landscape",
+      "category": "general",
+      "asset": "met-337499.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Lake of Zug",
+        "author": "Joseph Mallord William Turner",
+        "date": "1843",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337499",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "water",
+      "name": "water",
+      "category": "general",
+      "asset": "commons-103598727.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Rushing Water",
+        "author": "John Singer Sargent",
+        "date": "1901",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_Rushing_Water_-_Inl%C3%A5n_JSS_522-05_-_Nationalmuseum.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_Rushing_Water_-_Inl%C3%A5n_JSS_522-05_-_Nationalmuseum.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "ocean",
+      "name": "ocean",
+      "category": "general",
+      "asset": "commons-18813667.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Under the Wave off Kanagawa · The Great Wave",
+        "author": "Katsushika Hokusai",
+        "date": "from 1823 until 1829",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Great_Wave_Hokusai_BM_1906.1220.0.533_n02.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "mountain",
+      "name": "mountain",
+      "category": "general",
+      "asset": "met-337499.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Lake of Zug",
+        "author": "Joseph Mallord William Turner",
+        "date": "1843",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337499",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "cloud",
+      "name": "cloud",
+      "category": "general",
+      "asset": "met-436535.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "sky",
+      "name": "sky",
+      "category": "general",
+      "asset": "met-436535.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "building",
+      "name": "building",
+      "category": "general",
+      "asset": "commons-24217637.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Church of Saint Augustin · architectural elevation",
+        "author": "Victor Baltard",
+        "date": "(1868 - 1871)",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Victor_Baltard_-_Church_of_Saint_Augustin,_Paris,_elevation_of_the_main_facade_-_Google_Art_Project.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Victor_Baltard_-_Church_of_Saint_Augustin,_Paris,_elevation_of_the_main_facade_-_Google_Art_Project.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "architecture",
+      "name": "architecture",
+      "category": "general",
+      "asset": "commons-54680880.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Brutalist architecture around AUT",
+        "author": "Ingolfson",
+        "date": "2011-09",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Brutalist_Architecture_Around_the_AUT.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Brutalist_Architecture_Around_the_AUT.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "cityscape",
+      "name": "cityscape",
+      "category": "general",
+      "asset": "commons-29562993.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Saint Peter’s Basilica · blue hour",
+        "author": "Jebulon",
+        "date": "2013-08-20",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Basilica_Sancti_Petri_blue_hour.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Basilica_Sancti_Petri_blue_hour.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "bridge",
+      "name": "bridge",
+      "category": "general",
+      "asset": "commons-89995718.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Long Exposure of Golden Gate Bridge.jpg",
+        "author": "Ian Simmonds",
+        "date": "Published on 1 June 2017",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Long_Exposure_of_Golden_Gate_Bridge.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Long_Exposure_of_Golden_Gate_Bridge.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "courtyard",
+      "name": "courtyard",
+      "category": "general",
+      "asset": "commons-50693422.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Courtyard Zappeion Athens, Greece.jpg",
+        "author": "Jebulon",
+        "date": "2016-04-23 10:53:21",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Courtyard_Zappeion_Athens,_Greece.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Courtyard_Zappeion_Athens,_Greece.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "garden",
+      "name": "garden",
+      "category": "general",
+      "asset": "commons-70784686.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Farm Garden",
+        "author": "Gustav Klimt",
+        "date": "1907",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "leaf",
+      "name": "leaf",
+      "category": "general",
+      "asset": "commons-80950146.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Ferns · Specimen of Cyanotype",
+        "author": "Anna Atkins",
+        "date": "1840s",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Anna_Atkins,_Ferns._Specimen_of_Cyanotype,_1840s,_NGA_136477.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Anna_Atkins,_Ferns._Specimen_of_Cyanotype,_1840s,_NGA_136477.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "vase",
+      "name": "vase",
+      "category": "general",
+      "asset": "commons-152331092.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Unglazed vase · Guadix, Spain",
+        "author": "Daderot",
+        "date": "2024-05-26 07:44:37",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Unglazed_vase,_Spain,_probably_Guadix,_1872,_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London,_England_-_DSC04727.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Unglazed_vase,_Spain,_probably_Guadix,_1872,_biscuit_earthenware_-_Victoria_and_Albert_Museum_-_London,_England_-_DSC04727.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "glass",
+      "name": "glass",
+      "category": "general",
+      "asset": "commons-60950618.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Cut-glass cup",
+        "author": "Unknown creator",
+        "date": "8th–9th century",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "still life",
+      "name": "still life",
+      "category": "general",
+      "asset": "commons-74116019.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Basket of Apples",
+        "author": "Paul Cézanne",
+        "date": "1893",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "watercolor (medium)",
+      "name": "watercolor (medium)",
+      "category": "general",
+      "asset": "met-17053.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Boys in a Dory",
+        "author": "Winslow Homer",
+        "date": "1873",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/17053",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "traditional media",
+      "name": "traditional media",
+      "category": "general",
+      "asset": "met-437881.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Young Woman with a Water Pitcher",
+        "author": "Johannes Vermeer",
+        "date": "ca. 1662",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/437881",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "painting (medium)",
+      "name": "painting (medium)",
+      "category": "general",
+      "asset": "met-436535.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "sketch",
+      "name": "sketch",
+      "category": "general",
+      "asset": "met-337494.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Compositional Sketches for the Virgin Adoring the Christ Child, with and without the Infant St. John the Baptist; Diagram of a Perspectival Projection (recto); Slight Doodles (verso)",
+        "author": "Leonardo da Vinci",
+        "date": "1480–85",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337494",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "monochrome",
+      "name": "monochrome",
+      "category": "general",
+      "asset": "met-335537.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field",
+        "author": "Vincent van Gogh",
+        "date": "July 1888",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/335537",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "calligraphy",
+      "name": "calligraphy",
+      "category": "general",
+      "asset": "met-770740.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Calligraphy Painting",
+        "author": "Isma'il Jalayir",
+        "date": "ca. 1860",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/770740",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "pixel art",
+      "name": "pixel art",
+      "category": "general",
+      "asset": "kenney-pixel-platformer-sampleb-png.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Pixel Platformer · SampleB.png",
+        "author": "Kenney",
+        "date": "",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/pixel-platformer",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "voxel art",
+      "name": "voxel art",
+      "category": "general",
+      "asset": "kenney-voxel-kit-preview-png.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Voxel Kit · Preview.png",
+        "author": "Kenney",
+        "date": "",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/voxel-kit",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "3d",
+      "name": "3d",
+      "category": "general",
+      "asset": "kenney-city-kit-suburban-preview-png.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "City Kit Suburban · Preview.png",
+        "author": "Kenney",
+        "date": "",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/city-kit-suburban",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "backlighting",
+      "name": "backlighting",
+      "category": "general",
+      "asset": "commons-85118206.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Backlit grass panicles 2.jpg",
+        "author": "W.carter",
+        "date": "2019-06-16 15:21:12",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "abstract",
+      "name": "abstract",
+      "category": "general",
+      "asset": "commons-37619232.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Composition VII",
+        "author": "Wassily Kandinsky",
+        "date": "1913",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Vassily_Kandinsky,_1913_-_Composition_7.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Vassily_Kandinsky,_1913_-_Composition_7.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "fabric",
+      "name": "fabric",
+      "category": "general",
+      "asset": "ambient-fabric085.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Fabric 085 · material reference",
+        "author": "Lennart Demes / ambientCG",
+        "date": "2026-10-10",
+        "institution": "ambientCG",
+        "source": "https://ambientcg.com/a/Fabric085",
+        "license": "CC0-1.0",
+        "rightsURL": "https://docs.ambientcg.com/license/",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "rock",
+      "name": "rock",
+      "category": "general",
+      "asset": "ambient-rock064.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Rock 064 · material reference",
+        "author": "Lennart Demes / ambientCG",
+        "date": "2026-04-14",
+        "institution": "ambientCG",
+        "source": "https://ambientcg.com/a/Rock064",
+        "license": "CC0-1.0",
+        "rightsURL": "https://docs.ambientcg.com/license/",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "A sourced SFW visual example of this literal concept; not an AI checkpoint prediction."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "pink hair",
+      "name": "pink hair",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "green eyes",
+      "name": "green eyes",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "short hair",
+      "name": "short hair",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "bob cut",
+      "name": "bob cut",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "portrait",
+      "name": "portrait",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "looking at viewer",
+      "name": "looking at viewer",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "smile",
+      "name": "smile",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "closed mouth",
+      "name": "closed mouth",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "solo",
+      "name": "solo",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "1girl",
+      "name": "1girl",
+      "category": "general",
+      "asset": "anima-87540.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "dairi · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/87540.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "blunt bangs",
+      "name": "blunt bangs",
+      "category": "general",
+      "asset": "anima-139895.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "naga u · Anima explorer portrait excerpt",
+        "author": "ThetaCursed · source explorer renders; vZVXv · asset mirror",
+        "institution": "Anima Style Explorer · ZVX asset collection",
+        "source": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/images/1/139895.webp",
+        "license": "MIT",
+        "rightsURL": "https://github.com/vZVXv/Anima-Assets-ZVX-Edition/blob/7cfb49c473fe9232f43397c299924979d95683c0/LICENSE.txt",
+        "recordedAt": "2026-10-17",
+        "model": "Anima 2B · source explorer attribution",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "blue sky",
+      "name": "blue sky",
+      "category": "general",
+      "asset": "met-436535.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "cloudy sky",
+      "name": "cloudy sky",
+      "category": "general",
+      "asset": "met-436535.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "outdoors",
+      "name": "outdoors",
+      "category": "general",
+      "asset": "met-337499.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Lake of Zug",
+        "author": "Joseph Mallord William Turner",
+        "date": "1843",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337499",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "day",
+      "name": "day",
+      "category": "general",
+      "asset": "met-337499.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Lake of Zug",
+        "author": "Joseph Mallord William Turner",
+        "date": "1843",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337499",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "scenery",
+      "name": "scenery",
+      "category": "general",
+      "asset": "met-337499.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Lake of Zug",
+        "author": "Joseph Mallord William Turner",
+        "date": "1843",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/337499",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "nature",
+      "name": "nature",
+      "category": "general",
+      "asset": "commons-70784686.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Farm Garden",
+        "author": "Gustav Klimt",
+        "date": "1907",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Bauerngarten_Klimt_1907.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "plant",
+      "name": "plant",
+      "category": "general",
+      "asset": "commons-176706862.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Xylosma senticosa · herbarium specimen",
+        "author": "Conveyor Belt",
+        "date": "1930-10-27",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Xylosma_senticosa_herbarium_specimen.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Xylosma_senticosa_herbarium_specimen.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "grass",
+      "name": "grass",
+      "category": "general",
+      "asset": "commons-85118206.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Backlit grass panicles 2.jpg",
+        "author": "W.carter",
+        "date": "2019-06-16 15:21:12",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Backlit_grass_panicles_2.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "field",
+      "name": "field",
+      "category": "general",
+      "asset": "met-436535.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "yellow flower",
+      "name": "yellow flower",
+      "category": "general",
+      "asset": "met-436524.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Sunflowers",
+        "author": "Vincent van Gogh",
+        "date": "1887",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436524",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "white flower",
+      "name": "white flower",
+      "category": "general",
+      "asset": "commons-131897774.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Daisy · macro photograph",
+        "author": "Free Nature Stock",
+        "date": "before 2021",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Macro_flower_wallpaper.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "abstract background",
+      "name": "abstract background",
+      "category": "general",
+      "asset": "kenney-pattern-pack-png-default-pattern-01-png.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Pattern Pack · PNG/Default/pattern_01.png",
+        "author": "Kenney",
+        "date": "",
+        "institution": "Kenney asset collection",
+        "source": "https://kenney.nl/assets/pattern-pack",
+        "license": "CC0-1.0",
+        "rightsURL": "https://kenney.nl/support",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "lily pad",
+      "name": "lily pad",
+      "category": "general",
+      "asset": "commons-63880393.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Water Lilies",
+        "author": "Claude Monet",
+        "date": "1915",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Claude_Monet_-_Seerosen.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Claude_Monet_-_Seerosen.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "fruit",
+      "name": "fruit",
+      "category": "general",
+      "asset": "commons-74116019.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Basket of Apples",
+        "author": "Paul Cézanne",
+        "date": "1893",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "apple",
+      "name": "apple",
+      "category": "general",
+      "asset": "commons-74116019.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "The Basket of Apples",
+        "author": "Paul Cézanne",
+        "date": "1893",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "license": "Public domain",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_The_Basket_of_Apples_-_1926.252_-_Art_Institute_of_Chicago.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "boat",
+      "name": "boat",
+      "category": "general",
+      "asset": "met-17053.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Boys in a Dory",
+        "author": "Winslow Homer",
+        "date": "1873",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/17053",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "window",
+      "name": "window",
+      "category": "general",
+      "asset": "met-437881.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Young Woman with a Water Pitcher",
+        "author": "Johannes Vermeer",
+        "date": "ca. 1662",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/437881",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "paper",
+      "name": "paper",
+      "category": "general",
+      "asset": "commons-101181665.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Ficus retusa · herbarium sheet",
+        "author": "Naturalis Biodiversity Center",
+        "date": "2013-09-10",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Ficus_retusa_herbarium_sheet.jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Ficus_retusa_herbarium_sheet.jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "texture",
+      "name": "texture",
+      "category": "general",
+      "asset": "ambient-fabric085.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Fabric 085 · material reference",
+        "author": "Lennart Demes / ambientCG",
+        "date": "2026-10-10",
+        "institution": "ambientCG",
+        "source": "https://ambientcg.com/a/Fabric085",
+        "license": "CC0-1.0",
+        "rightsURL": "https://docs.ambientcg.com/license/",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "cup",
+      "name": "cup",
+      "category": "general",
+      "asset": "commons-60950618.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Cut-glass cup",
+        "author": "Unknown creator",
+        "date": "8th–9th century",
+        "institution": "Wikimedia Commons · source documented in file record",
+        "source": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "license": "CC0-1.0",
+        "rightsURL": "https://commons.wikimedia.org/wiki/File:Cut-Glass_Cup_MET_65.172.1(2).jpg",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    },
+    {
+      "tag": "wheat",
+      "name": "wheat",
+      "category": "general",
+      "asset": "met-436535.webp",
+      "previewKind": "reference",
+      "provenance": {
+        "title": "Wheat Field with Cypresses",
+        "author": "Vincent van Gogh",
+        "date": "1889",
+        "institution": "The Metropolitan Museum of Art",
+        "source": "https://www.metmuseum.org/art/collection/search/436535",
+        "license": "CC0-1.0",
+        "rightsURL": "https://www.metmuseum.org/hubs/open-access",
+        "recordedAt": "2026-10-14",
+        "referenceNote": "SFW visual example of this literal concept. Some images are cropped published model references; this does not predict output from your checkpoint."
+      },
+      "description": "Visual concept reference. Adds the exact stored Booru tag."
+    }
+  ]
+}

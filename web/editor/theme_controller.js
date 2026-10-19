@@ -168,6 +168,7 @@ export function createThemeController(ctx) {
   const toggleBooruAutocompleteCb = el("toggleBooruAutocomplete");
   const booruAutocompleteMode = el("booruAutocompleteMode");
   const booruAutocompleteMinChars = el("booruAutocompleteMinChars");
+  const toggleAutocompletePreviews = el("toggleAutocompletePreviews");
   const booruSourceDatabase = el("booruSourceDatabase");
   const booruSourceCustomWords = el("booruSourceCustomWords");
   const toggleBooruPromptColorsCb = el("toggleBooruPromptColors");
@@ -497,7 +498,7 @@ export function createThemeController(ctx) {
       layout: Object.fromEntries(Object.entries(theme).filter(([key]) => key.startsWith("show") || [
         "syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "booruAutocompleteEnabled",
         "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors", "animaArtistFormatting",
-        "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme", "toolbarMode", "toolbarScale", "toolbarSize", "toolbarOrder",
+        "autocompletePreviews", "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme", "toolbarMode", "toolbarScale", "toolbarSize", "toolbarOrder",
       ].includes(key))),
     };
   }
@@ -976,6 +977,7 @@ export function createThemeController(ctx) {
     });
   }
   function refreshToolbarSettingsUI() {
+    if (toggleAutocompletePreviews) toggleAutocompletePreviews.checked = theme.autocompletePreviews !== false;
     toggleSeedControlsCb.checked = !!theme.showSeedControls;
     toggleDayNightBtnCb.checked = !!theme.showDayNightBtn;
     toggleSyntaxInjectorCb.checked = theme.syntaxInjectorEnabled !== false;
@@ -1100,6 +1102,10 @@ export function createThemeController(ctx) {
     autocompleteRecentLimit.value = String(theme.autocompleteRecentLimit);
     saveTheme(theme);
     updateThemeJson();
+  });
+  toggleAutocompletePreviews?.addEventListener("change", () => {
+    theme.autocompletePreviews = toggleAutocompletePreviews.checked;
+    saveTheme(theme); updateThemeJson();
   });
   toggleBooruAutocompleteCb.addEventListener("change", () => {
     theme.booruAutocompleteEnabled = toggleBooruAutocompleteCb.checked;

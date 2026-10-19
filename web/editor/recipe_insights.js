@@ -9,13 +9,13 @@ export async function resolveWorkspacePreview(recipe, seed, mode, resolveVariati
   if (resolveVariations.workspace) {
     const [item] = await resolveVariations.workspace(workspaceGeneration(recipe, { namespace }), seed, mode, 1, { signal });
     const plan = createExperimentPlan(recipe, "workspace", null, { preview: true });
-    return { plan, fields: item.fields, positive: item.positive, negative: item.negative, baseline: ["positive", "negative"].map(channel => ({ ...readResolved(plan, markedWorkspaceResult(plan, item, channel), channel) })) };
+    return { plan, fields: item.fields, positive: item.positive, negative: item.negative, wildcards: item.wildcards || [], baseline: ["positive", "negative"].map(channel => ({ ...readResolved(plan, markedWorkspaceResult(plan, item, channel), channel) })) };
   }
   const plan = createExperimentPlan(recipe, "workspace", null, { preview: true });
   const responses = await Promise.all(["positive", "negative"].map(channel => plan.sources[channel] ? resolveVariations(plan.sources[channel], seed, mode, 1, { signal }) : [{ resolved: "" }]));
   if (signal?.aborted) throw new DOMException("Preview cancelled", "AbortError");
   const baseline = responses.map((items, i) => readResolved(plan, items[0]?.resolved, i ? "negative" : "positive"));
-  return { plan, baseline, fields: { ...baseline[0].fields, ...baseline[1].fields }, ...projectExperiment(plan, baseline, {}) };
+  return { plan, baseline, fields: { ...baseline[0].fields, ...baseline[1].fields }, wildcards: [...new Set(responses.flatMap(items => items[0]?.wildcards || []))], ...projectExperiment(plan, baseline, {}) };
 }
 export async function estimateWorkspaceCombinations(recipe, scope, currentId, seed, mode, services, { signal, captured } = {}) {
   const valid = validateWorkspaceRecipe(recipe);

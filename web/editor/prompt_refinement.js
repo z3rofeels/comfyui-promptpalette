@@ -101,8 +101,20 @@ export function recipeDependencies(recipe) {
 }
 
 export function preparedBatch(source, prompts, snapshot = {}) {
-  if (!prompts.length || prompts.length > 256 || prompts.some(p => typeof p !== "string") || prompts.reduce((n, p) => n + p.length, 0) > 4_000_000) throw new Error("The prepared batch is too large or empty.");
-  return JSON.stringify({ schema: BATCH_SCHEMA, source, prompts, resolution_seed: snapshot.resolution_seed, template: snapshot.source, wildcards: snapshot.wildcards || [] });
+  if (!prompts.length || prompts.length > 256 || prompts.some(p => typeof p !== "string" || p.length > 1_000_000)) throw new Error("The prepared batch is too large or empty.");
+  const extra = {};
+  if (snapshot.negative_prompts != null) {
+    if (!Array.isArray(snapshot.negative_prompts) || snapshot.negative_prompts.length !== prompts.length || snapshot.negative_prompts.some(p => typeof p !== "string" || p.length > 1_000_000) || typeof snapshot.negative_source !== "string") throw new Error("Each prepared prompt needs its matching negative prompt.");
+    extra.negative_prompts = snapshot.negative_prompts; extra.negative_source = snapshot.negative_source;
+  }
+  if (prompts.concat(extra.negative_prompts || []).reduce((n, p) => n + p.length, 0) > 4_000_000) throw new Error("The prepared batch is too large.");
+  if (snapshot.comparison != null) {
+    if (snapshot.comparison !== "one-field" || !Array.isArray(snapshot.labels) || snapshot.labels.length !== prompts.length || snapshot.labels.some(label => typeof label !== "string" || label.length > 200)) throw new Error("Invalid comparison labels.");
+    extra.comparison = snapshot.comparison; extra.labels = snapshot.labels;
+  }
+  const serialized = JSON.stringify({ schema: BATCH_SCHEMA, source, prompts, resolution_seed: snapshot.resolution_seed, template: snapshot.source, wildcards: snapshot.wildcards || [], ...extra });
+  if (serialized.length > 8_000_000) throw new Error("The prepared batch is too large.");
+  return serialized;
 }
 
 // Prepared data uses its own backing state: a Nodes 2 remount must not replace a

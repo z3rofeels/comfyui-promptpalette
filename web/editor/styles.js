@@ -8,7 +8,7 @@ import { loadExtensionStylesheet } from "../prompt_palette_shared.js";
 // override earlier ones, exactly as the old @import order did.
 const EDITOR_PARTIALS = [
   "00-base", "10-polish", "20-nodes2-io", "30-workspace", "40-horizontal-layout",
-  "50-autocomplete", "55-refinement", "56-recipe-workspace", "60-library", "70-performance", "80-v4", "90-status-chrome", "92-prompt-tools", "96-split-workspace", "97-library-edit", "98-main-sidebar", "99-style-library", "100-adaptive-settings",
+  "50-autocomplete", "55-refinement", "56-recipe-workspace", "60-library", "70-performance", "80-v4", "90-status-chrome", "92-prompt-tools", "96-split-workspace", "97-library-edit", "98-main-sidebar", "99-style-library", "100-adaptive-settings", "101-sidebar-showcase",
 ];
 
 const editorPartialLoads = EDITOR_PARTIALS.map((name) =>

@@ -375,7 +375,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     if (f.collapsed) return;
     const editWrap = make("div", "pp-recipe-editor wg-editor-real");
     const overlay = make("div", "wg-editor-layer wg-highlight");
-    const input = make("textarea", "wg-editor-layer wg-textarea"); input.value = f.value; input.spellcheck = false; input.title = f.help || f.placeholder || name; input.placeholder = f.placeholder || "Text, tags or __wildcards__"; input.setAttribute("aria-label", name);
+    const input = make("textarea", "wg-editor-layer wg-textarea"); input.value = f.value; input.spellcheck = true; input.title = f.help || f.placeholder || name; input.placeholder = f.placeholder || "Text, tags or __wildcards__"; input.setAttribute("aria-label", name);
     editWrap.append(overlay, input); card.appendChild(editWrap); card.appendChild(attachResizeGrip(card, editWrap, f.id));
     const footer = make("div", "pp-split-footer"), count = make("span", "pp-split-count"); footer.appendChild(count);
     if (getPowerToolPreferences().promptDoctor) { const check = button("Review", () => { openSettings("fields", f.id); review(f); }, `Review ${name} with Prompt Doctor`); check.classList.add("pp-split-quiet"); footer.appendChild(check); }
@@ -412,7 +412,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     const body = make("div", "pp-split-options-body"); opts.appendChild(body);
     const title = make("input", "pp-split-title-input"); title.type = "text"; title.maxLength = 120; title.value = f.titleHidden ? "" : f.label; title.placeholder = `Untitled · ${f.label}`;
     title.setAttribute("aria-label", `Title for ${name}`); title.title = "Shown above the field. Leave empty to hide the title.";
-    title.addEventListener("keydown", event => { if (event.key === "Enter") title.blur(); event.stopPropagation(); });
+    title.addEventListener("keydown", event => { if (isComfyQueueShortcut(event)) return; if (event.key === "Enter") title.blur(); event.stopPropagation(); });
     title.addEventListener("change", () => { const value = title.value.trim(); mutate(r => { const target = r.fields.find(x => x.id === f.id); if (value) { target.label = value; delete target.titleHidden; } else target.titleHidden = true; }); });
     body.appendChild(settingsRow("Title", title));
     body.appendChild(settingsRow("Accent", accentControl(f, name)));
@@ -602,10 +602,12 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     applyVariation(plan, values) { assertPlan(plan); mutate(r => { const next = applyExperiment(r, plan, values); Object.assign(r, next); }); },
     sendVariations(plan, items, seed) {
       assertPlan(plan);
-      if (!items.length || items.some(item => item.negative !== items[0].negative)) throw new Error("The existing batch format uses one shared negative prompt. Use a positive-field scope or apply a version with its negative changes first.");
+      if (!items.length) throw new Error("Keep at least one version to send.");
       if (node.inputs?.some(input => input.name === "negative_text" && input.link != null)) throw new Error("Copy the resolved prompts or use the workspace version: a connected negative input cannot be captured into a new batch.");
       return sendPreparedPrompts({ node, source: plan.compiled.positive, prompts: items.map(item => item.resolved), negative: items[0].negative, seed,
-        session: { resolution_seed: seed, wildcards: [...new Set(items.flatMap(item => item.wildcards))] } });
+        session: { resolution_seed: seed, wildcards: [...new Set(items.flatMap(item => item.wildcards))], negative_prompts: items.map(item => item.negative),
+          ...(plan.strategy === "one-field" ? { comparison: "one-field", labels: items.map(item => item.trial?.label || "Trial") } : {}) } });
     },
     cleanup() { disposed = true; cancelInsights(); clearEditors(); window.removeEventListener("pp-power-tools-changed", settings); root.removeEventListener("pp-output-transform-changed", updatePreview); root.removeEventListener("click", showCompiledForPreview, true); tabs.remove(); section.remove(); delete node._ppActiveRecipeEditor; } };
 }
+import { isComfyQueueShortcut } from "../editor_shortcuts.js";

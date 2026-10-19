@@ -105,9 +105,11 @@ function ensureInjectMenu() {
   document.body.appendChild(injectMenu);
 
   injectMenu.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
     const row = e.target.closest(".wg-inject-item");
     if (!row || !injectState) return;
     e.preventDefault();
+    e.stopPropagation();
     const idx = Number(row.dataset.index);
     if (row.dataset.kind === "tool") {
       const { textarea, replaceRange } = injectState;

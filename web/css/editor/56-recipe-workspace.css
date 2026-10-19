@@ -165,3 +165,6 @@
 .wg-root .pp-candidate-follow { color: var(--wg-success, #82c6a2); }
 .wg-root .wg-variation-card > details > summary { cursor: pointer; color: var(--wg-text-dim, #b4aea5); font-size: 11px; padding: 5px 0; }
 .wg-root .wg-variation-card > details > summary:hover { color: var(--wg-accent, #d49a52); }
+.wg-root .wg-variation-card[data-trial-kind="baseline"] { border: 1px solid color-mix(in srgb, var(--wg-accent) 40%, var(--wg-border)); border-radius: var(--wg-corner-radius, 7px); padding: 10px; background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-panel-bg)); }
+.wg-root .wg-variation-card[data-trial-kind] > strong { display: block; overflow-wrap: anywhere; color: var(--wg-accent); }
+.wg-root .pp-workspace-scope[hidden] { display: none !important; }

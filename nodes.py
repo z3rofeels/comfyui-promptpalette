@@ -5,6 +5,7 @@ import math
 import re
 import random
 import logging
+from .json_literals import JsonLiterals
 
 import comfy.sd
 import comfy.utils
@@ -53,12 +54,20 @@ def _coerce_choice(value, choices, default):
 
 _DYNAMIC_PROMPT_RE = re.compile(
     r"__(?:[+\-*%~@][A-Za-z0-9_\-/*]+|[A-Za-z0-9_\-/]+\([^()]*\))__"
-    r"|\{[+\-*%~@][^{}]*\}"
+    # Match the opening marker too: nested choices can hide the outer mode
+    # from a complete-flat-group regex, although runtime still advances it.
+    r"|\{[+\-*%~@]"
 )
 
 
 def _prompt_uses_runtime_sequence(*values):
-    return any(_DYNAMIC_PROMPT_RE.search(_coerce_text(value)) for value in values)
+    for value in values:
+        protected = JsonLiterals().protect(_coerce_text(value))
+        # Match the resolver's full-line comment semantics without inspecting JSON text.
+        active = "\n".join(line for line in protected.split("\n") if not line.lstrip().startswith("#"))
+        if _DYNAMIC_PROMPT_RE.search(active):
+            return True
+    return False
 
 
 class PromptPaletteV3Node(io.ComfyNode):
@@ -316,6 +325,8 @@ class PromptPaletteEditor(PromptPaletteV3Node):
 
     @classmethod
     def _extract_loras(cls, text):
+        literals = JsonLiterals()
+        text = literals.protect(text)
 
         loras = []
 
@@ -335,12 +346,12 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         clean = re.sub(r"[ \t]+", " ", clean)
         clean = "\n".join(line.strip() for line in clean.splitlines())
         clean = re.sub(r"\n{2,}", "\n", clean).strip()
-        return clean, loras
+        return literals.restore(clean), loras
 
     @classmethod
     def _lora_records(cls, text, source):
         records = []
-        for match in cls._LORA_TAG_RE.finditer(text or ""):
+        for match in cls._LORA_TAG_RE.finditer(JsonLiterals().protect(text or "")):
             try:
                 weight = float(match.group(2))
             except (ValueError, OverflowError):
@@ -749,7 +760,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 io.Conditioning.Output(
                     "negative_conditioning",
                     display_name="Negative conditioning",
-                    tooltip="The resolved negative prompt encoded once with the connected CLIP (unpatched). Needs CLIP connected.",
+                    tooltip="The first resolved negative prompt encoded with the connected CLIP (unpatched). For varying negatives use Negative conditioning list.",
                 ),
                 io.String.Output(
                     "first_prompt",
@@ -759,7 +770,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 io.String.Output(
                     "negative_prompt",
                     display_name="Negative prompt",
-                    tooltip="Resolved negative prompt text, resolved once for the whole batch.",
+                    tooltip="First resolved negative prompt. For varying negatives use Negative prompt list.",
                 ),
                 io.Int.Output(
                     "first_seed",
@@ -800,6 +811,17 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     "prompt_count",
                     display_name="Prompt count",
                     tooltip="How many prompts this batch generated.",
+                ),
+                # Append new sockets; never change existing workflow link indices.
+                io.String.Output(
+                    "negative_prompt_list", display_name="Negative prompt list",
+                    tooltip="One negative prompt per positive prompt, in the same order. Captured variations can have different negatives.",
+                    is_output_list=True,
+                ),
+                io.Conditioning.Output(
+                    "negative_conditioning_list", display_name="Negative conditioning list",
+                    tooltip="One negative conditioning per positive prompt, using the unpatched connected CLIP. Needs CLIP connected.",
+                    is_output_list=True,
                 ),
             ],
         )
@@ -852,7 +874,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         resolver = WildcardResolver(get_index())
 
         runtime = WorkspaceGeneration(resolver.index, active_runtime(workspace_runtime, text) if mode == "random" and not prepared_batch else None, getattr(getattr(cls, "hidden", None), "unique_id", ""))
-        prepared = read_prepared_batch(_coerce_text(prepared_batch), text)
+        prepared = read_prepared_batch(_coerce_text(prepared_batch), text, negative_text)
         if prepared:
             cap = max_prompts or WildcardResolver.MAX_COMBINATORIAL_PROMPTS
             if len(prepared["prompts"]) > cap:
@@ -907,23 +929,27 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         positive_antonyms = enabled_flag(positive_antonyms)
         prompts = [apply_positive_antonyms(prompt, positive_antonyms) for prompt in prompts]
 
-        # The negative prompt is a single value for the whole batch.
-        negative_parts = [part for part in (
-            resolve_extra(negative_prefix, effective_seed, 1001),
-            resolve_extra(negative_text, effective_seed, 1000),
-            resolve_extra(negative_suffix, effective_seed, 1002),
-        ) if part]
-        resolved_negative = " ".join(negative_parts)
+        # Ordinary batches retain the existing shared-negative behavior. Exact
+        # prepared batches carry literal pairs; do not resolve their text again.
+        negative_before = resolve_extra(negative_prefix, effective_seed, 1001)
+        if prepared and "negative_prompts" in prepared:
+            negatives = list(prepared["negative_prompts"])
+        else:
+            negatives = [resolve_extra(negative_text, effective_seed, 1000)] * len(prompts)
+        negative_after = resolve_extra(negative_suffix, effective_seed, 1002)
+        negatives = [" ".join(part for part in (negative_before, item, negative_after) if part) for item in negatives]
 
-        # Metadata and text outputs must describe the same shared negative that
-        # is encoded. Clean tags before constructing each prompt's metadata.
+        # Metadata and text outputs describe exactly what is encoded. Negatives
+        # continue to use the unpatched CLIP, matching the original contract.
         if clip is not None:
-            resolved_negative, ignored_negative = PromptPaletteEditor._strip_lora_tags(resolved_negative)
-            if ignored_negative:
+            cleaned = {item: PromptPaletteEditor._strip_lora_tags(item) for item in set(negatives)}
+            negatives = [cleaned[item][0] for item in negatives]
+            if any(ignored for _, ignored in cleaned.values()):
                 logger.warning(
                     "LoRA tags in the negative prompt are ignored by the Combinatorial node; "
-                    "it encodes one shared negative prompt with the unpatched CLIP"
+                    "it encodes negatives with the unpatched CLIP"
                 )
+        resolved_negative = negatives[0]
 
         used_names = sorted(set(resolver.used_names) | set(prepared.get("wildcards", []) if prepared else []))
         wildcards_used = json.dumps(used_names)
@@ -956,7 +982,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             prompt_metadata.append(build_prompt_metadata(
                 node_type="PromptPaletteCombinatorial",
                 prompt=out_prompts[-1],
-                negative_prompt=resolved_negative,
+                negative_prompt=negatives[index],
                 source_prompt=text,
                 source_text=text,
                 seed=seeds_out[index],
@@ -973,14 +999,20 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     "seed_mode": seed_mode,
                     "loras_applied": loras_applied,
                     "prepared_variation": bool(prepared),
+                    **({"comparison": "one-field", "trial_label": prepared["labels"][index]} if prepared and prepared.get("comparison") == "one-field" else {}),
                 },
             ))
 
         n = len(out_prompts)
 
-        negative_conditioning = None
+        negative_conditionings = [None] * n
         if clip is not None:
-            negative_conditioning = PromptPaletteEditor._encode(clip, resolved_negative)
+            negative_cache = {}
+            for item in negatives:
+                if item not in negative_cache:
+                    negative_cache[item] = PromptPaletteEditor._encode(clip, item)
+            negative_conditionings = [negative_cache[item] for item in negatives]
+        negative_conditioning = negative_conditionings[0]
 
         clip_token_count = -1
         if clip_counting_applies(clip):
@@ -1007,6 +1039,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             "source_prompt": text,
             "source_text": text,
             "negative_prompt": resolved_negative,
+            "varying_negatives": len(set(negatives)) > 1,
+            "comparison": prepared.get("comparison") if prepared else None,
             "source_negative_text": negative_text,
             "prompt_prefix": prompt_prefix,
             "prompt_suffix": prompt_suffix,
@@ -1039,6 +1073,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             seeds_out[0] if seeds_out else effective_seed,
             wildcards_used, text, len(used_names), used_enhancer, clip_token_count,
             compact_json(published_batch), n,
+            # 21-22: paired list outputs appended after all legacy sockets.
+            negatives, negative_conditionings,
             ui={"prompt_palette": ui_metadata},
         )
 

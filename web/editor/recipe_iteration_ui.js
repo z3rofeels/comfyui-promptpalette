@@ -95,25 +95,29 @@ export function appendIterationUI({ section, state, button: makeButton, selectCo
   row("Compare", from, to, button("Compare workspaces", () => showDiff(resolveChoice(from.value), resolveChoice(to.value), "Workspace comparison")));
   const paths = getLibrary().map(item => typeof item === "string" ? item : item.path).filter(path => /^RECIPES\/_presets\//i.test(path));
   const presets = selectControl("Field preset", [["", "Choose field preset"], ...BUILTIN_PRESETS.map(p => [`builtin:${p.id}`, p.name]), ...paths.map(path => [`saved:${path}`, path.split("/").at(-1).replace(/[_-]/g, " ")])], "", () => {});
-  const language = selectControl("Starter prompt language", [["natural", "Natural language · Krea2 / Qwen"], ["tags", "Tags · Illustrious and Booru"], ["anima", "Anima · tags / scene prose"]], state.presetLanguage || "natural", next => { getState().presetLanguage = next; persist(); refreshCards(); });
+  const language = selectControl("Starter prompt language", [["natural", "Natural language · Krea2 / Qwen / MOSS"], ["tags", "Tags · Illustrious and Booru"], ["anima", "Anima · tags / scene prose"]], state.presetLanguage || "natural", next => { getState().presetLanguage = next; persist(); refreshCards(); });
   const starterLabel = document.createElement("label"), starterValues = document.createElement("input"); starterValues.type = "checkbox"; starterValues.checked = state.includePresetValues !== false;
   starterValues.addEventListener("change", () => { getState().includePresetValues = starterValues.checked; persist(); });
   starterLabel.className = "pp-layout-starter-values"; starterLabel.append(starterValues, document.createTextNode("Include starter choices"));
   const gallery = document.createElement("div"); gallery.className = "pp-layout-gallery";
+  const modelNote = document.createElement('p'); modelNote.className = 'pp-refine-note'; modelNote.hidden = true;
   function refreshCards() {
     gallery.replaceChildren();
+    const selected = BUILTIN_PRESETS.find(p => presets.value === `builtin:${p.id}`);
+    modelNote.textContent = selected?.note || ''; modelNote.hidden = !selected?.note;
     for (const preset of BUILTIN_PRESETS) {
       const card = document.createElement("button"); card.type = "button"; card.className = "pp-layout-card";
       card.setAttribute("aria-pressed", String(presets.value === `builtin:${preset.id}`));
       const title = document.createElement("strong"); title.textContent = preset.name;
       const preview = document.createElement("span"); preview.className = "pp-layout-fields";
       for (const f of preset.recipe.fields) { const chip = document.createElement("span"); chip.textContent = f.label; preview.append(chip); }
-      const note = document.createElement("small"); note.textContent = preset.id === "anima" ? "Scene prose + separate character tag fields" : preset.id === "negative" ? "Separate positive and negative fields" : "Editable starter choices · cycle on generation";
+      const note = document.createElement("small"); note.textContent = preset.id === 'moss-layout' ? 'Experimental · centered pixel boxes · literal JSON' : preset.id.startsWith('moss-') ? 'MOSS format · optional negative field · local only' : preset.id === "anima" ? "Scene prose + separate character tag fields" : preset.id === "negative" ? "Separate positive and negative fields" : "Editable starter choices · cycle on generation";
       card.append(title, preview, note); card.addEventListener("click", () => { presets.value = `builtin:${preset.id}`; presets.dispatchEvent(new Event("change")); refreshCards(); });
       gallery.append(card);
     }
   }
-  const presetRow = row("Field presets", language, starterLabel, gallery, presets, button("Apply preset", async () => {
+  presets.addEventListener('change', refreshCards);
+  const presetRow = row("Field presets", language, starterLabel, gallery, presets, modelNote, button("Apply preset", async () => {
     const value = presets.value; if (!value) throw new Error("Choose a field preset first.");
     let recipe;
     if (value.startsWith("builtin:")) recipe = starterPreset(BUILTIN_PRESETS.find(p => p.id === value.slice(8)).recipe, language.value, { includeValues: starterValues.checked });

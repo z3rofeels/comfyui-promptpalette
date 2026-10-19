@@ -20,7 +20,7 @@ import { loadTheme, saveTheme, loadPinned, loadExpandedCats, loadCatOrder, loadP
 import { hashStr, categoryOf, escapeHtml, currentUiSurface, categoryColorFromHue, bindPromptSeedInput } from "./text_utils.js";
 import { getCaretCoords, closeAcMenu, acState, cleanupAutocomplete } from "./autocomplete.js";
 import { openInjectMenuAtPoint, closeInjectMenu, injectState, cleanupInjector } from "./injector.js";
-import { openCtxMenu, closeCtxMenu, ctxMenuOpen, cleanupContextMenu, attachEditorContextMenu } from "./context_menu.js";
+import { openCtxMenu, closeCtxMenu, ctxMenuOpen, cleanupContextMenu, attachEditorContextMenu, contextWildcardAtPoint } from "./context_menu.js";
 import { cleanupThumbnailPicker } from "./thumbnails.js";
 import { createEditorShell } from "./shell.js";
 import { createRefinementController } from "./refinement_controller.js";
@@ -72,7 +72,6 @@ function buildWildcardWidget(node, hiddenWidget) {
   let recipeSelection = new Set();
   let starterSaveSuggestion = "";
 
-  const STASH_LIMIT = 20;
   function loadStash() {
     const value = readEditorPreference("stash", []);
     return Array.isArray(value) ? value : [];
@@ -179,7 +178,6 @@ function buildWildcardWidget(node, hiddenWidget) {
   async function promptSaveRecipe(...args) { return await powerToolsController?.promptSaveRecipe(...args); }
   function renderCatPins(...args) { return themeController?.renderCatPins(...args); }
   function updateThemeJson(...args) { return themeController?.updateThemeJson(...args); }
-  function openSettings(...args) { return utilityController?.openSettings(...args); }
   function closeSettings(...args) { return utilityController?.closeSettings(...args); }
   function openStash(...args) { return utilityController?.openStash(...args); }
   function closeStash(...args) { return utilityController?.closeStash(...args); }
@@ -188,7 +186,6 @@ function buildWildcardWidget(node, hiddenWidget) {
   function refreshLibrary(...args) { return libraryController?.refreshLibrary(...args); }
   function renderPickerList(...args) { return libraryController?.renderPickerList(...args); }
   function hideTip(...args) { return libraryController?.hideTip(...args); }
-  function promptExtractSelectionToWildcard(...args) { return libraryController?.promptExtractSelectionToWildcard(...args); }
   function openEditForItem(...args) { return libraryController?.openEditForItem(...args); }
   function closeEditDrawer(...args) { return libraryController?.closeEditDrawer(...args); }
   function openPickerDrawer(...args) { return libraryController?.openPickerDrawer(...args); }
@@ -532,12 +529,11 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   function renderVisualsFromParsed(parsedOverride = null, sourceText = textarea.value) {
-    let names = [], categoriesInUse = [], categoryHueMap = {};
+    let names = [], categoriesInUse = [];
     try {
       const result = highlightText(sourceText, parsedOverride);
       names = result.names;
       categoriesInUse = result.categoriesInUse;
-      categoryHueMap = result.categoryHueMap;
       profiler.measure("editor.dom", () => {
         if (!syntaxHighlighter.render(result.decorations, sourceText)) syncHighlightDom(result.lineHtml, sourceText);
       });
@@ -1070,7 +1066,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       return names.length >= 2 ? [{ label: `Save ${names.length} library entries as Palette Recipe`, onSelect: () => promptSaveRecipe(names) }] : [];
     },
     tokenContext: (event, selection, handle) => {
-      const tok = tokenRanges.find(t => t.start <= selection.start && selection.start < t.end);
+      const tok = contextWildcardAtPoint(textarea, event, selection, tokenRanges);
       if (!tok) return false;
       if (!tok.known) { handle(); openMissingRepairAt(event.clientX, event.clientY, tok); return true; }
       if (theme.syntaxInjectorEnabled === false) return false;

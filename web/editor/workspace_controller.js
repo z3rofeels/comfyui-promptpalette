@@ -25,8 +25,7 @@ function clampLibraryWidth(value) {
 
 export function createWorkspaceController(ctx) {
   const {
-    node, pickerDrawer, editDrawer, settingsPopup, stashPopup,
-    doctorPopup, variationPopup, libraryManagerPopup, recipeBuilderPopup,
+    node, pickerDrawer,
     libraryDensityButtons, libraryResizeHandle,
   } = ctx;
 

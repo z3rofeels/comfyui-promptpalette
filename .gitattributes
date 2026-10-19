@@ -24,11 +24,8 @@
 *.7z binary
 *.safetensors binary
 
-# Keep repository automation and private development files out of source releases.
-/.github export-ignore
-/.gitignore export-ignore
-/.gitattributes export-ignore
-/.comfyignore export-ignore
+# Keep development-only notes out of source releases.
+# Release controls and publishing automation remain in GitHub source archives.
 /tests export-ignore
 /AGENTS.md export-ignore
 /CLAUDE.md export-ignore
@@ -39,3 +36,8 @@
 *HANDOFF*.md export-ignore
 *Handoff*.md export-ignore
 *handoff*.md export-ignore
+
+/RELEASE_AUDIT_*.md export-ignore
+/RELEASE_CHANGES_*.md export-ignore
+/GITHUB_DESKTOP_COMMIT_*.txt export-ignore
+/AGENTSpp.md export-ignore

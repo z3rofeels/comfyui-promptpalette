@@ -134,6 +134,14 @@ const STARTERS = {
 export function starterPreset(recipe, language = 'natural', { includeValues = true } = {}) {
   const next = presetRecipe(recipe);
   if (!includeValues) return next;
+  if (next.mossFormat) {
+    for (const f of next.fields) {
+      f.value = f.default = MOSS_STARTERS[next.mossFormat]?.[f.fieldType] || '';
+      f.experimentState = next.mossFormat === 'layout' ? null : f.value.includes('|') ? 'vary' : f.value ? 'lock' : null;
+      f.variationMode = 'cycle';
+    }
+    return validateWorkspaceRecipe(next);
+  }
   const tagged = language === 'tags' || language === 'anima';
   for (const f of next.fields) {
     const type = f.fieldType;
@@ -163,4 +171,41 @@ export function instantiatePreset(recipe, presetId = null) {
   next.fields.forEach(f => { f.dependsOn = f.dependsOn.map(id => ids.get(id)); f.id = ids.get(f.id); });
   next.segments.forEach(s => { if (s.type === "field") s.id = ids.get(s.id); });
   next.presetId = presetId; return validateWorkspaceRecipe(next);
+}
+
+// MOSS formats are explicit starter choices, never an automatic model switch.
+// Captions/tags resolve as usual. Valid JSON objects travel as literal prompts.
+const MOSS_LAYOUT = JSON.stringify({
+  summary: { meta: ['poster'], canvas: 'single', caption: 'A restrained charcoal and sage poster featuring an adult grey Russian Blue cat, a large title above the cat, and a small footer below.' },
+  items: [
+    { label: 'text', caption: 'Large pale-sage uppercase sans-serif title, centered, on two lines.', text: 'PROMPT\nPALETTE', bbox: [-448, -448, -256, 448] },
+    { label: 'object', caption: 'An adult grey Russian Blue cat with green eyes, sitting upright, softly lit from the left.', bbox: [-200, -320, 350, 320] },
+    { label: 'text', caption: 'Small pale-sage uppercase sans-serif footer, centered.', text: 'CREATE LOCALLY', bbox: [380, -400, 460, 400] },
+  ], bbox_coord_space: 'abs_centralized', bbox_format: 'yxyx',
+}, null, 2);
+const MOSS_STARTERS = {
+  caption: {
+    subject: 'An adult grey Russian Blue cat with green eyes sits on a wooden desk.',
+    environment: 'The desk is in a quiet design studio with shelves in the background.',
+    composition: '{The cat is centered in a medium shot.|A close-up frames the cat’s head and shoulders.}',
+    lighting: '{Soft daylight enters from the left.|Warm studio light falls across the grey fur.}',
+    style: 'Editorial photography with realistic fur, natural textures, and a muted charcoal and sage palette.',
+    lettering: 'A small card at the bottom right reads "PROMPT PALETTE" on the first line and "CREATE LOCALLY" on the second line, in clean uppercase sans-serif letters.',
+    negative: 'worst quality, bad anatomy, watermark, jpeg artifact',
+  },
+  tags: { general: 'cat, animal_focus, grey_fur, green_eyes, sitting, indoors, window, soft_lighting', negative: 'worst quality, bad anatomy, watermark, jpeg artifact' },
+  layout: { json: MOSS_LAYOUT },
+};
+for (const [format, name, definitions, note] of [
+  ['caption', 'MOSS · caption', [['Subject', 'subject'], ['Scene', 'environment'], ['Composition', 'composition'], ['Lighting', 'lighting'], ['Medium / Style', 'style'], ['Exact visible text', 'lettering'], ['Negative · SFT / CFG', 'negative']],
+    'Describe the finished image in English. Quote printed words exactly and describe their placement and line breaks. Negatives depend on the sampler’s guidance; CFG 1 Turbo workflows may ignore them.'],
+  ['tags', 'MOSS · ordered tags', [['Quality · optional', 'quality'], ['Score · optional', 'score'], ['Meta · optional', 'meta'], ['Year · optional', 'year'], ['Character · optional', 'character'], ['Series · optional', 'series'], ['Artist · optional', 'artist'], ['General tags', 'general'], ['Negative · SFT / CFG', 'negative']],
+    'Order: quality → score → meta → year → character → series → artist → general. Optional fields start empty: no Pony score prefixes or artist names are invented. Existing Anima artist catalogs do not prove MOSS coverage.'],
+  ['layout', 'MOSS · layout JSON (1024²)', [['Layout JSON · literal', 'json']],
+    'Experimental layout starter for a 1024×1024 canvas. Boxes are [top, left, bottom, right] in pixels from the canvas center (−512…512). Match generation dimensions. Valid JSON is literal: edit captions/text directly; choices and wildcards inside it are not expanded.'],
+]) {
+  const id = `moss-${format}`;
+  const fields = definitions.map(([label, fieldType], at) => ({ ...newField(label), id: `preset_${id}_${at}`, fieldType, channel: fieldType === 'negative' ? 'negative' : 'positive' }));
+  BUILTIN_PRESETS.push({ id, name, note, recipe: { schema: 'prompt-palette.adjustable-recipe.v2', name, mossFormat: format,
+    separator: format === 'tags' ? ', ' : '\n', negative: '', fields, segments: fields.map(f => ({ type: 'field', id: f.id, join: true })) } });
 }

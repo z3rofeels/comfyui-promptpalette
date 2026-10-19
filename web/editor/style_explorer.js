@@ -1,7 +1,7 @@
 import { API } from "../prompt_palette_api.js";
-import { downloadJsonFile } from "../prompt_palette_shared.js";
+import { downloadJsonFile, svgIcon } from "../prompt_palette_shared.js";
 import { loadCustomWords, resetCustomWords } from "./custom_words.js";
-import { loadTheme, sidebarDisplayMetrics } from "./preferences.js";
+import { loadTheme, loadSidebarDisplay, sidebarDisplayMetrics } from "./preferences.js";
 import { recordInsertedTags } from "./booru_tag_colors.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
@@ -62,14 +62,32 @@ export async function prepareStyleThumbnail(file) {
 export function createStyleExplorer(host, { insert, announce, onViewChanged = () => {} }) {
   const saved = readEditorPreference(KEY, {}) || {};
   let indexId = typeof saved.index === "string" ? saved.schema !== 2 && saved.index === "builtin:techniques" ? "builtin:visual" : saved.index : "builtin:visual";
-  let catalog = null, rows = [], edits = Object.create(null), matches = [], page = 0, version = 0, disposed = false, loaded = false, timer, editSerial = 0;
+  const artistIds = ["builtin:anima", "booru", "builtin:classic"];
+  let artistSource = artistIds.includes(saved.artistSource) ? saved.artistSource : artistIds.includes(indexId) ? indexId : "builtin:anima";
+  let catalog = null, rows = [], edits = Object.create(null), matches = [], page = 0, version = 0, disposed = false, loaded = false, loading = false, timer, editSerial = 0;
   let byKey = new Map(), facetOptions = new Map(), compare = Array.isArray(saved.compare) ? saved.compare.slice(0, 4).filter(r => r?.tag && r.originIndex) : [];
   let view = ["styles", "classic", "artists", "anima", "tags", "favorites", "previews"].includes(saved.view) ? saved.view : "styles", returnFocus = null;
   const identity = row => `${row.originIndex || indexId}\0${row.tag}`;
   const origin = row => row.originIndex || indexId;
   const intro = make("div", "pp-sidebar-intro pp-style-intro");
-  intro.append(make("h3", "", "Style library"), make("p", "pp-sidebar-note", "Offline references, artists and tags.")); host.append(intro);
+  intro.append(make("span", "pp-sidebar-eyebrow", "THE INSPIRATION LIBRARY"), make("h3", "", "Find your next look"), make("p", "pp-sidebar-note", "A world of styles. One click into your prompt.")); host.append(intro);
   const browse = make("div", "pp-style-browse"); host.append(browse);
+  const collectionNav = make("nav", "pp-style-collections"); collectionNav.setAttribute("aria-label", "Visual collections"); browse.append(collectionNav);
+  const collectionButtons = new Map();
+  for (const [id, title, icon] of [["builtin:visual", "Styles", "image"], ["artists", "Artists", "edit"], ["tags", "Booru tags", "select"], ["favorites", "Favorites", "pin"], ["previews", "My previews", "gallery"], ["custom", "My words", "recipe"]]) {
+    const control = button("", () => { const target = id === "artists" ? artistSource : id; indexes.value = target; load(target); }); control.innerHTML = `${svgIcon(icon, 14)}<span>${title}</span>`; control.setAttribute("aria-pressed", "false"); collectionButtons.set(id, control); collectionNav.append(control);
+  }
+  const artistBar = make("div", "pp-style-artist-source");
+  const artistPicker = label("Artist catalog", select([["builtin:anima", "Anima · @artist names"], ["booru", "Booru · artist tags"], ["builtin:classic", "Classic · art references"]]), artistBar);
+  const artistHint = make("p", "pp-sidebar-note"); artistBar.append(artistHint); browse.append(artistBar);
+  artistPicker.addEventListener("change", () => load(artistPicker.value));
+  function refreshVisibility() {
+    const chrome = loadSidebarDisplay().chrome;
+    for (const [key, control] of collectionButtons) control.hidden = chrome[key] === false;
+    for (const option of indexes.options) { const key = artistIds.includes(option.value) ? "artists" : option.value; option.hidden = option.disabled = chrome[key] === false; }
+    const active = artistIds.includes(indexId) ? "artists" : indexId;
+    if (chrome[active] === false) { if (loaded) load("builtin:visual"); else indexId = "builtin:visual"; }
+  }
   const search = make("input", "pp-style-search"); search.type = "search"; search.placeholder = "Search styles, artists or tags…"; search.setAttribute("aria-label", "Search visual styles"); browse.append(search);
   const controls = make("div", "pp-style-controls"); browse.append(controls);
   const indexes = label("Local collection", select([]), controls);
@@ -79,7 +97,7 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
   const syntaxHelp = make("details", "pp-style-manage"); syntaxHelp.append(make("summary", "", "How prompt language works"), make("p", "pp-sidebar-note", "Checkpoint support is unknown. Follow editor uses @ for the Anima collection or the existing Anima artist setting; technique presets otherwise use readable text. Artist names retain @ only for Anima, and ordinary Booru tags stay literal. No quality or negative tags are added automatically."));
   const discoveries = make("div", "pp-style-discovery"); discoveries.setAttribute("aria-label", "Explore creative disciplines");
   const explore = make("details", "pp-style-manage pp-style-explore"); explore.append(make("summary", "", "Explore disciplines"), discoveries); browse.append(explore);
-  const filters = make("details", "pp-style-manage pp-style-filters"); filters.append(make("summary", "", "Filters & insertion options")); browse.append(filters); filters.append(syntaxHelp);
+  const filters = make("details", "pp-style-manage pp-style-filters"); filters.append(make("summary", "", "Refine collection")); browse.append(filters); filters.append(explore, format.parentElement, syntaxHelp);
   const filterGrid = make("div", "pp-style-facet-grid"); filters.append(filterGrid);
   const facetSelects = new Map();
   for (const [key, title, help] of FACET_GROUPS) { const field = label(title, select([["", `All ${title.toLowerCase()}`]]), filterGrid); field.title = help; facetSelects.set(key, field); field.addEventListener("change", () => { page = 0; render(); }); }
@@ -90,12 +108,14 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
   const prefix = label("Optional quality prefix · manual choice", make("input"), filters); prefix.placeholder = "None · e.g. score_9, score_8_up"; prefix.maxLength = 500; prefix.value = typeof saved.prefix === "string" ? saved.prefix : "";
   filters.append(make("p", "pp-sidebar-note", "Facets combine with AND and only describe available catalog evidence. Artists with no documented labels remain searchable when facets are cleared. Quality prefixes are checkpoint-specific literal text."));
   const actions = make("div", "pp-sidebar-actions"); browse.append(actions);
+  const surpriseButton = button("Surprise me", () => { if (matches.length) details(matches[Math.floor(Math.random() * matches.length)]); });
   const labButton = button("Style Lab 0/4", () => openLab());
-  actions.append(button("Reset", clearFilters), button("Random", () => { if (matches.length) { page = Math.floor(Math.random() * matches.length / PAGE); paintPage(); cards.scrollIntoView({ block: "start" }); } }), labButton);
+  actions.append(button("Reset", clearFilters), surpriseButton, labButton);
   const source = make("p", "pp-sidebar-note pp-style-source");
   const count = make("p", "pp-sidebar-note pp-style-count"); count.setAttribute("role", "status"); count.setAttribute("aria-live", "polite"); browse.append(count);
-  const imageScope = make("label", "pp-style-image-scope"), includeUnillustrated = make("input"); includeUnillustrated.type = "checkbox"; includeUnillustrated.checked = saved.includeUnillustrated === true;
-  imageScope.append(includeUnillustrated, make("span", "", "Show entries without reference images")); browse.append(imageScope);
+  const resultBar = make("div", "pp-style-result-bar"); browse.append(resultBar); resultBar.append(count);
+  const imageScope = make("label", "pp-style-image-scope"), includeUnillustrated = make("input"); includeUnillustrated.type = "checkbox"; includeUnillustrated.title = "Include entries without preview images"; includeUnillustrated.checked = saved.includeUnillustrated === true;
+  imageScope.append(includeUnillustrated, make("span", "", "Show all entries")); resultBar.append(imageScope);
   includeUnillustrated.addEventListener("change", () => { writeEditorPreference(KEY, { ...readEditorPreference(KEY, {}), includeUnillustrated: includeUnillustrated.checked }); page = 0; render(); });
   const cards = make("div", "pp-style-cards"); browse.append(cards);
   const virtual = new VirtualCollectionManager(host);
@@ -105,21 +125,28 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
   const next = button("Next", () => { page++; paintPage(); cards.scrollIntoView({ block: "start" }); }); pages.append(previous, pageLabel, next); browse.append(pages);
   const manage = make("details", "pp-style-manage"); manage.append(make("summary", "", "Local indexes, backups & credits")); browse.append(manage);
   const importInput = make("input"); importInput.type = "file"; importInput.accept = ".json,application/json"; importInput.hidden = true;
-  const fileActions = make("div", "pp-sidebar-actions"); manage.append(source, fileActions, importInput);
+  const fileActions = make("div", "pp-sidebar-actions"); manage.append(controls, source, fileActions, importInput);
   fileActions.append(button("Import JSON index", () => importInput.click()), button("Export collection", () => exportIndex(false)), button("Export favorites here", () => exportIndex(true)), button("Reload local data", async () => { resetCustomWords(); await refreshIndexes(indexId); }));
   manage.append(make("p", "pp-sidebar-note", "CSV and custom-word imports use the existing Custom Words manager and appear in My CSV / custom words. JSON indexes accept names or entries with exact tags, notes and optional raster previews. Imports create a separate local index and never replace shipped defaults. Export includes user previews and metadata."));
-  manage.append(make("p", "pp-sidebar-note", "Bundled previews are real public-domain or CC0 reference images. Open Info for the work, creator, source and rights. Credits and the complete image inventory are included in STYLE_IMAGE_CREDITS.md and the local asset manifest. Reference images illustrate visual vocabulary; they are not checkpoint results. Entries without a verified matching image remain available for prompting and personal previews. The separate Anima artist-name snapshot retains its attribution in assets/styles/ThetaCursed-LICENSE.txt."));
+  manage.append(make("p", "pp-sidebar-note", "Bundled previews include public-domain / CC0 references and credited MIT-licensed Anima explorer samples. Open Info for the work, creator, source and rights. Credits and the complete image inventory are included in STYLE_IMAGE_CREDITS.md and the local asset manifest. Reference images illustrate visual vocabulary; they are not checkpoint results. Entries without a verified matching image remain available for prompting and personal previews. The separate Anima artist-name snapshot retains its attribution in assets/styles/ThetaCursed-LICENSE.txt."));
   const inspector = make("section", "pp-style-inspector"); inspector.hidden = true; host.append(inspector);
   const lab = make("section", "pp-style-lab"); lab.hidden = true; host.append(lab);
   const benchmark = select(Object.keys(BENCHMARKS).map(k => [k, k[0].toUpperCase() + k.slice(1)])); benchmark.value = Object.hasOwn(BENCHMARKS, saved.benchmark) ? saved.benchmark : "object";
   const common = saved.common && typeof saved.common === "object" ? saved.common : {};
   const sharedFields = new Map();
-  const resizeObserver = new ResizeObserver(() => { const metrics = sidebarDisplayMetrics(displayKey()); const c = metrics.mode === "list" ? 1 : Math.max(1, Math.floor((cards.clientWidth + 10) / metrics.cardWidth)); if (c !== columns && rows.length && !browse.hidden) paintPage(); }); resizeObserver.observe(cards);
+  let measuredWidth = 0;
+  const resizeObserver = new ResizeObserver(() => {
+    const width = cards.clientWidth;
+    // A width change matters even when the number of columns stays the same.
+    if (!width || Math.abs(width - measuredWidth) < 1) return;
+    measuredWidth = width;
+    if (loaded && !loading && !browse.hidden) paintPage();
+  }); resizeObserver.observe(cards);
 
   function persist() {
     // Keep preview bytes in the existing backend store, not in localStorage.
     const slim = compare.map(r => { const { thumbnail, search, facetTags, ...rest } = r; return rest; });
-    writeEditorPreference(KEY, { schema: 2, index: indexId, view, includeUnillustrated: includeUnillustrated.checked, format: format.value, prefix: prefix.value, compare: slim, benchmark: benchmark.value, common: sharedFields.size ? Object.fromEntries([...sharedFields].map(([k, f]) => [k, f.value])) : common });
+    writeEditorPreference(KEY, { schema: 2, index: indexId, artistSource, view, includeUnillustrated: includeUnillustrated.checked, format: format.value, prefix: prefix.value, compare: slim, benchmark: benchmark.value, common: sharedFields.size ? Object.fromEntries([...sharedFields].map(([k, f]) => [k, f.value])) : common });
   }
   function clearFilters() { search.value = ""; min.value = "0"; facetInput.value = ""; support.value = ""; for (const field of facetSelects.values()) field.value = ""; page = 0; render(); }
   function updateFacetOptions() {
@@ -134,21 +161,23 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
     }
   }
   function render() {
-    if (disposed) return;
+    if (disposed || loading || !loaded) return;
     const facets = Object.fromEntries([...facetSelects].map(([key, field]) => [key, field.value])); facets.compatibility = support.value;
-    const referenceCollection = ["builtin:visual", "builtin:classic"].includes(indexId); imageScope.hidden = !referenceCollection;
+    const referenceCollection = rows.some(row => row.asset || row.thumbnail); imageScope.hidden = !referenceCollection;
     matches = filterStyles(rows, { query: search.value, tags: facetInput.value.split(",").map(normalizeStyleText).filter(Boolean), facets, previews: referenceCollection && !includeUnillustrated.checked, minCount: Math.max(0, Number(min.value) || 0), sort: sort.value });
     page = Math.min(page, Math.max(0, Math.ceil(matches.length / PAGE) - 1));
-    count.textContent = `${matches.length.toLocaleString()} / ${rows.length.toLocaleString()} entries${Object.values(facets).some(Boolean) || search.value || facetInput.value || Number(min.value) ? " · filtered" : ""}`;
+    count.textContent = `${matches.length.toLocaleString()} ${referenceCollection && !includeUnillustrated.checked ? "visual references" : "entries"} · ${rows.length.toLocaleString()} in collection${Object.values(facets).some(Boolean) || search.value || facetInput.value || Number(min.value) ? " · filtered" : ""}`;
     discoveries.hidden = !!(search.value || Object.values(facets).some(Boolean) || facetInput.value);
     explore.hidden = discoveries.hidden || !discoveries.childElementCount;
+    surpriseButton.disabled = !matches.length || loading;
     paintPage(); updateLabButton();
   }
   function updateLabButton() { labButton.textContent = `Style Lab ${compare.length}/4`; }
   function displayKey() { return indexId === "custom" ? "custom" : view; }
   let displayGeometry = "";
   function paintPage() {
-    if (disposed) return;
+    if (disposed || loading || !loaded) return;
+    measuredWidth = cards.clientWidth;
     const oldScroll = host.scrollTop;
     const oldAnchor = virtual.captureViewportAnchor(cards.classList.contains("is-list") ? 1 : columns);
     const ui = parseFloat(getComputedStyle(host).getPropertyValue("--wg-ui-font-scale")) || 1;
@@ -161,12 +190,16 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
     cards.classList.remove("is-compact"); cards.classList.toggle("is-list", isList); cards.classList.toggle("is-small", metrics.scale < .85);
     cards.style.setProperty("--pp-library-scale", metrics.scale); cards.style.setProperty("--pp-library-font-scale", metrics.font);
     columns = isList ? 1 : Math.max(1, Math.floor((cards.clientWidth + 10) / metrics.cardWidth));
-    cards.style.setProperty("--pp-style-columns", columns); cards.style.setProperty("--pp-style-row-height", `${isList ? metrics.rowHeight : metrics.cardHeight}px`);
-    cards.style.setProperty("--pp-style-image-height", `${metrics.imageHeight}px`);
+    const chrome = loadSidebarDisplay().chrome;
+    const width = Math.max(70, (cards.clientWidth - (columns - 1) * 10) / columns);
+    const imageHeight = chrome.images ? Math.round(width * (metrics.scale < .45 ? .7 : 1.02)) : 0;
+    const cardHeight = Math.ceil(imageHeight + (metrics.scale < .45 ? 72 : 110) * metrics.font * ui + (metrics.scale >= .45 && chrome.prompt ? 49 * ui : 0) + (metrics.scale >= .45 && chrome.descriptions ? 42 * ui : 0));
+    cards.style.setProperty("--pp-style-columns", columns); cards.style.setProperty("--pp-style-row-height", `${isList ? metrics.rowHeight : cardHeight}px`);
+    cards.style.setProperty("--pp-style-image-height", `${imageHeight}px`);
     const slice = isList ? matches : matches.slice(page * PAGE, (page + 1) * PAGE), groups = [];
     if (!isList) for (let i = 0; i < slice.length; i += columns) groups.push(slice.slice(i, i + columns));
     if (!matches.length) cards.append(make("p", "pp-sidebar-empty", indexId === "favorites" ? "No favorites yet. Star a style, artist or tag to collect it here." : indexId === "previews" ? "Your previews will appear here. Use a card’s pencil to attach a local image." : "No matches. Clear filters to include artists with unknown labels and counts."));
-    else virtual.mount(cards, { items: isList ? slice : groups, mode: "list", estimateRowHeight: isList ? metrics.rowHeight : metrics.cardHeight, overscan: 1,
+    else virtual.mount(cards, { items: isList ? slice : groups, mode: "list", estimateRowHeight: isList ? metrics.rowHeight : cardHeight, overscan: 1,
       captureFocus: () => { const el = document.activeElement, article = el?.closest?.(".pp-style-card"); return cards.contains(el) && article ? { element: el, tag: article.dataset.styleTag, label: el.getAttribute("aria-label"), text: el.textContent } : null; },
       restoreFocus: snap => { if (!snap || snap.element.isConnected) return; const article = [...cards.querySelectorAll(".pp-style-card")].find(el => el.dataset.styleTag === snap.tag); const next = [...article?.querySelectorAll("button") || []].find(el => snap.label ? el.getAttribute("aria-label") === snap.label : el.textContent === snap.text); (next || host).focus({ preventScroll: true }); },
       renderItem: isList ? row => card(row, true) : group => { const el = make("div", "pp-style-card-row"); for (const row of group) el.append(card(row)); return el; } });
@@ -185,26 +218,27 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
   function card(row, list = false) {
     const el = make("article", `pp-style-card${list ? " pp-style-row" : ""}`); el.dataset.styleTag = row.tag;
     const primary = button("", () => add(row), "pp-style-card-add"); primary.setAttribute("aria-label", `Add ${row.name} to prompt`); primary.title = `Will insert: ${styleOutput(row, outputMode(row), prefix.value)}`;
-    primary.append(preview(row), make("strong", "pp-style-title", row.name)); primary.querySelector(".pp-style-title").title = row.name; el.append(primary);
+    if (loadSidebarDisplay().chrome.images) primary.append(preview(row));
+    primary.append(make("strong", "pp-style-title", row.name)); primary.querySelector(".pp-style-title").title = row.name; el.append(primary);
     if (!list) {
-      const credit = make("small", "pp-style-kind", row.asset && row.previewKind === "reference" ? `${row.provenance?.license || "Public domain"} · ${row.provenance?.title || "Visual reference"}` : PREVIEW_LABELS[row.previewKind] || "No preview"); credit.title = [row.provenance?.title, row.provenance?.author, row.provenance?.institution].filter(Boolean).join(" · "); el.append(credit);
+      const credit = make("small", "pp-style-kind", row.asset && row.previewKind === "reference" ? `${row.provenance?.model ? "Anima · published reference" : row.category === "artist" ? "Artist reference" : "Visual reference"}` : PREVIEW_LABELS[row.previewKind] || "No preview"); credit.title = [row.provenance?.title, row.provenance?.author, row.provenance?.institution].filter(Boolean).join(" · "); el.append(credit);
       el.append(make("p", "pp-style-description", row.description || (row.count == null ? "Exact catalog tag · model recognition unknown" : `${row.count.toLocaleString()} posts · model recognition unknown`)));
       el.append(make("small", "pp-style-will-insert", "Will insert:"));
     }
     const code = make("code", "pp-style-output", styleOutput(row, outputMode(row), prefix.value)); code.title = `Will insert: ${code.textContent}`;
     if (list) { primary.append(code); const kind = make("small", "pp-style-kind pp-sr-only", PREVIEW_LABELS[row.previewKind] || "No preview"); el.append(kind); } else el.append(code);
-    const bar = make("div", "pp-sidebar-actions");
+    const bar = make("div", "pp-sidebar-actions pp-style-card-actions");
     const pin = button(row.favorite ? "★" : "☆", async () => { pin.disabled = true; try { await save(row, { favorite: !row.favorite }); } finally { pin.disabled = false; } }); pin.title = `Favorite ${row.name}`; pin.setAttribute("aria-label", `Favorite ${row.name}`); pin.setAttribute("aria-pressed", String(!!row.favorite));
     const info = button(list ? "i" : "Info", () => details(row, info)); info.setAttribute("aria-label", `Details for ${row.name}`); info.dataset.styleDetails = "true";
     const pencil = button("✎", () => edit(row, pencil)); pencil.title = `Edit preview and labels for ${row.name}`; pencil.setAttribute("aria-label", `Edit preview and labels for ${row.name}`);
     const compareButton = button(compare.some(r => identity(r) === identity(row)) ? "✓ Lab" : "+ Lab", () => toggleCompare(row)); compareButton.title = `Compare ${row.name} in Style Lab`; compareButton.dataset.styleCompare = "true"; compareButton.setAttribute("aria-label", `Compare ${row.name}`); compareButton.setAttribute("aria-pressed", String(compare.some(r => identity(r) === identity(row))));
-    if (!list) { const addButton = button("Add", () => add(row)); addButton.dataset.styleAdd = "true"; bar.append(addButton); }
+    pin.innerHTML = svgIcon("pin", 14); info.innerHTML = svgIcon("eye", 14); pencil.innerHTML = svgIcon("edit", 14); compareButton.innerHTML = svgIcon("select", 14);
     bar.append(pin, info, pencil, compareButton); el.append(bar); return el;
   }
   function showPanel(panel, trigger) { returnFocus = trigger || document.activeElement; browse.hidden = true; inspector.hidden = panel !== inspector; lab.hidden = panel !== lab; panel.replaceChildren(); host.scrollTop = 0; }
   function back() { editSerial++; inspector.hidden = true; lab.hidden = true; browse.hidden = false; paintPage(); returnFocus?.isConnected ? returnFocus.focus({ preventScroll: true }) : search.focus({ preventScroll: true }); }
   function provenanceView(row, panel) {
-    panel.append(make("p", "pp-sidebar-note", row.previewKind === "illustration" ? "Original technique illustration. This is a graphic study, not a render from Anima or any checkpoint." : row.previewKind === "model_sample" ? "Recorded model sample: an actual image associated with metadata and explicit local-generation confirmation by its importer. Prompt Palette cannot independently prove the render origin." : row.previewKind === "reference" ? row.asset ? "Bundled public-domain / CC0 visual reference. This is a sourced work, not a checkpoint prediction. Its relationship to the recipe is documented below." : "Reference artwork with user-supplied rights metadata. It does not predict what this tag produces in a model." : row.previewKind === "user" ? "Personally assigned user preview. No model-validation claim." : "No verified matching preview is bundled. You can attach your own image using Edit / Replace Preview."));
+    panel.append(make("p", "pp-sidebar-note", row.previewKind === "illustration" ? "Original technique illustration. This is a graphic study, not a render from Anima or any checkpoint." : row.previewKind === "model_sample" ? "Recorded model sample: an actual image associated with metadata and explicit local-generation confirmation by its importer. Prompt Palette cannot independently prove the render origin." : row.previewKind === "reference" ? row.asset ? "Bundled visual reference. Open the credits below for its creator, license and context. Published Anima references show the source explorer’s model interpretation; they are not original artwork by the named artist or a guarantee for your checkpoint." : "Reference artwork with user-supplied rights metadata. It does not predict what this tag produces in a model." : row.previewKind === "user" ? "Personally assigned user preview. No model-validation claim." : "No verified matching preview is bundled. You can attach your own image using Edit / Replace Preview."));
     const data = row.provenance || {}, dl = make("dl", "pp-style-provenance");
     for (const [key, title] of [["title", "Work / image"], ["author", "Creator"], ["date", "Date"], ["institution", "Collection"], ["source", "Source"], ["license", "License"], ["rightsURL", "Rights record"], ["referenceNote", "Reference use"], ["model", "Model"], ["checkpoint", "Checkpoint / hash"], ["tag", "Exact catalog tag"], ["styleText", "Inserted style"], ["subjectPrompt", "Benchmark subject"], ["prompt", "Actual render prompt"], ["seed", "Seed"], ["settings", "Settings"], ["imageSha256", "Preview SHA-256"], ["recordedAt", "Recorded"]]) if (data[key]) {
       const dd = make("dd", "", data[key]);
@@ -310,16 +344,31 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
     lab.querySelector("button").focus({ preventScroll: true });
   }
   async function load(id, preserve = false) {
-    const request = ++version; indexId = id; loaded = true;
+    const group = artistIds.includes(id) ? "artists" : id;
+    if (loadSidebarDisplay().chrome[group] === false) id = "builtin:visual";
+    if (disposed) return;
+    clearTimeout(timer);
+    const request = ++version; indexId = id; loaded = false; loading = true;
+    host.setAttribute("aria-busy", "true");
     view = id === "builtin:classic" ? "classic" : id === "builtin:anima" ? "anima" : id === "booru" ? "artists" : id === "tags" ? "tags" : id === "favorites" ? "favorites" : id === "previews" ? "previews" : "styles";
+    if (artistIds.includes(id)) { artistSource = id; artistPicker.value = id; }
+    artistBar.hidden = !artistIds.includes(id);
+    artistPicker.disabled = false;
+    artistHint.textContent = id === "builtin:anima" ? "Anima artist vocabulary. Follow editor inserts @artist; recognition depends on your checkpoint." : id === "booru" ? "Artist tags from the local Booru index. Follow editor respects your existing artist-format setting." : "Historical artists and reference works. Choose Natural language for descriptive prompts.";
+    intro.querySelector("p").textContent = id === "tags" ? "Subjects, settings and details as literal tags. Search first, then add only what your image needs." : artistIds.includes(id) ? "One artist workspace. Choose the catalog that fits your workflow." : "Browse a look, inspect the exact text, then add it to your prompt.";
+    search.placeholder = artistIds.includes(id) ? "Search this artist catalog…" : id === "tags" ? "Search Booru tags…" : "Search this collection…";
+    indexes.value = id;
     indexes.title = indexes.selectedOptions[0]?.textContent || "Local collection";
+    for (const [key, control] of collectionButtons) { const selected = key === id || key === "artists" && artistIds.includes(id); control.classList.toggle("is-selected", selected); control.setAttribute("aria-pressed", String(selected)); }
+    intro.querySelector("h3").textContent = ({ "builtin:anima": "The Anima collection", "booru": "Discover artists", "tags": "A visual vocabulary", "builtin:classic": "The masters, up close", "favorites": "Your favorite finds", "previews": "Your own inspiration" })[id] || "Find your next look";
     onViewChanged(displayKey());
     if (!preserve) { editSerial++; inspector.hidden = lab.hidden = true; browse.hidden = false; search.value = ""; min.value = "0"; facetInput.value = ""; support.value = ""; for (const field of facetSelects.values()) field.value = ""; }
-    rows = []; matches = []; catalog = null; virtual.clear(); cards.replaceChildren(); count.textContent = "Reading local collection…"; indexes.disabled = true;
+    rows = []; matches = []; catalog = null; virtual.clear(); cards.replaceChildren(); count.textContent = "Reading local collection…"; indexes.disabled = true; artistPicker.disabled = true; previous.disabled = next.disabled = surpriseButton.disabled = true; pageLabel.textContent = ""; pages.hidden = true;
     try {
       let data;
       if (id === "custom") { const words = await loadCustomWords(), grouped = new Map(); for (const word of words) { const entry = grouped.get(word.value) || { tag: word.value, name: word.value, kind: word.category === "artist" ? "artist" : "tag", category: word.category === "artist" ? "artist" : "general", insertKind: "custom", count: word.count || null, tags: [], aliases: [], description: "Imported custom word · literal value", thumbnail: "" }; if (word.text !== word.value) entry.aliases.push(word.text); grouped.set(word.value, entry); } data = { name: "My CSV / custom words", description: "Your existing local custom-word imports. Exact stored values remain literal.", source: "Existing Custom Words sources", entries: [...grouped.values()] }; }
       else data = await API.styleIndexes(id);
+      if (disposed || request !== version) return;
       const annotations = ["favorites", "previews"].includes(id) ? {} : await API.styleAnnotations(id);
       if (disposed || request !== version) return;
       catalog = data; edits = Object.assign(Object.create(null), annotations); rows = []; byKey.clear();
@@ -328,13 +377,16 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
       for (let offset = 0; offset < data.entries.length; offset += 2000) { for (const base of data.entries.slice(offset, offset + 2000)) { const row = decorateStyle(base, Object.hasOwn(edits, base.tag) ? edits[base.tag] : {}); row.originIndex ||= id; byKey.set(identity(row), rows.length); rows.push(row); } if (data.entries.length > 2000) await tick(); if (disposed || request !== version) return; }
       source.textContent = `${data.description || ""} Source: ${data.source || "Local collection"}`;
       view = id === "builtin:classic" ? "classic" : id === "builtin:anima" ? "anima" : id === "booru" ? "artists" : id === "tags" ? "tags" : id === "favorites" ? "favorites" : id === "previews" ? "previews" : "styles";
+      loaded = true; loading = false;
       if (!preserve) page = 0; updateFacetOptions(); persist(); render(); onViewChanged(displayKey());
-    } catch (error) { if (!disposed && request === version) { count.textContent = "Could not read this collection. Reload local data to retry."; announce(error.message, true); } }
-    finally { if (!disposed && request === version) indexes.disabled = false; }
+    } catch (error) { if (!disposed && request === version) { loaded = false; catalog = null; rows = []; matches = []; virtual.clear(); cards.replaceChildren(); count.textContent = "Could not read this collection. Reload local data to retry."; announce(error.message, true); } }
+    finally { if (!disposed && request === version) { loading = false; host.setAttribute("aria-busy", "false"); indexes.disabled = false; artistPicker.disabled = false; } }
   }
   async function refreshIndexes(preferred) {
-    try { const started = version; const data = await API.styleIndexes(); if (disposed) return; indexes.replaceChildren(); const special = ["builtin:visual", "builtin:classic", "builtin:anima", "booru", "tags"]; const items = data.items || []; for (const key of special) { const r = items.find(r => r.id === key); if (r) indexes.append(new Option(r.name, r.id)); } for (const r of items.filter(r => !special.includes(r.id))) indexes.append(new Option(r.name, r.id)); for (const [value, title] of [["custom", "My CSV / custom words"], ["favorites", "Favorites · all collections"], ["previews", "My Previews · all collections"]]) indexes.append(new Option(title, value)); const wanted = started === version ? preferred : indexId; indexes.value = [...indexes.options].some(o => o.value === wanted) ? wanted : "builtin:visual"; if (started !== version) return; await load(indexes.value); }
-    catch (error) { loaded = false; if (!disposed) { count.textContent = "Local collection unavailable. Use Reload local data to retry."; announce(error.message, true); } }
+    loading = true; host.setAttribute("aria-busy", "true");
+    const started = version;
+    try { const data = await API.styleIndexes(); if (disposed || started !== version) return; indexes.replaceChildren(); const special = ["builtin:visual", "builtin:classic", "builtin:anima", "booru", "tags"]; const items = data.items || []; for (const key of special) { const r = items.find(r => r.id === key); if (r) indexes.append(new Option(r.name, r.id)); } for (const r of items.filter(r => !special.includes(r.id))) indexes.append(new Option(r.name, r.id)); for (const [value, title] of [["custom", "My CSV / custom words"], ["favorites", "Favorites · all collections"], ["previews", "My Previews · all collections"]]) indexes.append(new Option(title, value)); const requested = started === version ? preferred : indexId; const group = artistIds.includes(requested) ? "artists" : requested; const wanted = loadSidebarDisplay().chrome[group] === false ? "builtin:visual" : requested; indexes.value = [...indexes.options].some(o => o.value === wanted) ? wanted : "builtin:visual"; if (started !== version) return; await load(indexes.value); refreshVisibility(); }
+    catch (error) { if (!disposed && started === version) { loaded = false; loading = false; host.setAttribute("aria-busy", "false"); count.textContent = "Local collection unavailable. Use Reload local data to retry."; announce(error.message, true); } }
   }
   function exportIndex(onlyFavorites) {
     if (!catalog) return;
@@ -353,6 +405,7 @@ export function createStyleExplorer(host, { insert, announce, onViewChanged = ()
     if (!event.target.classList?.contains("pp-style-card-add") || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     const buttons = [...cards.querySelectorAll(".pp-style-card-add")], at = buttons.indexOf(event.target), delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns }[event.key]; const next = buttons[at + delta]; if (next) { event.preventDefault(); event.stopPropagation(); next.focus(); }
   }
+  refreshVisibility();
   updateLabButton();
-  return { async activate() { if (!loaded) { loaded = true; await refreshIndexes(indexId); } else { paintPage(); } }, displayKey, refreshAppearance() { if (loaded && !browse.hidden) paintPage(); }, cleanup() { disposed = true; version++; editSerial++; clearTimeout(timer); resizeObserver.disconnect(); virtual.cleanup(); host.removeEventListener("keydown", onKey); } };
+  return { async activate() { if (disposed || loading) return; if (!loaded) await refreshIndexes(indexId); else paintPage(); }, displayKey, refreshVisibility, refreshAppearance() { if (loaded && !browse.hidden) paintPage(); }, cleanup() { disposed = true; version++; editSerial++; clearTimeout(timer); resizeObserver.disconnect(); virtual.cleanup(); host.removeEventListener("keydown", onKey); } };
 }

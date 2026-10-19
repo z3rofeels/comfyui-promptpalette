@@ -56,7 +56,7 @@ export function libraryEditShell() {
                 <button type="button" data-el="editFindNext" title="Next match" aria-label="Next match">↓</button>
                 <button type="button" data-el="editFindClose" title="Close find" aria-label="Close find">×</button>
               </div>
-              <textarea data-el="editContent" spellcheck="false" placeholder="One option per line. Lines starting with # are notes."></textarea>
+              <textarea data-el="editContent" spellcheck="true" placeholder="One option per line. Lines starting with # are notes."></textarea>
               <div class="pp-ledit-caret" data-el="editCaret"></div>
               <p class="pp-ledit-help pp-ledit-shortcuts">__ wildcards · @ artists · { syntax · Ctrl+Space suggestions</p>
             </section>

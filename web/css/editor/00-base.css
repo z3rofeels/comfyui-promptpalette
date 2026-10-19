@@ -369,7 +369,7 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
 
 .wg-inject-menu {
   position: fixed;
-  z-index: 9500;
+  z-index: 100010;
   display: none;
   min-width: 232px;
   max-width: 300px;
@@ -412,7 +412,7 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
 
 .wg-ctx-menu {
   position: fixed;
-  z-index: 9500;
+  z-index: 100010;
   display: none;
   min-width: 150px;
   background: var(--wg-panel-bg, #1c1f23);

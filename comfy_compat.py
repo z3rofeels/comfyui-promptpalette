@@ -7,7 +7,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 try:
-    # Use the numbered V3 namespace so this release does not silently follow `latest`.
+    # Use ComfyUI’s documented numbered V3 namespace. Current core re-exports
+    # its io implementation from latest; this does not pin the engine internals.
     from comfy_api.v0_0_2 import ComfyExtension, io
 
     COMFY_API_NAMESPACE = "v0_0_2"

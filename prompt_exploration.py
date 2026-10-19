@@ -5,6 +5,7 @@ import re
 import uuid
 from typing import Any
 from .wildcard_resolver import WildcardResolver, WILDCARD_RE, PARAM_WILDCARD_RE, CONDITIONAL_TAG_RE
+from .json_literals import JsonLiterals, json_object_spans
 
 MAX_PREPARED_PROMPTS = 256
 MAX_PREPARED_CHARS = 4_000_000
@@ -27,6 +28,8 @@ def utf16_offset(text: str, offset: int) -> int:
 def validate_selection(text: str, start: int, end: int, resolver: WildcardResolver) -> None:
     if start >= end:
         raise ValueError("Select a phrase or a complete wildcard first.")
+    if any(start < right and end > left for left, right in json_object_spans(text)):
+        raise ValueError("JSON prompts are literal. Edit their captions or text directly; use ordinary caption fields for wildcard variations.")
     spans = [(m.start(), m.end()) for pattern in (WILDCARD_RE, PARAM_WILDCARD_RE)
              for m in pattern.finditer(text)]
     variable_spans = resolver._find_dollar_spans(text)
@@ -67,7 +70,8 @@ def capture_selection(index: Any, text: str, start: int, end: int, seed: int, mo
         raise ValueError("This selection did not survive resolution. Select an active phrase outside variable assignments or inactive conditional branches.")
     before, tail = resolved.split(left)
     selected, after = tail.split(right)
-    if WILDCARD_RE.search(resolved) or PARAM_WILDCARD_RE.search(resolved):
+    visible = JsonLiterals().protect(resolved)
+    if WILDCARD_RE.search(visible) or PARAM_WILDCARD_RE.search(visible):
         raise ValueError("Resolve missing wildcard lists before capturing this prompt.")
     # The markers can shield boundary whitespace from the resolver's strip().
     frozen = before + selected + after
@@ -83,7 +87,7 @@ def capture_selection(index: Any, text: str, start: int, end: int, seed: int, mo
             "processing_mode": mode, "wildcards": sorted(set(resolver.used_names))}
 
 
-def read_prepared_batch(raw: str, source: str) -> dict[str, Any] | None:
+def read_prepared_batch(raw: str, source: str, negative_source: str = "") -> dict[str, Any] | None:
     if not raw.strip():
         return None
     if len(raw) > MAX_PREPARED_CHARS * 2:
@@ -103,6 +107,20 @@ def read_prepared_batch(raw: str, source: str) -> dict[str, Any] | None:
         raise ValueError("Invalid prepared prompt text.")
     if sum(map(len, prompts)) > MAX_PREPARED_CHARS:
         raise ValueError("Prepared variation batch is too large.")
+    negatives = value.get("negative_prompts")
+    if "negative_prompts" in value:
+        if (not isinstance(negatives, list) or len(negatives) != len(prompts)
+                or any(not isinstance(item, str) or len(item) > 1_000_000 for item in negatives)):
+            raise ValueError("Each prepared prompt needs its matching negative prompt.")
+        if sum(map(len, prompts)) + sum(map(len, negatives)) > MAX_PREPARED_CHARS:
+            raise ValueError("Prepared variation batch is too large.")
+        if not isinstance(value.get("negative_source"), str) or value["negative_source"] != negative_source:
+            raise ValueError("The prepared negative prompts are out of date. Clear the batch or restore its negative prompt.")
+    if "comparison" in value:
+        labels = value.get("labels")
+        if (value["comparison"] != "one-field" or not isinstance(labels, list) or len(labels) != len(prompts)
+                or any(not isinstance(label, str) or len(label) > 200 for label in labels)):
+            raise ValueError("Invalid prepared comparison labels.")
     wildcards = value.get("wildcards", [])
     if not isinstance(wildcards, list) or len(wildcards) > 5000 or any(not isinstance(name, str) or len(name) > 4096 for name in wildcards):
         raise ValueError("Invalid prepared wildcard metadata.")

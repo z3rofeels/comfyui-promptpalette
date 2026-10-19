@@ -387,6 +387,18 @@ export function detectPromptModelProfile(node, availableModelIds = []) {
 
 export const PROMPT_PALETTE_HELP = [
   {
+    id: "start-here",
+    title: "Start here: your first prompt",
+    keywords: "beginner quick start first prompt run queue shortcut ctrl cmd enter sidebar",
+    body: "Write a prompt in Prompt Palette, or browse Explore in the ComfyUI sidebar and choose an Insert into target. Type __ to add library entries. Use Preview result to inspect your resolved text, then Ctrl+Enter (Cmd+Enter on Mac) to queue your workflow with ComfyUI. Your seed and connected model stay under your control.",
+  },
+  {
+    id: "native-editing",
+    title: "Spelling and Palette tools, side by side",
+    keywords: "spellcheck spelling autocorrect right click context menu alt option",
+    body: "Right-click for Prompt Palette actions. Right-click a __library entry__ to choose random, next, previous or cycle mode. Hold Alt (Option on Mac) while right-clicking for your browser or Desktop spelling and editing menu. Escape dismisses a menu; your selection stays available for editing.",
+  },
+  {
     id: "quick-insert",
     title: "Insert a library entry while typing",
     keywords: "autocomplete quick insert wildcard double underscore keyboard",
@@ -402,7 +414,7 @@ export const PROMPT_PALETTE_HELP = [
     id: "save-selection",
     title: "Save selected text to My Library",
     keywords: "create wildcard save selection right click shortcut",
-    body: "Select text in the prompt, right-click it, and choose Save selection to My Library. Use a path such as poses/standing/confident to create organized folders.",
+    body: "Select text in the prompt, right-click, and choose Save selection to My Library. Use a path such as poses/standing/confident to create organized folders.",
   },
   {
     id: "recipes",

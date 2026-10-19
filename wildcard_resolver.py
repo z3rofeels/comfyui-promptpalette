@@ -3,6 +3,7 @@
 import re
 import random
 import itertools
+from .json_literals import JsonLiterals, json_object_spans
 
 WILDCARD_RE = re.compile(r"__([+\-*%~@]?)([A-Za-z0-9_\-\/*]+)__")
 PARAM_WILDCARD_RE = re.compile(r"__([A-Za-z0-9_\-\/]+)\(([^()]*)\)__")
@@ -148,6 +149,7 @@ class WildcardResolver:
 
     def _resolve_wildcards(self, text, rng, combo_map=None):
         combo_map = combo_map or {}
+        literals = JsonLiterals()
 
         def repl(m):
             whole = m.group(0)
@@ -161,10 +163,12 @@ class WildcardResolver:
             if out == prev:
                 break
             prev = out
+            out = literals.protect(out)
             out = self._check_size(WILDCARD_RE.sub(repl, out))
-        return out
+        return self._check_size(literals.restore(out))
 
     def _resolve_param_wildcards(self, text, rng, combo_map=None, depth=0):
+        literals = JsonLiterals()
 
         def repl(m):
             name, argstr = m.group(1), m.group(2)
@@ -207,8 +211,9 @@ class WildcardResolver:
             if out == prev:
                 break
             prev = out
+            out = literals.protect(out)
             out = self._check_size(PARAM_WILDCARD_RE.sub(repl, out))
-        return out
+        return self._check_size(literals.restore(out))
 
     def _find_dollar_spans(self, text):
 
@@ -536,9 +541,11 @@ class WildcardResolver:
 
     def _resolve_conditionals(self, text, rng, combo_map=None, env=None, depth=0):
         """Resolve native [if]/[elif]/[else]/[/if] blocks without executing code."""
+        literals = JsonLiterals()
+        text = literals.protect(text)
         tokens = list(CONDITIONAL_TAG_RE.finditer(text))
         if not tokens:
-            return text
+            return literals.restore(text)
         output = []
         cursor = 0
         stack = []
@@ -584,7 +591,13 @@ class WildcardResolver:
         output.append(text[cursor:] if active else "")
         if stack:
             raise ValueError(f"[{stack[-1]['kind']}] is missing a closing tag")
-        return "".join(output)
+        return literals.restore("".join(output))
+
+    def _restore_json_literals(self, text, literals):
+        for name, value in list(self.variables.items()):
+            if isinstance(value, tuple) and len(value) == 2 and isinstance(value[1], str):
+                self.variables[name] = (value[0], literals.restore(value[1]))
+        return self._check_size(literals.restore(text))
 
     def _run_passes(self, text, rng, combo_map=None, depth=0):
 
@@ -593,41 +606,53 @@ class WildcardResolver:
                 f"prompt expansion exceeded the {MAX_NESTED_RESOLUTION_DEPTH}-level nesting safety limit"
             )
         text = self._check_size(text)
+        literals = JsonLiterals()
         prev = None
         for _ in range(MAX_PASSES):
             if text == prev:
                 break
             prev = text
+            text = literals.protect(text)
             text = self._check_size(self._resolve_variables(text, rng, combo_map, depth))
+            text = literals.protect(text)
             text = self._check_size(self._resolve_conditionals(text, rng, combo_map, depth=depth))
+            text = literals.protect(text)
             text = self._check_size(self._resolve_param_wildcards(text, rng, combo_map, depth))
+            text = literals.protect(text)
             text = self._check_size(self._resolve_braces(text, rng, combo_map))
+            text = literals.protect(text)
             text = self._check_size(self._resolve_wildcards(text, rng, combo_map))
-        return text
+        return self._restore_json_literals(text, literals)
 
     def resolve(self, text, seed=0):
         self.variables = {}
         self._param_stack = []
         self._variable_stack = []
+        literals = JsonLiterals()
+        text = literals.protect(self._check_size(text))
         text = self.strip_comments(text)
         text = self._expand_quantifiers(text)
         rng = random.Random(seed)
 
         combo_map = self._prepare_combinatorial(text)
         text = self._run_passes(text, rng, combo_map)
-        return text.strip()
+        return self._restore_json_literals(text, literals).strip()
 
     def resolve_lines(self, text, seed=0):
 
+        literals = JsonLiterals()
+        text = literals.protect(self._check_size(text))
         results = []
         for i, line in enumerate(text.split("\n")):
             if not line.strip() or line.lstrip().startswith("#"):
                 continue
-            results.append(self.resolve(line, seed=seed + i))
+            results.append(self._check_size(literals.restore(self.resolve(line, seed=seed + i))))
         return results
 
     def generate_combinatorial(self, text, seed=0, max_prompts=None):
 
+        literals = JsonLiterals()
+        text = literals.protect(self._check_size(text))
         limit = min(max_prompts, self.MAX_COMBINATORIAL_PROMPTS) if max_prompts else self.MAX_COMBINATORIAL_PROMPTS
         limit = max(1, limit)
 
@@ -643,10 +668,18 @@ class WildcardResolver:
         results = []
         self._expand_combinatorial(text, {}, rng, limit, results)
 
-        return [s.replace(_ZW, "").strip() for s, _env in results[:limit]]
+        restored, chars = [], 0
+        for s, _env in results[:limit]:
+            value = self._check_size(literals.restore(s.replace(_ZW, "")).strip())
+            if chars + len(value) > MAX_COMBINATORIAL_TOTAL_CHARS:
+                self.last_generation_truncated = True
+                break
+            restored.append(value); chars += len(value)
+        return restored
 
     def count_combinatorial(self, text, seed=0, limit=20000):
 
+        text = JsonLiterals().protect(self._check_size(text))
         self.variables = {}
         self._param_stack = []
         self._variable_stack = []
@@ -834,19 +867,22 @@ class WildcardResolver:
     def _leftmost_combinatorial_group(self, s):
 
         candidates = []
-        b = BRACE_RE.search(s)
+        literals = json_object_spans(s)
+        visible = lambda match: not any(start <= match.start() < end for start, end in literals)
+        first = lambda pattern: next((match for match in pattern.finditer(s) if visible(match)), None)
+        b = first(BRACE_RE)
         if b:
             candidates.append((b.start(), "brace", b))
-        w = WILDCARD_RE.search(s)
+        w = first(WILDCARD_RE)
         if w:
             candidates.append((w.start(), "wc", w))
-        p = PARAM_WILDCARD_RE.search(s)
+        p = first(PARAM_WILDCARD_RE)
         if p:
             candidates.append((p.start(), "param", p))
-        dollar_spans = self._find_dollar_spans(s)
+        dollar_spans = [(a, b, inner) for a, b, inner in self._find_dollar_spans(s) if not any(start <= a < end for start, end in literals)]
         if dollar_spans:
             candidates.append((dollar_spans[0][0], "var", dollar_spans[0]))
-        conditional = CONDITIONAL_TAG_RE.search(s)
+        conditional = first(CONDITIONAL_TAG_RE)
         if conditional:
             candidates.append((conditional.start(), "conditional", conditional))
         if not candidates:

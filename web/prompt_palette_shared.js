@@ -1,4 +1,5 @@
 import { api } from "../../scripts/api.js";
+import { isComfyQueueShortcut } from "./editor_shortcuts.js";
 import { panelToneFor } from "./editor/panel_tone.js";
 
 const STYLE_PROMISES = new Map();
@@ -272,12 +273,12 @@ export function positionPromptPaletteTip(tip, x, y) {
 /**
  * Mark a Prompt Palette-owned surface as a keyboard boundary.
  * Keyboard and clipboard events are allowed to complete normally inside the focused field,
- * then stop at the Prompt Palette root so ComfyUI canvas/sidebar shortcuts never receive them.
+ * then stop at the Prompt Palette root. The stock queue shortcut passes through unchanged.
  */
 export function installPromptPaletteKeyboardBoundary(target) {
   if (!target?.addEventListener) return () => {};
   target.dataset.promptPaletteKeyboardBoundary = "true";
-  const stop = (event) => event.stopPropagation();
+  const stop = (event) => { if (!isComfyQueueShortcut(event)) event.stopPropagation(); };
   for (const type of ["keydown", "keyup", "keypress", "copy", "cut", "paste"]) target.addEventListener(type, stop);
 
   let cleaned = false;

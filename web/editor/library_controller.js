@@ -1,6 +1,5 @@
 import { bindEditorWildcardHover } from "./editor_hover.js";
 import { saveEditorSelection } from "./selection_library.js";
-import { dialogConfirm } from "./dialogs.js";
 import { copyPromptPaletteThemeScope, positionPromptPaletteTip } from "../prompt_palette_shared.js";
 import { API } from "../prompt_palette_api.js";
 import { tagSearch } from "./tag_search.js";
@@ -23,8 +22,8 @@ import {
   openInjectMenu, closeInjectMenu, scheduleCloseInjectMenu,
   cancelScheduledCloseInjectMenu, injectState,
 } from "./injector.js";
-import { openCtxMenu, closeCtxMenu, ctxMenuOpen } from "./context_menu.js";
-import { pickThumbnailFile, thumbnailFileError } from "./thumbnails.js";
+import { openCtxMenu, closeCtxMenu, ctxMenuOpen, attachLibraryContextMenu } from "./context_menu.js";
+import { libraryThumbnailActions } from "./thumbnails.js";
 import { notify } from "./notifications.js";
 import { createLibraryEntryEditor } from "./library_entry_editor.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
@@ -294,14 +293,14 @@ export function createLibraryController(ctx) {
   function openLibraryContextMenu(event, path) {
     const cat = categoryOf(path);
     const nowPinned = pinned.has(path);
-    const hasThumb = !!state.thumbMap[path];
+    const item = state.libraryCache.find(item => item.path === path);
     closeInjectMenu();
     openCtxMenu(event.clientX, event.clientY, [
       { label: "Edit", icon: "edit", group: "item", onSelect: () => openEditForItem(path) },
       { label: "Copy path", icon: "path", group: "item", onSelect: () => copyLibraryPath(path) },
       { label: nowPinned ? "Unpin" : "Pin", icon: "pin", group: "item", onSelect: () => { if (pinned.has(path)) pinned.delete(path); else pinned.add(path); savePinned(pinned); renderPickerList(searchInput.value); } },
-      { label: hasThumb ? "Change Thumbnail…" : "Set Thumbnail…", icon: "image", group: "thumb", onSelect: () => setThumbnailForItem(path) },
-      ...(hasThumb ? [{ label: "Remove Thumbnail", icon: "trash", group: "thumb", danger: true, onSelect: () => removeThumbnailForItem(path) }] : []),
+      ...libraryThumbnailActions(path, { hasThumbnail: !!state.thumbMap[path], editable: !item?.type || item.type === "txt",
+        isActive: () => !libraryDisposed && nodeIsActive(node) }),
       { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
     ]);
   }
@@ -356,12 +355,12 @@ export function createLibraryController(ctx) {
     const host = check?.closest("[data-path]");
     if (host) toggleRecipeSelection(host.dataset.path);
   });
-  pickerList.addEventListener("contextmenu", (event) => {
-    const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
-    if (!host) return;
-    event.preventDefault();
-    openLibraryContextMenu(event, host.dataset.path);
-  });
+  const contextEntry = event => event.target.closest?.(".wg-item[data-path], .wg-thumb-item[data-path]");
+  const cleanupPickerContext = attachLibraryContextMenu(pickerList, (event) => {
+    hideTip();
+    cancelNodeTimer(node, delegatedInjectTimer);
+    openLibraryContextMenu(event, contextEntry(event).dataset.path);
+  }, contextEntry);
   pickerList.addEventListener("mousemove", (event) => {
     const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
     if (!host) return;
@@ -695,34 +694,6 @@ export function createLibraryController(ctx) {
     }
   }
 
-  async function setThumbnailForItem(path) {
-    const file = await pickThumbnailFile();
-    if (!file) return;
-    const err = thumbnailFileError(file);
-    if (err) { notify("error", "Thumbnail not set", err); return; }
-    try {
-      const res = await API.setThumbnail(path, file);
-      if (!res.ok) { notify("error", "Thumbnail not set", res.error || "the server rejected the upload"); return; }
-      state.thumbBust[path] = Date.now();
-      await refreshThumbMap();
-      notify("success", "Thumbnail updated", path.split("/").pop());
-    } catch (e) {
-      notify("error", "Thumbnail not set", "network error while uploading");
-    }
-  }
-
-  async function removeThumbnailForItem(path) {
-    try {
-      const res = await API.removeThumbnail(path);
-      if (!res.ok) { notify("error", "Thumbnail not removed", res.error || "the server rejected the request"); return; }
-      state.thumbBust[path] = Date.now();
-      await refreshThumbMap();
-      notify("success", "Thumbnail removed", path.split("/").pop());
-    } catch (e) {
-      notify("error", "Thumbnail not removed", "network error");
-    }
-  }
-
   node._wgRefreshLibrary = refreshLibrary;
   const cleanupLibrarySubscription = API.onLibraryChanged(refreshLibrary);
 
@@ -1003,6 +974,7 @@ export function createLibraryController(ctx) {
       cleanupEditorHover();
       cleanupAutocompleteBinding?.();
       cleanupPins();
+      cleanupPickerContext();
       editPanel.cleanup();
       virtualManager.cleanup();
       starterPackController.cleanup();

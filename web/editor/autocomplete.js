@@ -1,6 +1,9 @@
 import { getSharedWildcardEngine } from "../engine/wildcard_engine.js";
+import { isComfyQueueShortcut } from "../editor_shortcuts.js";
+import { hydrateAcThumbnails } from "./autocomplete_previews.js";
+import { libraryThumbnailActions } from "./thumbnails.js";
 import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
-import { escapeHtml, sanitizeHexColor, nudgeHexForContrast, currentUiSurface, categoryOf, hashStr, categoryColorFromHue } from "./text_utils.js";
+import { sanitizeHexColor, nudgeHexForContrast, currentUiSurface, categoryOf, hashStr, categoryColorFromHue } from "./text_utils.js";
 import { createDomRangeForOffsets } from "./editor_surface.js";
 import { API } from "../prompt_palette_api.js";
 import { loadCustomWords, filterCustomWords, resetCustomWords } from "./custom_words.js";
@@ -14,7 +17,7 @@ import { syntaxCodeHtml, syntaxTone } from "./syntax_presentation.js";
 import { createPromptUsageStore } from "../prompt_quickness.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import {
-  loadTheme, DEFAULT_BOORU_COLORS_DARK, DEFAULT_BOORU_COLORS_LIGHT,
+  loadTheme, saveTheme, DEFAULT_BOORU_COLORS_DARK, DEFAULT_BOORU_COLORS_LIGHT,
 } from "./preferences.js";
 
 function findWildcardFragment(text, caret) {
@@ -84,6 +87,8 @@ let acOwner = null;
 let acRequestVersion = 0;
 // Draft of the inline "save custom word" form; lives only while the menu is open.
 let acAddDraft = null;
+let cleanupAcPreviews = () => {};
+let unsubscribeAcLibrary = null, acContextVersion = 0;
 const savedInsertOptions = readEditorPreference("booruInsertOptions", null);
 let booruInsertOptions = { spaces: savedInsertOptions?.spaces === true, appendComma: savedInsertOptions?.appendComma === true };
 let suppressAutocompleteInputFor = null;
@@ -92,6 +97,7 @@ function handleAcDocumentMouseDown(event) {
   if (owner && !acMenu?.contains(event.target) && event.target !== owner && !owner.contains?.(event.target)) closeAcMenu();
 }
 function handleAcViewportChange(event) {
+  cleanupAcPreviews.dismiss?.();
   if (event.target instanceof Node && acMenu?.contains(event.target)) return;
   if (event.type === "resize") { if (acState || acOwner) closeAcMenu(); }
   else if (acState && acMenu) positionAcMenu(acMenu);
@@ -107,6 +113,10 @@ function ensureAcMenu() {
   acMenu.addEventListener("mousedown", (e) => {
     const target = e.target instanceof Element ? e.target : null;
     if (!target) return;
+    if (e.button !== 0) {
+      if (e.button === 2 && target.closest("[data-ac-library]")) { e.preventDefault(); e.stopPropagation(); }
+      return;
+    }
     // Controls inside the menu act on mousedown (like the rows) and never steal focus from the editor.
     if (target.closest("[data-ac-clear-recents]")) {
       e.preventDefault();
@@ -149,6 +159,28 @@ function ensureAcMenu() {
     e.preventDefault();
     commitAcSelection(Number(row.dataset.acIndex));
   });
+  acMenu.addEventListener("contextmenu", async event => {
+    const row = event.target.closest?.("[data-ac-index]");
+    const state = acState, raw = row && state?.items[Number(row.dataset.acIndex)];
+    if (!raw) return;
+    const item = normalizeAcItem(raw);
+    if (item.insertMode !== "library" || ["booru", "custom", "syntax"].includes(item.kind)) return;
+    event.preventDefault(); event.stopPropagation();
+    cleanupAcPreviews.dismiss?.();
+    const request = ++acContextVersion, owner = state.textarea;
+    try {
+      // Lazy import avoids a context-menu/autocomplete initialization cycle.
+      const [{ openCtxMenu }, thumbnails] = await Promise.all([import("./context_menu.js"), API.categories()]);
+      if (acState !== state || request !== acContextVersion || !row.isConnected || !owner.isConnected) return;
+      const actions = libraryThumbnailActions(item.value, { hasThumbnail: !!thumbnails[item.value],
+        editable: Object.hasOwn(thumbnails, item.value), isActive: () => owner.isConnected });
+      closeAcMenu();
+      openCtxMenu(event.clientX, event.clientY, actions);
+    } catch (error) {
+      if (acState === state) notify("error", "Thumbnail actions unavailable", error?.message || String(error));
+    }
+  });
+  unsubscribeAcLibrary = API.onLibraryChanged(() => { if (acState) renderAcMenu(); });
   document.addEventListener("mousedown", handleAcDocumentMouseDown);
   document.addEventListener("contextmenu", handleAcDocumentMouseDown);
   document.addEventListener("scroll", handleAcViewportChange, true);
@@ -157,6 +189,8 @@ function ensureAcMenu() {
 }
 
 function closeAcMenu() {
+  acContextVersion++;
+  cleanupAcPreviews(); cleanupAcPreviews = () => {};
   acRequestVersion += 1;
   acAddDraft = null;
   acOwner = null;
@@ -543,7 +577,7 @@ function sectionForItem(item) {
 function normalizeAcItem(item) {
   if (typeof item === "string") return {
     value: item, label: item, group: "My Library", kind: "library", section: "Library Prompts",
-    category: "general", hasCategory: false, count: 0, alias: "", priority: 0, insertText: null, selectInserted: false, favorite: false,
+    category: "general", hasCategory: false, count: 0, alias: "", priority: 0, insertText: null, insertMode: "library", selectInserted: false, favorite: false,
   };
   const count = Number(item?.count);
   const priority = Number(item?.priority);
@@ -555,6 +589,7 @@ function normalizeAcItem(item) {
   else if (group === "Custom Words") kind = "custom";
   return {
     value: String(item?.value ?? item?.label ?? ""),
+    source: String(item?.source || ""),
     label: String(item?.label ?? item?.value ?? ""),
     group,
     meta: String(item?.meta || ""),
@@ -763,6 +798,7 @@ function appendAcFooter(menu) {
     input.disabled = acAddDraft.busy;
     input.addEventListener("input", () => { acAddDraft[field] = input.value; });
     input.addEventListener("keydown", (e) => {
+      if (isComfyQueueShortcut(e)) { closeAcMenu(); return; }
       e.stopPropagation();
       if (e.key === "Enter") { e.preventDefault(); saveAcCustomWord(); }
       else if (e.key === "Escape") { e.preventDefault(); cancelAcAdd(); }
@@ -786,6 +822,7 @@ function appendAcFooter(menu) {
   categorySelect.disabled = acAddDraft.busy;
   categorySelect.addEventListener("change", () => { acAddDraft.category = categorySelect.value; });
   categorySelect.addEventListener("keydown", (e) => {
+    if (isComfyQueueShortcut(e)) { closeAcMenu(); return; }
     e.stopPropagation();
     if (e.key === "Escape") { e.preventDefault(); cancelAcAdd(); }
   });
@@ -814,6 +851,8 @@ function appendAcFooter(menu) {
 
 function renderAcMenu() {
   if (!acState) return;
+  cleanupAcPreviews(); cleanupAcPreviews = () => {};
+  const previewRows = [];
   const menu = ensureAcMenu();
   const theme = loadTheme();
   const scope = acState?.textarea?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface");
@@ -827,6 +866,14 @@ function renderAcMenu() {
   const fieldSelection = activeField
     ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
   menu.innerHTML = "";
+  const imagesToggle = document.createElement("button");
+  imagesToggle.type = "button"; imagesToggle.className = "wg-ac-images";
+  imagesToggle.textContent = "Images";
+  imagesToggle.setAttribute("aria-pressed", String(theme.autocompletePreviews !== false));
+  imagesToggle.title = "Show attached thumbnails and a hover preview; entries without images stay as text.";
+  imagesToggle.addEventListener("mousedown", event => { event.preventDefault(); event.stopPropagation(); });
+  imagesToggle.addEventListener("click", () => { const latest = loadTheme(); latest.autocompletePreviews = latest.autocompletePreviews === false; saveTheme(latest); renderAcMenu(); });
+  menu.append(imagesToggle);
   const search = acState.kind === "booru" ? tagSearch(acState.query) : null;
   if (search?.category) {
     const heading = document.createElement("div"); heading.className = "wg-ac-head";
@@ -996,7 +1043,7 @@ function renderAcMenu() {
           // Explicit color binding prevents a theme accent or section-specific rule from
           // turning a Recent row into a generic red item. The prompt itself keeps sourceColor.
           row.style.color = libraryColor;
-          row.title = item.recipe ? "Palette Recipe" : item.favorite ? "Favorite" : item.recent ? "Recently used" : "Library";
+          row.title = (item.recipe ? "Palette Recipe" : item.favorite ? "Favorite" : item.recent ? "Recently used" : "Library") + " · Right-click for thumbnail actions";
         }
 
         const textWrap = document.createElement("span");
@@ -1044,6 +1091,7 @@ function renderAcMenu() {
         }
 
         row.append(textWrap, metrics);
+        previewRows.push({ row, item, index });
         menu.appendChild(row);
         if (index === acState.activeIndex) {
           requestAnimationFrame(() => row.scrollIntoView({ block: "nearest" }));
@@ -1056,6 +1104,12 @@ function renderAcMenu() {
   if (acAddDraft) menu.dataset.acAdding = "true"; else delete menu.dataset.acAdding;
 
   positionAcMenu(menu);
+  if (theme.autocompletePreviews !== false) {
+    const state = acState, request = acRequestVersion, revision = API.previewRevision();
+    cleanupAcPreviews = hydrateAcThumbnails(menu, previewRows, state.activeIndex,
+      () => acState === state && acRequestVersion === request && API.previewRevision() === revision && menu.style.display !== "none" && loadTheme().autocompletePreviews !== false,
+      () => positionAcMenu(menu));
+  }
 
   if (acAddDraft?.focus) {
     focusAcField(acAddDraft.focus);
@@ -1248,6 +1302,7 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
     if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) openForCurrentCaret();
   };
   const onKeydown = (event) => {
+    if (isComfyQueueShortcut(event)) { closeAcMenu(); return; }
     if (event.isComposing || event.keyCode === 229) return;
     // Selection shortcuts belong to the editor even when an old completion
     // request/menu is still pending. Shift+arrows must extend the native range.
@@ -1338,6 +1393,7 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
 export function cleanupAutocomplete() {
   suppressAutocompleteInputFor = null;
   closeAcMenu();
+  unsubscribeAcLibrary?.(); unsubscribeAcLibrary = null;
   document.removeEventListener("mousedown", handleAcDocumentMouseDown);
   document.removeEventListener("contextmenu", handleAcDocumentMouseDown);
   document.removeEventListener("scroll", handleAcViewportChange, true);
