@@ -30,10 +30,18 @@
 
 ---
 
-<a id="recent-updates”></a>
 ## Recent updates — 2.0.7
 
 ### Library thumbnails, everywhere you browse
+
+
+| SET THEM | ANYWHERE | AND EVERYWHERE|
+| :---: | :---: | :---: |
+| <img width="406" height="464" alt="SIDEBAR" src="https://github.com/user-attachments/assets/4f3c4569-978a-4d4d-bd42-30223c958e20" />| <img width="236" height="605" alt="Screenshot 2026-10-19 at 1 07 32 PM" src="https://github.com/user-attachments/assets/be428a66-1953-4de4-a338-4ed655fd6d32" />| <img width="528" height="763" alt="edbox" src="https://github.com/user-attachments/assets/9a7cb1c6-2511-4cb7-84d6-601dc09ad5b2" />|
+| *SIDEBAR* | *LIBRARY PANEL* | *EDITOR* |
+
+
+
 
 - Right-click a wildcard in the node’s slide-out **Library**, in list or gallery view, to **Set**, **Change**, or **Remove Thumbnail**. The same actions are available on main-sidebar library entries and library autocomplete suggestions.
 - The shared library editor keeps its Add/Replace/Remove controls. Replacements refresh across open editors, galleries, autocomplete, and their image previews, including other browser tabs.
@@ -42,11 +50,33 @@
 ### A clearer prompting sidebar
 
 - **Artists** brings Anima, Booru artist tags, and classic references into one workspace with a remembered catalog picker. **Booru tags** stays separate for subjects and details. Favorites, your previews, and imported words have direct shortcuts.
+
+
+### 
+
+|  |  |  |  |
+| :---: | :---: | :---: | :---: |
+| <img src="https://github.com/user-attachments/assets/3240c55d-ade5-48c4-bb65-0c2cbb197236" width="230" alt="V1" /> | <img src="https://github.com/user-attachments/assets/939baf17-db20-499a-a30f-284de5f56991" width="230" alt="v2" /> | <img src="https://github.com/user-attachments/assets/d093a7f0-db1a-43b8-86dd-1dd49033d9e8" width="230" alt="v3" /> | <img src="https://github.com/user-attachments/assets/327d1588-3780-4fee-abf6-090fd4b819f0" width="230" alt="v4" /> |
+
+
+
+
+
+
+
+
+
+
+
+
 - **Syntax → Choose your prompting language** offers editable starters for plain language (Krea 2 / Qwen-Image), tag-based prompting, MOSS captions/layout guidance, and image editing instructions.
 - The sidebar’s **gear** has its own controls for tabs, collections, introductions, and model guidance. Hide what you don’t use or choose **Show all sections** to restore it. Main editor settings stay separate.
 - Tighter sidebar spacing and narrow-width labels; collection switching handles loading and retries cleanly. Edited prompt starters stay intact when you switch guide categories.
 
 ### Editing and visual autocomplete
+
+<img width="578" height="580" alt="Screenshot 2026-10-27 at 8 14 06 PM" src="https://github.com/user-attachments/assets/69d93ead-03bf-4863-a049-c09b29042091" />
+
 
 - Attached thumbnails appear in autocomplete, with a small hover preview where there is room. Entries without images stay as text. Use **Images** in the menu or **Settings → Editor & suggestions → Autocomplete images** to switch them off; saved choices are retained.
 - **Ctrl/Cmd+Enter** passes through to ComfyUI to start a run while editing, including with autocomplete open.
@@ -56,7 +86,11 @@
 
 - New **MOSS caption**, **ordered tags**, and **1024×1024 layout JSON** starters in **Layouts**. Keep exact lettering separate and retain normal field variation tools.
 - Complete valid JSON objects stay literal through prompt resolution and batches, preserving layout braces and quoted text. Choices and wildcards outside JSON work normally.
-- Local **Base INT8**, **toxicdog Turbo AIO**, and **regular-SFT** workflow examples. Use ComfyUI **0.42.1+** for native MOSS support and its template crash fixes. 
+- Local **Base INT8**, **toxicdog Turbo AIO**, and **regular-SFT** workflow examples. Use ComfyUI **0.42.1+** for native MOSS support and its template crash fixes.
+
+- <img width="1042" height="601" alt="Screenshot 2026-10-27 at 7 57 52 PM" src="https://github.com/user-attachments/assets/a365b425-70a7-49da-b8b9-50ea575daffa" />
+
+
 ### Compare one prompt change at a time
 
 - In a Fields workspace, open **Variation Lab → Explore → One field at a time**. Capture a baseline, then test each selected field while every other resolved phrase stays fixed—including Follow fields and negative text.
