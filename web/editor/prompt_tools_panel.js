@@ -1,3 +1,4 @@
+import { openLoraSidecar } from "./lora_sidecar.js";
 import { API } from "../prompt_palette_api.js";
 import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary, onPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
 import { compilePromptRule, promptRuleAt, choiceLiteral } from "./prompt_rules.js";
@@ -35,6 +36,7 @@ export function canBuildPromptRules(editor) {
 export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
   activePanel?.close();
   if (!editor?.isConnected) return;
+  if (tab === "loras") { openLoraSidecar(editor, { range }); return; }
   const context = readContext(editor), canResolve = context.canResolve !== false;
   const canBuild = canBuildPromptRules(editor);
   if (!canBuild) tab = "inspect";
@@ -64,7 +66,8 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
   const tabs = make("div", "pp-tool-tabs"); tabs.setAttribute("role", "tablist");
   const rulesTab = button("Choices & rules", () => switchTab("rules")); rulesTab.setAttribute("role", "tab"); rulesTab.hidden = !canBuild;
   const inspectTab = button("Inspector", () => switchTab("inspect")); inspectTab.setAttribute("role", "tab");
-  tabs.append(rulesTab, inspectTab);
+  const lorasTab = button("LoRAs", () => { close(); openLoraSidecar(editor, { range }); }); lorasTab.className = "wg-button"; lorasTab.title = "Browse LoRAs beside the editor"; lorasTab.hidden = !canBuild;
+  tabs.append(rulesTab, inspectTab); header.insertBefore(lorasTab, header.lastChild);
   const body = make("div", "pp-tool-body"), rules = make("section", "pp-rule-builder"), inspector = make("section", "pp-prompt-inspector");
   rules.setAttribute("role", "tabpanel"); inspector.setAttribute("role", "tabpanel");
   const id = `pp-prompt-tools-${++panelSequence}`;
@@ -191,6 +194,10 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
     const weights = section("Explicit numeric weights", result.weight_note || "Authored weights, not measured attention.");
     if (!result.weights?.length) weights.append(make("p", "pp-tool-empty", "No explicit numeric phrase weights."));
     else for (const item of result.weights) { const row = make("div", "pp-inspect-row"); row.append(make("span", "pp-inspect-term", item.text), make("strong", "pp-weight-value", `×${Number(item.weight).toLocaleString(undefined, { maximumFractionDigits: 4 })}`)); weights.append(row); }
+    if (result.loras?.length) {
+      const loraSection = section("Resolved LoRA tags", "Availability only. Auto/Bypass applies these to connected inputs during execution. A tag in the negative prompt still patches the shared model/CLIP.");
+      for (const item of result.loras) { const row = make("div", "pp-inspect-row"); row.append(make("code", "", `${item.name} · model ${item.model_strength} / CLIP ${item.clip_strength}`), make("span", "", item.status)); loraSection.append(row); }
+    }
     const embeddings = section("Textual inversion embeddings", "File availability only. Learned vectors are not hidden sentences; encoder compatibility is unverified here.");
     if (!result.embeddings?.length) embeddings.append(make("p", "pp-tool-empty", "No embedding references."));
     else for (const item of result.embeddings) { const row = make("div", "pp-inspect-row"); row.dataset.embeddingStatus = item.status; row.append(make("code", "", item.name), make("span", "pp-embedding-status", item.status === "found" ? "File found" : item.status === "missing" ? "Missing file" : "Availability unknown")); embeddings.append(row); }
@@ -226,7 +233,8 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
   }
   tabs.addEventListener("keydown", event => {
     if (!canBuild || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault(); const next = event.key === "Home" ? "rules" : event.key === "End" ? "inspect" : tab === "rules" ? "inspect" : "rules";
+    event.preventDefault();
+    const next = event.key === "Home" ? "rules" : event.key === "End" ? "inspect" : tab === "rules" ? "inspect" : "rules";
     switchTab(next); (next === "rules" ? rulesTab : inspectTab).focus();
   });
   panel.addEventListener("cancel", event => { event.preventDefault(); close(); });

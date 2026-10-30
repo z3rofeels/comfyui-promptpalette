@@ -30,7 +30,14 @@ export function createStatusBar(root) {
 
   function fit() {
     frame = 0;
-    if (disposed || !row.isConnected || row.clientWidth <= 0) return;
+    if (disposed || !row.isConnected) return;
+    const doctorChip = row.querySelector('[data-el="doctorChip"]');
+    const hasDoctor = !!(doctorChip && !doctorChip.hidden);
+    const hasLegend = items.length > 0;
+    const hasMetrics = Array.from(row.querySelectorAll(".wg-status-metrics .wg-hint")).some(el => el.textContent.trim().length > 0);
+    const isEmpty = !hasLegend && !hasDoctor && !hasMetrics;
+    if (row.dataset.empty !== String(isEmpty)) row.dataset.empty = String(isEmpty);
+    if (isEmpty || row.clientWidth <= 0) return;
     const missing = hint.textContent.match(/([\d,]+) missing/);
     const short = missing && Number(missing[1].replace(/,/g, "")) ? `${missing[1]} missing` : hint.textContent;
     if (hint.dataset.shortLabel !== short) hint.dataset.shortLabel = short;

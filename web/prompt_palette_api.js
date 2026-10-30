@@ -63,6 +63,37 @@ function publishLibraryChange(result) {
   return result;
 }
 
+const metadataEventsKey = Symbol.for("comfyui.prompt-palette.metadata-events.v1");
+const metadataEvents = globalThis[metadataEventsKey] ||= new EventTarget();
+const metadataChannelKey = Symbol.for("comfyui.prompt-palette.metadata-channel.v1");
+
+function getMetadataChannel() {
+  if (typeof globalThis.BroadcastChannel !== "function" || !globalThis.location?.href) return null;
+  try {
+    const endpoint = new URL(promptPaletteUrl("/prompt_palette/list"), globalThis.location.href).href;
+    const shared = globalThis[metadataChannelKey];
+    if (shared?.endpoint === endpoint) return shared.channel;
+    shared?.channel.close();
+    const channel = new BroadcastChannel(`comfyui.prompt-palette.metadata:${endpoint}`);
+    channel.addEventListener("message", event => {
+      if (event.data?.type !== "metadata-changed" || event.data.version !== 1) return;
+      metadataEvents.dispatchEvent(new CustomEvent("change", { detail: { ...event.data, remote: true } }));
+    });
+    globalThis[metadataChannelKey] = { endpoint, channel };
+    return channel;
+  } catch {
+    return null;
+  }
+}
+
+function publishMetadataChange(detail = {}) {
+  const payload = { type: "metadata-changed", version: 1, timestamp: Date.now(), ...detail };
+  metadataEvents.dispatchEvent(new CustomEvent("change", { detail: payload }));
+  try { getMetadataChannel()?.postMessage(payload); }
+  catch { /* A channel failure must not turn a successful write into an error. */ }
+  return payload;
+}
+
 function promptPaletteUrl(path) {
   return typeof api.apiURL === "function" ? api.apiURL(path) : path;
 }
@@ -79,6 +110,45 @@ let booruTagsAbort = null;
 let animaTagsAbort = null;
 
 const API = {
+  async loras({ signal } = {}) {
+    return readApiJson(await api.fetchApi("/prompt_palette/loras?refresh=1", { signal }));
+  },
+  loraPreviewUrl(name, { source = "auto", index = 0, poster = false } = {}) {
+    return promptPaletteUrl(`/prompt_palette/lora_preview?name=${encodeURIComponent(name)}&source=${source}&index=${index}${poster ? "&poster=1" : ""}`);
+  },
+  async loraPreviewProbe(name, { signal } = {}) {
+    const response = await api.fetchApi(`/prompt_palette/lora_preview?name=${encodeURIComponent(name)}`, { method: "HEAD", signal });
+    if (response.status === 404) return { has_preview: false };
+    if (!response.ok) throw new Error(`Preview request failed (${response.status}). Restart ComfyUI after updating.`);
+    return { has_preview: true, preview_type: response.headers.get("Content-Type")?.startsWith("video/") ? "video" : "image",
+      custom_preview: response.headers.get("X-PP-Preview-Source") === "custom",
+      preview_options: (response.headers.get("X-PP-Preview-Types") || "").split(",").filter(type => type === "image" || type === "video").map((type, index) => ({ type, index })) };
+  },
+  async loraPreviewBlob(name, { signal } = {}) {
+    // fetchApi carries the active comfy-user header; <img src> cannot do so.
+    const response = await api.fetchApi(`/prompt_palette/lora_preview?name=${encodeURIComponent(name)}&source=custom`, { signal });
+    if (!response.ok) throw new Error(`Custom thumbnail request failed (${response.status})`);
+    return response.blob();
+  },
+  async setLoraThumbnail(name, file) {
+    const form = new FormData();
+    form.append("name", name); form.append("file", file);
+    return readApiJson(await api.fetchApi("/prompt_palette/lora_thumbnail", { method: "POST", body: form }));
+  },
+  async removeLoraThumbnail(name) {
+    return readApiJson(await api.fetchApi("/prompt_palette/remove_lora_thumbnail", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
+    }));
+  },
+  async loraInfo(name, { signal } = {}) {
+    return readApiJson(await api.fetchApi(`/prompt_palette/lora_info?name=${encodeURIComponent(name)}`, { signal }));
+  },
+  async loraBatchInfo(names, { signal } = {}) {
+    return readApiJson(await api.fetchApi("/prompt_palette/lora_batch_info", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ names }), signal,
+    }));
+  },
+
   previewRevision() { return globalThis[previewRevisionKey]; },
   async completionPreviews(items) {
     return readApiJson(await api.fetchApi("/prompt_palette/completion_previews", {
@@ -212,20 +282,25 @@ const API = {
       body: JSON.stringify({ name }),
     }));
   },
-  async resolve(text, seed, mode, { signal, positiveAntonyms = false, resolve = true, workspaceRuntime = "" } = {}) {
+  async resolve(text, seed, mode, { signal, positiveAntonyms = false, resolve = true, workspaceRuntime = "", varsIn = "" } = {}) {
     if (resolve && workspaceRuntime) {
       const runtime = typeof workspaceRuntime === "string" ? JSON.parse(workspaceRuntime) : workspaceRuntime;
       if (runtime.positive === text) {
         const [item] = await API.resolveWorkspace(runtime, seed, mode, 1, { signal });
-        return API.resolve(item.positive, seed, mode, { signal, positiveAntonyms, resolve: false });
+        return API.resolve(item.positive, seed, mode, { signal, positiveAntonyms, resolve: false, varsIn });
       }
     }
     const data = await readApiJson(await api.fetchApi("/prompt_palette/resolve", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, seed, mode, positive_antonyms: positiveAntonyms, resolve }),
+      body: JSON.stringify({ text, seed, mode, positive_antonyms: positiveAntonyms, resolve, vars_in: varsIn }),
       ...(signal ? { signal } : {}),
     }));
-    return { resolved: data.resolved || "", tokenStats: data.token_stats || null };
+    return {
+      resolved: data.resolved || "",
+      tokenStats: data.token_stats || null,
+      variables: data.variables || {},
+      branchSelections: Array.isArray(data.branch_selections) ? data.branch_selections : [],
+    };
   },
   async inspect(text, seed, mode, { signal, resolve = true } = {}) {
     return await readApiJson(await api.fetchApi("/prompt_palette/inspect", {
@@ -257,16 +332,43 @@ const API = {
     return await readApiJson(await api.fetchApi("/prompt_palette/library_health", signal ? { signal } : undefined));
   },
   async libraryAction(action, source = "", target = "") {
-    return publishLibraryChange(await fetchApiResult("/prompt_palette/library_action", {
+    const res = await fetchApiResult("/prompt_palette/library_action", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, source, target }),
-    }));
+    });
+    if (res.ok && action === "rename") {
+      publishMetadataChange({ namespace: "all", action: "relink", source, target });
+    }
+    return publishLibraryChange(res);
   },
   async libraryBatch(action, sources = [], destination = "") {
-    return publishLibraryChange(await fetchApiResult("/prompt_palette/library_batch", {
+    const res = await fetchApiResult("/prompt_palette/library_batch", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, sources, destination }),
-    }));
+    });
+    if (res.ok && action !== "copy_to_folder") {
+      publishMetadataChange({ namespace: "all", action: "relink", sources, destination });
+    }
+    return publishLibraryChange(res);
+  },
+  publishMetadataChange(detail = {}) {
+    return publishMetadataChange(detail);
+  },
+  onMetadataChange(fn) {
+    const handler = event => fn(event.detail);
+    metadataEvents.addEventListener("change", handler);
+    getMetadataChannel();
+    return () => metadataEvents.removeEventListener("change", handler);
+  },
+  async relinkMetadata(source, target) {
+    const result = await fetchApiResult("/zf-prompt-palette/api/v1/library/relink", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source, target }),
+    });
+    if (result.ok) {
+      publishMetadataChange({ namespace: "all", action: "relink", source, target });
+    }
+    return result;
   },
   async refreshWildcards() {
     return publishLibraryChange(await readApiJson(await api.fetchApi("/prompt_palette/refresh", { method: "POST" })));

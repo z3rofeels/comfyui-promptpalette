@@ -287,7 +287,8 @@ export function createRefinementController({ node, root, textarea, render, atomi
       source: getBatchSource ? getBatchSource() : session.source, prompts: mapBatchPrompt ? prompts.map(mapBatchPrompt) : prompts };
     if (disposed) return;
     checkVariation();
-    const target = sendPreparedPrompts({ node, ...prepared, seed: getSeed(), session });
+    const target = sendPreparedPrompts({ node, ...prepared, seed: getSeed(), session: { ...session, ...prepared.session,
+      wildcards: [...new Set([...(session.wildcards || []), ...(prepared.session?.wildcards || [])])] } });
     target.properties ||= {}; if (!fieldOnly) target.properties[PERSIST_KEY] = { session, alternatives };
     message(`${prompts.length} exact versions sent to a new Combinatorial node. Connect its Prompt list or conditioning output; nothing was queued.`);
   }

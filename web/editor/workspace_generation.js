@@ -18,7 +18,12 @@ export function syncWorkspaceGeneration(node, recipe) {
   const widget = node.widgets?.find(w => w.name === 'workspace_runtime');
   if (!widget) return;
   widget.__ppOwnerNode = node; hideNativeWidget(widget);
-  const value = recipe ? JSON.stringify(workspaceGeneration(recipe, { namespace: node.id })) : '';
+  let saved = null;
+  try { saved = JSON.parse(widget.serializeValue?.() || widget.value || 'null'); } catch {}
+  const relationships = node.properties?.promptPaletteRelationships ?? saved?.relationships;
+  const payload = recipe ? workspaceGeneration(recipe, { namespace: node.id }) : relationships ? { schema:'prompt-palette.workspace-generation.v1', namespace:String(node.id), positive:String(node.widgets?.find(w => w.name === 'text')?.value || ''), negative:String(node.widgets?.find(w => w.name === 'negative_text')?.value || ''), fields:[] } : null;
+  if (payload && relationships) payload.relationships = relationships;
+  const value = payload ? JSON.stringify(payload) : '';
   // Native renderer defaults cannot erase this derived execution projection.
   const projection = widget.__ppWorkspaceRuntimeProjection ||= { value: '' };
   projection.value = value;

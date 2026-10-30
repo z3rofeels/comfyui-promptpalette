@@ -1,3 +1,5 @@
+import { textColorForLora } from "./lora_colors.js";
+import { loraAt, buildLoraExpression } from "../engine/lora_tags.js";
 import { getSharedWildcardEngine } from "../engine/wildcard_engine.js";
 import { isComfyQueueShortcut } from "../editor_shortcuts.js";
 import { hydrateAcThumbnails } from "./autocomplete_previews.js";
@@ -23,7 +25,7 @@ import {
 function findWildcardFragment(text, caret) {
   const theme = loadTheme();
   const booruMinChars = Math.max(1, Math.min(12, Math.round(Number(theme.booruAutocompleteMinChars) || 2)));
-  return getSharedWildcardEngine().autocompleteContext(text, caret, { booruMinChars });
+  return getSharedWildcardEngine().autocompleteContext(text, caret, { booruMinChars, loraAutocomplete: theme.loraAutocomplete === true });
 }
 
 const AC_MIRROR_PROPS = [
@@ -164,22 +166,34 @@ function ensureAcMenu() {
     const state = acState, raw = row && state?.items[Number(row.dataset.acIndex)];
     if (!raw) return;
     const item = normalizeAcItem(raw);
-    if (item.insertMode !== "library" || ["booru", "custom", "syntax"].includes(item.kind)) return;
     event.preventDefault(); event.stopPropagation();
     cleanupAcPreviews.dismiss?.();
-    const request = ++acContextVersion, owner = state.textarea;
+    const request = ++acContextVersion, owner = state.textarea, source = owner.value;
     try {
-      // Lazy import avoids a context-menu/autocomplete initialization cycle.
-      const [{ openCtxMenu }, thumbnails] = await Promise.all([import("./context_menu.js"), API.categories()]);
+      const { openCtxMenu } = await import("./context_menu.js");
       if (acState !== state || request !== acContextVersion || !row.isConnected || !owner.isConnected) return;
-      const actions = libraryThumbnailActions(item.value, { hasThumbnail: !!thumbnails[item.value],
-        editable: Object.hasOwn(thumbnails, item.value), isActive: () => owner.isConnected });
+      const actions = [
+        { label: "Insert suggestion", icon: "plus", group: "insert", onSelect: () => {
+          if (!owner.isConnected || owner.value !== source) { notify("info", "Prompt changed", "Open suggestions again to insert this item."); return; }
+          commitAcSelection(Number(row.dataset.acIndex), state);
+        } },
+        { label: "Copy " + (item.insertMode === "library" ? "wildcard reference" : "suggestion text"), icon: "copy", group: "clipboard", onSelect: () => navigator.clipboard.writeText(item.insertText ?? (item.insertMode === "library" ? `__${item.value}__` : item.value)) },
+      ];
+      if (item.insertMode === "library" && !["booru", "custom", "syntax", "lora"].includes(item.kind)) {
+        const thumbnails = await API.categories().catch(() => null);
+        if (thumbnails) actions.push(...libraryThumbnailActions(item.value, { hasThumbnail: !!thumbnails[item.value], editable: Object.hasOwn(thumbnails, item.value), isActive: () => owner.isConnected }));
+      }
+      if (acState !== state || request !== acContextVersion || !owner.isConnected) return;
+      const scope = owner.closest(".wg-root, .wg-node, .pp-node, .ppwc-surface");
       closeAcMenu();
-      openCtxMenu(event.clientX, event.clientY, actions);
+      openCtxMenu(event.clientX, event.clientY, actions, { scope });
     } catch (error) {
-      if (acState === state) notify("error", "Thumbnail actions unavailable", error?.message || String(error));
+      if (owner.isConnected) notify("error", "Suggestion actions unavailable", error?.message || String(error));
     }
   });
+  acMenu.addEventListener("wheel", event => {
+    event.stopPropagation();
+  }, { passive: true });
   unsubscribeAcLibrary = API.onLibraryChanged(() => { if (acState) renderAcMenu(); });
   document.addEventListener("mousedown", handleAcDocumentMouseDown);
   document.addEventListener("contextmenu", handleAcDocumentMouseDown);
@@ -295,6 +309,10 @@ function expandAutocompleteReplacementRange(text, fragment, caret) {
   const isBooruChar = (char) => /[A-Za-z0-9_+():'\/\-]/.test(char || "");
   const isWildcardNameChar = (char) => /[A-Za-z0-9_\-/]/.test(char || "");
 
+  if (fragment.kind === "lora") {
+    const existing = loraAt(source, fragment.start);
+    return existing ? { ...fragment, end: existing.end } : fragment;
+  }
   if (fragment.kind === "booru") {
     while (end < source.length && isBooruChar(source[end])) end += 1;
     return { ...fragment, end };
@@ -432,7 +450,20 @@ function acItemKey(item) {
 //  - after "__": library/wildcard rows stay first and matching tags follow;
 //  - starred tags/custom words are flagged (and surfaced even when the lookup missed them);
 //  - Recents are capped.
+let loraCatalogCache = null, loraCatalogAt = 0;
+async function loraMatches(query) {
+  if (!loraCatalogCache || Date.now() - loraCatalogAt > 15000) {
+    loraCatalogAt = Date.now();
+    loraCatalogCache = API.loras().then(result => result.names || []).catch(error => { loraCatalogCache = null; throw error; });
+  }
+  const names = await loraCatalogCache;
+  return names.filter(name => name.toLocaleLowerCase().includes(query.toLocaleLowerCase())).slice(0, 80).flatMap(name => {
+    try { return [{ kind: "lora", group: "Local LoRAs", value: name, label: name, insertMode: "plain", insertText: buildLoraExpression({ names: [name] }) }]; }
+    catch { return []; }
+  });
+}
 async function resolveAcItems(getMatches, query, kind) {
+  if (kind === "lora") return withLookupTimeout(loraMatches(query));
   const scoped = kind === "booru" && tagSearch(query).anima;
   const items = await withLookupTimeout(Promise.resolve(scoped ? getBooruAutocompleteMatches(query) : getMatches(query, kind)));
   return decorateAcItems(Array.isArray(items) ? items : [], query, kind);
@@ -699,17 +730,49 @@ async function saveAcCustomWord() {
   state.textarea?.focus();
 }
 
-function appendAcFooter(menu) {
-  if (acState?.kind !== "booru") return;
+function createAcImagesToggle(theme = loadTheme()) {
+  const imagesToggle = document.createElement("button");
+  const active = theme.autocompletePreviews !== false;
+  imagesToggle.type = "button";
+  imagesToggle.className = "wg-ac-images wg-ac-option" + (active ? " active" : "");
+  imagesToggle.textContent = "Images";
+  imagesToggle.setAttribute("aria-pressed", String(active));
+  imagesToggle.title = "Show attached thumbnails and a hover preview; entries without images stay as text.";
+  imagesToggle.addEventListener("mousedown", event => { event.preventDefault(); event.stopPropagation(); });
+  imagesToggle.addEventListener("click", () => {
+    const latest = loadTheme();
+    latest.autocompletePreviews = latest.autocompletePreviews === false;
+    saveTheme(latest);
+    renderAcMenu();
+  });
+  return imagesToggle;
+}
+
+function appendAcFooter(menu, theme = loadTheme()) {
   const footer = document.createElement("div");
   footer.className = "wg-ac-footer";
+  if (acState?.kind !== "booru") {
+    footer.classList.add("wg-ac-footer-compact");
+    const hint = document.createElement("span");
+    hint.className = "wg-ac-footer-hint";
+    hint.textContent = acState?.kind === "syntax" ? "Tab/Enter to insert" : "Tab/Enter to insert · Right-click for actions";
+    const options = document.createElement("span");
+    options.className = "wg-ac-insert-options";
+    options.appendChild(createAcImagesToggle(theme));
+    footer.append(hint, options);
+    menu.appendChild(footer);
+    return;
+  }
   if (tagSearch(acState.query).anima) {
     const hint = document.createElement("span"); hint.className = "wg-ac-footer-hint";
     hint.textContent = "Local Anima snapshot · checkpoint support unverified";
+    const options = document.createElement("span");
+    options.className = "wg-ac-insert-options";
     const comma = document.createElement("button"); comma.type = "button";
     comma.className = "wg-ac-option" + (booruInsertOptions.appendComma ? " active" : "");
     comma.dataset.acInsertOption = "comma"; comma.textContent = ", "; comma.title = "Append a comma and space after the artist";
-    footer.append(hint, comma); menu.append(footer); return;
+    options.append(createAcImagesToggle(theme), comma);
+    footer.append(hint, options); menu.append(footer); return;
   }
 
   if (!acAddDraft) {
@@ -731,7 +794,7 @@ function appendAcFooter(menu) {
     commaToggle.dataset.acInsertOption = "comma";
     commaToggle.title = "Append a comma and space after the inserted tag";
     commaToggle.textContent = ", ";
-    options.append(spacesToggle, commaToggle);
+    options.append(createAcImagesToggle(theme), spacesToggle, commaToggle);
 
     const add = document.createElement("button");
     add.type = "button";
@@ -857,6 +920,7 @@ function renderAcMenu() {
   const theme = loadTheme();
   const scope = acState?.textarea?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface");
   if (scope) copyPromptPaletteThemeScope(scope, menu);
+  menu.classList.toggle("wg-high-contrast", !!scope?.classList?.contains("wg-high-contrast"));
   menu.dataset.acTone = panelToneFor(menu);
   applyBooruMenuColors(menu);
   const panelHex = cssColorToHex(getComputedStyle(menu).backgroundColor, currentUiSurface());
@@ -866,19 +930,14 @@ function renderAcMenu() {
   const fieldSelection = activeField
     ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
   menu.innerHTML = "";
-  const imagesToggle = document.createElement("button");
-  imagesToggle.type = "button"; imagesToggle.className = "wg-ac-images";
-  imagesToggle.textContent = "Images";
-  imagesToggle.setAttribute("aria-pressed", String(theme.autocompletePreviews !== false));
-  imagesToggle.title = "Show attached thumbnails and a hover preview; entries without images stay as text.";
-  imagesToggle.addEventListener("mousedown", event => { event.preventDefault(); event.stopPropagation(); });
-  imagesToggle.addEventListener("click", () => { const latest = loadTheme(); latest.autocompletePreviews = latest.autocompletePreviews === false; saveTheme(latest); renderAcMenu(); });
-  menu.append(imagesToggle);
+  const list = document.createElement("div");
+  list.className = "wg-ac-list";
+  menu.appendChild(list);
   const search = acState.kind === "booru" ? tagSearch(acState.query) : null;
   if (search?.category) {
     const heading = document.createElement("div"); heading.className = "wg-ac-head";
     heading.textContent = search.anima ? `Anima artists · ${search.query || "local snapshot"}` : `${BOORU_CATEGORY_TITLES[search.category]} tags · ${search.query}`;
-    menu.appendChild(heading);
+    list.appendChild(heading);
   }
 
   // Section order follows what was typed: "__" lists the library/wildcards first and tags after;
@@ -937,7 +996,7 @@ function renderAcMenu() {
     const empty = document.createElement("div");
     empty.className = "wg-ac-empty";
     empty.textContent = acState.kind === "syntax" ? "No syntax matches" : "No matches — keep typing or open Library";
-    menu.appendChild(empty);
+    list.appendChild(empty);
   } else {
     // Every source gets an explicit section label, even when it is the only source.
     // This keeps Tags / Recent / Library / Syntax visually distinct instead of making
@@ -991,12 +1050,12 @@ function renderAcMenu() {
         clear.textContent = "Clear";
         heading.appendChild(clear);
       }
-      menu.appendChild(heading);
+      list.appendChild(heading);
       if (collapsed) continue;
 
       for (const { item, index } of entries) {
         const row = document.createElement("div");
-        const inPrompt = item.kind === "syntax" ? false
+        const inPrompt = item.kind === "syntax" || item.kind === "lora" ? false
           : (item.kind === "booru" || item.kind === "custom")
             ? (promptContainsTag(promptText, item.insertText == null ? item.value : item.insertText)
               || promptContainsTag(promptText, formatArtistInsertion(item, item.insertText == null ? item.value : item.insertText, loadTheme().animaArtistFormatting === true)))
@@ -1021,6 +1080,11 @@ function renderAcMenu() {
             row.dataset.acBooru = "custom";
             row.title = "Custom word";
           }
+        } else if (item.kind === "lora") {
+          row.title = `${item.value} · local LoRA`;
+          const color = textColorForLora(item.value, theme);
+          row.style.setProperty("--pp-ac-bar", color);
+          row.style.color = color;
         } else if (item.kind === "syntax") {
           row.title = item.meta || "Inline syntax";
           row.dataset.syntaxTone = item.syntaxTone || "choice";
@@ -1092,7 +1156,7 @@ function renderAcMenu() {
 
         row.append(textWrap, metrics);
         previewRows.push({ row, item, index });
-        menu.appendChild(row);
+        list.appendChild(row);
         if (index === acState.activeIndex) {
           requestAnimationFrame(() => row.scrollIntoView({ block: "nearest" }));
         }
@@ -1100,7 +1164,7 @@ function renderAcMenu() {
     }
   }
 
-  appendAcFooter(menu);
+  appendAcFooter(menu, theme);
   if (acAddDraft) menu.dataset.acAdding = "true"; else delete menu.dataset.acAdding;
 
   positionAcMenu(menu);
@@ -1135,8 +1199,13 @@ function positionAcMenu(menu) {
   const roomBelow = vh - belowTop - margin;
   const roomAbove = coords.top - 4 - margin;
   menu.style.maxHeight = "";
-  menu.style.display = "block";
-  const wanted = Math.min(menu.scrollHeight, AC_MAX_HEIGHT);
+  menu.style.display = "flex";
+  const listEl = menu.querySelector(".wg-ac-list");
+  const footEl = menu.querySelector(".wg-ac-footer");
+  const naturalHeight = listEl
+    ? listEl.scrollHeight + (footEl ? footEl.offsetHeight : 0) + 4
+    : menu.scrollHeight;
+  const wanted = Math.min(naturalHeight, AC_MAX_HEIGHT);
   const placeBelow = roomBelow >= Math.min(wanted, 280) || roomBelow >= roomAbove;
   const room = Math.max(48, placeBelow ? roomBelow : roomAbove);
   menu.style.maxHeight = Math.max(1, Math.min(AC_MAX_HEIGHT, room, vh - 2 * margin)) + "px";
@@ -1144,7 +1213,6 @@ function positionAcMenu(menu) {
   const width = menu.offsetWidth;
   menu.style.left = Math.max(margin, Math.min(coords.left, vw - width - margin)) + "px";
   menu.style.top = Math.max(margin, Math.min(placeBelow ? belowTop : coords.top - 4 - height, vh - height - margin)) + "px";
-
 }
 
 const AC_LOOKUP_TIMEOUT_MS = 4000;
@@ -1188,9 +1256,9 @@ function openOrUpdateAcMenuAt(textarea, caret, getMatches, onCommit) {
   return openOrUpdateAcMenu(textarea, { kind: "syntax", query: "", modifier: "", start: caret, end: caret }, getMatches, onCommit, { force: true });
 }
 
-function commitAcSelection(index) {
-  if (!acState) return;
-  const { textarea, start, end, items, onCommit } = acState;
+function commitAcSelection(index, state = acState) {
+  if (!state) return;
+  const { textarea, start, end, items, onCommit } = state;
   const rawItem = items[index];
   if (rawItem == null) return closeAcMenu();
   const item = normalizeAcItem(rawItem);
@@ -1201,11 +1269,15 @@ function commitAcSelection(index) {
   // insertText (aliases do); other plain syntax snippets remain verbatim.
   const isPlainTag = item.insertMode === "plain" || item.kind === "booru" || item.kind === "custom";
   const isTagRow = item.kind === "booru" || item.kind === "custom";
-  const replacement = isPlainTag
+  let replacement = isPlainTag
     ? (isTagRow ? insertBooruValue(item.insertText == null ? item.value : item.insertText, item) : formatArtistInsertion(item, item.insertText == null ? item.value : item.insertText, loadTheme().animaArtistFormatting === true))
     : (item.insertText == null
-      ? `__${acState.kind === "wildcard" ? (acState.modifier || "") : ""}${item.value}__`
+      ? `__${state.kind === "wildcard" ? (state.modifier || "") : ""}${item.value}__`
       : item.insertText);
+  if (item.kind === "lora") {
+    const existing = loraAt(textarea.value, start);
+    if (existing) replacement = buildLoraExpression({ names: [item.value], model: existing.model, clip: existing.clip, linked: false });
+  }
   if (!isPlainTag && item.insertText == null && textarea.__ppRecipeInsert) {
     const source = textarea.value;
     if (textarea.__ppRecipeInsert(item.value, { source, start, end, fallback: replacement, committed: () => onCommit?.(item) })) {
@@ -1252,6 +1324,7 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
     if (textarea.selectionEnd > textarea.selectionStart) { closeAcMenu(); return; }
     const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
     if (!fragment) { closeAcMenu(); return; }
+    if (fragment.kind === "lora") { openOrUpdateAcMenu(textarea, fragment, loraMatches, onCommit); return; }
     if (fragment.kind === "syntax") {
       // The syntax menu is opt-in by action: it appears when "{" is typed or on demand (Ctrl+Space),
       // never because the caret merely landed next to an existing brace.
@@ -1309,7 +1382,7 @@ function attachAutocomplete(textarea, { getMatches, onCommit, onInput, onRecents
     if (event.shiftKey || textarea.selectionEnd > textarea.selectionStart) closeAcMenu();
     if (event.ctrlKey && !event.altKey && !event.metaKey && event.code === "Space") {
       const fragment = findWildcardFragment(textarea.value, textarea.selectionStart);
-      if (fragment?.kind === "wildcard") {
+      if (fragment?.kind === "wildcard" || fragment?.kind === "lora") {
         event.preventDefault();
         event.stopPropagation();
         openForCurrentCaret({ onDemand: true });

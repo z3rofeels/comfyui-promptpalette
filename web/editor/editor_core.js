@@ -1,3 +1,4 @@
+import { installLoraSidecar } from "./lora_sidecar.js";
 import { sidebarEditingHandlers } from "./sidebar_targets.js";
 import { createRecipeWorkspaceController } from "./recipe_workspace_controller.js";
 import { setToolbarLabel, installToolbarLayout } from "./toolbar.js";
@@ -12,7 +13,7 @@ import { API } from "../prompt_palette_api.js";
 import { createPromptUsageStore, createPromptHistoryStore, closestPromptEntries } from "../prompt_quickness.js";
 import { installPromptPaletteKeyboardBoundary } from "../prompt_palette_shared.js";
 import {
-  hideNativeWidget, installPromptStateGuard, nodeIsActive, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
+  hideNativeWidget, installPromptStateGuard, nodeIsActive, bindPromptQueueSync, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
   ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, setupIoRail, installSocketRailLayout,
 } from "../prompt_palette_compat.js";
 import { dialogConfirm, isDialogOpen, cleanupDialogOverlays } from "./dialogs.js";
@@ -43,6 +44,9 @@ import { createSyntaxHighlighter } from "./syntax_highlighter.js";
 import { createTagPainter, onTagColorsChanged } from "./booru_tag_colors.js";
 import { historyShortcut } from "./history_keys.js";
 import { createStatusBar, wildcardStatusText } from "./status_bar.js";
+import { installPromptSlots } from "./prompt_slots.js";
+import { attachEditorFindReplace } from "./editor_find_replace.js";
+import { installSeedController } from "./seed_controller.js";
 
 function buildWildcardWidget(node, hiddenWidget) {
   const promptState = installPromptStateGuard(node, hiddenWidget);
@@ -227,7 +231,8 @@ function buildWildcardWidget(node, hiddenWidget) {
     decrement: "Decrement \u2014 \u22121 each run",
     randomize: "Randomize \u2014 new seed each run",
   };
-  function syncSeedControlsFromWidgets() {
+  let seedController = null;
+  function syncSeedControlsFromWidgets(options) {
     if (seedWidget) {
       seedInput.value = seedWidget.value;
       seedInput.removeAttribute("aria-invalid");
@@ -243,39 +248,45 @@ function buildWildcardWidget(node, hiddenWidget) {
       seedModeSelect.style.display = "none";
     }
     if (modeWidget) processingModeSelect.value = modeWidget.value;
+    seedController?.sync(options);
   }
   const cleanupSeedInput = bindPromptSeedInput(seedInput, seedWidget, value => {
     seedWidget.value = value;
     if (typeof seedWidget.callback === "function") seedWidget.callback(seedWidget.value, node.graph?.canvas, node);
     node.graph?.setDirtyCanvas(true, true);
     reactiveRuntime.invalidate("seed", { value: seedWidget.value });
+    seedController?.sync();
   });
   if (!seedWidget) {
-    el("seedbar").querySelectorAll("input,button,select").forEach(x => x.disabled = true);
+    el("seedbar")?.querySelectorAll("input,button,select").forEach(x => x.disabled = true);
   }
-  if (controlWidget) {
+  if (controlWidget && seedModeSelect) {
     seedModeSelect.addEventListener("change", () => {
       controlWidget.value = seedModeSelect.value;
       if (typeof controlWidget.callback === "function") controlWidget.callback(controlWidget.value, node.graph?.canvas, node);
       node.graph?.setDirtyCanvas(true, true);
+      seedController?.sync();
     });
   }
-  root.querySelector('[data-act="seedRandomizeNow"]').addEventListener("click", () => {
-    if (!seedWidget) return;
-    const maxSeed = Number.MAX_SAFE_INTEGER;
-    const randomSeed = Math.floor(Math.random() * maxSeed);
-    seedWidget.value = randomSeed;
-    seedInput.value = randomSeed;
-    seedInput.removeAttribute("aria-invalid");
-    if (typeof seedWidget.callback === "function") seedWidget.callback(randomSeed, node.graph?.canvas, node);
-    node.graph?.setDirtyCanvas(true, true);
-    reactiveRuntime.invalidate("seed", { value: randomSeed });
-  });
+  try {
+    seedController = installSeedController({
+      root,
+      seedWidget,
+      controlWidget,
+      modeWidget,
+      node,
+      reactiveRuntime,
+      theme,
+      saveTheme,
+    });
+  } catch (seedErr) {
+    console.warn("Prompt Palette: installSeedController error:", seedErr);
+  }
   syncSeedControlsFromWidgets();
 
   const IO_INPUT_DEFS = [
     { key: "clip", type: "CLIP", label: "CLIP", desc: "Connect to turn this node into a live encoder \u2014 the resolved prompt and negative prompt get encoded into CONDITIONING via this CLIP instead of only being returned as text." },
-    { key: "model", type: "MODEL", label: "Model", desc: "Connect alongside CLIP to enable <lora:name:weight> tags, typed directly or hidden inside a wildcard file's entry. Any found are loaded, applied to the model/clip, and stripped out of the text before it's encoded. Without a MODEL connected, LoRA tags are left as literal text." },
+    { key: "model", type: "MODEL", label: "Model", desc: "Auto/Bypass applies resolved <lora:name:model[:clip]> tags to connected MODEL and/or CLIP. Text-only Auto preserves tags. External leaves tags for another loader; Strip removes tags without loading." },
     { key: "prompt_prefix", type: "STRING", label: "Prompt prefix", desc: "Prepend externally-supplied text (resolved for wildcards too) before this node's own prompt \u2014 e.g. a shared style-preset text node." },
     { key: "prompt_suffix", type: "STRING", label: "Prompt suffix", desc: "Append externally-supplied text (resolved for wildcards too) after this node's own prompt." },
     { key: "enhancer_override", type: "STRING", label: "LLM / enhancer override", desc: "If connected and non-empty, this completely replaces the resolved prompt output \u2014 wire in an LLM prompt-enhancer node here." },
@@ -283,9 +294,10 @@ function buildWildcardWidget(node, hiddenWidget) {
     { key: "negative_text", type: "STRING", label: "Negative prompt (text)", desc: "A second wildcard-aware text block, resolved independently and returned as its own negative_prompt output." },
     { key: "negative_prefix", type: "STRING", label: "Negative prefix", desc: "Prepend externally-supplied text (resolved for wildcards too) before the negative prompt \u2014 mirrors Prompt prefix but for the negative side." },
     { key: "negative_suffix", type: "STRING", label: "Negative suffix", desc: "Append externally-supplied text (resolved for wildcards too) after the negative prompt \u2014 mirrors Prompt suffix but for the negative side." },
+    { key: "vars_in", type: "STRING", label: "Variables in", default: false, desc: "Receive resolved ${variable} values from an upstream Prompt Palette node's Variables output (or key=value lines)." },
   ];
   const IO_OUTPUT_DEFS = [
-    { key: "model", slotIndex: 0, type: "MODEL", label: "Model (passthrough)", desc: "The connected Model, passed through — patched with any LoRAs pulled from <lora:...> tags this run if CLIP was also connected, otherwise unchanged. None if no Model is connected." },
+    { key: "model", slotIndex: 0, type: "MODEL", label: "Model (passthrough)", desc: "The connected Model, passed through — patched with any LoRAs pulled from <lora:...> tags this run in Auto/Bypass mode, otherwise unchanged. None if no Model is connected." },
     { key: "clip", slotIndex: 1, type: "CLIP", label: "CLIP (passthrough)", desc: "The connected CLIP, passed through — patched alongside Model above if LoRAs were applied, otherwise unchanged. None if no CLIP is connected." },
     { key: "conditioning", slotIndex: 2, type: "CONDITIONING", label: "Conditioning", desc: "The resolved prompt encoded via the connected CLIP. None unless a CLIP input is connected." },
     { key: "negative_conditioning", slotIndex: 3, type: "CONDITIONING", label: "Negative conditioning", desc: "The resolved negative prompt encoded via the connected CLIP. None unless a CLIP input is connected." },
@@ -299,6 +311,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     { key: "used_enhancer", slotIndex: 10, type: "BOOLEAN", label: "Used enhancer override", desc: "True if the enhancer override replaced the wildcard-resolved prompt." },
     { key: "clip_token_count", slotIndex: 11, type: "INT", label: "CLIP token count", default: true, desc: "Real CLIP-L token count of the prompt output. -1 if the tokenizer is unavailable or the connected text encoder is not CLIP-based." },
     { key: "prompt_metadata_json", slotIndex: 12, type: "STRING", label: "Prompt metadata (JSON)", default: false, desc: "Final and source prompts plus seed, wildcard, LoRA, and execution metadata for asset tools." },
+    { key: "variables", slotIndex: 13, type: "STRING", label: "Variables (JSON)", default: false, desc: "Resolved ${variable} assignments from this run as JSON — connect to another Prompt Palette node's Variables in socket." },
   ];
 
   node.properties = node.properties || {};
@@ -360,6 +373,26 @@ function buildWildcardWidget(node, hiddenWidget) {
     const value = String(name || "");
     return lookupWildcard(value).length > 0;
   }
+  let lastPreviewBranchSelections = [];
+  let lastPreviewBranchSource = "";
+  let findReplaceController = null;
+  let promptSlotsController = null;
+
+  function activeBranchSelections(sourceText = textarea.value) {
+    const meta = lastExecutionMetadata;
+    if (meta && typeof meta === "object") {
+      const metaSource = typeof meta.source_text === "string" ? meta.source_text : meta.source_prompt;
+      if (metaSource === sourceText) {
+        const execBranches = meta.extra?.branch_selections || meta.branch_selections;
+        if (Array.isArray(execBranches) && execBranches.length) return execBranches;
+      }
+    }
+    if (lastPreviewBranchSource === sourceText && Array.isArray(lastPreviewBranchSelections) && lastPreviewBranchSelections.length) {
+      return lastPreviewBranchSelections;
+    }
+    return null;
+  }
+
   function highlightText(text, parsedOverride = null) {
     const parsed = parsedOverride || profiler.measure("editor.parse", () => syntaxCache.parse(text));
     lastParsedPrompt = parsed;
@@ -369,6 +402,8 @@ function buildWildcardWidget(node, hiddenWidget) {
       buildCategoryColorMap,
       colorForToken,
       tagPainter: createTagPainter(theme),
+      branchSelections: activeBranchSelections(text),
+      extraDecorations: findReplaceController?.getDecorations?.() || null,
     }));
     tokenRanges = result.ranges;
     profiler.gauge("parserCacheLines", syntaxCache.stats().cachedLines);
@@ -636,6 +671,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     recipeWorkspace?.reconcile();
     recipeWorkspace?.contextChanged();
     refinementController?.sourceChanged();
+    findReplaceController?.refreshSource?.();
     noteValueChange();
     syncHiddenWidget();
     reactiveRuntime.invalidate("prompt", { source: textarea.value, asyncVisual });
@@ -761,9 +797,12 @@ function buildWildcardWidget(node, hiddenWidget) {
       const result = await profiler.measureAsync("preview.resolve", () => API.resolve(source, seed, mode, { signal: requestController.signal, positiveAntonyms, workspaceRuntime }));
       performanceRuntime.endRequest("preview", requestController);
       if (!stillCurrent()) return;
+      lastPreviewBranchSelections = Array.isArray(result.branchSelections) ? result.branchSelections : [];
+      lastPreviewBranchSource = source;
       renderResolvedText(result.resolved);
       setPreviewStatus();
       updateTokenBadge(result.tokenStats);
+      if (lastPreviewBranchSelections.length) renderVisualsFromParsed(lastParsedPrompt, textarea.value);
       if (powerTools.promptDoctor) scheduleDoctorCheck();
     } catch (e) {
       performanceRuntime.endRequest("preview", requestController);
@@ -785,6 +824,7 @@ function buildWildcardWidget(node, hiddenWidget) {
         force: true,
       });
     }
+    renderVisualsFromParsed(lastParsedPrompt, textarea.value);
     if (resolvedView.classList.contains("on")) scheduleResolvedPreview();
   };
 
@@ -842,7 +882,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     performanceRuntime, profiler, libraryModel, renderLibrary: renderLibraryOnly,
   });
   const { starterPackController, libraryButton, searchInput } = libraryController;
-  workspaceController?.setLibraryDensityChangeHandler?.(() => renderPickerList(searchInput.value));
+  workspaceController?.setLibraryDensityChangeHandler?.(() => libraryController.refreshDisplayGeometry());
 
   const utilityState = {};
   Object.defineProperties(utilityState, {
@@ -1057,21 +1097,56 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
   });
 
+  findReplaceController = attachEditorFindReplace({
+    root,
+    textarea,
+    applyEdit: (nextValue, start, end) => {
+      undoManager.note(historyValue());
+      undoManager.flush();
+      textarea.value = nextValue;
+      textarea.setSelectionRange(start, end);
+      render();
+      undoManager.note(historyValue());
+      undoManager.flush();
+    },
+    onStateChange: () => renderVisualsFromParsed(lastParsedPrompt, textarea.value),
+  });
+  node._ppFindReplace = findReplaceController;
+
+  promptSlotsController = installPromptSlots({
+    node,
+    root,
+    textarea,
+    getNegative: () => node.widgets?.find((w) => w.name === "negative_text")?.value || "",
+    setNegative: (val) => node._ppNegativePromptState?.commit?.(val || ""),
+    getWorkspace: () => recipeWorkspace?.snapshot?.() || null,
+    setWorkspace: (ws) => recipeWorkspace?.restore?.(ws, { commit: true }),
+    onSlotSwitched: (slotKey, _slot, { duplicated }) => {
+      undoManager.note(historyValue());
+      undoManager.flush();
+      render();
+      notify(
+        "info",
+        duplicated ? `Copied to Slot ${slotKey}` : `Switched to Slot ${slotKey}`,
+        duplicated ? `Duplicated current prompt into Slot ${slotKey}.` : `Active prompt slot: ${slotKey}`
+      );
+    },
+  });
+  node._ppPromptSlots = promptSlotsController;
+
   const cleanupEditorContext = attachEditorContextMenu(textarea, {
     render, beforeOpen: () => { hideTip(); closeInjectMenu(); },
     promptTools: { node, apply: (text, start, end) => { undoManager.flush(); textarea.value = text; textarea.setSelectionRange(start, end); render(); undoManager.flush(); } },
     syntaxEnabled: () => theme.syntaxInjectorEnabled !== false,
+    findAction: (opts) => findReplaceController.openFind(opts),
     selectionActions: ({ start, end }) => {
       const names = tokenRanges.filter(t => t.known && t.start >= start && t.end <= end).map(t => t.name);
       return names.length >= 2 ? [{ label: `Save ${names.length} library entries as Palette Recipe`, onSelect: () => promptSaveRecipe(names) }] : [];
     },
     tokenContext: (event, selection, handle) => {
       const tok = contextWildcardAtPoint(textarea, event, selection, tokenRanges);
-      if (!tok) return false;
-      if (!tok.known) { handle(); openMissingRepairAt(event.clientX, event.clientY, tok); return true; }
-      if (theme.syntaxInjectorEnabled === false) return false;
-      handle(); closeCtxMenu(); textarea.setSelectionRange(tok.start, tok.end);
-      openInjectMenuAtPoint(event.clientX, event.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
+      if (!tok || isKnown(tok.name)) return false;
+      handle(); openMissingRepairAt(event.clientX, event.clientY, tok);
       return true;
     },
     syntaxAction: (event, selection) => {
@@ -1079,6 +1154,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       openInjectMenuAtPoint(event.clientX, event.clientY, "", textarea, render, selection.start === selection.end ? null : selection);
     },
   });
+  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeAllPowerPopups(); closeSettings(); closeStash(); closePickerDrawer(); closeEditDrawer(); ioRail.close(); } });
 
   function replaceMissingToken(target, path) {
     const current = textarea.value.slice(target.start, target.end);
@@ -1136,11 +1212,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     let trigger = null;
     if (ctxMenuOpen) closeCtxMenu();
     else if (injectState && injectState.textarea === textarea) closeInjectMenu();
+    else if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
     else if (node._wgIoRailOpen) ioRail.close();
     else if (powerPopupEntries.some((popup) => popup.classList.contains("open"))) {
       const popup = powerPopupEntries.find((item) => item.classList.contains("open"));
       trigger = root.querySelector(`[aria-controls="${popup.id}"]`); closeAllPowerPopups();
     }
+    else if (node._ppLoraSidecar?.isOpen()) { node._ppLoraSidecar.close({ restoreFocus: true }); }
     else if (stashPopup.classList.contains("open")) { trigger = root.querySelector('[data-act="stash"]'); closeStash(); }
     else if (editDrawer.classList.contains("open")) { trigger = root.querySelector('[data-act="edit"]'); closeEditDrawer(); }
     else if (pickerDrawer.classList.contains("open")) { trigger = libraryButton; closePickerDrawer(); }
@@ -1171,6 +1249,7 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   if (recipeWorkspace?.snapshot()) recipeWorkspace.refresh();
   else textarea.value = promptState.restore();
+  promptSlotsController?.syncActiveSlot?.();
   refreshLibrary().then(() => renderCatPins()).catch((error) => {
     console.error("Prompt Palette: initial wildcard refresh failed", error);
   });
@@ -1215,6 +1294,11 @@ function buildWildcardWidget(node, hiddenWidget) {
     installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, frame);
   };
 
+  const cleanupQueueSync = bindPromptQueueSync(node, () => {
+    syncSeedControlsFromWidgets({ recordHistory: true });
+    reactiveRuntime.invalidate("seed", { value: seedWidget?.value });
+  });
+
   return {
     root: frame,
     refreshFromHidden,
@@ -1226,6 +1310,8 @@ function buildWildcardWidget(node, hiddenWidget) {
     reassertHiddenWidgets,
     reapplyTheme: () => themeController?.applyUiTheme?.(),
     cleanup: () => {
+      cleanupQueueSync();
+      seedController?.dispose();
       cleanupSeedInput();
       cleanupToolbarLayout();
       cleanupImageImport();
@@ -1259,6 +1345,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       unsubscribeTagColors();
       editorSurface.cleanup();
       statusBar.cleanup();
+      loraSidecar?.cleanup();
       cleanupEditorContext();
       delete textarea.__ppExtractSelectionToWildcard;
       delete textarea.__ppSaveSelectionAsList;

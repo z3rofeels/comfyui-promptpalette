@@ -1,3 +1,4 @@
+import { parsePrompt } from "../engine/wildcard_engine.js";
 import { escapeHtml } from "./text_utils.js";
 import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
 import { openPromptTools, canBuildPromptRules } from "./prompt_tools_panel.js";
@@ -114,7 +115,7 @@ function ensureInjectMenu() {
     if (row.dataset.kind === "tool") {
       const { textarea, replaceRange } = injectState;
       const tab = row.dataset.tool;
-      closeInjectMenu(); openPromptTools(textarea, { tab, range: tab === "rules" ? replaceRange : null });
+      closeInjectMenu(); openPromptTools(textarea, { tab, range: tab !== "inspect" ? replaceRange : null });
     }
     else if (row.dataset.kind === "mod") commitInjectModifier(INJECT_MODIFIERS[idx]);
     else if (row.dataset.kind === "tpl") commitInjectTemplate(INJECT_TEMPLATES[idx]);
@@ -131,6 +132,9 @@ function ensureInjectMenu() {
 }
 
 function insertInjectorText(textarea, renderFn, text, selStart, selEnd, replaceRange) {
+  if (injectState?.textarea === textarea && injectState.source !== textarea.value) {
+    closeInjectMenu(); notify("info", "Prompt changed", "Open the syntax menu again to apply this action."); return;
+  }
   const start = replaceRange ? replaceRange.start : (textarea.selectionStart ?? textarea.value.length);
   const end = replaceRange ? replaceRange.end : (textarea.selectionEnd ?? start);
   textarea.value = textarea.value.slice(0, start) + text + textarea.value.slice(end);
@@ -178,7 +182,12 @@ function renderInjectMenu(cat) {
       ${code ? `<span class="wg-ac-metrics"><span class="wg-ac-pill wg-ac-code">${syntaxCodeHtml(code)}</span></span>` : ""}
     </div>`;
 
-  const modRows = cat ? INJECT_MODIFIERS.map((m, i) => row("mod", i, m.label, m.build(cat), m.desc)).join("") : "";
+  const reference = injectState.replaceRange && parsePrompt(injectState.textarea.value).wildcards.find(token => token.start === injectState.replaceRange.start && token.end === injectState.replaceRange.end);
+  const mode = reference?.mode === "@" ? "+" : reference?.mode === "~" ? "*" : reference?.mode || "";
+  const modRows = cat && !reference?.argsRaw ? INJECT_MODIFIERS.map((m, i) => {
+    const current = !!reference && m.build(cat) === `__${mode}${cat}__`;
+    return row("mod", i, m.label + (current ? " · current" : ""), m.build(cat), m.desc);
+  }).join("") : "";
   const groups = [["choice", "Choices"], ["weight", "Selection & weighting"], ["variable", "Reusable values"], ["logic", "Conditions"], ["note", "Notes"]];
   const tplRows = groups.map(([tone, title]) => {
     const rows = INJECT_TEMPLATES.map((t, i) => {
@@ -191,12 +200,13 @@ function renderInjectMenu(cat) {
   const selected = injectState.textarea.selectionEnd > injectState.textarea.selectionStart;
   const editRows = INJECT_EDIT_ACTIONS.map((a, i) => !selected && ["cut", "copy"].includes(a.cmd) ? "" : row("edit", i, a.label, "", a.desc)).join("");
   const tools = (!canBuildPromptRules(injectState.textarea) ? "" : row("tool", 0, "Build choices & rules", "", "Use a dropdown and matching outputs instead of writing syntax by hand.", "rules"))
+    + (!canBuildPromptRules(injectState.textarea) ? "" : row("tool", 2, "Browse LoRAs", "", "Local files, separate strengths, swaps and variations.", "loras"))
     + row("tool", 1, "Inspect prompt", "", "See explicit weights, reference tokens and embedding availability.", "inspect");
 
   menu.innerHTML =
     `<div class="wg-ac-group wg-inject-head" data-ac-section="context">${escapeHtml(cat || "Insert syntax")}</div>` +
+    (cat ? `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="choice" data-ac-section="wildcard">${reference?.argsRaw ? "Parameterized reference · edit arguments with syntax tools" : "Wildcard mode"}</div>` + modRows : "") + tplRows +
     `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="logic">Prompt tools</div>` + tools +
-    (cat ? `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="choice" data-ac-section="wildcard">Wildcard mode</div>` + modRows : "") + tplRows +
     `<div class="wg-ac-group" data-ac-section="edit">Edit</div>` + editRows;
   menu.setAttribute("role", "menu");
 }
@@ -218,6 +228,7 @@ function handleInjectKeydown(event) {
 function positionInjectMenu(trigger) {
   const menu = ensureInjectMenu();
   const rect = trigger.getBoundingClientRect();
+  menu.style.left = "0px"; menu.style.top = "0px";
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
   const vw = window.innerWidth, vh = window.innerHeight;
   let left = Math.max(8, Math.min(rect.left, vw - mw - 8));
@@ -229,6 +240,7 @@ function positionInjectMenu(trigger) {
 
 function positionInjectMenuAt(x, y) {
   const menu = ensureInjectMenu();
+  menu.style.left = "0px"; menu.style.top = "0px";
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
   const vw = window.innerWidth, vh = window.innerHeight;
   menu.style.left = Math.max(8, Math.min(x, vw - mw - 8)) + "px";
@@ -239,7 +251,7 @@ function openInjectMenu(trigger, cat, textarea, render, replaceRange = null) {
   clearTimeout(injectCloseTimer);
   const menu = ensureInjectMenu();
   if (injectState && injectState.trigger && injectState.trigger !== trigger) injectState.trigger.classList.remove("open");
-  injectState = { trigger, cat, textarea, render, replaceRange };
+  injectState = { trigger, cat, textarea, render, replaceRange, source: textarea.value };
   renderInjectMenu(cat);
   menu.style.display = "block";
   positionInjectMenu(trigger);
@@ -250,7 +262,7 @@ function openInjectMenuAtPoint(x, y, cat, textarea, render, replaceRange) {
   clearTimeout(injectCloseTimer);
   const menu = ensureInjectMenu();
   if (injectState && injectState.trigger) injectState.trigger.classList.remove("open");
-  injectState = { trigger: null, cat, textarea, render, replaceRange };
+  injectState = { trigger: null, cat, textarea, render, replaceRange, source: textarea.value };
   renderInjectMenu(cat);
   menu.style.display = "block";
   positionInjectMenuAt(x, y);

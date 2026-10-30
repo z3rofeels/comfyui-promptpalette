@@ -1,7 +1,10 @@
 import { workspaceGeneration, syncWorkspaceGeneration } from "./workspace_generation.js";
 import { API } from "../prompt_palette_api.js";
 import { getPowerToolPreferences } from "../prompt_palette_state.js";
+import { onPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
 import { positiveAntonymsEnabled } from "./positive_antonyms.js";
+import { loadTheme } from "./preferences.js";
+import { normalizeFieldEditorPreferences, fieldGridRows } from "./field_editor_preferences.js";
 import { dialogPrompt, dialogConfirm } from "./dialogs.js";
 import { notify } from "./notifications.js";
 import { serializeRecipe, validateRecipe } from "./prompt_refinement.js";
@@ -72,7 +75,8 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     const seed = getSeed(), mode = getMode(), captured = JSON.stringify(snapshot);
     const result = await resolveWorkspacePreview(snapshot.recipe, seed, mode, API.resolveVariations, { namespace: node.id });
     if (disposed || seed !== getSeed() || mode !== getMode() || !historyOf(state?.recipe || {}).snapshots.some(s => s.id === snapshot.id && JSON.stringify(s) === captured)) throw new Error("The snapshot or seed changed. Send it again.");
-    return sendPreparedPrompts({ node, source: compileWorkspace(snapshot.recipe).positive, prompts: [result.positive], negative: result.negative, seed, session: { resolution_seed: seed } });
+    return sendPreparedPrompts({ node, source: compileWorkspace(snapshot.recipe).positive, prompts: [result.positive], negative: result.negative, seed,
+      session: { resolution_seed: seed, negative_prompts: [result.negative], wildcards: result.wildcards || [] } });
   }
   function make(tag, className, text) { const n = document.createElement(tag); if (className) n.className = className; if (text != null) n.textContent = text; return n; }
   const tabs = make("div", "pp-recipe-mode pp-refine-actions pp-split-rail");
@@ -122,33 +126,142 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     try { action(state.recipe); state.recipe = captureBranch(validateWorkspaceRecipe(state.recipe)); sync(); }
     catch (error) { state = previous; throw error; }
     if (rebuildUI) rebuild();
-    render(); if (!typing) flushHistory();
+    render(); updateWorkspaceCharCount(); if (!typing) flushHistory();
   }
-  function clearEditors() { editors.forEach(e => e.cleanup()); editors.clear(); delete node._ppActiveRecipeEditor; }
-  // Editors fill the node by default. Dragging the grip pins one field to a height; double-click returns it to filling.
-  function attachResizeGrip(card, editWrap, id) {
-    const MIN = 60, MAX = 2400, grip = make("div", "pp-split-grip");
+  const resizeCleanups = new Set();
+  function clearEditors() { resizeCleanups.forEach(cleanup => cleanup()); resizeCleanups.clear(); editors.forEach(e => e.cleanup()); editors.clear(); delete node._ppActiveRecipeEditor; }
+  let gridFrame = null;
+  function scheduleFieldGrid() {
+    if (disposed || gridFrame != null) return;
+    gridFrame = requestAnimationFrame(() => {
+      gridFrame = null;
+      if (section.hidden) return;
+      const tracks = getComputedStyle(fieldsPane).gridTemplateColumns;
+      const columns = tracks && tracks !== "none" ? tracks.trim().split(/\s+/).length : 1;
+      const rows = fieldGridRows([...fieldsPane.children].map(card => ({
+        static: card.classList.contains("pp-recipe-static"),
+        flexible: !card.classList.contains("is-collapsed") && card.dataset.heightMode === "fill",
+      })), columns);
+      if (fieldsPane.style.getPropertyValue("--pp-field-rows") !== rows) fieldsPane.style.setProperty("--pp-field-rows", rows || "none");
+    });
+  }
+  const gridObserver = typeof ResizeObserver === "function" ? new ResizeObserver(scheduleFieldGrid) : null;
+  gridObserver?.observe(fieldsPane);
+  window.addEventListener("resize", scheduleFieldGrid);
+  // Editors fill the node by default, or auto-fit content when set to "auto". Dragging the grip pins a manual height; double-click resets.
+  function attachResizeGrip(card, editWrap, id, onModeChanged) {
+    const MIN = 48, MAX = 2400, grip = make("div", "pp-split-grip");
     grip.setAttribute("role", "separator"); grip.setAttribute("aria-orientation", "horizontal"); grip.tabIndex = 0;
-    grip.title = "Drag to resize · double-click to fill the space again";
-    const size = height => { editWrap.style.height = `${height}px`; card.dataset.sized = "true"; };
-    const commit = height => { state.editorHeights = { ...state.editorHeights, [id]: height }; persist(); };
-    const saved = parseFloat(state?.editorHeights?.[id]); if (Number.isFinite(saved) && saved >= MIN && saved <= MAX) size(saved);
+    grip.title = "Drag to resize · Shift or setting snaps to 8px · double-click to reset height";
+    const badge = make("span", "pp-resize-badge"); badge.hidden = true; card.appendChild(badge);
+    let badgeTimer = null;
+    const showBadge = (text, hold = false) => {
+      clearTimeout(badgeTimer);
+      badge.textContent = text; badge.hidden = false; card.classList.add("is-resizing");
+      if (!hold) badgeTimer = setTimeout(() => { badge.hidden = true; card.classList.remove("is-resizing"); }, 650);
+    };
+    const applyMode = modeOrHeight => {
+      if (modeOrHeight === "auto") {
+        editWrap.style.height = "";
+        delete card.dataset.sized;
+        card.dataset.heightMode = "auto";
+      } else if (Number.isFinite(Number(modeOrHeight)) && Number(modeOrHeight) >= MIN && Number(modeOrHeight) <= MAX) {
+        const raw = Number(modeOrHeight);
+        const px = loadTheme().workspaceSnapGrid !== false ? Math.round(raw / 8) * 8 : Math.round(raw);
+        editWrap.style.height = `${px}px`;
+        card.dataset.sized = "true";
+        card.dataset.heightMode = "manual";
+      } else {
+        editWrap.style.height = "";
+        delete card.dataset.sized;
+        card.dataset.heightMode = "fill";
+      }
+      onModeChanged?.(card.dataset.heightMode);
+      scheduleFieldGrid();
+    };
+    const commit = value => {
+      state.editorHeights = { ...(state.editorHeights || {}) };
+      if (value == null) delete state.editorHeights[id];
+      else state.editorHeights[id] = value;
+      persist();
+    };
+    const savedRaw = state?.editorHeights?.[id];
+    if (savedRaw === "auto") applyMode("auto");
+    else if (Number.isFinite( parseFloat(savedRaw) )) applyMode(parseFloat(savedRaw));
+    else applyMode(null);
     let start = null;
-    grip.addEventListener("pointerdown", event => { start = { y: event.clientY, h: editWrap.getBoundingClientRect().height }; grip.setPointerCapture?.(event.pointerId); event.preventDefault(); });
-    grip.addEventListener("pointermove", event => { if (start) size(Math.min(MAX, Math.max(MIN, Math.round(start.h + event.clientY - start.y)))); });
-    const finish = () => { if (!start) return; start = null; const height = parseFloat(editWrap.style.height); if (state && Number.isFinite(height)) commit(height); };
-    grip.addEventListener("pointerup", finish); grip.addEventListener("pointercancel", finish);
+    const onMove = event => {
+      if (!start) return;
+      const snap = loadTheme().workspaceSnapGrid !== false || event.shiftKey;
+      let raw = start.h + (event.clientY - start.y) / start.scale;
+      if (snap) raw = Math.round(raw / 8) * 8;
+      const next = Math.min(MAX, Math.max(MIN, Math.round(raw)));
+      applyMode(next);
+      showBadge(`${next}px`, true);
+    };
+    const finish = () => {
+      if (!start) return;
+      start = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      const height = parseFloat(editWrap.style.height);
+      if (state && Number.isFinite(height)) {
+        commit(height);
+        showBadge(`${Math.round(height)}px`, false);
+      } else {
+        badge.hidden = true;
+        card.classList.remove("is-resizing");
+      }
+    };
+    grip.addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      const rect = editWrap.getBoundingClientRect();
+      start = { y: event.clientY, h: editWrap.offsetHeight, scale: rect.height / Math.max(1, editWrap.offsetHeight) || 1 };
+      event.stopPropagation();
+      try { grip.setPointerCapture?.(event.pointerId); } catch {}
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", finish);
+      window.addEventListener("pointercancel", finish);
+      event.preventDefault();
+    });
     grip.addEventListener("keydown", event => {
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
       event.preventDefault(); event.stopPropagation();
-      const next = Math.min(MAX, Math.max(MIN, Math.round(editWrap.getBoundingClientRect().height + (event.key === "ArrowDown" ? 24 : -24)))); size(next); commit(next);
+      const snap = loadTheme().workspaceSnapGrid !== false || event.shiftKey;
+      const raw = editWrap.offsetHeight + (event.key === "ArrowDown" ? 8 : -8);
+      const next = Math.min(MAX, Math.max(MIN, snap ? Math.round(raw / 8) * 8 : Math.round(raw)));
+      applyMode(next); commit(next); showBadge(`${next}px`, false);
     });
-    grip.addEventListener("dblclick", () => { editWrap.style.height = ""; delete card.dataset.sized; if (state?.editorHeights) { delete state.editorHeights[id]; persist(); } });
+    grip.addEventListener("dblclick", () => {
+      applyMode(null); commit(null); showBadge("Grid", false);
+    });
+    card._ppSetHeightMode = mode => {
+      applyMode(mode); commit(mode); showBadge(mode === "auto" ? "Auto" : mode == null ? "Grid" : `${editWrap.style.height}`, false);
+    };
+    resizeCleanups.add(() => {
+      start = null; clearTimeout(badgeTimer);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+    });
     return grip;
   }
   function fieldCard(id) { return section.querySelector(`[data-field-id="${CSS.escape(id)}"]`); }
   function optionsCard(id) { return section.querySelector(`[data-settings-field="${CSS.escape(id)}"]`); }
-  function applyAccent(card, f) { card.dataset.accent = f.accent ? "custom" : "none"; if (f.accent) card.style.setProperty("--pp-field-accent", f.accent); else card.style.removeProperty("--pp-field-accent"); }
+  function applyAccent(card, f) {
+    const raw = (f.accent || "").toLowerCase();
+    if (raw === "none") {
+      card.dataset.accent = "none";
+      card.style.removeProperty("--pp-field-accent");
+    } else if (raw) {
+      card.dataset.accent = "custom";
+      card.style.setProperty("--pp-field-accent", f.accent);
+    } else {
+      card.dataset.accent = "auto";
+      card.style.removeProperty("--pp-field-accent");
+    }
+  }
   function openSettings(tab = state?.settingsTab || "fields", fieldId = null) {
     if (!state) return;
     state.view = "workspace"; state.settingsOpen = true; state.settingsTab = tab;
@@ -182,11 +295,13 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     variationGuard(id, context);
     if (node.inputs?.some(input => input.name === "negative_text" && input.link != null)) throw new Error("A connected negative input cannot be captured into a new batch. Copy the version instead.");
     const plan = createExperimentPlan(state.recipe, "current", id);
-    const [captured] = await resolveExperiment(plan, getSeed(), getMode(), 1, API.resolveVariations, { namespace: node.id });
+    plan.runtimeNamespace = String(node.id);
+    const [captured] = await resolveExperiment(plan, getSeed(), getMode(), 1, API.resolveVariations);
     if (disposed) throw new Error("The workspace was closed.");
     variationGuard(id, context);
     const versions = prompts.map(prompt => projectExperiment(plan, captured.baseline, { [id]: prompt }));
-    return { source: plan.compiled.positive, prompts: versions.map(v => v.positive), negative: versions[0].negative };
+    return { source: plan.compiled.positive, prompts: versions.map(v => v.positive), negative: versions[0].negative,
+      session: { negative_prompts: versions.map(v => v.negative), wildcards: captured.wildcards || [] } };
   }
   function setReadOnly(enabled) {
     if (textarea.dataset.ppEditorSurface === "single") textarea.contentEditable = enabled ? "false" : "true";
@@ -237,7 +352,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       editor.focus(); const caret = editor.selectionStart; editor.setSelectionRange(caret, caret);
       return openOrUpdateAcMenu(editor, { kind: "wildcard", query: "", modifier: "", start: caret, end: caret }, getMatches, onCommit, { force: true });
     }, "Insert an existing library wildcard at the caret. Each list line can provide an alternative.");
-    const vary = button("Vary field", () => { activeFieldId = f.id; return openVariations("current"); }); vary.dataset.varyField = f.id;
+    const vary = button("Vary field", () => { activeFieldId = f.id; return openVariations("current"); }); vary.dataset.varyField = f.id; vary.hidden = !getPowerToolPreferences().variationLab;
     const freeze = button("Freeze current value", () => freezeField(f.id), "Resolve this field at the current seed, store its literal result and Lock it. Original choices remain available."); freeze.dataset.freezeField = f.id;
     const restore = button("Restore choices", () => mutate(r => { const target = r.fields.find(x => x.id === f.id); target.value = target.variationTemplate; delete target.variationTemplate; })); restore.dataset.restoreChoices = f.id;
     const saved = document.createElement("details"); saved.className = "pp-field-saved-choices";
@@ -269,6 +384,39 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     (card.querySelector(".pp-split-options-head") || card.firstChild)?.after(resolved);
     resolved.addEventListener("toggle", () => { if (state && resolved.isConnected) { state.resolvedOpen = [...new Set((state.resolvedOpen || []).filter(id => id !== f.id).concat(resolved.open ? [f.id] : []))]; persist(); scheduleInsights(); } });
   }
+  function updateWorkspaceCharCount() {
+    if (!state) return;
+    for (const f of state.recipe.fields) {
+      const chip = section.querySelector(`[data-field-count="${CSS.escape(f.id)}"]`);
+      if (chip) chip.textContent = `${f.value.length.toLocaleString()}c`;
+    }
+    const charCountEl = root.querySelector('[data-el="charCount"]');
+    if (!charCountEl) return;
+    if (state.view === "workspace" && activeFieldId && section.contains(document.activeElement)) {
+      const active = state.recipe.fields.find(x => x.id === activeFieldId);
+      if (active) {
+        const label = active.titleHidden ? "Field" : active.label;
+        charCountEl.textContent = `${label}: ${active.value.length.toLocaleString()} · ${textarea.value.length.toLocaleString()} chars`;
+        return;
+      }
+    }
+    charCountEl.textContent = `${textarea.value.length.toLocaleString()} chars`;
+  }
+  function refreshChrome() {
+    const variationEnabled = !!getPowerToolPreferences().variationLab;
+    const doctorEnabled = !!getPowerToolPreferences().promptDoctor;
+    const ui = normalizeFieldEditorPreferences(loadTheme());
+    for (const [key, value] of Object.entries(ui)) if (key.startsWith("showField")) section.dataset[key] = String(value);
+    section.dataset.fieldColumns = ui.fieldEditorColumns;
+    section.style.setProperty("--pp-field-min-height", `${ui.fieldEditorMinHeight}px`);
+    notice.hidden = !ui.showWorkspaceName;
+    convert.hidden = !state || !ui.showFieldUnlink;
+    const railPreferences = { add: "showFieldAdd", save: "showFieldSave", variation: "showFieldVariation", layouts: "showLayoutsShortcut" };
+    for (const [action, key] of Object.entries(railPreferences)) tabs.querySelectorAll(`[data-workspace-act="${action}"]`).forEach(btn => { btn.hidden = !ui[key] || (action === "variation" && !variationEnabled); });
+    section.querySelectorAll('[data-workspace-global="variation"], [data-vary-field]').forEach(btn => { btn.hidden = !variationEnabled; });
+    section.querySelectorAll('[data-field-doctor]').forEach(btn => { btn.hidden = !doctorEnabled || !ui.showFieldReview; });
+    scheduleFieldGrid();
+  }
   function updatePreview() {
     if (!state) return;
     const result = currentCompilation();
@@ -280,15 +428,20 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     for (const f of state.recipe.fields) {
       const card = fieldCard(f.id), options = optionsCard(f.id); ensureResolvedUI(options, f);
       const guide = options?.querySelector(".pp-field-variation-hint"); if (guide) guide.textContent = fieldVariationHint(f, state.recipe.fields);
-      const vary = options?.querySelector("[data-vary-field]"); if (vary) vary.disabled = !f.enabled || !f.value.trim() || f.experimentState === "lock";
+      const vary = options?.querySelector("[data-vary-field]"); if (vary) { vary.disabled = !f.enabled || !f.value.trim() || f.experimentState === "lock"; vary.hidden = !getPowerToolPreferences().variationLab; }
       const freeze = options?.querySelector("[data-freeze-field]"); if (freeze) { freeze.hidden = !hasDynamicSyntax(f.value); freeze.disabled = !f.enabled || !f.value.trim(); }
       const restore = options?.querySelector("[data-restore-choices]"); if (restore) restore.hidden = !f.variationTemplate;
       const saved = options?.querySelector(".pp-field-saved-choices"); if (saved) { saved.hidden = !f.variationTemplate; saved.querySelector("pre").textContent = f.variationTemplate || ""; }
       const resetBase = options?.querySelector("[data-reset-base]"); if (resetBase) resetBase.hidden = fieldInheritance(state.recipe, f.id) !== "overridden";
-      const header = card?.querySelector(".pp-recipe-summary"); if (header) header.textContent = f.value.trim().replace(/\s+/g, " ") || "Empty field";
-      const count = card?.querySelector(".pp-split-count"); if (count) count.textContent = `${f.value.length.toLocaleString()} chars`;
+      const header = card?.querySelector(".pp-recipe-summary");
+      if (header) {
+        const singleLine = f.value.trim().replace(/\s+/g, " ");
+        if (singleLine && typeof paintSyntax === "function") header.innerHTML = paintSyntax(singleLine).html;
+        else header.textContent = singleLine || "Empty field";
+      }
       section.querySelectorAll(`[data-inheritance-field="${CSS.escape(f.id)}"]`).forEach(inheritance => { inheritance.textContent = fieldInheritance(state.recipe, f.id) || ""; inheritance.dataset.inheritance = inheritance.textContent; inheritance.hidden = !inheritance.textContent; });
     }
+    updateWorkspaceCharCount();
     scheduleInsights();
   }
   async function renameRecipe() {
@@ -337,23 +490,37 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   function accentControl(f, label) {
     const group = make("div", "pp-accent-picker"); group.setAttribute("role", "group"); group.setAttribute("aria-label", `Accent color for ${label}`);
     const current = (f.accent || "").toLowerCase();
+    const isHex = /^#[0-9a-f]{6}$/i.test(current);
     const choose = value => { try { mutate(r => { const target = r.fields.find(x => x.id === f.id); if (value) target.accent = value; else delete target.accent; }); } catch (error) { notify("error", "Recipe Workspace", error.message); } };
     const swatch = (value, name) => {
       const b = make("button", "pp-accent-swatch"); b.type = "button"; b.title = name; b.setAttribute("aria-label", `${name} accent for ${label}`);
-      b.setAttribute("aria-pressed", String(value === current)); if (value) b.style.setProperty("--swatch", value); else b.dataset.auto = "";
+      b.setAttribute("aria-pressed", String(value === current));
+      if (value === "none") b.dataset.none = "";
+      else if (value) b.style.setProperty("--swatch", value);
+      else b.dataset.auto = "";
       b.addEventListener("click", e => { e.stopPropagation(); choose(value); }); return b;
     };
     group.appendChild(swatch("", "Automatic (follows the theme)"));
+    group.appendChild(swatch("none", "No accent"));
     ACCENT_PRESETS.forEach(([value, name]) => group.appendChild(swatch(value, name)));
-    const custom = make("input", "pp-accent-custom"); custom.type = "color"; custom.value = current || "#d49a52";
+    const custom = make("input", "pp-accent-custom"); custom.type = "color"; custom.value = isHex ? current : "#d49a52";
     custom.title = "Custom color"; custom.setAttribute("aria-label", `Custom accent color for ${label}`);
-    custom.dataset.active = String(!!current && !ACCENT_PRESETS.some(([value]) => value === current));
+    custom.dataset.active = String(isHex && !ACCENT_PRESETS.some(([value]) => value === current));
     custom.addEventListener("input", () => { const card = fieldCard(f.id); if (card) applyAccent(card, { accent: custom.value }); });
     custom.addEventListener("change", () => choose(custom.value));
     group.appendChild(custom); return group;
   }
   function settingsRow(caption, ...controls) { const row = make("div", "pp-split-row"); row.appendChild(make("span", "pp-split-caption", caption)); row.append(...controls); return row; }
   function settingsGroup(title, ...nodes) { const group = make("section", "pp-split-group"); group.appendChild(make("strong", "pp-split-group-title", title)); group.append(...nodes); return group; }
+  function addField() {
+    let added; state.settingsOpen = false;
+    mutate(r => {
+      if (r.fields.length >= 32) throw new Error("A workspace supports up to 32 fields.");
+      added = newField(`Section ${r.fields.length + 1}`); added.titleHidden = true;
+      r.fields.push(added); r.segments.push({ type: "field", id: added.id, join: true });
+    });
+    editors.get(added.id)?.editor.focus({ preventScroll: true });
+  }
   function buildFieldCard(f, index) {
     const card = make("article", "pp-recipe-field"); card.dataset.fieldId = f.id;
     const expanded = !!state.expandedEditors?.includes(f.id), name = f.titleHidden ? `field ${index + 1}` : f.label;
@@ -362,28 +529,62 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     card.dataset.experimentState = f.experimentState || ""; applyAccent(card, f);
     const head = make("div", "pp-recipe-field-head");
     const collapse = button(`${f.collapsed ? "▸" : "▾"}${f.titleHidden ? "" : ` ${f.label}`}`, () => mutate(r => { r.fields.find(x => x.id === f.id).collapsed = !f.collapsed; }), f.collapsed ? "Expand field" : "Collapse field");
+    collapse.replaceChildren(make("span", "pp-field-collapse-icon", f.collapsed ? "▸" : "▾"), make("span", "pp-field-title", f.titleHidden ? "" : f.label));
     collapse.classList.add("pp-recipe-field-label"); collapse.setAttribute("aria-expanded", String(!f.collapsed)); collapse.setAttribute("aria-label", `${f.collapsed ? "Expand" : "Collapse"} ${name}`);
     const summary = make("span", "pp-recipe-summary");
     const inherited = make("span", "pp-field-inheritance"); inherited.dataset.inheritanceField = f.id; inherited.textContent = fieldInheritance(state.recipe, f.id) || ""; inherited.hidden = !inherited.textContent;
     const stateChip = f.experimentState ? make("span", "pp-recipe-state", f.experimentState[0].toUpperCase() + f.experimentState.slice(1)) : null;
     if (stateChip) stateChip.title = "Variation mode · change it in Field settings";
-    const channel = make("span", "pp-recipe-channel", f.channel === "negative" ? "Neg" : "Pos"); channel.dataset.channel = f.channel; channel.title = f.channel === "negative" ? "Negative prompt" : "Positive prompt";
-    const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.checked = f.enabled; checkbox.title = `Include ${name}`; checkbox.setAttribute("aria-label", checkbox.title);
+    const charChip = make("span", "pp-field-char-count", `${f.value.length.toLocaleString()}c`);
+    charChip.dataset.fieldCount = f.id; charChip.title = "Characters in this field";
+    const isNeg = f.channel === "negative";
+    const channel = make("span", "pp-recipe-channel");
+    channel.dataset.channel = f.channel;
+    channel.setAttribute("role", "img");
+    channel.title = isNeg ? "Negative prompt channel" : "Positive prompt channel";
+    channel.setAttribute("aria-label", isNeg ? "Negative prompt" : "Positive prompt");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "pp-field-switch";
+    checkbox.setAttribute("role", "switch");
+    checkbox.checked = f.enabled;
+    checkbox.title = `${f.enabled ? "Disable" : "Enable"} ${name}`;
+    checkbox.setAttribute("aria-label", `Include ${name}`);
     checkbox.addEventListener("change", () => mutate(r => { r.fields.find(x => x.id === f.id).enabled = checkbox.checked; }));
-    const gear = button("⚙", () => openSettings("fields", f.id), `Field settings for ${name}`); gear.classList.add("pp-recipe-field-gear"); gear.setAttribute("aria-label", gear.title);
-    head.append(collapse, summary, inherited, ...(stateChip ? [stateChip] : []), channel, checkbox, gear); card.appendChild(head); fieldsPane.appendChild(card);
+    const headActions = make("span", "pp-field-head-actions");
+    let heightBtn = null;
+    if (!f.collapsed) {
+      heightBtn = button("Auto", () => {
+        const nextMode = card.dataset.heightMode === "auto" ? null : "auto";
+        card._ppSetHeightMode?.(nextMode);
+      }, "Toggle Auto height (fit content) vs flexible/manual height");
+      heightBtn.classList.add("pp-field-action", "pp-field-height-btn");
+      heightBtn.dataset.fieldHeightMode = f.id;
+      const doctorBtn = button("Review", () => { openSettings("fields", f.id); review(f); }, `Review ${name} with Prompt Doctor`);
+      doctorBtn.classList.add("pp-field-action", "pp-field-doctor-btn");
+      doctorBtn.dataset.fieldDoctor = f.id;
+      doctorBtn.hidden = !getPowerToolPreferences().promptDoctor;
+      headActions.append(heightBtn, doctorBtn);
+    }
+    const gear = button("⚙", () => openSettings("fields", f.id), `Field settings for ${name}`);
+    gear.classList.add("pp-recipe-field-gear", "pp-field-action");
+    gear.setAttribute("aria-label", gear.title);
+    headActions.appendChild(gear);
+    head.append(collapse, summary, inherited, ...(stateChip ? [stateChip] : []), charChip, headActions, channel, checkbox);
+    card.appendChild(head); fieldsPane.appendChild(card);
     if (f.collapsed) return;
     const editWrap = make("div", "pp-recipe-editor wg-editor-real");
     const overlay = make("div", "wg-editor-layer wg-highlight");
     const input = make("textarea", "wg-editor-layer wg-textarea"); input.value = f.value; input.spellcheck = true; input.title = f.help || f.placeholder || name; input.placeholder = f.placeholder || "Text, tags or __wildcards__"; input.setAttribute("aria-label", name);
-    editWrap.append(overlay, input); card.appendChild(editWrap); card.appendChild(attachResizeGrip(card, editWrap, f.id));
-    const footer = make("div", "pp-split-footer"), count = make("span", "pp-split-count"); footer.appendChild(count);
-    if (getPowerToolPreferences().promptDoctor) { const check = button("Review", () => { openSettings("fields", f.id); review(f); }, `Review ${name} with Prompt Doctor`); check.classList.add("pp-split-quiet"); footer.appendChild(check); }
-    const expand = button(expanded ? "Compact editor" : "Expand editor", () => {
-      state.expandedEditors = (state.expandedEditors || []).filter(id => id !== f.id).concat(expanded ? [] : [f.id]);
-      if (state.editorHeights) delete state.editorHeights[f.id];
-      persist(); rebuild(); editors.get(f.id)?.editor.focus();
-    }, "Give this field more of the available height"); expand.classList.add("pp-split-quiet"); expand.setAttribute("aria-pressed", String(expanded)); footer.appendChild(expand); card.appendChild(footer);
+    editWrap.append(overlay, input); card.appendChild(editWrap);
+    const syncHeightBtn = mode => {
+      if (!heightBtn) return;
+      const isAuto = mode === "auto";
+      heightBtn.textContent = isAuto ? "Auto" : "↕";
+      heightBtn.setAttribute("aria-pressed", String(isAuto));
+      heightBtn.title = isAuto ? "Auto height active · click for flexible/manual height" : mode === "manual" ? "Manual height pinned · click for Auto height" : "Switch to Auto height (fit content)";
+    };
+    card.appendChild(attachResizeGrip(card, editWrap, f.id, syncHeightBtn));
     const tools = attachRecipeFieldEditor({ node, root: card, input, overlay, paintSyntax, getMatches, onCommit,
       getSeed, getMode, getLibrary, onUndo, onRedo, holdHistory, releaseHistory, host, openHost, bindHover, onLibrarySaved,
       moveFocus: direction => {
@@ -393,9 +594,9 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       variationGuard: captured => variationGuard(f.id, captured), prepareBatchPrompts: (prompts, captured) => prepareFieldBatch(f.id, prompts, captured),
       mapBatchPrompt: value => compileWorkspace(state.recipe, { [f.id]: value }).positive,
       projectPrompt: value => compileWorkspace(state.recipe, { [f.id]: value })[f.channel],
-      onChange: value => { mutate(r => { const field = r.fields.find(x => x.id === f.id); if (field.value !== value) delete field.variationTemplate; field.value = value; }, { typing: true, rebuildUI: false }); card.classList.toggle("is-empty", !value.trim()); },
+      onChange: value => { mutate(r => { const field = r.fields.find(x => x.id === f.id); if (field.value !== value) delete field.variationTemplate; field.value = value; }, { typing: true, rebuildUI: false }); card.classList.toggle("is-empty", !value.trim()); updateWorkspaceCharCount(); },
       atomicEdit: value => mutate(r => { const field = r.fields.find(x => x.id === f.id); if (field.value !== value) delete field.variationTemplate; field.value = value; }, { rebuildUI: false }),
-      onFocus: editor => { activeFieldId = f.id; node._ppActiveRecipeEditor = editor; scheduleInsights(); } }); editors.set(f.id, tools);
+      onFocus: editor => { activeFieldId = f.id; node._ppActiveRecipeEditor = editor; updateWorkspaceCharCount(); scheduleInsights(); } }); editors.set(f.id, tools);
   }
   function buildFieldOptions(f, index, total) {
     const name = f.titleHidden ? `field ${index + 1}` : f.label;
@@ -415,6 +616,23 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     title.addEventListener("keydown", event => { if (isComfyQueueShortcut(event)) return; if (event.key === "Enter") title.blur(); event.stopPropagation(); });
     title.addEventListener("change", () => { const value = title.value.trim(); mutate(r => { const target = r.fields.find(x => x.id === f.id); if (value) { target.label = value; delete target.titleHidden; } else target.titleHidden = true; }); });
     body.appendChild(settingsRow("Title", title));
+    const include = make("input"); include.type = "checkbox"; include.checked = f.enabled; include.setAttribute("aria-label", `Include ${name} in prompt`);
+    include.addEventListener("change", () => mutate(r => { r.fields.find(x => x.id === f.id).enabled = include.checked; }));
+    body.appendChild(settingsRow("Include", include));
+    const savedHeight = state.editorHeights?.[f.id];
+    const height = selectControl(`Editor height for ${name}`, [["fill", "Grid cell"], ["auto", "Fit content"], ["custom", "Custom pixels…"]], savedHeight === "auto" ? "auto" : Number.isFinite(Number(savedHeight)) && savedHeight != null ? "custom" : "fill", async mode => {
+      let next = mode === "auto" ? "auto" : null;
+      if (mode === "custom") {
+        const raw = await dialogPrompt({ title: "Field editor height", message: "Height in pixels (48–2400)", defaultValue: String(Number(savedHeight) || 160) });
+        if (raw == null) { rebuild(); return; }
+        next = Number(raw); if (!Number.isFinite(next) || next < 48 || next > 2400) throw new Error("Choose a height from 48 to 2400 pixels.");
+        if (loadTheme().workspaceSnapGrid !== false) next = Math.round(next / 8) * 8;
+      }
+      state.editorHeights = { ...(state.editorHeights || {}) };
+      if (next == null) delete state.editorHeights[f.id]; else state.editorHeights[f.id] = next;
+      persist(); rebuild();
+    });
+    body.appendChild(settingsRow("Editor height", height));
     body.appendChild(settingsRow("Accent", accentControl(f, name)));
     const experiment = selectControl(`Variation mode for ${name}`, [["", "Default"], ["lock", "Lock"], ["vary", "Vary"], ["follow", "Follow"]], f.experimentState || "", async value => { if (value && !node.widgets?.some(w => w.name === "workspace_runtime")) throw new Error("Restart ComfyUI and reload this workflow to activate field generation controls."); if (value === "lock" && f.enabled && f.value.trim()) await freezeField(f.id); else mutate(r => { r.fields.find(x => x.id === f.id).experimentState = value || null; }); });
     experiment.title = "Vary: change choices during generation. Lock: capture and keep a value across seeds and reloads. Follow: change only when a source field changes. Default: normal prompt syntax.";
@@ -458,14 +676,15 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     if (!split) { cancelInsights(); if (!insightResult) insightKey = ""; if (state) updatePreview(); else notice.textContent = ""; return; }
     const settingsButton = button("Settings", () => state.settingsOpen ? closeSettings() : openSettings(), "Field and workspace settings");
     settingsButton.setAttribute("aria-expanded", String(!!state.settingsOpen)); settingsButton.classList.add("pp-split-settings-toggle");
-    railActions.append(button("+ Field", () => {
-      let added; state.settingsOpen = false;
-      mutate(r => {
-        if (r.fields.length >= 32) throw new Error("A workspace supports up to 32 fields.");
-        added = newField(`Section ${r.fields.length + 1}`); added.titleHidden = true; r.fields.push(added); r.segments.push({ type: "field", id: added.id, join: true });
-      });
-      editors.get(added.id)?.editor.focus({ preventScroll: true });
-    }), button("Variation Lab", () => openVariations("vary")), button("Save", () => saveRecipe()), button("Layouts", () => { openSettings("workspace"); const picker = section.querySelector(".pp-workspace-layout-picker"); if (picker) picker.open = true; }), settingsButton);
+    const variationBtn = button("Variation Lab", () => openVariations("vary"));
+    variationBtn.dataset.workspaceAct = "variation";
+    variationBtn.hidden = !getPowerToolPreferences().variationLab;
+    const layoutsBtn = button("Layouts", () => { openSettings("workspace"); const picker = section.querySelector(".pp-workspace-layout-picker"); if (picker) picker.open = true; });
+    layoutsBtn.dataset.workspaceAct = "layouts";
+    layoutsBtn.hidden = loadTheme().showLayoutsShortcut === false;
+    const addButton = button("+ Field", addField); addButton.dataset.workspaceAct = "add";
+    const saveButton = button("Save", () => saveRecipe()); saveButton.dataset.workspaceAct = "save";
+    railActions.append(addButton, variationBtn, saveButton, layoutsBtn, settingsButton);
 
     // Settings surface: four panes, one visible at a time.
     const panes = Object.fromEntries(["fields", "workspace", "preview", "history"].map(key => { const pane = make("div", "pp-split-pane"); pane.dataset.pane = key; pane.setAttribute("role", "tabpanel"); return [key, pane]; }));
@@ -497,9 +716,16 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     }
     const presetHost = make("details", "pp-workspace-layout-picker"); presetHost.appendChild(make("summary", "", "Starter layouts"));
     panes.workspace.append(presetHost,
-      settingsGroup("Layout", (() => { const row = make("div", "pp-refine-actions"); row.append(button("Collapse all", () => mutate(r => r.fields.forEach(f => { f.collapsed = true; }))), button("Expand all", () => mutate(r => r.fields.forEach(f => { f.collapsed = false; })))); return row; })()),
+      settingsGroup("Layout", (() => { const row = make("div", "pp-refine-actions"); row.append(button("Reset field sizes", () => { flushHistory(); state.editorHeights = {}; state.expandedEditors = []; persist(); rebuild(); flushHistory(); }), button("Collapse all", () => mutate(r => r.fields.forEach(f => { f.collapsed = true; }))), button("Expand all", () => mutate(r => r.fields.forEach(f => { f.collapsed = false; })))); return row; })()),
       settingsGroup("Joining", settingsRow("Default separator", separatorControl())),
-      settingsGroup("Workspace", (() => { const row = make("div", "pp-refine-actions pp-split-global-actions"); row.append(button("Variation Lab", () => openVariations("vary")), button("Save copy", () => saveRecipe(true)), button("Rename workspace", renameRecipe), button("Export", () => exportRecipePack(state.recipe)), button("Reset workspace", () => mutate(r => r.fields.forEach(f => { f.value = f.default; delete f.variationTemplate; })))); return row; })()),
+      settingsGroup("Workspace", (() => {
+        const row = make("div", "pp-refine-actions pp-split-global-actions");
+        const globalVariation = button("Variation Lab", () => openVariations("vary"));
+        globalVariation.dataset.workspaceGlobal = "variation";
+        globalVariation.hidden = !getPowerToolPreferences().variationLab;
+        row.append(button("+ Field", addField), button("Save", () => saveRecipe()), globalVariation, button("Save copy", () => saveRecipe(true)), button("Rename workspace", renameRecipe), button("Export", () => exportRecipePack(state.recipe)), button("Unlink fields", () => convert.click()), button("Reset workspace", () => mutate(r => r.fields.forEach(f => { f.value = f.default; delete f.variationTemplate; }))));
+        return row;
+      })()),
       guide);
     const preview = make("details", "pp-recipe-preview"); preview.open = state.previewOpen !== false;
     preview.appendChild(make("summary", "", "Compiled Prompt"));
@@ -508,7 +734,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       const text = make("pre"); text.dataset.compiled = channel; text.setAttribute("aria-label", `${channel} prompt`); preview.appendChild(text);
       preview.appendChild(button(`Copy ${channel}`, () => navigator.clipboard.writeText(currentCompilation()[channel])));
     }
-    preview.appendChild(button("View in Editor", () => view("editor"))); panes.preview.append(preview, insights);
+    panes.preview.append(preview, insights);
     appendIterationUI({ section: panes.history, state, button, selectControl, replaceRecipe, persist, getState: () => state, refreshLibrary, getLibrary, sendSnapshot, presetHost });
 
     const head = make("div", "pp-split-settings-head"), tabBar = make("div", "pp-split-tabbar"); tabBar.setAttribute("role", "tablist"); tabBar.setAttribute("aria-label", "Settings sections");
@@ -532,7 +758,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     settingsPane.hidden = !state.settingsOpen; body.scrollTop = settingsScroll;
     settingsPane.addEventListener("keydown", event => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); closeSettings(); } });
     section.append(fieldsPane, settingsPane);
-    updatePreview();
+    updatePreview(); refreshChrome();
     if (needsEditorFocus && !state.settingsOpen) {
       const editor = (editors.get(focusedField || activeFieldId) || editors.values().next().value)?.editor;
       if (editor) { editor.focus({ preventScroll: true }); if (fieldSelection && editors.get(focusedField)?.editor === editor) editor.setSelectionRange(...fieldSelection); }
@@ -570,9 +796,10 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   function refresh() {
     const saved = node.properties?.[WORKSPACE_KEY];
     if (JSON.stringify(saved || null) !== JSON.stringify(state)) restore(saved || null, { commit: false });
-    else if (state) { insightKey = ""; sync(); refreshPresetOptions(); editors.forEach(e => e.repaint()); }
+    else if (state) { insightKey = ""; sync(); refreshPresetOptions(); refreshChrome(); editors.forEach(e => e.repaint()); }
   }
   const settings = () => { if (state && !getPowerToolPreferences().adjustableRecipes) state.view = "editor"; persist(); rebuild(); };
+  const unsubscribeAppearance = onPromptPaletteAppearanceChanged(() => { if (!disposed) refreshChrome(); });
   const showCompiledForPreview = event => { if (state?.view === "workspace" && event.target.closest('[data-act="resolve"]')) view("editor"); };
   root.addEventListener("click", showCompiledForPreview, true);
   root.addEventListener("pp-output-transform-changed", updatePreview);
@@ -581,7 +808,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   catch (error) { notify("error", "Workspace could not be restored", error.message); state = null; rebuild(); }
   function experimentPlan(scope) { if (!state) throw new Error("Open a workspace first."); const plan = createExperimentPlan(state.recipe, scope, activeFieldId); plan.runtimeNamespace = String(node.id); return plan; }
   function assertPlan(plan) { if (disposed || !state) throw new Error("The workspace was closed."); applyExperiment(state.recipe, plan, {}); }
-  return { open, reconcile, refresh, restore, snapshot: () => state ? cloneWorkspaceData(state) : null,
+  return { open, reconcile, refresh, refreshChrome, restore, snapshot: () => state ? cloneWorkspaceData(state) : null,
     isActive: () => !!state, showEditor: () => view("editor"), experimentPlan, assertPlan, contextChanged: () => scheduleInsights(),
     editingSurface: () => state?.view === "workspace" ? (editors.get(activeFieldId) || editors.values().next().value)?.editor : null,
     focusEditingSurface() {
@@ -608,6 +835,6 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
         session: { resolution_seed: seed, wildcards: [...new Set(items.flatMap(item => item.wildcards))], negative_prompts: items.map(item => item.negative),
           ...(plan.strategy === "one-field" ? { comparison: "one-field", labels: items.map(item => item.trial?.label || "Trial") } : {}) } });
     },
-    cleanup() { disposed = true; cancelInsights(); clearEditors(); window.removeEventListener("pp-power-tools-changed", settings); root.removeEventListener("pp-output-transform-changed", updatePreview); root.removeEventListener("click", showCompiledForPreview, true); tabs.remove(); section.remove(); delete node._ppActiveRecipeEditor; } };
+    cleanup() { disposed = true; cancelInsights(); gridObserver?.disconnect(); if (gridFrame != null) cancelAnimationFrame(gridFrame); window.removeEventListener("resize", scheduleFieldGrid); clearEditors(); unsubscribeAppearance?.(); window.removeEventListener("pp-power-tools-changed", settings); root.removeEventListener("pp-output-transform-changed", updatePreview); root.removeEventListener("click", showCompiledForPreview, true); tabs.remove(); section.remove(); delete node._ppActiveRecipeEditor; } };
 }
 import { isComfyQueueShortcut } from "../editor_shortcuts.js";

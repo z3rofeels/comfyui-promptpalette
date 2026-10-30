@@ -8,9 +8,9 @@
 .wg-root .wg-settings-nav button > small { color: var(--wg-text-dim); }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-panel-title h3 { font-size: calc(13px * var(--wg-ui-font-scale, 1)); letter-spacing: -.01em; }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-panel-title p { font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.5; color: var(--wg-text-dim); }
-:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-settings-card { padding: 12px 0; background: transparent; border: 0; border-top: 1px solid var(--wg-border); border-radius: 0; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-settings-card { padding: var(--pp-s-4, 12px) 0; background: transparent; border: 0; border-top: 1px solid var(--wg-border); border-radius: 0; }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-grid { gap: 4px 14px; }
-:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card { padding: 9px 7px; border: 1px solid transparent; border-radius: min(var(--wg-corner-radius), 7px); background: transparent; }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card { padding: var(--pp-s-3, 8px) var(--pp-s-2, 6px); border: 1px solid transparent; border-radius: min(var(--wg-corner-radius), 7px); background: transparent; }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card:hover { background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-surface)); }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card:has(input:checked) { background: linear-gradient(110deg, color-mix(in srgb, var(--wg-accent) 8%, var(--wg-surface)), transparent); }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-toggle-card strong { font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
@@ -22,7 +22,7 @@
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) input[type="checkbox"]:checked::before { transform: translateX(12px); background: var(--wg-accent-text); }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) :is(input, select, textarea, button):focus-visible, .pp-main-sidebar :is(input, select, button):focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 2px; }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) :disabled { opacity: .55; cursor: default; }
-:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-settings-body { padding: 14px 16px 20px; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) var(--wg-surface); }
+:is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-settings-body { padding: var(--pp-s-4, 12px) var(--pp-s-5, 16px) var(--pp-s-6, 24px); scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) var(--wg-surface); }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-section-divider { margin: 16px 0; }
 :is(.wg-root.wg-settings-pro, .wg-root .wg-settings-pro) .wg-color-field { align-items: center; gap: 10px; flex-wrap: wrap; }
 .wg-root .wg-color-inputs { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }

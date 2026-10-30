@@ -75,6 +75,6 @@
 }
 .wg-root .wg-manager-bulk{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:7px 8px;margin-bottom:6px;border:1px solid var(--wg-border);border-radius:8px;background:var(--wg-surface,#111419);color:var(--wg-text-dim,#b8b0a4);font-size:9px}
 .wg-root .wg-manager-bulk>div{display:flex;gap:4px;flex-wrap:wrap}
-.wg-root .wg-manager-bulk .wg-button{padding:4px 6px;font-size:8px}
+.wg-root .wg-manager-bulk .wg-button{padding:4px 6px;font-size: 9px}
 .wg-root .wg-manager-entry-select{width:14px;height:14px;accent-color:var(--wg-accent);flex:0 0 auto}
 .wg-root .wg-manager-entry-main{display:flex;align-items:center;gap:7px;min-width:0;flex:1}

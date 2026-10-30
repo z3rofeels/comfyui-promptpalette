@@ -1,5 +1,6 @@
+import { FIELD_EDITOR_DEFAULTS, normalizeFieldEditorPreferences } from "./field_editor_preferences.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
-import { notifyPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
+import { notifyPromptPaletteAppearanceChanged, normalizePromptPaletteMenuScale } from "../prompt_palette_shared.js";
 import { TOOLBAR_BUTTONS, normalizeToolbarPreferences } from "./toolbar.js";
 
 function loadTheme() {
@@ -9,11 +10,15 @@ function loadTheme() {
   // on load so an old local preference cannot keep repainting the suite differently.
   const { surfaceFinish: _legacySurfaceFinish, accentGlow: _legacyAccentGlow, ...clean } = saved;
   const theme = { ...defaultTheme(), ...clean };
+  // Seed older preferences from their readable interface size, then save independently.
+  theme.menuScale = normalizePromptPaletteMenuScale(clean.menuScale, clean.uiFontScale);
   Object.assign(theme, normalizeToolbarPreferences({ ...theme, toolbarScale: clean.toolbarScale }));
-  if (!Object.hasOwn(clean, "showImportImageBtn") && (clean.layoutPreset === "minimal" || TOOLBAR_BUTTONS.filter(([, key]) => key !== "showImportImageBtn").every(([, key]) => clean[key] === false))) theme.showImportImageBtn = false;
+  if (!Object.hasOwn(clean, "showImportImageBtn") && (clean.layoutPreset === "minimal" || TOOLBAR_BUTTONS.filter(([, key]) => !["showImportImageBtn", "showLorasBtn"].includes(key)).every(([, key]) => clean[key] === false))) theme.showImportImageBtn = false;
   theme.booruColors = theme.booruColorsCustomized === true
     ? { ...DEFAULT_BOORU_COLORS_DARK, ...(clean.booruColors && typeof clean.booruColors === "object" ? clean.booruColors : {}) }
     : { ...DEFAULT_BOORU_COLORS_DARK };
+  if (!Object.hasOwn(clean, "showLorasBtn") && (clean.layoutPreset === "minimal" || TOOLBAR_BUTTONS.filter(([, key]) => !["showLorasBtn", "showImportImageBtn"].includes(key)).every(([, key]) => clean[key] === false))) theme.showLorasBtn = false;
+  theme.loraColors = Object.fromEntries(Object.entries(clean.loraColors && typeof clean.loraColors === "object" ? clean.loraColors : {}).filter(([key, value]) => key.length <= 4096 && /^#[0-9a-f]{6}$/i.test(value)).slice(0, 1024));
   // Booru/custom-word autocomplete is opt-in (off unless the user turned it on).
   const booruWanted = theme.booruAutocompleteEnabled === true;
   if (!["auto", "onDemand", "off"].includes(theme.booruAutocompleteMode)) theme.booruAutocompleteMode = booruWanted ? "auto" : "off";
@@ -21,6 +26,7 @@ function loadTheme() {
   theme.booruAutocompleteEnabled = theme.booruAutocompleteMode !== "off" && booruWanted;
   if (!theme.booruAutocompleteEnabled) theme.booruAutocompleteMode = "off";
   theme.autocompleteRecentLimit = Math.max(5, Math.min(10, Math.round(Number(theme.autocompleteRecentLimit) || 5)));
+  Object.assign(theme, normalizeFieldEditorPreferences(clean));
   return theme;
 }
 const DEFAULT_BOORU_COLORS_DARK = Object.freeze({
@@ -43,6 +49,7 @@ const DEFAULT_BOORU_COLORS_LIGHT = Object.freeze({
 
 function defaultTheme() {
   return {
+    loraAutocomplete: false, highlightLoras: false,
     hueRotate: 0, saturation: 58, categoryPins: {},
     booruColors: { ...DEFAULT_BOORU_COLORS_DARK },
     booruColorsCustomized: false,
@@ -51,16 +58,19 @@ function defaultTheme() {
     fontFamily: "",
     editorFontSize: 12.5,
     uiFontScale: 1,
+    menuScale: 1,
     promptTextColor: "#f1eee8",
     promptTextColorMode: "theme",
 
     cornerRadius: 10,
 
+    showLorasBtn: true, loraColor: "", loraColors: {},
     showGalleryBtn: true,
     showEditBtn: true,
     showImportImageBtn: true,
     showRecipesBtn: true,
     showStashBtn: true,
+    showSlotsBtn: true,
     showRefreshBtn: true,
     showUndoBtn: true,
     showRedoBtn: true,
@@ -69,6 +79,7 @@ function defaultTheme() {
     showClearBtn: true,
 
     showSeedControls: false,
+    seedFortuneEnabled: true,
     showDayNightBtn: true,
     dayTheme: "Porcelain",
     nightTheme: "Cinder",
@@ -87,6 +98,7 @@ function defaultTheme() {
     booruPromptColors: true,
     animaArtistFormatting: false,
     showPositiveAntonymsBtn: false,
+    ...FIELD_EDITOR_DEFAULTS,
     zenMode: false,
     layoutPreset: "balanced",
     ...normalizeToolbarPreferences(),
@@ -94,6 +106,7 @@ function defaultTheme() {
   };
 }
 function saveTheme(theme) {
+  Object.assign(theme, normalizeFieldEditorPreferences(theme));
   writeEditorPreference("theme", theme);
   notifyPromptPaletteAppearanceChanged();
 }
@@ -144,10 +157,11 @@ function saveCatOrder(arr) {
 }
 
 function loadPickerView() {
-  return readEditorPreference("pickerView", "list") === "grid" ? "grid" : "list";
+  const mode = readEditorPreference("pickerView", "list");
+  return ["list", "grid", "tiles", "contact", "masonry", "filmstrip"].includes(mode) ? mode : "list";
 }
 function savePickerView(mode) {
-  writeEditorPreference("pickerView", mode === "grid" ? "grid" : "list");
+  writeEditorPreference("pickerView", ["list", "grid", "tiles", "contact", "masonry", "filmstrip"].includes(mode) ? mode : "list");
 }
 function loadLibraryDensity() {
   const value = readEditorPreference("libraryDensity", "medium");
@@ -163,36 +177,25 @@ export function loadSidebarDisplay() {
   const saved = readEditorPreference(SIDEBAR_DISPLAY_KEY, {}) || {};
   const old = readEditorPreference("prompt_palette_style_explorer_v1", {}) || {};
   const layouts = { library: "list", styles: old.compact === true ? "list" : "gallery", classic: "gallery", artists: "gallery", anima: "gallery", tags: "gallery", favorites: "list", previews: "gallery", custom: "list" };
-  if (saved.layouts && typeof saved.layouts === "object") for (const key of Object.keys(layouts)) if (["gallery", "list"].includes(saved.layouts[key])) layouts[key] = saved.layouts[key];
-  const chrome = { images: saved.chrome?.images !== false, prompt: saved.chrome?.prompt === true,
+  if (saved.layouts && typeof saved.layouts === "object") for (const key of Object.keys(layouts)) if (["gallery", "list", "masonry", "filmstrip"].includes(saved.layouts[key])) layouts[key] = saved.layouts[key];
+  const chrome = { fillRows: saved.chrome?.fillRows !== false, hoverImages: saved.chrome?.hoverImages === true,
+    hoverText: saved.chrome?.hoverText === true, displayControls: saved.chrome?.displayControls !== false,
+    ratioControls: saved.chrome?.ratioControls !== false, images: saved.chrome?.images !== false, prompt: saved.chrome?.prompt === true,
     descriptions: saved.chrome?.descriptions === true, syntax: saved.chrome?.syntax !== false,
     tools: saved.chrome?.tools !== false, styles: saved.chrome?.styles !== false,
     intro: saved.chrome?.intro !== false, modelHelp: saved.chrome?.modelHelp !== false,
     artists: saved.chrome?.artists !== false, tags: saved.chrome?.tags !== false,
     favorites: saved.chrome?.favorites !== false, previews: saved.chrome?.previews !== false,
     custom: saved.chrome?.custom !== false, fit: saved.chrome?.fit === "contain" ? "contain" : "cover" };
-  return { version: 1, chrome, scale: Math.max(.1, Math.min(1.5, Number(saved.scale) || .9)), layouts };
+  return { version: 1, chrome, aspect: ["square", "portrait", "tall", "landscape", "wide"].includes(saved.aspect) ? saved.aspect : "square", scale: Math.max(.1, Math.min(2, Number(saved.scale) || .9)), layouts };
 }
 export function saveSidebarDisplay(changes = {}) {
   const current = loadSidebarDisplay();
   const next = { ...current, ...changes, layouts: { ...current.layouts, ...changes.layouts }, chrome: { ...current.chrome, ...changes.chrome } };
-  next.scale = Math.max(.1, Math.min(1.5, Number(next.scale) || .9));
-  for (const key of Object.keys(next.layouts)) if (!["gallery", "list"].includes(next.layouts[key])) next.layouts[key] = current.layouts[key] || "list";
+  next.scale = Math.max(.1, Math.min(2, Number(next.scale) || .9));
+  for (const key of Object.keys(next.layouts)) if (!["gallery", "list", "masonry", "filmstrip"].includes(next.layouts[key])) next.layouts[key] = current.layouts[key] || "list";
   writeEditorPreference(SIDEBAR_DISPLAY_KEY, next); return next;
 }
-export function sidebarDisplayMetrics(key, themeScale = 1) {
-  const state = loadSidebarDisplay(), scale = state.scale, font = Math.max(.9, Math.sqrt(scale)), ui = Math.max(.75, Math.min(2, Number(themeScale) || 1));
-  // Virtual row estimates and rendered content share a readable minimum, even
-  // when density is reduced independently of the user's UI text size.
-  const micro = scale < .45;
-  const imageHeight = Math.round(Math.max(32, Math.min(192, 112 * scale)) * ui);
-  return { mode: state.layouts[key] || "gallery", scale, font, imageHeight,
-    rowHeight: Math.max(30, Math.ceil((micro ? 30 : 44) * ui * font), Math.round(48 * ui * scale)),
-    cardWidth: Math.max(112, Math.round(160 * scale)),
-    cardHeight: Math.ceil(imageHeight + (micro ? 76 : 176) * font * ui + 16) };
-
-}
-
 const UI_THEME_KEYS = [
   ["bg", "Background"],
   ["panel-bg", "Panels / drawers"],

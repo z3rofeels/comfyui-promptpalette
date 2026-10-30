@@ -1,7 +1,11 @@
+import { libraryDisplayMarkup, libraryFilterBarMarkup, libraryScrollbarMarkup } from "./library_display.js";
 import { libraryEditShell } from "./library_edit_shell.js";
 import { svgIcon } from "../prompt_palette_shared.js";
 import { statusBarMarkup } from "./status_bar.js";
 import { toolbarDesignerMarkup } from "./toolbar.js";
+import { promptSlotsMarkup } from "./prompt_slots.js";
+import { editorFindReplaceMarkup } from "./editor_find_replace.js";
+import { fieldEditorSettingsMarkup } from "./field_editor_preferences.js";
 
 export function createEditorShell() {
   const root = document.createElement("div");
@@ -10,10 +14,12 @@ export function createEditorShell() {
     <div class="wg-toolbar" data-el="toolbar">
       <div class="wg-toolbar-group left" data-el="toolbarMajor" aria-label="Prompt tools">
         <button class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="Prompt Library — Starter Packs and My Library" aria-label="Open Prompt Library" aria-expanded="false">${svgIcon("gallery")}</button>
+        <button type="button" class="wg-icon-btn" data-act="loras" data-el="btnLoras" title="LoraPal · browse local LoRAs beside the editor" aria-label="Open LoraPal" aria-expanded="false">${svgIcon("layers")}</button>
         <button class="wg-icon-btn" data-act="edit" data-el="btnEdit" title="Create or edit a My Library entry" aria-label="Create or edit My Library entry">${svgIcon("edit")}</button>
         <button type="button" class="wg-icon-btn" data-act="importImage" data-el="btnImportImage" title="Import authored or resolved prompts from a generated image" aria-label="Import prompt from image" aria-expanded="false">${svgIcon("upload")}</button>
         <button class="wg-icon-btn" data-act="recipesShortcut" data-el="btnRecipes" title="Open recipes in My Library" aria-label="Open recipes">${svgIcon("recipe")}</button>
         <button class="wg-icon-btn" data-act="stash" data-el="btnStash" title="Prompt Stash — save and restore drafts" aria-label="Open Prompt Stash" aria-expanded="false">${svgIcon("stash")}</button>
+        ${promptSlotsMarkup()}
       </div>
       <div class="wg-toolbar-center">
         <button class="wg-pill wg-pill-resolve" data-act="resolve" data-el="btnResolve" title="Preview the wildcard-resolved result" aria-label="Preview resolved prompt" aria-pressed="false">${svgIcon("bolt")}<span class="wg-toolbar-label">Preview result</span></button>
@@ -32,38 +38,65 @@ export function createEditorShell() {
         <button class="wg-icon-btn wg-settings-anchor" data-el="settingsBtn" data-act="settings" title="Prompt Palette settings" aria-label="Open Prompt Palette settings" aria-expanded="false">${svgIcon("settings")}</button>
       </div>
     </div>
-      <div class="wg-toolbar-extra wg-seed-controls" data-el="seedbar">
-        <span class="wg-seed-label">Seed</span>
-        <input type="number" class="wg-seed-input" data-el="seedInput" min="0" step="1" title="Prompt seed">
-        <button class="wg-icon-btn" data-act="seedRandomizeNow" title="Roll a new random seed now" aria-label="Randomize seed">${svgIcon("dice")}</button>
+      <div class="wg-toolbar-extra wg-seed-controls" data-el="seedbar" role="toolbar" aria-label="Seed and generation controls">
+        <div class="wg-seed-stepper-group" title="Seed controls — roll, nudge or enter seed">
+          <button type="button" class="wg-icon-btn wg-seed-spin-btn" data-act="seedRandomizeNow" title="Spin / Roll a new random seed (Shift+Click: Wheel of Fortune)" aria-label="Randomize seed">${svgIcon("dice", 13)}</button>
+          <button type="button" class="wg-seed-step-btn" data-act="seedDecrement" title="Decrement seed by 1 (Shift+Click: -10)" aria-label="Decrement seed">${svgIcon("minus", 11)}</button>
+          <input type="number" class="wg-seed-input" data-el="seedInput" min="0" step="1" title="Prompt seed — click to type, roll or step" aria-label="Prompt seed">
+          <button type="button" class="wg-seed-step-btn" data-act="seedIncrement" title="Increment seed by 1 (Shift+Click: +10)" aria-label="Increment seed">${svgIcon("plus", 11)}</button>
+        </div>
+
         <select class="wg-seed-mode" data-el="seedModeSelect" title="What happens to the seed after each run"></select>
         <select class="wg-seed-mode" data-el="processingModeSelect" title="How multi-line prompts are resolved">
           <option value="entire text as one">Entire text as one</option>
           <option value="line by line">Line by line</option>
         </select>
+
+        <button type="button" class="wg-seed-fortune-chip" data-el="seedFortuneBadge" title="Seed Fortune &amp; Meaning — click to open Seed Lab &amp; Wheel of Fortune" aria-label="Seed Fortune">
+          <span class="wg-seed-fortune-spark">${svgIcon("sparkles", 11)}</span>
+          <span class="wg-seed-fortune-name" data-el="seedFortuneName">Serendipity</span>
+          <span class="wg-seed-fortune-rating" data-el="seedFortuneRating">98%</span>
+        </button>
+
+        <div class="wg-seed-actions-group">
+          <button type="button" class="wg-icon-btn wg-seed-action-btn" data-act="seedCopy" title="Copy seed to clipboard" aria-label="Copy seed">${svgIcon("copy", 12)}</button>
+          <button type="button" class="wg-icon-btn wg-seed-action-btn wg-seed-wheel-btn" data-act="seedOpenWheel" title="Open Wheel of Fortune Seed Hunt" aria-label="Wheel of Fortune">${svgIcon("wheel", 13)}</button>
+          <button type="button" class="wg-icon-btn wg-seed-action-btn" data-act="seedMenuToggle" data-el="seedMenuBtn" title="Seed Lab, history, and presets" aria-label="Seed options">${svgIcon("dots", 13)}</button>
+        </div>
+
+        <div class="wg-seed-hub-popover" data-el="seedHubPopover" role="dialog" aria-label="Seed Lab and Wheel of Fortune" hidden inert>
+          <div class="wg-seed-hub-head">
+            <div class="wg-seed-hub-title">
+              ${svgIcon("sparkles", 13)}
+              <span>Seed Lab</span>
+            </div>
+            <div class="wg-seed-hub-actions">
+              <button type="button" class="wg-close-btn" data-act="closeSeedHub" title="Close">${svgIcon("close", 12)}</button>
+            </div>
+          </div>
+          <div class="wg-seed-hub-body" data-el="seedHubBody"></div>
+        </div>
       </div>
     <div class="wg-main">
-      <div class="wg-drawer left wg-library-popup" data-drawer="picker" role="region" aria-label="Prompt Library" aria-hidden="true" hidden inert>
+      <div class="wg-drawer left wg-library-popup" data-drawer="picker" role="region" aria-label="My Library" aria-hidden="true" hidden inert>
         <div class="wg-drawer-resize-handle wg-library-resize-handle" data-el="libraryResizeHandle" role="separator" aria-orientation="vertical" aria-label="Resize Prompt Library" tabindex="0" title="Drag to resize Prompt Library · Double-click to reset"></div>
         <div class="wg-library-head">
-          <div>
-            <strong>Prompt Library</strong>
-            <small data-el="librarySubtitle">Model-ready starters, syntax examples, and your wildcard-backed library.</small>
+          <div class="wg-library-tabs" role="tablist" aria-label="Library sections">
+            <button type="button" class="active" data-library-tab="starter" role="tab" aria-selected="true">Starter Packs</button>
+            <button type="button" data-library-tab="personal" role="tab" aria-selected="false">My Library</button>
           </div>
+          <div class="wg-search wg-library-head-search" data-library-personal hidden><input type="search" placeholder="Search prompts…" data-el="search" aria-label="Search My Library"></div>
+          <small data-el="librarySubtitle" hidden></small>
           <div class="wg-library-head-tools">
-            <div class="wg-library-density" role="group" aria-label="Thumbnail size">
-              <button type="button" data-library-density="small" title="Small thumbnails" aria-label="Small thumbnails">S</button>
-              <button type="button" data-library-density="medium" title="Medium thumbnails" aria-label="Medium thumbnails">M</button>
-              <button type="button" data-library-density="large" title="Large thumbnails" aria-label="Large thumbnails">L</button>
-            </div>
+              <button data-library-personal hidden class="wg-icon-btn" data-act="recipeSelect" data-el="recipeSelectToggle" title="Select entries to combine into a Palette Recipe" aria-label="Select entries for a Palette Recipe">${svgIcon("palette")}</button>
+              <button data-library-personal hidden class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle card or list view" aria-label="Toggle My Library view">${svgIcon("grid")}</button>
+
+            <button type="button" class="wg-icon-btn wg-library-customize-btn" data-library-customize-toggle aria-expanded="false" aria-label="Library display and organization settings" title="Library settings — thumbnail size, aspect ratio, sections &amp; sorting">${svgIcon("settings", 13)}</button>
             <button class="wg-icon-btn wg-library-manager-btn" data-act="libraryManager" data-el="libraryManagerBtn" title="Library Manager" aria-label="Open Library Manager" hidden>${svgIcon("settings", 13)}</button>
-            <button class="wg-close-btn" data-act="closePickerDrawer" title="Close Prompt Library" aria-label="Close Prompt Library">${svgIcon("close", 14)}</button>
+            <button class="wg-close-btn" data-act="closePickerDrawer" title="Close Library" aria-label="Close Library">${svgIcon("close", 14)}</button>
           </div>
         </div>
-        <div class="wg-library-tabs" role="tablist" aria-label="Prompt Library sections">
-          <button type="button" class="active" data-library-tab="starter" role="tab" aria-selected="true">Starter Packs</button>
-          <button type="button" data-library-tab="personal" role="tab" aria-selected="false">My Library</button>
-        </div>
+        ${libraryDisplayMarkup()}
         <section class="wg-library-panel wg-starter-panel active" data-library-panel="starter" role="tabpanel">
           <div class="wg-starter-controls">
             <label class="wg-starter-model-select-wrap"><span>Pack</span><select data-el="starterModelSelect" aria-label="Starter Pack collection"></select></label>
@@ -79,16 +112,10 @@ export function createEditorShell() {
             <div class="wg-starter-results-head"><span data-el="starterCount"></span><span class="wg-starter-status" data-el="starterStatus" role="status"></span></div>
           </div>
           <div class="wg-starter-tree" data-el="starterTree" aria-label="Starter Pack categories"></div>
+          ${libraryScrollbarMarkup("starter")}
         </section>
         <section class="wg-library-panel wg-personal-panel" data-library-panel="personal" role="tabpanel" hidden>
-          <div class="wg-personal-head">
-            <div><strong>My Library</strong><span>Your private wildcard-backed entries, lists, and RECIPES.</span></div>
-            <div class="wg-drawer-head-actions">
-              <button class="wg-icon-btn" data-act="recipeSelect" data-el="recipeSelectToggle" title="Select entries to combine into a Palette Recipe" aria-label="Select entries for a Palette Recipe">${svgIcon("palette")}</button>
-              <button class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle card or list view" aria-label="Toggle My Library view">${svgIcon("grid")}</button>
-            </div>
-          </div>
-          <div class="wg-search"><input type="search" placeholder="Search My Library…" data-el="search" aria-label="Search My Library"></div>
+          ${libraryFilterBarMarkup()}
           <div class="wg-recipe-bar" data-el="recipeBar">
             <span data-el="recipeBarCount">0 selected</span>
             <div class="wg-recipe-bar-btns">
@@ -97,10 +124,12 @@ export function createEditorShell() {
             </div>
           </div>
           <div class="wg-list" data-el="pickerList"></div>
+          ${libraryScrollbarMarkup("personal")}
         </section>
       </div>
       <div class="wg-body">
         <div class="wg-editor-wrap">
+          ${editorFindReplaceMarkup()}
           <div class="wg-editor-real" data-el="editorReal">
             <div class="wg-editor-layer wg-highlight" data-el="highlight"></div>
             <textarea class="wg-editor-layer wg-textarea" data-el="textarea" spellcheck="true"></textarea>
@@ -257,6 +286,11 @@ export function createEditorShell() {
                   <div class="wg-status" data-el="fontStatus"></div>
                   <label class="wg-range-field"><span>Prompt text <output data-el="editorFontOut">12.5px</output></span><input type="range" class="wg-range" data-el="editorFontRange" min="10" max="64" step="0.5" value="12.5"></label>
                   <label class="wg-range-field"><span>Interface text <output data-el="uiFontOut">100%</output></span><input type="range" class="wg-range" data-el="uiFontRange" min="80" max="200" step="5" value="100"></label>
+                  <p class="wg-hint">Interface text sizes settings and panels. Prompt text and the modular toolbar have their own controls.</p>
+                  <label class="wg-range-field"><span>Menus &amp; hover cards <output data-el="menuScaleOut">100%</output></span><input type="range" class="wg-range" data-el="menuScaleRange" min="80" max="250" step="5" value="100"></label>
+                  <p class="wg-hint">Autocomplete, syntax, right-click menus and library hover previews. Stays readable at any canvas zoom; does not resize library tiles.</p>
+                  <div class="wg-menu-size-preview" aria-label="Menu size preview"><strong>Menu preview</strong><small>Syntax · autocomplete · hover cards</small></div>
+                  <div class="wg-button-row"><button type="button" class="wg-button" data-act="menuScaleReset">Reset menu size</button></div>
                   <label class="wg-range-field"><span>Corner roundness <output data-el="cornerRadiusOut">10px</output></span><input type="range" class="wg-range" data-el="cornerRadiusRange" min="4" max="18" step="1" value="10"></label>
                   <label class="wg-toggle-card"><div><strong>Match theme text</strong><small>Keep prompt text cohesive with the selected palette.</small></div><input type="checkbox" data-el="promptTextColorAuto" checked></label>
                   <div class="wg-color-field"><div><strong>Prompt text color</strong><small data-el="promptTextColorStatus">Theme default</small></div><div class="wg-color-inputs"><input type="color" data-el="promptTextColor" value="#f1eee8" aria-label="Prompt text color"><input type="text" data-el="promptTextColorHex" maxlength="7" aria-label="Prompt text hex color"><button type="button" class="wg-button" data-act="promptTextColorReset">Use theme</button></div></div>
@@ -291,10 +325,12 @@ export function createEditorShell() {
               <div class="wg-panel-title"><div><h3>Toolbar modules</h3><p>Settings is permanently available and cannot be hidden.</p></div></div>
               <div class="wg-toggle-grid">
                 <label class="wg-toggle-card"><div><strong>Prompt Library</strong><small>Starter Packs and your entries.</small></div><input type="checkbox" data-el="toggleGalleryBtn"></label>
+                <label class="wg-toggle-card"><div><strong>LoraPal</strong><small>Open the local LoRA sidecar. Hiding this shortcut keeps menu actions available.</small></div><input type="checkbox" data-el="toggleLorasBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Wildcard editor</strong><small>Create and edit files.</small></div><input type="checkbox" data-el="toggleEditBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Image prompt import</strong><small>Show the toolbar shortcut. Import stays available in the editor menu and by image drop.</small></div><input type="checkbox" data-el="toggleImportImageBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Recipes</strong><small>Build combinatorial sets.</small></div><input type="checkbox" data-el="toggleRecipesBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Prompt stash</strong><small>Local drafts.</small></div><input type="checkbox" data-el="toggleStashBtn"></label>
+                <label class="wg-toggle-card"><div><strong>Quick slots A–D</strong><small>Workflow-persistent A/B/C/D prompt slots for rapid switching and testing.</small></div><input type="checkbox" data-el="toggleSlotsBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Refresh</strong><small>Rescan My Library files.</small></div><input type="checkbox" data-el="toggleRefreshBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Undo</strong><small>Prompt history.</small></div><input type="checkbox" data-el="toggleUndoBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Redo</strong><small>Prompt history.</small></div><input type="checkbox" data-el="toggleRedoBtn"></label>
@@ -303,7 +339,9 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Copy</strong><small>Copy prompt text.</small></div><input type="checkbox" data-el="toggleCopyBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Clear</strong><small>Clear the editor.</small></div><input type="checkbox" data-el="toggleClearBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Seed controls</strong><small>Seed, mode, line handling.</small></div><input type="checkbox" data-el="toggleSeedControls"></label>
+                <label class="wg-toggle-card"><div><strong>Seed Fortunes &amp; Wheel</strong><small>Archetype omens and seed hunting game on the seed bar.</small></div><input type="checkbox" data-el="toggleSeedFortune"></label>
               </div>
+              ${fieldEditorSettingsMarkup()}
             </section>
   
             <section role="tabpanel" class="wg-settings-panel" data-settings-panel="editor">
@@ -415,7 +453,6 @@ export function createEditorShell() {
           <a class="wg-credit-link" href="https://github.com/z3rofeels/comfyui-promptpalette" target="_blank" rel="noopener noreferrer" title="Prompt Palette on GitHub">
             <span class="wg-credit-icon">${svgIcon("github", 13)}</span><span>made by <strong>Z3rofeels</strong></span>
           </a>
-          <span class="wg-community-credit">Made with care for the community.</span>
         </div>
       </div>
     </div>

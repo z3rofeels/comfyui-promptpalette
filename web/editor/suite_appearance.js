@@ -29,6 +29,7 @@ export function readSuiteAppearanceSnapshot() {
     "font-family": theme.fontFamily?.trim() ? `"${theme.fontFamily.trim()}"` : "",
     "editor-font-size": `${Number(theme.editorFontSize) || 12.5}px`,
     "ui-font-scale": Number(theme.uiFontScale) || 1,
+    "menu-scale": theme.menuScale,
     "prompt-text": theme.promptTextColorMode === "custom"
       ? sanitizeHexColor(theme.promptTextColor, colors.text)
       : colors.text,

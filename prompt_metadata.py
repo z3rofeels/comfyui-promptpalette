@@ -169,7 +169,7 @@ def _workflow_node(workflow: Any, node_id: str) -> dict[str, Any] | None:
 
 def _workflow_summary(metadata: dict[str, Any]) -> dict[str, Any]:
     if metadata.get("batch"):
-        return {
+        summary = {
             "schema": metadata.get("schema"),
             "node_type": metadata.get("node_type"),
             "batch": True,
@@ -184,6 +184,11 @@ def _workflow_summary(metadata: dict[str, Any]) -> dict[str, Any]:
             "truncated": metadata.get("embedded_prompts_truncated", False),
             "prompts": metadata.get("prompts", []),
         }
+        if "variables" in metadata:
+            summary["variables"] = copy.deepcopy(metadata["variables"])
+        if "branch_selections" in metadata:
+            summary["branch_selections"] = copy.deepcopy(metadata["branch_selections"])
+        return summary
     return copy.deepcopy(metadata)
 
 

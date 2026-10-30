@@ -1,5 +1,5 @@
 {
-  "PromptPaletteEditor": "Prompt editor with reusable wildcard libraries, sidebar style browsing, offline Booru and Anima artist autocomplete, field variations, conditional logic, and optional conditioning",
-  "PromptPaletteCombinatorial": "Batch prompt generator with random variations, Cartesian wildcard combinations, structured workspaces, positive/negative prompts, and optional conditioning",
-  "PromptPaletteWeightController": "Model-aware prompt weighting with phrase controls, optional positive antonyms, negative routing, and conditioning outputs"
+  "PromptPaletteEditor": "Prompt editor with reusable wildcard libraries, sidebar style browsing, offline Booru and Anima artist autocomplete, field variations, conditional logic, and optional conditioning; local LoRA browsing, strength trials, and Find & Replace",
+  "PromptPaletteCombinatorial": "Batch prompt generator with random variations, Cartesian wildcard combinations, structured workspaces, positive/negative prompts, and optional conditioning; prompt LoRA stacks and per-row strength comparisons",
+  "PromptPaletteWeightController": "Model-aware prompt weighting with phrase controls, Anima 1.0 mode, nested explicit weights, negative routing, and conditioning outputs"
 }

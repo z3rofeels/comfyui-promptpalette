@@ -6,10 +6,12 @@ import { isDialogOpen } from "./dialogs.js";
 // theme preferences; these helpers do not introduce another settings store.
 export const TOOLBAR_BUTTONS = [
   ["btnGallery", "showGalleryBtn", "toggleGalleryBtn"],
+  ["btnLoras", "showLorasBtn", "toggleLorasBtn"],
   ["btnEdit", "showEditBtn", "toggleEditBtn"],
   ["btnImportImage", "showImportImageBtn", "toggleImportImageBtn"],
   ["btnRecipes", "showRecipesBtn", "toggleRecipesBtn"],
   ["btnStash", "showStashBtn", "toggleStashBtn"],
+  ["btnSlots", "showSlotsBtn", "toggleSlotsBtn"],
   ["btnRefresh", "showRefreshBtn", "toggleRefreshBtn"],
   ["btnUndo", "showUndoBtn", "toggleUndoBtn"],
   ["btnRedo", "showRedoBtn", "toggleRedoBtn"],
@@ -37,8 +39,9 @@ export function setToolbarLabel(button, text) {
 const MODULES = [
   ["resolve", "Preview", "run"], ["variations", "Variations", "run"],
   ["positiveAntonyms", "Positive Antonyms", "run"],
+  ["promptSlots", "Slots A–D", "edit"],
   ["undo", "Undo", "edit"], ["redo", "Redo", "edit"], ["copy", "Copy", "edit"],
-  ["picker", "Library", "source"], ["importImage", "Import image", "source"],
+  ["picker", "Library", "source"], ["loras", "LoraPal", "source"], ["importImage", "Import image", "source"],
   ["stash", "Stash", "source"], ["recipesShortcut", "Recipes", "source"], ["edit", "Edit library", "source"],
   ["refresh", "Rescan library", "view"], ["ioRailToggle", "Inputs / outputs", "view"],
   ["dayNightToggle", "Day / night", "view"], ["zenToggle", "Zen", "view"],
@@ -80,7 +83,7 @@ export function toolbarDesignerMarkup() {
       </div>
       <div class="wg-toolbar-preview" aria-hidden="true"><span>↶</span><span>↷</span><span>✧ Preview</span><span>⊕ Library</span></div>
     </div>
-    <p class="wg-toolbar-help">Adjust from 60–180% or choose a preset. Labels adapt to available space; arrow buttons reach overflow actions. Auto hide opens on hover, keyboard focus or tap. Collapsed stays open until you close it.</p>
+    <p class="wg-toolbar-help">Adjust from 60–180% or choose a preset. Labels adapt to available space; arrow buttons reach overflow actions. Auto hide cleanly reveals the toolbar when hovering the top edge or focusing; Hidden reclaims full vertical space while keeping Settings accessible.</p>
     <details class="wg-toolbar-arrange"><summary>Arrange buttons</summary>
       <p class="wg-toolbar-help">Drag a grip or use the arrows. Hidden actions keep their place. Settings stays at the edge.</p>
       <ol data-toolbar-order aria-label="Toolbar button order"></ol>
@@ -131,18 +134,15 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
   reveal.textContent = "Tools"; reveal.setAttribute("aria-expanded", "false");
   toolbar.id ||= `pp-toolbar-${++toolbarSequence}`;
   reveal.setAttribute("aria-controls", toolbar.id); reveal.title = "Show or hide prompt tools";
-  const pin = document.createElement("button"); pin.type = "button"; pin.className = "wg-toolbar-pin";
-  pin.textContent = "Keep open"; pin.setAttribute("aria-pressed", "false");
-  pin.title = "Keep this toolbar open until you release it";
   const dockAnchor = document.createElement("span"); dockAnchor.className = "wg-toolbar-dock-anchor";
-  dock.append(reveal, pin, dockAnchor); toolbar.before(dock);
+  dock.append(reveal, dockAnchor); toolbar.before(dock);
   const designer = settingsRoot.querySelector('[data-el="toolbarDesigner"]');
   const orderList = designer?.querySelector("[data-toolbar-order]");
   const message = designer?.querySelector("[data-toolbar-message]");
   let frame = null;
   let disposed = false;
   let preferences = normalizeToolbarPreferences(loadTheme?.());
-  let expanded = preferences.toolbarMode === "always", held = false, hideTimer = null, dragged = null;
+  let expanded = preferences.toolbarMode === "always", hideTimer = null, dragged = null;
   let renderedOrder = "";
   const cleanups = [];
   function listen(target, type, handler, options) {
@@ -156,32 +156,40 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
       settings?.getAttribute("aria-expanded") === "true" || isDialogOpen();
   }
   function cancelHide() { if (hideTimer !== null) clearTimeout(hideTimer); hideTimer = null; }
-  function setHeld(value) {
-    held = value; pin.setAttribute("aria-pressed", String(value));
-    pin.textContent = value ? "Release" : "Keep open";
-    pin.title = value ? "Resume hiding for this node" : "Keep this toolbar open until you release it";
-    reveal.title = expanded ? (preferences.toolbarMode === "auto" && !value ? "Keep prompt tools open" : "Hide prompt tools") : "Show prompt tools";
-  }
   function setExpanded(value) {
     if (preferences.toolbarMode === "always") value = true;
     if (preferences.toolbarMode === "hidden") value = false;
     expanded = value;
-    toolbar.hidden = !value; toolbar.inert = !value;
+    const isAuto = preferences.toolbarMode === "auto";
+    toolbar.hidden = isAuto ? false : !value;
+    toolbar.inert = isAuto ? false : !value;
+    track.inert = !value;
+    previous.inert = !value;
+    next.inert = !value;
+    toolbar.dataset.mode = preferences.toolbarMode;
+    toolbar.dataset.expanded = String(value);
     toolbar.dataset.retractable = String(preferences.toolbarMode !== "always");
+    dock.dataset.mode = preferences.toolbarMode;
+    dock.dataset.expanded = String(value);
+    reveal.hidden = preferences.toolbarMode !== "click";
     reveal.setAttribute("aria-expanded", String(value));
-    reveal.title = value ? (preferences.toolbarMode === "auto" && !held ? "Keep prompt tools open" : "Hide prompt tools") : "Show prompt tools";
-    pin.hidden = !value;
+    reveal.title = value ? "Hide prompt tools" : "Show prompt tools";
+    dock.hidden = preferences.toolbarMode === "always" || isAuto;
+    const targetParent = dock.hidden ? anchor : dockAnchor;
+    if (settings && targetParent && settings.parentElement !== targetParent) {
+      targetParent.appendChild(settings);
+    }
     schedule();
   }
   function queueHide() {
     cancelHide();
-    if (preferences.toolbarMode !== "auto" || held || !expanded) return;
+    if (preferences.toolbarMode !== "auto" || !expanded) return;
     hideTimer = setTimeout(() => {
       hideTimer = null;
-      if (disposed || held || toolbar.matches(":hover") || dock.matches(":hover") ||
+      if (disposed || toolbar.matches(":hover") || dock.matches(":hover") ||
           toolbar.contains(document.activeElement) || dock.contains(document.activeElement) || blocked()) return;
       setExpanded(false);
-    }, preferences.toolbarMode === "auto" ? 650 : 0);
+    }, 450);
   }
   function write(patch) {
     if (!saveTheme || !loadTheme) return;
@@ -227,19 +235,20 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
     const changedMode = next.toolbarMode !== preferences.toolbarMode;
     preferences = next;
     toolbar.dataset.size = next.toolbarSize;
+    toolbar.dataset.mode = next.toolbarMode;
     const scale = String(next.toolbarScale / 100);
     toolbar.style.setProperty("--pp-toolbar-scale", scale);
     dock.style.setProperty("--pp-toolbar-scale", scale);
     designer?.style.setProperty("--pp-toolbar-scale", scale);
     dock.dataset.mode = next.toolbarMode;
-    reveal.hidden = next.toolbarMode === "hidden";
-    dock.hidden = next.toolbarMode === "always";
-    if (settings) (dock.hidden ? anchor : dockAnchor).appendChild(settings);
     // Append only when the actual order changed: no observer feedback loop.
     const current = [...track.children].map(slot => slot.firstElementChild?.dataset.toolbarKey);
     const wanted = next.toolbarOrder.filter(key => slots.has(key));
     if (current.join("|") !== wanted.join("|")) wanted.forEach(key => track.appendChild(slots.get(key).slot));
-    if (changedMode) { cancelHide(); setHeld(false); setExpanded(next.toolbarMode === "always" || blocked() || toolbar.contains(document.activeElement) || (next.toolbarMode === "auto" && (dock.matches(":hover") || dock.contains(document.activeElement)))); }
+    if (changedMode) {
+      cancelHide();
+      setExpanded(next.toolbarMode === "always" || (next.toolbarMode !== "hidden" && (blocked() || toolbar.contains(document.activeElement))) || (next.toolbarMode === "auto" && (dock.matches(":hover") || dock.contains(document.activeElement))));
+    }
     else setExpanded(expanded);
     designer?.querySelectorAll("[data-toolbar-scale-preset]").forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.toolbarScalePreset) === next.toolbarScale)));
     const slider = designer?.querySelector("[data-toolbar-scale]"); if (slider) slider.value = String(next.toolbarScale);
@@ -307,21 +316,27 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
   const panels = new MutationObserver(queueHide);
   panels.observe(root, { subtree: true, attributes: true, attributeFilter: ["hidden", "aria-expanded"] });
   listen(document, "close", queueHide, true);
-  listen(dock, "pointerenter", () => { cancelHide(); if (preferences.toolbarMode === "auto") setExpanded(true); });
-  listen(toolbar, "pointerenter", cancelHide);
+  listen(dock, "pointerenter", () => { cancelHide(); if (preferences.toolbarMode === "auto" && !expanded) setExpanded(true); });
+  listen(toolbar, "pointerenter", () => { cancelHide(); if (preferences.toolbarMode === "auto" && !expanded) setExpanded(true); });
+  listen(root, "pointermove", event => {
+    if (preferences.toolbarMode !== "auto" || expanded) return;
+    const rect = root.getBoundingClientRect();
+    if (event.clientY >= rect.top && event.clientY <= rect.top + 24) {
+      cancelHide();
+      setExpanded(true);
+    }
+  }, true);
   for (const surface of [dock, toolbar]) { listen(surface, "pointerleave", queueHide); listen(surface, "focusout", queueHide); listen(surface, "focusin", () => {
-    cancelHide(); if (preferences.toolbarMode === "auto") setExpanded(true);
+    cancelHide(); if (preferences.toolbarMode === "auto" && !expanded) setExpanded(true);
   }); }
   listen(reveal, "click", () => {
-    cancelHide(); if (preferences.toolbarMode === "auto" && expanded && !held) setHeld(true);
-    else if (expanded) { setHeld(false); setExpanded(false); }
-    else setExpanded(true);
+    cancelHide();
+    setExpanded(!expanded);
   });
   listen(reveal, "keydown", event => {
     if (event.key !== "ArrowDown") return;
     event.preventDefault(); event.stopPropagation(); setExpanded(true); visibleButtons().find(button => !button.disabled)?.focus({ preventScroll: true });
   });
-  listen(pin, "click", () => { setHeld(!held); if (!held) queueHide(); });
   for (const [button, direction] of [[previous, -1], [next, 1]]) listen(button, "click", () => {
     track.scrollBy({ left: direction * Math.max(80, track.clientWidth * .75), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   });
@@ -347,7 +362,8 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
   });
   function handleToolbarEscape(event) {
     if (event.key !== "Escape" || !expanded || preferences.toolbarMode === "always" || blocked()) return;
-    event.preventDefault(); event.stopPropagation(); setHeld(false); setExpanded(false); reveal.focus({ preventScroll: true });
+    event.preventDefault(); event.stopPropagation(); setExpanded(false);
+    if (!reveal.hidden) reveal.focus({ preventScroll: true });
   }
   listen(toolbar, "keydown", handleToolbarEscape);
   listen(dock, "keydown", handleToolbarEscape);

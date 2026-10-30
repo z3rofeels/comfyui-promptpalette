@@ -20,7 +20,7 @@ export function mountCombinatorialTools(root, settingsPopup) {
   const primary = document.createElement("div"); primary.className = "wg-toolbar-group left";
   primary.setAttribute("aria-label", "Prompt tools");
   primary.appendChild(root.querySelector('[data-el="btnGallery"]'));
-  for (const name of ["btnEdit", "btnImportImage", "btnRecipes"]) primary.appendChild(take(name));
+  for (const name of ["btnLoras", "btnEdit", "btnImportImage", "btnRecipes", "btnSlots"]) primary.appendChild(take(name));
   toolbar.appendChild(primary);
   toolbar.appendChild(shell.querySelector(".wg-toolbar-center"));
   const actions = document.createElement("div"); actions.className = "wg-toolbar-group right";
@@ -30,7 +30,10 @@ export function mountCombinatorialTools(root, settingsPopup) {
   actions.append(...root.querySelector(".pp-header-actions").children);
   root.querySelector(".pp-header-actions").remove();
   toolbar.appendChild(actions); root.querySelector(".pp-header").after(toolbar);
-  root.querySelector(".wg-editor-wrap").appendChild(take("resolvedView"));
+  const editorWrap = root.querySelector(".wg-editor-wrap");
+  const findBar = take("editorFindBar");
+  if (findBar && editorWrap) editorWrap.prepend(findBar);
+  editorWrap.appendChild(take("resolvedView"));
   for (const name of ["doctorPopup", "variationPopup", "libraryManagerPopup", "recipeBuilderPopup"]) root.querySelector(".wg-main").appendChild(take(name));
   root.querySelector(".wg-main").appendChild(shell.querySelector('[data-drawer="edit"]'));
   root.querySelector(".wg-drawer-head-actions").appendChild(take("libraryManagerBtn"));
@@ -38,7 +41,7 @@ export function mountCombinatorialTools(root, settingsPopup) {
   recipeBuilder.removeAttribute("data-el"); recipeBuilder.dataset.act = "buildRecipe";
   recipeBuilder.title = "Build a recipe from this prompt's library entries";
   recipeBuilder.setAttribute("aria-label", "Build a recipe from this prompt's library entries");
-  root.querySelector(".wg-drawer-head-actions").appendChild(recipeBuilder);
+  root.querySelector(".wg-drawer-head-actions").prepend(recipeBuilder);
   const tab = shell.querySelector('[data-settings-tab="power"]');
   settingsPopup.querySelector(".wg-settings-nav").appendChild(tab);
   const panel = shell.querySelector('[data-settings-panel="power"]');
@@ -50,7 +53,12 @@ export function mountCombinatorialTools(root, settingsPopup) {
     compact.appendChild(element);
   }
   settingsPopup.querySelector(".wg-settings-body").appendChild(compact);
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleLorasBtn").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleImportImageBtn").closest(".wg-toggle-card"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleRecipesBtn").closest(".wg-toggle-card"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleSlotsBtn").closest(".wg-toggle-card"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleLayoutsShortcut").closest(".wg-toggle-card"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleWorkspaceSnapGrid").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleAnimaArtistFormatting").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toolbarDesigner"));
 }
@@ -77,9 +85,9 @@ export function createCombinatorialTools(ctx) {
     editVersion++; editPanel.suspend(); editDrawer.classList.remove("open"); editDrawer.hidden = true;
     editDrawer.setAttribute("aria-hidden", "true"); editDrawer.setAttribute("inert", "");
   }
-  async function openEditForItem(path = "") {
+  async function openEditForItem(path = "", options = {}) {
     const request = ++editVersion;
-    const opened = await editPanel.load(path, { confirm: true, existing: !!path });
+    const opened = await editPanel.load(path, { confirm: true, existing: !!path, ...options });
     if (disposed || request !== editVersion) return;
     if (!opened) { if (el("editStatus").classList.contains("err")) notify("error", "Entry not opened", el("editStatus").textContent); return; }
     tools.closeAllPowerPopups(); closeSettings(); closePickerDrawer(); ioRail.close();
@@ -106,6 +114,9 @@ export function createCombinatorialTools(ctx) {
       el("resolvedView").replaceChildren(fragment);
       state.lastTokenStats = result.tokenStats; state.lastTokenStatsSource = source;
       el("tokenCount").textContent = result.tokenStats ? `${result.tokenStats.tokens} tokens` : "";
+      if (typeof ctx.onPreviewResolved === "function") {
+        ctx.onPreviewResolved({ source, branchSelections: result.branchSelections || [], variables: result.variables || {} });
+      }
     } catch (error) {
       if (!disposed && request === previewVersion && error.name !== "AbortError") el("resolvedView").textContent = error.message;
     } finally { runtime.endRequest("preview", controller); }

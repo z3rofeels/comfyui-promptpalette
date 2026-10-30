@@ -4,9 +4,33 @@ function supportsNativeHighlights(editor) {
   return !!(editor?.dataset?.ppEditorSurface === "single" && globalThis.CSS?.highlights && globalThis.Highlight);
 }
 
+const BRANCH_PALETTE_COLORS = [
+  "var(--wg-branch-c0, var(--wg-success, #5ec992))",
+  "var(--wg-branch-c1, #5cb8f6)",
+  "var(--wg-branch-c2, var(--wg-accent, #e5a653))",
+  "var(--wg-branch-c3, #c389f5)",
+];
+
 function styleForDecoration(decoration) {
+  if (decoration.kind === "branch-selected") {
+    const color = BRANCH_PALETTE_COLORS[Math.abs(Number(decoration.branchPalette) || 0) % BRANCH_PALETTE_COLORS.length];
+    return `color:color-mix(in srgb,${color} 90%,var(--wg-prompt-text,#f1eee8));background-color:color-mix(in srgb,${color} 22%,transparent);text-decoration-line:underline;text-decoration-color:${color};text-decoration-thickness:1.5px;text-shadow:0 0 0.45px currentColor;`;
+  }
+  if (decoration.kind === "branch-unselected") {
+    return "color:color-mix(in srgb,var(--wg-prompt-text,#f1eee8) 40%,transparent);";
+  }
+  if (decoration.kind === "find-current") {
+    return "background-color:color-mix(in srgb,var(--wg-accent,#d49a52) 56%,transparent);color:var(--wg-prompt-text,#f1eee8);text-decoration-line:underline;text-decoration-color:var(--wg-accent,#d49a52);";
+  }
+  if (decoration.kind === "find-match") {
+    return "background-color:color-mix(in srgb,var(--wg-accent,#d49a52) 28%,transparent);color:var(--wg-prompt-text,#f1eee8);";
+  }
+  if (decoration.kind === "find-scope") {
+    return "background-color:color-mix(in srgb,var(--wg-accent,#d49a52) 10%,transparent);";
+  }
   if (decoration.kind === "wildcard" || decoration.kind === "booru") return `color:${decoration.color};text-shadow:0 0 0.35px currentColor;`;
   if (decoration.kind === "error") return "color:var(--wg-danger,#d86f70);text-decoration-line:underline;text-decoration-style:dashed;text-decoration-color:var(--wg-danger,#d86f70);";
+  if (decoration.kind === "lora") return `color:${decoration.color || "var(--wg-accent)"};text-decoration-line:underline;text-decoration-style:dotted;`;
   if (decoration.kind === "conditional") return "color:var(--wg-accent,#d49a52);font-weight:600;";
   if (decoration.kind === "weight") return "color:color-mix(in srgb,var(--wg-accent,#d49a52) 82%,var(--wg-prompt-text,#f1eee8));text-shadow:0 0 0.35px currentColor;";
   if (decoration.kind === "modifier") return "color:var(--wg-success,#78b58b);text-shadow:0 0 0.35px currentColor;";
@@ -14,6 +38,15 @@ function styleForDecoration(decoration) {
   if (decoration.kind === "pipe") return "color:color-mix(in srgb,var(--wg-prompt-text,#f1eee8) 50%,transparent);";
   if (decoration.kind === "comment") return "color:var(--wg-text-faint,#8f887e);";
   return "";
+}
+
+function priorityForDecoration(decoration) {
+  if (decoration.kind === "find-current") return 4;
+  if (decoration.kind === "find-match") return 3;
+  if (decoration.kind === "branch-selected") return 2;
+  if (decoration.kind === "branch-unselected") return 1;
+  if (decoration.kind === "find-scope") return 0;
+  return Number.isFinite(decoration.priority) ? decoration.priority : -1;
 }
 
 function hashStyle(value) {
@@ -53,12 +86,14 @@ export function createSyntaxHighlighter(editor, fallbackLayer) {
         if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start < 0 || end > sourceText.length) continue;
         const style = styleForDecoration(decoration);
         if (!style) continue;
-        if (!groups.has(style)) groups.set(style, []);
-        groups.get(style).push({ start, end });
+        const priority = priorityForDecoration(decoration);
+        const groupKey = `${priority}|${style}`;
+        if (!groups.has(groupKey)) groups.set(groupKey, { style, priority, ranges: [] });
+        groups.get(groupKey).ranges.push({ start, end });
       }
       const rules = [];
       let order = 0;
-      for (const [style, ranges] of groups) {
+      for (const [, { style, priority, ranges }] of groups) {
         const name = `${prefix}-${hashStyle(style)}-${order++}`;
         const domRanges = [];
         for (const item of ranges) {
@@ -66,7 +101,7 @@ export function createSyntaxHighlighter(editor, fallbackLayer) {
         }
         if (!domRanges.length) continue;
         const highlight = new Highlight(...domRanges);
-        if ("priority" in highlight) highlight.priority = -1;
+        if ("priority" in highlight) highlight.priority = priority;
         CSS.highlights.set(name, highlight);
         registered.add(name);
         rules.push(`[data-pp-editor-id="${prefix}"]::highlight(${name}){${style}}`);

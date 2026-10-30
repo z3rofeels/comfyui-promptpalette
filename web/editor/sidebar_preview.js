@@ -1,3 +1,4 @@
+import { loadSidebarDisplay } from "./preferences.js";
 import { API } from "../prompt_palette_api.js";
 
 // Read-only views of the existing wildcard index, not a second library/editor.
@@ -37,8 +38,8 @@ export function createSidebarQuickPreview(root, announce) {
     });
     if (total > names.length) { const tail = document.createElement("small"); tail.className = "pp-sidebar-note"; tail.textContent = `Showing ${names.length} of ${total.toLocaleString()} entries in this category.`; body.append(tail); }
   }
-  function bind(control, path) {
-    const open = () => { if (pinned) return; clearTimeout(openTimer); clearTimeout(closeTimer); openTimer = setTimeout(() => show(path, [path], { pin: false, anchor: control }), 280); };
+  function bind(control, path, { image = false } = {}) {
+    const open = () => { const chrome = loadSidebarDisplay().chrome; if (pinned || !chrome.hoverText || (image && chrome.hoverImages)) return; clearTimeout(openTimer); clearTimeout(closeTimer); openTimer = setTimeout(() => { if (loadSidebarDisplay().chrome.hoverText) show(path, [path], { pin: false, anchor: control }); }, 400); };
     const leave = () => { clearTimeout(openTimer); if (!pinned) { clearTimeout(closeTimer); closeTimer = setTimeout(hide, 240); } };
     control.addEventListener("pointerenter", open); control.addEventListener("pointerleave", leave);
     // Keyboard users have an explicit Quick view button; focusing Insert does

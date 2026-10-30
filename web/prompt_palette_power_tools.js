@@ -4,10 +4,10 @@ function normalizeText(value) { return String(value ?? "").replace(/\r\n?/g, "\n
 
 export function extractPromptTokens(text) { return engineExtractPromptTokens(text); }
 
-export function analyzePromptSource({ text, libraryEntries = [], tokenCount = null, parsed = null } = {}) {
+export function analyzePromptSource({ text, libraryEntries = [], tokenCount = null, parsed = null, externalVariables = false, externalVariableNames = [] } = {}) {
   const engine = getSharedWildcardEngine();
   const analysis = parsed || engine.parse(text);
-  return engine.validate(analysis, { libraryEntries, tokenCount });
+  return engine.validate(analysis, { libraryEntries, tokenCount, externalVariables, externalVariableNames });
 }
 
 function wordTokens(value) {

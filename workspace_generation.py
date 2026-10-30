@@ -32,6 +32,7 @@ def read_runtime(value, text=None):
     if text is not None and value['positive'] != text: return None
     ids, ends = set(), {'positive': 0, 'negative': 0}
     for field in value['fields']:
+        if not isinstance(field, dict): raise ValueError('Invalid generation field.')
         ident, channel = field.get('id'), field.get('channel')
         if not isinstance(ident, str) or not ident or len(ident) > 160 or ident in ids: raise ValueError('Invalid generation field identity.')
         ids.add(ident)
@@ -61,18 +62,21 @@ def active_runtime(value, text=None):
     runtime = read_runtime(value, text)
     if not runtime: return None
     dynamic = re.compile(r'__[+\-*%~@]?[A-Za-z0-9_\-/*]+|\$\{|\{[^{}]*\||\[(?:if|elif|switch)\b', re.I)
-    return runtime if any(f['state'] in ('vary', 'follow') or f['state'] == 'lock' and dynamic.search(f['source']) for f in runtime['fields']) else None
+    return runtime if any(f.get('state') in ('vary', 'follow') or f.get('state') == 'lock' and dynamic.search(f['source']) for f in runtime['fields']) else None
 
 
 def runtime_changes(value, text=None):
     runtime = read_runtime(value, text)
-    return bool(runtime and any(f['state'] == 'follow' or f['state'] == 'vary' and f.get('variation', 'cycle') != 'seed' for f in runtime['fields']))
+    return bool(runtime and any(f.get('state') == 'follow' or f.get('state') == 'vary' and f.get('variation', 'cycle') != 'seed' for f in runtime['fields']))
 
 
 class WorkspaceGeneration:
-    def __init__(self, index, payload, namespace='', *, preview=False):
+    def __init__(self, index, payload, namespace='', *, preview=False, initial_variables=None):
         self.index, self.payload, self.preview = index, read_runtime(payload), preview
         self.namespace = str((self.payload or {}).get('namespace') or namespace)
+        self.initial_variables = WildcardResolver.parse_variables_input(initial_variables)
+        self.variables = dict(self.initial_variables)
+        self.branch_selections = []
         self.values, self.spans, self.chosen, self.used = {}, {}, {}, set()
         with _GUARD: self.held = dict(_HELD) if preview else _HELD
         self.fields = self.payload['fields'] if self.payload else []
@@ -80,23 +84,27 @@ class WorkspaceGeneration:
         self.mark = 'PPGEN' + hashlib.sha256(json.dumps(self.payload, sort_keys=True).encode()).hexdigest()[:24]
 
     def _key(self, field):
-        identity = f'{self.namespace}:{field["id"]}:{field["source"]}:{field.get("variation", "cycle")}:{field["state"]}:{field.get("dependsOn", [])}'
+        identity = f'{self.namespace}:{field["id"]}:{field["source"]}:{field.get("variation", "cycle")}:{field.get("state")}:{field.get("dependsOn", [])}'
         return hashlib.sha256(identity.encode()).hexdigest()
 
     def _resolve(self, text, seed, mode, *, preview=False):
         index = self.index.preview_view() if preview and hasattr(self.index, 'preview_view') else self.index
-        resolver = WildcardResolver(index)
+        resolver = WildcardResolver(index, initial_variables=self.variables)
         result = '\n'.join(resolver.resolve_lines(text, seed=seed)) if mode == 'line by line' else resolver.resolve(text, seed=seed)
+        if not preview:
+            self.variables.update(resolver.export_variables())
+            self.branch_selections.extend(resolver.branch_selections)
         return result, resolver.used_names
 
     def _pick(self, field, seed, trigger=None):
         key, source = self._key(field), field['source']
         previous = self.held.get(key)
-        if field['state'] == 'follow' and previous and previous[0] == trigger: return previous[1]
-        if field['state'] == 'lock': return previous[1] if previous else source
+        if field.get('state') == 'follow' and previous and previous[0] == trigger: return previous[1]
+        if field.get('state') == 'lock': return previous[1] if previous else source
         method = field.get('variation', 'cycle')
         match, wildcard = BRACE_RE.fullmatch(source.strip()), WILDCARD_RE.fullmatch(source.strip())
         choices = None
+        constrained = None
         if match:
             inner = match[1]
             if inner[:1] in '+-*~@%': inner = inner[1:]
@@ -104,8 +112,18 @@ class WorkspaceGeneration:
                 choices = [WEIGHT_RE.sub(lambda m: m[2], option).strip() for option in WildcardResolver(self.index)._split_top_level(inner)]
         elif wildcard:
             self.used.add(wildcard[2]); choices = self.index.get_lines(wildcard[2])
-        if field['state'] == 'vary' and (not choices or len(choices) < 2): return source
-        if field['state'] != 'lock' and method != 'syntax' and choices and len(choices) > 1:
+            selected = getattr(self.index, 'selected', {}).get(wildcard[2])
+            if selected and method != 'syntax':
+                # Relationships fix the chosen identity, while the original
+                # field policy still advances its own counter/held state.
+                constrained = selected['text']
+                choices = self.index.original.get_lines(wildcard[2])
+        if field.get('state') == 'vary' and (not choices or len(choices) < 2): return source
+        if constrained is not None:
+            if method == 'cycle' and choices and len(choices) > 1:
+                self.index.next_sequential_index('workspace:' + key, len(choices), 1)
+            chosen = constrained
+        elif field.get('state') != 'lock' and method != 'syntax' and choices and len(choices) > 1:
             if method == 'cycle':
                 chosen = choices[self.index.next_sequential_index('workspace:' + key, len(choices), 1)]
             elif method == 'shuffle':
@@ -117,7 +135,7 @@ class WorkspaceGeneration:
                 chosen, _ = self._resolve(seed_source, seed, 'entire text as one', preview=True)
         else:
             chosen, _ = self._resolve(source, seed, 'entire text as one')
-        if field['state'] in ('follow', 'lock') or method == 'shuffle':
+        if field.get('state') in ('follow', 'lock') or method == 'shuffle':
             self.held[key] = (trigger, chosen)
             if not self.preview:
                 self.held.move_to_end(key)
@@ -159,9 +177,9 @@ class WorkspaceGeneration:
             selected = {}
             for field in self.fields:
                 if field['channel'] != channel: continue
-                if field['state'] in ('vary', 'lock') and not (field['state'] == 'vary' and field.get('variation') == 'syntax'):
+                if field.get('state') in ('vary', 'lock') and not (field.get('state') == 'vary' and field.get('variation') == 'syntax'):
                     selected[field['id']] = self._pick(field, seed)
-                elif field['state'] == 'follow':
+                elif field.get('state') == 'follow':
                     previous = self.held.get(self._key(field))
                     selected[field['id']] = previous[1] if previous else ''
             # A cloned first pass captures resolved dependency values without advancing manual sequences.
@@ -169,13 +187,13 @@ class WorkspaceGeneration:
             _, captured, _ = self._read(channel, baseline)
             captured.update({key: value for key, value in self.values.items() if key not in captured})
             for field in self.fields:
-                if field['channel'] == channel and field['state'] == 'lock' and field['id'] in captured:
+                if field['channel'] == channel and field.get('state') == 'lock' and field['id'] in captured:
                     selected[field['id']] = captured[field['id']]
                     self.held[self._key(field)] = (None, captured[field['id']])
                     if not self.preview:
                         self.held.move_to_end(self._key(field))
                         while len(self.held) > _MAX_HELD: self.held.popitem(last=False)
-            pending = {f['id'] for f in self.fields if f['channel'] == channel and f['state'] == 'follow'}
+            pending = {f['id'] for f in self.fields if f['channel'] == channel and f.get('state') == 'follow'}
             while pending:
                 ready = [ident for ident in pending if not pending.intersection(self.lookup[ident].get('dependsOn', []))]
                 if not ready: raise ValueError('Follow sources cannot form a cycle.')

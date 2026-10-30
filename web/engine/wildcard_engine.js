@@ -1,7 +1,7 @@
+import { LORA_RE } from "./lora_tags.js";
 import { createLibraryLookup } from "./library_lookup.js";
 import { jsonObjectRanges, maskJsonObjects } from "./json_literals.js";
-const SIMPLE_TOKEN_RE = /(__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if|switch|case|default|\/switch)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
-const LORA_RE = /<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)>/gi;
+const SIMPLE_TOKEN_RE = /(<lora:(?![^>]*__)[^:<>\r\n{}|$]+:[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?::[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)?>|__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if|switch|case|default|\/switch)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
 const CACHE_LIMIT = 768;
 
 function normalize(value) { return String(value ?? "").replace(/\r\n?/g, "\n"); }
@@ -33,7 +33,8 @@ function parseLine(raw) {
     const token = match[0];
     const wildcardMatch = token.match(/^__([+\-*%~@]?)([A-Za-z0-9_\-/*]+)(?:\(([^()]*)\))?__$/);
     let segment;
-    if (wildcardMatch) {
+    if (/^<lora:/i.test(token)) segment = { type: "lora", text: token, start: match.index, end: match.index + token.length };
+    else if (wildcardMatch) {
       segment = {
         type: "wildcard", text: token, mode: wildcardMatch[1] || "", name: wildcardMatch[2] || "",
         argsRaw: wildcardMatch[3] || "", args: parseArgs(wildcardMatch[3]), start: match.index, end: match.index + token.length,
@@ -113,7 +114,7 @@ export class UnifiedWildcardEngine {
     this.lastSource = source; this.lastAnalysis = result;
     return result;
   }
-  validate(parsedOrText, { libraryEntries = [], tokenCount = null } = {}) {
+  validate(parsedOrText, { libraryEntries = [], tokenCount = null, externalVariables = false, externalVariableNames = [] } = {}) {
     const parsed = typeof parsedOrText === "string" ? this.parse(parsedOrText) : parsedOrText;
     // Ignore the same full-line comments as the backend while retaining token
     // offsets for "Show in editor" and Unicode selections.
@@ -170,10 +171,10 @@ export class UnifiedWildcardEngine {
     }
     if (braceDepth > 0 || variableDepth > 0) add("error", "unclosed-brace", "Unclosed choice or variable", "One or more brace expressions do not have a closing brace.");
 
-    const assigned = new Set();
+    const assigned = new Set(Array.isArray(externalVariableNames) ? externalVariableNames : []);
     for (const variable of parsed?.variables || []) {
       if (variable.operator === "=") assigned.add(variable.name);
-      else if (!assigned.has(variable.name) && variable.operator !== ":") add("warning", "unreachable-variable", "Variable may be undefined", `“${variable.name}” is referenced before Prompt Palette sees an assignment or fallback.`, { token: variable });
+      else if (!externalVariables && !assigned.has(variable.name) && variable.operator !== ":") add("warning", "unreachable-variable", "Variable may be undefined", `“${variable.name}” is referenced before Prompt Palette sees an assignment or fallback.`, { token: variable });
     }
 
     const seenLoras = new Map();
@@ -194,6 +195,8 @@ export class UnifiedWildcardEngine {
     const source = normalize(sourceText);
     if (this.parse(source).literalRanges.some(range => range.start <= caret && caret < range.end)) return null;
     const before = source.slice(0, Math.max(0, Number(caret) || 0));
+    const lora = before.match(/<lora:([^:<>\r\n{}|$]*)$/i);
+    if (lora) return options.loraAutocomplete === true ? { kind: "lora", query: lora[1], modifier: "", start: lora.index, end: before.length } : null;
     const wildcard = before.match(/__([+\-*%~@]?)([A-Za-z0-9_\-/]*)$/);
     if (wildcard) {
       // A query that already contains "__" is a closed wildcard followed by

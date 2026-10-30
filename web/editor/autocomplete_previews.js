@@ -1,3 +1,4 @@
+import { readEditorPreference } from "../prompt_palette_state.js";
 import { API } from "../prompt_palette_api.js";
 import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
 import { stylePreviewUrl } from "./style_library_model.js";
@@ -42,7 +43,7 @@ async function previewUrls(rows) {
     });
   }
   while (cached.size > 512) cached.delete(cached.keys().next().value);
-  const library = rows.some(({item}) => !["booru", "custom", "syntax"].includes(item.kind));
+  const library = rows.some(({item}) => !["booru", "custom", "syntax", "lora"].includes(item.kind));
   if (library && !categories) {
     const pending = API.categories(); categories = pending;
     pending.catch(() => { if (categories === pending) categories = null; });
@@ -51,6 +52,7 @@ async function previewUrls(rows) {
   // Metadata errors cannot take away text suggestions or the other image source.
   return Promise.all(rows.map(async ({item}) => {
     if (item.kind === "booru") return cached.get(identity(item))?.catch(() => "") || "";
+    if (item.kind === "lora") return readEditorPreference("lora-picker", {})?.images === true ? API.loraPreviewUrl(item.value) : "";
     if (item.kind === "custom" || item.kind === "syntax") return "";
     const path = map[item.value] || map[item.value.replace(/\.txt$/i, "")];
     return path ? API.thumbnailUrl(path, `&v=${version}`) : "";
@@ -66,17 +68,18 @@ export function hydrateAcThumbnails(menu, rows, activeIndex, isCurrent, onLayout
     if (getWorkspacePreferences().disableHoverPreviews) return;
     timer = setTimeout(() => {
       if (disposed || !isCurrent() || getWorkspacePreferences().disableHoverPreviews || !row.isConnected || hovering !== Number(row.dataset.acIndex)) return;
-      const rect = menu.getBoundingClientRect(), width = 204, gap = 10;
-      const right = rect.right + gap, left = rect.left - width - gap;
-      if (right + width > window.innerWidth - 8 && left < 8) return;
+      const rect = menu.getBoundingClientRect(), gap = 10;
       tip = document.createElement("div");
       tip.className = "wg-ac-preview wg-root"; tip.dataset.promptPaletteGlobal = "true";
       tip.setAttribute("aria-hidden", "true"); copyPromptPaletteThemeScope(menu, tip);
       const image = document.createElement("img"); image.alt = ""; image.src = url;
       image.addEventListener("error", hide, {once:true}); tip.append(image);
-      tip.style.left = `${right + width <= window.innerWidth - 8 ? right : left}px`;
-      tip.style.top = `${Math.max(8, Math.min(row.getBoundingClientRect().top, window.innerHeight - 212))}px`;
       document.body.append(tip);
+      const { width, height } = tip.getBoundingClientRect();
+      const right = rect.right + gap, left = rect.left - width - gap;
+      if (right + width > window.innerWidth - 8 && left < 8) { hide(); return; }
+      tip.style.left = `${right + width <= window.innerWidth - 8 ? right : left}px`;
+      tip.style.top = `${Math.max(8, Math.min(row.getBoundingClientRect().top, window.innerHeight - height - 8))}px`;
     }, 320);
   };
   const leave = () => { hovering = -1; hide(); };

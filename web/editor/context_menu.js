@@ -1,7 +1,9 @@
+import { parsePrompt } from "../engine/wildcard_engine.js";
+import { loraAt, loraChoiceAt, loraModeExpression, formatLoraTag } from "../engine/lora_tags.js";
 import { escapeHtml } from "./text_utils.js";
 import { isComfyQueueShortcut } from "../editor_shortcuts.js";
 import { copyPromptPaletteThemeScope, svgIcon } from "../prompt_palette_shared.js";
-import { runTextareaEditCommand, closeInjectMenu, injectState } from "./injector.js";
+import { runTextareaEditCommand, openInjectMenuAtPoint, closeInjectMenu, injectState } from "./injector.js";
 import { closeAcMenu } from "./autocomplete.js";
 import { editorOffsetAtPoint } from "./editor_hover.js";
 import { notify } from "./notifications.js";
@@ -40,6 +42,7 @@ function stepRow(from, delta) {
 }
 function handleContextKeyDown(event) {
   if (!ctxMenuOpen) return;
+  if (event.isComposing || event.keyCode === 229) return;
   if (isComfyQueueShortcut(event)) { closeCtxMenu(); return; }
   const printable = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey && event.key !== " ";
   if (!printable && !["ArrowDown", "ArrowUp", "Home", "End", "Enter", " ", "Escape", "Tab"].includes(event.key)) return;
@@ -78,14 +81,32 @@ function ensureCtxMenu() {
   return ctxMenu;
 }
 
-function openCtxMenu(x, y, actions) {
+function openCtxMenu(x, y, actions, { scope: ownerScope = null } = {}) {
+  x = Number.isFinite(x) ? x : 0;
+  y = Number.isFinite(y) ? y : 0;
+  // Keep each section contiguous and retain its caller's priority. Repeated
+  // labels within one section should never create duplicate actions.
+  const groups = new Map(), seen = new Set();
+  for (const action of actions) {
+    if (!action?.label || typeof action.onSelect !== "function") continue;
+    const group = action.group || "";
+    const key = `${group}:${action.label.trim().toLocaleLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(action);
+  }
+  actions = [...groups.values()].flat();
+  const sectionLabels = { insert: "Insert", edit: "Text editing", item: "Library entry", thumb: "Thumbnail", nav: "Navigation", folder: "Folders", order: "Folder order", visibility: "Visibility", selection: "Selection", source: "Import", tools: "Prompt tools", fix: "Repair reference", find: "Find entry", lora: "LoRA", audition: "Audition", appearance: "Appearance", "lora-strength": "LoRA strengths", "lora-vary": "LoRA variations", clipboard: "Clipboard", explore: "Explore", favorite: "Favorites" };
   ctxMenuEditor = null;
   const menu = ensureCtxMenu();
+  menu.classList.toggle("pp-lora-context", actions.some(action => action.group === "lora" || action.group === "audition" || action.group?.startsWith("lora-")));
   ctxMenuFocus = document.activeElement;
   ctxMenuIndex = -1; typeahead = "";
   const hit = document.elementFromPoint?.(x, y);
-  const scope = hit?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface") || document.activeElement?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface");
+  const scope = ownerScope || hit?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface") || document.activeElement?.closest?.(".wg-root, .wg-node, .pp-node, .ppwc-surface");
   if (scope) copyPromptPaletteThemeScope(scope, menu);
+  menu.classList.toggle("wg-high-contrast", !!scope?.classList?.contains("wg-high-contrast"));
   // Actions may add optional presentation fields: group (section break), icon,
   // hint (shortcut), danger and disabled. Callers that pass only label/onSelect
   // keep working and render as a single section.
@@ -93,9 +114,11 @@ function openCtxMenu(x, y, actions) {
   menu.innerHTML = actions.map((a, i) => {
     const group = a.group || "";
     const sep = i && group !== previousGroup ? '<div class="wg-ctx-sep" role="separator"></div>' : "";
+    const heading = group !== previousGroup && groups.size > 1 && sectionLabels[group]
+      ? `<div class="wg-ctx-heading" role="presentation">${escapeHtml(sectionLabels[group])}</div>` : "";
     previousGroup = group;
     const hint = a.hint ? shortcutHint(a.hint) : "";
-    return `${sep}<div class="wg-ctx-item${a.danger ? " danger" : ""}" role="menuitem" tabindex="-1" data-index="${i}"` +
+    return `${sep}${heading}<div class="wg-ctx-item${a.danger ? " danger" : ""}" role="menuitem" tabindex="-1" data-index="${i}"` +
       `${a.disabled ? ' aria-disabled="true"' : ""}${hint ? ` data-hint="${escapeHtml(hint)}" aria-keyshortcuts="${escapeHtml(hint)}"` : ""}>` +
       `<span class="wg-ctx-icon" aria-hidden="true">${a.icon ? svgIcon(a.icon, 14) : ""}</span>` +
       `<span class="wg-ctx-label">${escapeHtml(a.label)}</span></div>`;
@@ -120,13 +143,21 @@ function openCtxMenu(x, y, actions) {
       catch (error) { failed(error); }
     });
   });
+  // Measure at the origin so a previous edge position cannot shrink-wrap the
+  // menu narrower, then open toward the side with room instead of covering the
+  // pointer (and the text under it).
+  menu.style.left = "0px"; menu.style.top = "0px";
   menu.style.display = "block";
+  menu.scrollTop = 0;
   ctxMenuOpen = true;
 
+  const pad = 8;
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
   const vw = window.innerWidth, vh = window.innerHeight;
-  menu.style.left = Math.max(8, Math.min(x, vw - mw - 8)) + "px";
-  menu.style.top = Math.max(8, Math.min(y, vh - mh - 8)) + "px";
+  const left = x + mw + pad > vw && x - mw >= pad ? x - mw : x;
+  const top = y + mh + pad > vh && y - mh >= pad ? y - mh : y;
+  menu.style.left = Math.max(pad, Math.min(left, vw - mw - pad)) + "px";
+  menu.style.top = Math.max(pad, Math.min(top, vh - mh - pad)) + "px";
 }
 
 function closeCtxMenu() {
@@ -174,23 +205,29 @@ export function attachLibraryContextMenu(target, openMenu, matches = () => true)
   };
 }
 
-export function contextWildcardAtPoint(editor, event, selection, ranges) {
+export function contextWildcardAtPoint(editor, event, selection, ranges = []) {
+  // Parse the current source using the shared engine, not asynchronously painted
+  // ranges. This also keeps comments and literal JSON out of syntax actions.
+  const tokens = parsePrompt(editor.value).wildcards;
   const rect = editor.getBoundingClientRect();
   const inside = rect.width > 0 && rect.height > 0 && event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
   const offset = inside ? editorOffsetAtPoint(editor, event.clientX, event.clientY) : -1;
   const caret = offset >= 0 ? offset : selection.start;
-  const token = ranges.find(range => range.start <= caret && caret < range.end);
+  // A caret is an insertion boundary: the right half of the closing underscore
+  // can resolve to the token's end. Prefer the next token when they are adjacent.
+  const token = tokens.find(range => range.start <= caret && caret < range.end)
+    || tokens.find(range => range.end === caret);
   if (!token) return null;
-  // A browser may select a word inside __name__ on secondary click. Keep that
-  // token's menu available, including on repeated clicks after a mode change.
-  // Selections extending beyond one token retain the normal selection actions.
-  if (selection.end > selection.start && (selection.start < token.start || selection.end > token.end)) return null;
-  return token;
+  const withinSelection = offset < 0 || (caret >= selection.start && caret <= selection.end);
+  if (withinSelection && selection.end > selection.start && (selection.start < token.start || selection.end > token.end)) return null;
+  const painted = ranges.find(range => range.name === token.name);
+  return { ...token, known: painted?.known };
 }
 
 export function attachEditorContextMenu(editor, {
   render = () => {}, beforeOpen = () => {}, tokenContext = null,
   selectionActions = () => [], syntaxAction = null, syntaxEnabled = () => true,
+  findAction = null,
   promptTools = {},
 } = {}) {
   editor.__ppPromptTools = promptTools;
@@ -205,6 +242,14 @@ export function attachEditorContextMenu(editor, {
       return;
     }
     const snapshot = { source: editor.value, start: editor.selectionStart, end: editor.selectionEnd, direction: editor.selectionDirection };
+    const pointerOffset = event.clientX || event.clientY ? editorOffsetAtPoint(editor, event.clientX, event.clientY) : -1;
+    // Retain an intentional selection when clicked inside it. A click elsewhere
+    // addresses that location rather than a stale selection in another passage.
+    if (pointerOffset >= 0 && (pointerOffset < snapshot.start || pointerOffset > snapshot.end)) {
+      snapshot.start = snapshot.end = pointerOffset;
+      snapshot.direction = "none";
+    }
+    const editable = !editor.readOnly && !editor.disabled && editor.getAttribute("contenteditable") !== "false";
     const selected = snapshot.end > snapshot.start;
     const hasText = selected && snapshot.source.slice(snapshot.start, snapshot.end).trim();
     const handle = () => { event.preventDefault(); event.stopPropagation(); closeAcMenu(); closeCtxMenu(); beforeOpen(); };
@@ -215,24 +260,52 @@ export function attachEditorContextMenu(editor, {
       editor.setSelectionRange(snapshot.start, snapshot.end, snapshot.direction);
       return true;
     };
+    let lora = loraAt(editor.value, pointerOffset >= 0 ? pointerOffset : snapshot.start);
+    if (lora && selected && (snapshot.start < lora.start || snapshot.end > lora.end)) lora = null;
     if (tokenContext?.(event, snapshot, handle)) { if (ctxMenuOpen) ctxMenuEditor = editor; return; }
-    handle();
+    if (editable && syntaxEnabled()) {
+      const wildcard = contextWildcardAtPoint(editor, event, snapshot);
+      if (wildcard) {
+        handle(); closeInjectMenu();
+        editor.setSelectionRange(wildcard.start, wildcard.end);
+        openInjectMenuAtPoint(event.clientX, event.clientY, wildcard.name, editor, render, wildcard);
+        return;
+      }
+    }
+    handle(); closeInjectMenu();
     const action = (label, fn, meta = {}) => ({ ...meta, label, onSelect: () => { if (restore()) return fn(); } });
     const actions = [
-      ...(selected ? [action("Cut", () => runTextareaEditCommand(editor, render, "cut"), { icon: "cut", hint: "Ctrl+X", group: "edit" }), action("Copy", () => runTextareaEditCommand(editor, render, "copy"), { icon: "copy", hint: "Ctrl+C", group: "edit" })] : []),
-      action("Paste", () => runTextareaEditCommand(editor, render, "paste"), { icon: "paste", hint: "Ctrl+V", group: "edit" }),
-      ...(selected ? [action("Delete", () => runTextareaEditCommand(editor, render, "delete"), { icon: "trash", hint: "Del", group: "edit", danger: true })] : []),
+      ...(selected ? [action("Cut", () => runTextareaEditCommand(editor, render, "cut"), { disabled: !editable, icon: "cut", hint: "Ctrl+X", group: "edit" }), action("Copy", () => runTextareaEditCommand(editor, render, "copy"), { icon: "copy", hint: "Ctrl+C", group: "edit" })] : []),
+      action("Paste", () => runTextareaEditCommand(editor, render, "paste"), { disabled: !editable, icon: "paste", hint: "Ctrl+V", group: "edit" }),
+      ...(selected ? [action("Delete", () => runTextareaEditCommand(editor, render, "delete"), { disabled: !editable, icon: "trash", hint: "Del", group: "edit", danger: true })] : []),
       action("Select All", () => runTextareaEditCommand(editor, render, "selectAll"), { icon: "select", hint: "Ctrl+A", group: "edit" }),
+      ...(typeof findAction === "function" ? [
+        action("Find & replace\u2026", () => findAction({ replace: true, inSelection: selected ? true : null }), { icon: "search", hint: "Ctrl+H", group: "edit" }),
+      ] : []),
       ...(promptTools.node?._ppOpenImageImport ? [action("Import prompt from image…", () => promptTools.node._ppOpenImageImport(), { icon: "image", group: "source" })] : []),
     ];
-    if (hasText) {
+    if (hasText && editable) {
       if (editor.__ppExtractSelectionToWildcard) actions.push(action("Save selection to My Library\u2026", () => editor.__ppExtractSelectionToWildcard(snapshot.start, snapshot.end), { icon: "gallery", group: "selection" }));
       if (editor.__ppSaveSelectionAsList) actions.push(action("Save selection as list\u2026", () => editor.__ppSaveSelectionAsList(snapshot.start, snapshot.end), { icon: "list", group: "selection" }));
       for (const extra of selectionActions(snapshot)) actions.push(action(extra.label, extra.onSelect, { icon: extra.icon || "branch", group: "selection" }));
     }
-    if (syntaxAction && syntaxEnabled()) actions.push(action("Insert syntax\u2026", () => syntaxAction(event, snapshot), { icon: "bolt", group: "tools" }));
-    if (syntaxEnabled() && canBuildPromptRules(editor)) actions.push(action("Build choices & rules\u2026", () => openPromptTools(editor), { icon: "recipe", group: "tools" }));
+    if (editable && syntaxAction && syntaxEnabled()) actions.push(action("Insert syntax\u2026", () => syntaxAction(event, snapshot), { icon: "bolt", group: "tools" }));
+    if (editable && syntaxEnabled() && canBuildPromptRules(editor)) actions.push(action("Build choices & rules\u2026", () => openPromptTools(editor), { icon: "recipe", group: "tools" }));
+    if (editable && syntaxEnabled() && canBuildPromptRules(editor)) actions.push(action(lora ? "Edit / swap LoRA…" : "Browse LoRAs…", () => openPromptTools(editor, { tab: "loras", range: lora || snapshot }), { icon: "gallery", group: "tools" }));
+    if (editable && lora && syntaxEnabled() && canBuildPromptRules(editor)) {
+      const expression = loraChoiceAt(snapshot.source, lora.start);
+      const replace = (range, text) => {
+        if (!canBuildPromptRules(editor)) return;
+        const next = snapshot.source.slice(0, range.start) + text + snapshot.source.slice(range.end), end = range.start + text.length;
+        if (promptTools.apply) promptTools.apply(next, range.start, end);
+        else { editor.value = next; editor.setSelectionRange(range.start, end); editor.dispatchEvent(new Event("input", { bubbles: true })); }
+      };
+      for (const [channel, label] of [["model", "Model"], ["clip", "CLIP"]]) for (const delta of [-0.05, 0.05]) actions.push(action(`${label} strength ${delta < 0 ? "−" : "+"}0.05`, () => replace(lora, formatLoraTag(lora, lora.model + (channel === "model" ? delta : 0), lora.clip + (channel === "clip" ? delta : 0))), { group: "lora-strength", icon: delta < 0 ? "minus" : "plus" }));
+      for (const [mode, label] of [["seeded", "Seeded strength choice"], ["cycle", "Cycle strengths · next each run"], ["previous", "Cycle strengths · previous each run"], ["random", "Random strengths each run"], ["batch", "Test all strengths · Combinatorial"]]) actions.push(action(label, () => replace(expression, loraModeExpression(expression, mode)), { group: "lora-vary", icon: "branch" }));
+    }
     actions.push(action("Inspect prompt\u2026", () => openPromptTools(editor, { tab: "inspect" }), { icon: "doctor", group: "tools" }));
+    const groupOrder = lora ? ["lora-strength", "lora-vary", "edit", "selection", "source", "tools"] : ["edit", "selection", "source", "tools"];
+    actions.sort((a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group));
     openCtxMenu(event.clientX, event.clientY, actions);
     ctxMenuEditor = editor;
   };

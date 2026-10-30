@@ -1,3 +1,4 @@
+import { api } from "../../scripts/api.js";
 import { getPromptPaletteRenderer, cleanupPromptPaletteRenderer } from "./renderer/prompt_palette_renderer.js";
 import { ensureSchemaSocket as rendererEnsureSchemaSocket } from "./renderer/base_renderer_adapter.js";
 const IO_SLOT_HEIGHT = 20;
@@ -53,6 +54,16 @@ function ensureNodeLifecycle(node) {
 
 function nodeIsActive(node) {
   return !node?._ppLifecycle?.signal.aborted;
+}
+
+// The host emits this after native afterQueued callbacks update seed widgets.
+// Read their final values without replacing callbacks or observing widget internals.
+function bindPromptQueueSync(node, sync) {
+  const handleQueued = () => { if (nodeIsActive(node)) sync(); };
+  api.addEventListener("promptQueued", handleQueued);
+  const cleanup = () => api.removeEventListener("promptQueued", handleQueued);
+  ensureNodeLifecycle(node).add(cleanup);
+  return cleanup;
 }
 
 function scheduleNodeTimer(node, callback, delay = 0) {
@@ -384,13 +395,48 @@ function installNodeGeometryGuard(node) {
   return guard;
 }
 
+function installLoraModeState(node) {
+  if (node._ppLoraModeState) return node._ppLoraModeState;
+  const widget = node.widgets?.find(w => w.name === "lora_mode");
+  if (!widget) return null;
+  const key = "prompt_palette_lora_mode_v1", valid = value => ["auto", "external", "strip", "bypass"].includes(value);
+  node.properties ||= {};
+  let current = valid(node.properties[key]) ? node.properties[key] : valid(widget.value) ? widget.value : "auto";
+  const commit = value => {
+    if (!valid(value)) return current;
+    current = value; widget.value = value; node.properties ||= {}; node.properties[key] = value;
+    node.setDirtyCanvas?.(true, true); return current;
+  };
+  commit(current); widget.serializeValue = () => current;
+  const configured = node.onConfigure;
+  node.onConfigure = function(info) {
+    const saved = info?.properties?.[key], named = info?.widgets_values_named?.lora_mode;
+    const result = configured?.apply(this, arguments);
+    // Old workflows can have a custom widget at the newly appended position.
+    // Only our named/property identity may activate a nondefault execution mode.
+    commit(valid(saved) ? saved : valid(named) ? named : "auto");
+    return result;
+  };
+  const serialized = node.onSerialize;
+  node.onSerialize = function(data) {
+    const result = serialized?.apply(this, arguments);
+    data.properties ||= {}; data.properties[key] = current;
+    if (data.widgets_values_named) data.widgets_values_named.lora_mode = current;
+    return result;
+  };
+  const callback = widget.callback;
+  widget.callback = function(value) { commit(value); return callback?.apply(this, arguments); };
+  return node._ppLoraModeState = { commit, current: () => current };
+}
+
 function preparePromptBackingWidgets(node) {
+  installLoraModeState(node);
   installPositiveAntonymsState(node);
   installNegativePromptState(node);
   const combinatorial = (node.comfyClass || node.type) === "PromptPaletteCombinatorial";
   const names = combinatorial
-    ? new Set(["text", "mode", "count", "seed", "seed_mode", "max_prompts", "prepared_batch", "positive_antonyms"])
-    : new Set(["text", "seed", "processing_mode", "prepared_batch", "positive_antonyms"]);
+    ? new Set(["text", "mode", "count", "seed", "seed_mode", "max_prompts", "prepared_batch", "positive_antonyms", "lora_mode"])
+    : new Set(["text", "seed", "processing_mode", "prepared_batch", "positive_antonyms", "lora_mode"]);
   const socketWidgets = new Set(["mode", "count", "seed", "seed_mode", "max_prompts"]);
   for (const widget of node.widgets || []) {
     if (!names.has(widget.name) && !widget.__ppRecipeNegative && !/control.*generate/i.test(widget.name || "")) continue;
@@ -955,7 +1001,7 @@ function setupIoRail(node, root, inputDefs, outputDefs) {
 export {
   HIDDEN_SOCKET_LABEL,
   nodeIsActuallyNodes2,
-  ensureNodeLifecycle, nodeIsActive,
+  ensureNodeLifecycle, nodeIsActive, bindPromptQueueSync,
   scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight,
   installPromptStateGuard, installNegativePromptState, installPositiveAntonymsState, installPromptMetadataCapture, installNodeGeometryGuard, preparePromptBackingWidgets,

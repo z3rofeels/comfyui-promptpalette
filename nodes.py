@@ -1,3 +1,4 @@
+from .relationships import runtime_config, prepare as prepare_relationships, ensure_participation, reject_unsafe_runtime, field_constraints
 from .workspace_generation import WorkspaceGeneration, active_runtime, runtime_changes
 from .prompt_exploration import read_prepared_batch
 import json
@@ -6,10 +7,8 @@ import re
 import random
 import logging
 from .json_literals import JsonLiterals
+from . import lora_support
 
-import comfy.sd
-import comfy.utils
-import folder_paths
 from .comfy_compat import io
 
 from .wildcard_index import get_index
@@ -112,10 +111,6 @@ class PromptPaletteV3Node(io.ComfyNode):
 
 class PromptPaletteEditor(PromptPaletteV3Node):
 
-    _LORA_TAG_RE = re.compile(
-        r"<lora:([^:>]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)>"
-    )
-
     @classmethod
     def define_schema(cls) -> io.Schema:
         return io.Schema(
@@ -167,7 +162,7 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                 io.Model.Input(
                     "model",
                     display_name="Model",
-                    tooltip="Optional model input; connect with CLIP to apply LoRA tags found in the prompt.",
+                    tooltip="Optional model input for prompt LoRAs, with or without CLIP.",
                     optional=True,
                 ),
                 io.String.Input(
@@ -237,14 +232,26 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                     default="", multiline=True, dynamic_prompts=False,
                     tooltip="Internal projection of Fields workspace generation policies.",
                 ),
+                io.String.Input(
+                    "vars_in",
+                    display_name="Variables in",
+                    tooltip="Optional variables from an upstream Prompt Palette node (JSON object or key=value lines) to seed ${variable} resolution.",
+                    optional=True,
+                    force_input=True,
+                    default="",
+                ),
+                io.Combo.Input(
+                    "lora_mode", display_name="LoRA execution", optional=True,
+                    options=list(lora_support.MODES), default="auto",
+                    tooltip="Auto patches connected MODEL/CLIP. External preserves tags for another loader; Strip removes tags without loading. Bypass uses ComfyUI's native bypass loader.",
+                ),
             ],
-
             hidden=[io.Hidden.unique_id, io.Hidden.prompt, io.Hidden.extra_pnginfo],
             outputs=[
                 io.Model.Output(
                     "model",
                     display_name="Model (passthrough)",
-                    tooltip="Connected model, patched with prompt LoRAs when CLIP is also connected.",
+                    tooltip="Connected model, patched with prompt LoRAs in Auto/Bypass mode.",
                 ),
                 io.Clip.Output(
                     "clip",
@@ -306,6 +313,11 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                     display_name="Prompt metadata (JSON)",
                     tooltip="Final and source prompts plus seed, wildcard, LoRA, and execution metadata.",
                 ),
+                io.String.Output(
+                    "variables",
+                    display_name="Variables (JSON)",
+                    tooltip="Resolved ${variable} assignments from this run as JSON, ready to wire into another node's Variables in input.",
+                ),
             ],
         )
 
@@ -322,87 +334,6 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         ):
             return float("nan")
         return get_index().fingerprint()
-
-    @classmethod
-    def _extract_loras(cls, text):
-        literals = JsonLiterals()
-        text = literals.protect(text)
-
-        loras = []
-
-        def _capture(m):
-            name = m.group(1).strip()
-            try:
-                weight = float(m.group(2))
-            except (ValueError, OverflowError):
-                weight = 1.0
-            if not math.isfinite(weight):
-                weight = 1.0
-            loras.append((name, weight))
-            return ""
-
-        clean = cls._LORA_TAG_RE.sub(_capture, text)
-
-        clean = re.sub(r"[ \t]+", " ", clean)
-        clean = "\n".join(line.strip() for line in clean.splitlines())
-        clean = re.sub(r"\n{2,}", "\n", clean).strip()
-        return literals.restore(clean), loras
-
-    @classmethod
-    def _lora_records(cls, text, source):
-        records = []
-        for match in cls._LORA_TAG_RE.finditer(JsonLiterals().protect(text or "")):
-            try:
-                weight = float(match.group(2))
-            except (ValueError, OverflowError):
-                weight = 1.0
-            if not math.isfinite(weight):
-                weight = 1.0
-            records.append({
-                "name": match.group(1).strip(),
-                "weight": weight,
-                "model_strength": weight,
-                "clip_strength": weight,
-                "source": source,
-            })
-        return records
-
-    _LORA_CACHE_LIMIT = 4
-
-    @staticmethod
-    def _apply_loras(model, clip, loras, cache=None):
-        # ``cache`` maps resolved LoRA path -> loaded state dict. Callers that apply
-        # LoRAs repeatedly in one run (Combinatorial) pass one dict so the same file
-        # is read from disk once. It is bounded to keep memory predictable.
-        if cache is None:
-            cache = {}
-        for name, weight in loras:
-            lora_path = folder_paths.get_full_path("loras", name)
-            if lora_path is None:
-
-                for ext in (".safetensors", ".pt", ".ckpt"):
-                    candidate = folder_paths.get_full_path("loras", name + ext)
-                    if candidate is not None:
-                        lora_path = candidate
-                        break
-            if lora_path is None:
-                logger.warning("LoRA %r was not found in the loras folder; skipping it", name)
-                continue
-            lora_sd = cache.get(lora_path)
-            if lora_sd is None:
-                lora_sd = comfy.utils.load_torch_file(lora_path, safe_load=True)
-                while len(cache) >= PromptPaletteEditor._LORA_CACHE_LIMIT:
-                    cache.pop(next(iter(cache)))
-                cache[lora_path] = lora_sd
-            model, clip = comfy.sd.load_lora_for_models(model, clip, lora_sd, weight, weight)
-        return model, clip
-
-    @classmethod
-    def _strip_lora_tags(cls, text):
-        """Remove <lora:...> tags only when present, leaving other text untouched."""
-        if not text or not cls._LORA_TAG_RE.search(text):
-            return text, []
-        return cls._extract_loras(text)
 
     @staticmethod
     def _encode(clip, text):
@@ -421,7 +352,8 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                 clip=None, model=None,
                 prompt_prefix="", prompt_suffix="", enhancer_override="",
                 external_seed=None, negative_text="",
-                negative_prefix="", negative_suffix="", positive_antonyms=False, workspace_runtime=""):
+                negative_prefix="", negative_suffix="", positive_antonyms=False, workspace_runtime="", vars_in="", lora_mode="auto"):
+        lora_mode = _coerce_choice(lora_mode, set(lora_support.MODES), "auto")
         processing_mode = _coerce_choice(
             processing_mode, {"entire text as one", "line by line"}, "entire text as one"
         )
@@ -432,28 +364,68 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         negative_text = _coerce_text(negative_text)
         negative_prefix = _coerce_text(negative_prefix)
         negative_suffix = _coerce_text(negative_suffix)
-        resolver = WildcardResolver(get_index())
+        vars_in = _coerce_text(vars_in) if not isinstance(vars_in, (dict, list, tuple)) else vars_in
+        resolver = WildcardResolver(get_index(), initial_variables=vars_in)
         seed = _coerce_uint64(seed)
         effective_seed = seed if external_seed is None else _coerce_uint64(external_seed, seed)
-        runtime = WorkspaceGeneration(resolver.index, active_runtime(workspace_runtime, text), getattr(getattr(cls, "hidden", None), "unique_id", ""))
+        relationship_config = runtime_config(workspace_runtime)
+        relationship_meta = None
+        if relationship_config:
+            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text))
+            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text), effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
+            selected_indexes, relationship_meta = prepare_relationships(relationship_config, resolver.index, effective_seed, limit=5001, fixed=relationship_fixed)
+            resolver.index = selected_indexes[0]
+            relationship_meta = {**relationship_meta, "selected": {k: v["id"] for k, v in resolver.index.selected.items()}}
+        runtime = WorkspaceGeneration(
+            resolver.index,
+            active_runtime(workspace_runtime, text),
+            getattr(getattr(cls, "hidden", None), "unique_id", ""),
+            initial_variables=vars_in,
+        )
         source_prompt = compose_source_prompt([prompt_prefix, text, prompt_suffix], processing_mode)
         source_negative_prompt = compose_source_prompt(
             [negative_prefix, negative_text, negative_suffix], processing_mode
         )
+        body_branch_selections = []
 
-        def resolve_block(t, seed_offset=0):
+        def resolve_block(t, seed_offset=0, track_branches=False):
             if not t:
                 return ""
             channel = "negative" if seed_offset == 1000 else "positive" if seed_offset == 0 else None
             if channel and runtime.payload:
+                runtime.variables.update(resolver.export_variables())
+                runtime.branch_selections = []
                 value, used = runtime.resolve(t, effective_seed + seed_offset, processing_mode, channel)
-                resolver.used_names.extend(used); return value
+                resolver.used_names.extend(used)
+                for k, v in runtime.variables.items():
+                    resolver.variables[k] = ("resolved", str(v))
+                if track_branches:
+                    body_branch_selections.extend(runtime.branch_selections)
+                return value
             if processing_mode == "line by line":
-                return "\n".join(resolver.resolve_lines(t, seed=effective_seed + seed_offset))
-            return resolver.resolve(t, seed=effective_seed + seed_offset)
+                out = "\n".join(
+                    resolver.resolve_lines(
+                        t,
+                        seed=effective_seed + seed_offset,
+                        reset_variables=False,
+                        reset_branches=True,
+                    )
+                )
+            else:
+                out = resolver.resolve(
+                    t,
+                    seed=effective_seed + seed_offset,
+                    reset_variables=False,
+                    reset_branches=True,
+                )
+            if track_branches:
+                body_branch_selections.extend(resolver.branch_selections)
+            return out
 
-        body = resolve_block(text)
-        parts = [p for p in (resolve_block(prompt_prefix, -1), body, resolve_block(prompt_suffix, 1)) if p]
+        prefix_resolved = resolve_block(prompt_prefix, -1)
+        body = resolve_block(text, 0, track_branches=True)
+        suffix_resolved = resolve_block(prompt_suffix, 1)
+        parts = [p for p in (prefix_resolved, body, suffix_resolved) if p]
         resolved = "\n".join(parts) if processing_mode == "line by line" else " ".join(parts)
 
         used_enhancer = bool(enhancer_override and enhancer_override.strip())
@@ -471,40 +443,15 @@ class PromptPaletteEditor(PromptPaletteV3Node):
 
         used_names = sorted(set(resolver.used_names))
         wildcards_used = json.dumps(used_names)
+        variables_dict = resolver.export_variables()
+        variables_json = resolver.export_variables_json()
 
-        out_model, out_clip = model, clip
-        conditioning, negative_conditioning = None, None
-        lora_records = cls._lora_records(resolved, "positive") + cls._lora_records(
-            resolved_negative, "negative"
+        resolved, resolved_negative, encode_text, encode_negative, out_model, out_clip, lora_records = lora_support.process(
+            resolved, resolved_negative, model, clip, lora_mode,
         )
-        loras_applied = False
-
-        if model is not None and clip is not None:
-
-            resolved, positive_loras = cls._extract_loras(resolved)
-            resolved_negative, negative_loras = cls._extract_loras(resolved_negative)
-            loras = positive_loras + negative_loras
-            if loras:
-                out_model, out_clip = cls._apply_loras(model, clip, loras)
-                loras_applied = True
-            conditioning = cls._encode(out_clip, resolved)
-            negative_conditioning = cls._encode(out_clip, resolved_negative)
-        elif clip is not None:
-
-            resolved, ignored_positive = cls._strip_lora_tags(resolved)
-            resolved_negative, ignored_negative = cls._strip_lora_tags(resolved_negative)
-            if ignored_positive or ignored_negative:
-                logger.warning(
-                    "LoRA tags were ignored because MODEL is not connected; "
-                    "connect both MODEL and CLIP to apply them"
-                )
-            conditioning = cls._encode(clip, resolved)
-            negative_conditioning = cls._encode(clip, resolved_negative)
-        elif model is not None:
-
-            logger.warning(
-                "A model was connected without CLIP; LoRA loading and conditioning are unavailable"
-            )
+        loras_applied = any(record["status"] == "loaded" for record in lora_records)
+        conditioning = cls._encode(out_clip, encode_text) if out_clip is not None else None
+        negative_conditioning = cls._encode(out_clip, encode_negative) if out_clip is not None else None
 
         token_stats = count_clip_tokens(resolved) if clip_counting_applies(clip) else None
         clip_token_count = token_stats["tokens"] if token_stats is not None else -1
@@ -528,18 +475,27 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                 "positive_antonyms": positive_antonyms,
                 "workspace_runtime": workspace_runtime,
                 "workspace_fields": dict(runtime.values),
+                "variables": variables_dict,
+                "branch_selections": body_branch_selections,
                 "loras_applied": loras_applied,
+                "lora_mode": lora_mode,
+                "encoded_prompt": encode_text,
+                "encoded_negative_prompt": encode_negative,
                 "prompt_prefix": prompt_prefix,
                 "prompt_suffix": prompt_suffix,
                 "negative_prefix": negative_prefix,
                 "negative_suffix": negative_suffix,
             },
         )
+        if relationship_config:
+            ensure_participation(relationship_config, set(used_names) | set(relationship_fixed))
+            metadata["relationships"] = relationship_meta
         published = publish_prompt_metadata(cls, metadata)
         return io.NodeOutput(
             out_model, out_clip, conditioning, negative_conditioning,
             resolved, resolved_negative, effective_seed, wildcards_used,
             text, len(used_names), used_enhancer, clip_token_count, compact_json(published),
+            variables_json,
             ui={"prompt_palette": published},
         )
 
@@ -695,6 +651,19 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     default="", multiline=True, dynamic_prompts=False,
                     tooltip="Internal projection of Fields workspace generation policies.",
                 ),
+                io.String.Input(
+                    "vars_in",
+                    display_name="Variables in",
+                    tooltip="Optional variables from an upstream Prompt Palette node (JSON object or key=value lines) to seed ${variable} resolution.",
+                    optional=True,
+                    force_input=True,
+                    default="",
+                ),
+                io.Combo.Input(
+                    "lora_mode", display_name="LoRA execution", optional=True,
+                    options=list(lora_support.MODES), default="auto",
+                    tooltip="Auto patches connected MODEL/CLIP. External preserves tags for another loader; Strip removes tags without loading. Bypass uses ComfyUI's native bypass loader.",
+                ),
             ],
             hidden=[io.Hidden.unique_id, io.Hidden.prompt, io.Hidden.extra_pnginfo],
             outputs=[
@@ -760,7 +729,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 io.Conditioning.Output(
                     "negative_conditioning",
                     display_name="Negative conditioning",
-                    tooltip="The first resolved negative prompt encoded with the connected CLIP (unpatched). For varying negatives use Negative conditioning list.",
+                    tooltip="The first resolved negative prompt encoded with the paired LoRA-patched CLIP. For varying negatives use Negative conditioning list.",
                 ),
                 io.String.Output(
                     "first_prompt",
@@ -820,8 +789,13 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 ),
                 io.Conditioning.Output(
                     "negative_conditioning_list", display_name="Negative conditioning list",
-                    tooltip="One negative conditioning per positive prompt, using the unpatched connected CLIP. Needs CLIP connected.",
+                    tooltip="One negative conditioning per positive prompt, using that row's LoRA-patched CLIP. Needs CLIP connected.",
                     is_output_list=True,
+                ),
+                io.String.Output(
+                    "variables",
+                    display_name="Variables (JSON)",
+                    tooltip="Resolved ${variable} assignments from this batch as JSON, ready to wire into another node's Variables in input.",
                 ),
             ],
         )
@@ -854,7 +828,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
     def execute(cls, text, mode, count, seed, seed_mode, max_prompts, clip=None, model=None,
                 prompt_prefix="", prompt_suffix="", enhancer_override="",
                 external_seed=None, negative_text="",
-                negative_prefix="", negative_suffix="", prepared_batch="", positive_antonyms=False, workspace_runtime=""):
+                negative_prefix="", negative_suffix="", prepared_batch="", positive_antonyms=False, workspace_runtime="", vars_in="", lora_mode="auto"):
+        lora_mode = _coerce_choice(lora_mode, set(lora_support.MODES), "auto")
         mode = _coerce_choice(mode, {"random", "combinatorial"}, "random")
         seed_mode = _coerce_choice(seed_mode, {"sequential", "fixed", "random"}, "sequential")
         text = _coerce_text(text)
@@ -866,15 +841,32 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         negative_text = _coerce_text(negative_text)
         negative_prefix = _coerce_text(negative_prefix)
         negative_suffix = _coerce_text(negative_suffix)
+        vars_in = _coerce_text(vars_in) if not isinstance(vars_in, (dict, list, tuple)) else vars_in
         seed = _coerce_uint64(seed)
         # An external seed wins over the Seed control, exactly like the base Prompt Palette node.
         effective_seed = seed if external_seed is None else _coerce_uint64(external_seed, seed)
         count = max(1, min(count, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
         max_prompts = max(0, min(max_prompts, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
-        resolver = WildcardResolver(get_index())
+        resolver = WildcardResolver(get_index(), initial_variables=vars_in)
+        relationship_config = runtime_config(workspace_runtime)
+        relationship_meta = None
+        relationship_indexes = []
+        relationship_workspace_negatives = []
+        if relationship_config:
+            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text), bool(prepared_batch))
+            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text) if mode == "random" else None, effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
+            relationship_indexes, relationship_meta = prepare_relationships(relationship_config, resolver.index, effective_seed, limit=5001, fixed=relationship_fixed)
+            resolver.index = relationship_indexes[0]
 
-        runtime = WorkspaceGeneration(resolver.index, active_runtime(workspace_runtime, text) if mode == "random" and not prepared_batch else None, getattr(getattr(cls, "hidden", None), "unique_id", ""))
+        runtime = WorkspaceGeneration(
+            resolver.index,
+            active_runtime(workspace_runtime, text) if mode == "random" and not prepared_batch else None,
+            getattr(getattr(cls, "hidden", None), "unique_id", ""),
+            initial_variables=vars_in,
+        )
         prepared = read_prepared_batch(_coerce_text(prepared_batch), text, negative_text)
+        body_branch_selections = []
+        first_variables = None
         if prepared:
             cap = max_prompts or WildcardResolver.MAX_COMBINATORIAL_PROMPTS
             if len(prepared["prompts"]) > cap:
@@ -882,7 +874,19 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             prompts = list(prepared["prompts"])
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, len(prompts))
         elif mode == "combinatorial":
-            prompts = resolver.generate_combinatorial(text, seed=effective_seed, max_prompts=max_prompts or None)
+            if relationship_config:
+                prompts, aligned_indexes = [], []
+                cap = max_prompts or resolver.MAX_COMBINATORIAL_PROMPTS
+                for selected_index in relationship_indexes:
+                    resolver.index = selected_index
+                    generated = resolver.generate_combinatorial(text, seed=effective_seed, max_prompts=cap - len(prompts))
+                    prompts.extend(generated); aligned_indexes.extend([selected_index] * len(generated))
+                    if len(prompts) >= cap: break
+                relationship_indexes = aligned_indexes
+            else:
+                prompts = resolver.generate_combinatorial(text, seed=effective_seed, max_prompts=max_prompts or None)
+            body_branch_selections = list(resolver.branch_selections)
+            first_variables = resolver.export_variables()
             if resolver.last_generation_truncated:
                 cap = max_prompts or resolver.MAX_COMBINATORIAL_PROMPTS
                 logger.warning(
@@ -895,11 +899,34 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         else:
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, count)
             prompts = []
-            for s in seeds_out:
+            for idx_seed, s in enumerate(seeds_out):
+                if relationship_config:
+                    relationship_fixed = field_constraints(relationship_config, resolver.index.original, active_runtime(workspace_runtime, text), s, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
+                    selected, _ = prepare_relationships(relationship_config, resolver.index.original, s, limit=5001, fixed=relationship_fixed)
+                    runtime.index = selected[0]
+                    resolver.index = selected[0]
+                    if idx_seed == 0: relationship_indexes = []
+                    relationship_indexes.append(selected[0])
                 if runtime.payload:
+                    runtime.branch_selections = []
                     generated, used = runtime.resolve(text, s)
                     resolver.used_names.extend(used); prompts.append(generated)
-                else: prompts.append(resolver.resolve(text, seed=s))
+                    if idx_seed == 0:
+                        body_branch_selections = list(runtime.branch_selections)
+                        first_variables = dict(runtime.variables)
+                else:
+                    prompts.append(resolver.resolve(text, seed=s))
+                    if idx_seed == 0:
+                        body_branch_selections = list(resolver.branch_selections)
+                        first_variables = resolver.export_variables()
+                if relationship_config and runtime.payload:
+                    # Resolve the paired workspace channel before the next row:
+                    # Follow sees this row's positive fields, and Vary advances
+                    # once before the next relationship policy preview.
+                    runtime.index = resolver.index
+                    negative, used = runtime.resolve(negative_text, (s + 1000) & UINT64_MAX, channel="negative")
+                    resolver.used_names.extend(used)
+                    relationship_workspace_negatives.append(negative)
 
         # Prefix / suffix / enhancer are applied per generated prompt. With none of them
         # connected this block changes nothing, so existing workflows behave as before.
@@ -909,14 +936,15 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             if offset == 1000 and runtime.payload:
                 value, used = runtime.resolve(block, (prompt_seed + offset) & UINT64_MAX, channel="negative")
                 resolver.used_names.extend(used); return value
-            return resolver.resolve(block, seed=(prompt_seed + offset) & UINT64_MAX)
+            return resolver.resolve(block, seed=(prompt_seed + offset) & UINT64_MAX, reset_variables=False, reset_branches=False)
 
         used_enhancer = bool(enhancer_override and enhancer_override.strip())
         if used_enhancer:
             prompts = [enhancer_override for _ in prompts]
         elif prompt_prefix or prompt_suffix:
             composed = []
-            for prompt_seed, generated in zip(seeds_out, prompts):
+            for item_index, (prompt_seed, generated) in enumerate(zip(seeds_out, prompts)):
+                if relationship_config: resolver.index = relationship_indexes[item_index]
                 parts = [
                     part for part in (
                         resolve_extra(prompt_prefix, prompt_seed, -1),
@@ -931,58 +959,58 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
 
         # Ordinary batches retain the existing shared-negative behavior. Exact
         # prepared batches carry literal pairs; do not resolve their text again.
-        negative_before = resolve_extra(negative_prefix, effective_seed, 1001)
-        if prepared and "negative_prompts" in prepared:
-            negatives = list(prepared["negative_prompts"])
+        if relationship_config:
+            negatives = []
+            for row, prompt_seed in enumerate(seeds_out):
+                resolver.index = relationship_indexes[row]
+                runtime.index = resolver.index
+                negative = relationship_workspace_negatives[row] if relationship_workspace_negatives else resolve_extra(negative_text, prompt_seed, 1000)
+                negatives.append(" ".join(value for value in (
+                    resolve_extra(negative_prefix, prompt_seed, 1001),
+                    negative,
+                    resolve_extra(negative_suffix, prompt_seed, 1002),
+                ) if value))
+            ensure_participation(relationship_config, set(resolver.used_names) | set(relationship_fixed))
         else:
-            negatives = [resolve_extra(negative_text, effective_seed, 1000)] * len(prompts)
-        negative_after = resolve_extra(negative_suffix, effective_seed, 1002)
-        negatives = [" ".join(part for part in (negative_before, item, negative_after) if part) for item in negatives]
-
-        # Metadata and text outputs describe exactly what is encoded. Negatives
-        # continue to use the unpatched CLIP, matching the original contract.
-        if clip is not None:
-            cleaned = {item: PromptPaletteEditor._strip_lora_tags(item) for item in set(negatives)}
-            negatives = [cleaned[item][0] for item in negatives]
-            if any(ignored for _, ignored in cleaned.values()):
-                logger.warning(
-                    "LoRA tags in the negative prompt are ignored by the Combinatorial node; "
-                    "it encodes negatives with the unpatched CLIP"
-                )
-        resolved_negative = negatives[0]
+            negative_before = resolve_extra(negative_prefix, effective_seed, 1001)
+            if prepared and "negative_prompts" in prepared:
+                negatives = list(prepared["negative_prompts"])
+            else:
+                negatives = [resolve_extra(negative_text, effective_seed, 1000)] * len(prompts)
+            negative_after = resolve_extra(negative_suffix, effective_seed, 1002)
+            negatives = [" ".join(part for part in (negative_before, item, negative_after) if part) for item in negatives]
 
         used_names = sorted(set(resolver.used_names) | set(prepared.get("wildcards", []) if prepared else []))
         wildcards_used = json.dumps(used_names)
+        variables_dict = dict(first_variables) if first_variables is not None else {}
+        variables_dict.update(resolver.export_variables())
+        variables_json = json.dumps(variables_dict, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
         out_models, out_clips, conditioning, out_prompts = [], [], [], []
         prompt_metadata = []
         lora_cache = {}
+        negative_conditionings = []
+        output_negatives = []
+        negative_cache = {}
         for index, p in enumerate(prompts):
-            lora_records = PromptPaletteEditor._lora_records(p, "positive")
-            loras_applied = False
-            if model is not None and clip is not None:
-                clean, loras = PromptPaletteEditor._extract_loras(p)
-                m, c = PromptPaletteEditor._apply_loras(model, clip, loras, lora_cache) if loras else (model, clip)
-                loras_applied = bool(loras)
-                out_models.append(m)
-                out_clips.append(c)
-                conditioning.append(PromptPaletteEditor._encode(c, clean))
-                out_prompts.append(clean)
-            elif clip is not None:
-                clean, _ignored = PromptPaletteEditor._strip_lora_tags(p)
-                out_models.append(model)
-                out_clips.append(clip)
-                conditioning.append(PromptPaletteEditor._encode(clip, clean))
-                out_prompts.append(clean)
-            else:
-                out_models.append(model)
-                out_clips.append(clip)
-                conditioning.append(None)
-                out_prompts.append(p)
+            clean, clean_negative, encode_text, encode_negative, m, c, lora_records = lora_support.process(
+                p, negatives[index], model, clip, lora_mode, lora_cache,
+            )
+            loras_applied = any(record["status"] == "loaded" for record in lora_records)
+            out_models.append(m)
+            out_clips.append(c)
+            conditioning.append(PromptPaletteEditor._encode(c, encode_text) if c is not None else None)
+            out_prompts.append(clean)
+            output_negatives.append(clean_negative)
+            # The negative must use the same patched CLIP as its paired positive.
+            key = (id(c), encode_negative)
+            if c is not None and key not in negative_cache:
+                negative_cache[key] = PromptPaletteEditor._encode(c, encode_negative)
+            negative_conditionings.append(negative_cache.get(key))
             prompt_metadata.append(build_prompt_metadata(
                 node_type="PromptPaletteCombinatorial",
                 prompt=out_prompts[-1],
-                negative_prompt=negatives[index],
+                negative_prompt=output_negatives[index],
                 source_prompt=text,
                 source_text=text,
                 seed=seeds_out[index],
@@ -998,20 +1026,20 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     "generation_mode": mode,
                     "seed_mode": seed_mode,
                     "loras_applied": loras_applied,
+                    "lora_mode": lora_mode,
+                    "encoded_prompt": encode_text,
+                    "encoded_negative_prompt": encode_negative,
                     "prepared_variation": bool(prepared),
+                    "variables": variables_dict,
+                    **({"branch_selections": body_branch_selections} if index == 0 and body_branch_selections else {}),
                     **({"comparison": "one-field", "trial_label": prepared["labels"][index]} if prepared and prepared.get("comparison") == "one-field" else {}),
                 },
             ))
 
         n = len(out_prompts)
 
-        negative_conditionings = [None] * n
-        if clip is not None:
-            negative_cache = {}
-            for item in negatives:
-                if item not in negative_cache:
-                    negative_cache[item] = PromptPaletteEditor._encode(clip, item)
-            negative_conditionings = [negative_cache[item] for item in negatives]
+        negatives = output_negatives
+        resolved_negative = negatives[0]
         negative_conditioning = negative_conditionings[0]
 
         clip_token_count = -1
@@ -1033,6 +1061,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             "prepared_variations": bool(prepared),
             "workspace_runtime": workspace_runtime,
             "workspace_fields": dict(runtime.values),
+            "variables": variables_dict,
+            "branch_selections": body_branch_selections,
             "positive_antonyms": positive_antonyms,
             "resolution_seed": prepared.get("resolution_seed") if prepared else None,
             "count": n,
@@ -1057,6 +1087,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             "truncated": bool(resolver.last_generation_truncated),
             "prompts": prompt_metadata,
         }
+        if relationship_config:
+            batch_metadata["relationships"] = relationship_meta
+            for row, item in enumerate(prompt_metadata):
+                item["relationships"] = {**relationship_meta, "selected": {k: v["id"] for k, v in relationship_indexes[row].selected.items()}}
         published_batch = publish_prompt_metadata(cls, batch_metadata)
         ui_limit = 20
         ui_metadata = {key: value for key, value in published_batch.items() if key != "prompts"}
@@ -1075,6 +1109,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             compact_json(published_batch), n,
             # 21-22: paired list outputs appended after all legacy sockets.
             negatives, negative_conditionings,
+            # 23: resolved variables JSON output.
+            variables_json,
             ui={"prompt_palette": ui_metadata},
         )
 

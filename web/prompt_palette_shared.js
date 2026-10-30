@@ -169,11 +169,31 @@ export function svgIcon(name, size = 14) {
     folder: '<path d="M3 5h6l2 2h10v12H3z"/>',
     upload: '<path d="M12 16V3M7 8l5-5 5 5"/><path d="M4 14v6h16v-6"/>',
     download: '<path d="M12 3v13M7 11l5 5 5-5"/><path d="M4 14v6h16v-6"/>',
+    layers: '<path d="m12 3-10 5 10 5 10-5-10-5ZM2 12l10 5 10-5M2 16l10 5 10-5"/>',
     palette: '<path d="M12 3a9 9 0 0 0 0 18h1.5a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h3a6 6 0 0 0 0-12Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="9" cy="6.5" r="1"/><circle cx="14" cy="6" r="1"/><circle cx="17" cy="9" r="1"/>',
     github: '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3.3-.4 6.8-1.6 6.8-7A5.4 5.4 0 0 0 19.4 4 5 5 0 0 0 19.3.5S18.2.1 15 1.8a13.4 13.4 0 0 0-6 0C5.8.1 4.7.5 4.7.5A5 5 0 0 0 4.6 4a5.4 5.4 0 0 0-1.4 3.7c0 5.4 3.5 6.6 6.8 7A4.8 4.8 0 0 0 9 18v4"/><path d="M9 18c-4.5 2-5-2-7-2"/>',
+    wheel: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v6.5M12 14.5V21M3 12h6.5M14.5 12H21M5.6 5.6l4.6 4.6M13.8 13.8l4.6 4.6M5.6 18.4l4.6-4.6M13.8 10.2l4.6-4.6"/><polygon points="12,1 14,4 10,4" fill="currentColor"/>',
+    sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/><path d="M19 3v4M21 5h-4M5 19v2M6 20H4"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
+    history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l3 3"/>',
+    star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    starFilled: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>',
+    chevronDown: '<path d="m6 9 6 6 6-6"/>',
+    check: '<path d="m4 12 5 5L20 6"/>',
+    dots: '<circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/>',
   };
   const body = paths[name] || paths.settings;
   return `<svg class="wg-svg-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}
+
+export function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 
@@ -182,13 +202,19 @@ const PROMPT_PALETTE_THEME_KEYS = Object.freeze([
   "accent", "accent-text", "success", "danger",
 ]);
 const PROMPT_PALETTE_TYPOGRAPHY_KEYS = Object.freeze([
-  "font-family", "editor-font-size", "ui-font-scale", "prompt-text",
+  "font-family", "editor-font-size", "ui-font-scale", "menu-scale", "prompt-text",
 ]);
 const PROMPT_PALETTE_EFFECT_KEYS = Object.freeze(["accent-glow", "corner-radius"]);
 
 function clampPromptPaletteNumber(value, min, max, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+}
+
+/** Independent screen-space size for Prompt Palette menus and hover previews. */
+export function normalizePromptPaletteMenuScale(value, fallback = 1) {
+  if (value == null || value === "") return clampPromptPaletteNumber(fallback, .8, 2.5, 1);
+  return clampPromptPaletteNumber(value, .8, 2.5, 1);
 }
 
 /** Normalize the small suite-wide shape setting shared by every Prompt Palette surface. */
@@ -203,20 +229,61 @@ export function promptPaletteEffectSettings(theme = {}) {
   };
 }
 
+
+// Faint text carries hints, counters and 8-9px labels, the smallest text in the suite, yet
+// most palettes leave it below the 4.5:1 minimum on their own panels. Resolve the
+// effective --wg-text-faint at apply time: keep the saved value when it already passes,
+// otherwise mix it toward the palette's text color only as far as needed. Saved themes are
+// never rewritten, so exports and the theme editor keep the author's value.
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+function hexToRgb(hex) {
+  let h = hex.slice(1);
+  if (h.length === 3) h = [...h].map((c) => c + c).join("");
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+function relativeLuminance([r, g, b]) {
+  const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+function contrastRatio(a, b) {
+  const x = relativeLuminance(a), y = relativeLuminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+export function legibleFaintText(faint, text, backgrounds, minimum = 4.5) {
+  if (!HEX_COLOR.test(faint || "")) return faint;
+  const beds = (backgrounds || []).filter((c) => HEX_COLOR.test(c || "")).map(hexToRgb);
+  if (!beds.length) return faint;
+  const from = hexToRgb(faint);
+  const worst = (rgb) => Math.min(...beds.map((bed) => contrastRatio(rgb, bed)));
+  if (worst(from) >= minimum) return faint;
+  const brightBeds = beds.reduce((sum, bed) => sum + relativeLuminance(bed), 0) / beds.length > 0.4;
+  const to = HEX_COLOR.test(text || "") ? hexToRgb(text) : (brightBeds ? [0, 0, 0] : [255, 255, 255]);
+  const mix = (t) => from.map((v, i) => Math.round(v + (to[i] - v) * t));
+  if (worst(to) < minimum) return faint; // the text color itself cannot reach the minimum
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 12; i += 1) { const mid = (lo + hi) / 2; if (worst(mix(mid)) >= minimum) hi = mid; else lo = mid; }
+  return `#${mix(hi).map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
 /** Apply Prompt Palette variables to a Prompt Palette-owned DOM surface only. */
-export function applyPromptPaletteThemeScope(target, colors = {}, typography = {}, effects = null) {
-  if (!target?.style) return;
+export function applyPromptPaletteThemeScope(target, colors = {}, typography = {}, effects = null, declaration = target?.style) {
+  if (!declaration) return;
   for (const key of PROMPT_PALETTE_THEME_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(colors || {}, key)) continue;
     const value = colors[key];
-    if (value == null || value === "") target.style.removeProperty(`--wg-${key}`);
-    else target.style.setProperty(`--wg-${key}`, String(value));
+    if (value == null || value === "") declaration.removeProperty(`--wg-${key}`);
+    else declaration.setProperty(`--wg-${key}`, String(value));
+  }
+  if (Object.prototype.hasOwnProperty.call(colors || {}, "text-faint")) {
+    const read = (name) => colors[name] || declaration.getPropertyValue(`--wg-${name}`).trim();
+    const faint = legibleFaintText(colors["text-faint"], read("text"), [read("panel-bg"), read("surface"), read("bg")]);
+    if (faint !== colors["text-faint"]) declaration.setProperty("--wg-text-faint", faint);
   }
   for (const key of PROMPT_PALETTE_TYPOGRAPHY_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(typography || {}, key)) continue;
     const value = typography[key];
-    if (value == null || value === "") target.style.removeProperty(`--wg-${key}`);
-    else target.style.setProperty(`--wg-${key}`, String(value));
+    if (value == null || value === "") declaration.removeProperty(`--wg-${key}`);
+    else declaration.setProperty(`--wg-${key}`, String(value));
   }
   if (effects && typeof effects === "object") {
     const finish = ["clean", "soft", "glow", "glass"].includes(effects.finish) ? effects.finish : "soft";
@@ -224,15 +291,15 @@ export function applyPromptPaletteThemeScope(target, colors = {}, typography = {
     for (const key of PROMPT_PALETTE_EFFECT_KEYS) {
       if (!Object.prototype.hasOwnProperty.call(effects, key)) continue;
       const value = effects[key];
-      if (value == null || value === "") target.style.removeProperty(`--wg-${key}`);
-      else target.style.setProperty(`--wg-${key}`, String(value));
+      if (value == null || value === "") declaration.removeProperty(`--wg-${key}`);
+      else declaration.setProperty(`--wg-${key}`, String(value));
     }
   }
   // Native selects and scrollbars must follow the node palette even when
   // ComfyUI itself uses the opposite appearance. Do not theme the host page.
-  const background = colors["panel-bg"] || colors.bg || target.style.getPropertyValue("--wg-panel-bg");
+  const background = colors["panel-bg"] || colors.bg || declaration.getPropertyValue("--wg-panel-bg");
   target.dataset.wgTone = panelToneFor(target, background);
-  target.style.colorScheme = target.dataset.wgTone;
+  declaration.setProperty("color-scheme", target.dataset.wgTone);
 }
 
 /** Remove variables written by Prompt Palette versions that themed :root globally. */

@@ -69,9 +69,9 @@ export async function changeLibraryThumbnail(path, { file = null, remove = false
 
 export function libraryThumbnailActions(path, { hasThumbnail = false, editable = true, ...options } = {}) {
   return [
-    { label: editable ? hasThumbnail ? "Change Thumbnail…" : "Set Thumbnail…" : "Thumbnails require a TXT entry", icon: "image", group: "thumb", disabled: !editable,
+    { label: editable ? hasThumbnail ? "Change thumbnail…" : "Set thumbnail…" : "Thumbnails require a TXT entry", icon: "image", group: "thumb", disabled: !editable,
       onSelect: () => editable && changeLibraryThumbnail(path, options) },
-    ...(editable && hasThumbnail ? [{ label: "Remove Thumbnail", icon: "trash", group: "thumb", danger: true,
+    ...(editable && hasThumbnail ? [{ label: "Remove thumbnail", icon: "trash", group: "thumb", danger: true,
       onSelect: () => changeLibraryThumbnail(path, { ...options, remove: true }) }] : []),
   ];
 }

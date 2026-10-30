@@ -1,3 +1,14 @@
+import { mountLibraryFeatures } from "./library_features.js";
+import { reviewHistoryRestore, applyHistoryText, historyTargetEditor } from "./history_restore.js";
+import {
+  libraryVirtualLayout,
+  bindLibraryViewControls,
+  libraryThumbnailMarkup,
+  getLibraryOrganization,
+  sortLibraryCategories,
+  sortLibraryItems,
+  renderLibraryHoverTip,
+} from "./library_display.js";
 import { bindEditorWildcardHover } from "./editor_hover.js";
 import { saveEditorSelection } from "./selection_library.js";
 import { copyPromptPaletteThemeScope, positionPromptPaletteTip } from "../prompt_palette_shared.js";
@@ -19,7 +30,7 @@ import {
 import { getBooruAutocompleteMatches, attachAutocomplete } from "./autocomplete.js";
 import { libraryAcRows, recentAcRows, mergeUnifiedRows } from "./autocomplete_sources.js";
 import {
-  openInjectMenu, closeInjectMenu, scheduleCloseInjectMenu,
+  openInjectMenu, openInjectMenuAtPoint, closeInjectMenu, scheduleCloseInjectMenu,
   cancelScheduledCloseInjectMenu, injectState,
 } from "./injector.js";
 import { openCtxMenu, closeCtxMenu, ctxMenuOpen, attachLibraryContextMenu } from "./context_menu.js";
@@ -36,6 +47,7 @@ export function createLibraryController(ctx) {
     promptSaveRecipe, prepareStarterAutocomplete: externalPrepareStarterAutocomplete, performanceRuntime, profiler, libraryModel, renderLibrary,
   } = ctx;
 
+  let libraryFeatures = null;
   const cleanupPins = onLibraryPinsChanged(() => { pinned.clear(); for (const path of loadPinned()) pinned.add(path); renderPickerList(searchInput.value); });
   const libraryIndex = libraryModel;
   let indexedLibraryRef = null;
@@ -70,9 +82,14 @@ export function createLibraryController(ctx) {
     return starterAutocompleteLoad;
   }
 
+  function getCategoryColor(cat) {
+    return theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation);
+  }
+
   async function showTipForName(x, y, name, known) {
     const requestVersion = ++hoverRequestVersion;
-    let lines = [];
+    hoverTip.__lastClientX = x;
+    hoverTip.__lastClientY = y;
     if (known) {
       let entry = previewCache.get(name);
       if (!entry) {
@@ -84,14 +101,39 @@ export function createLibraryController(ctx) {
         }
       }
       if (requestVersion !== hoverRequestVersion || !nodeIsActive(node)) return;
-      lines = (entry?.lines || []).slice(0, 4);
-    } else {
-      lines = closestPromptEntries(name, state.knownSet, 3).map((path) => `Did you mean ${path}?`);
+      const cat = categoryOf(name);
+      const color = getCategoryColor(cat);
+      const thumbRel = state.thumbMap?.[name];
+      const thumbBustQs = state.thumbBust?.[name] ? `&v=${state.thumbBust[name]}` : "";
+      const thumbUrl = thumbRel ? API.thumbnailUrl(thumbRel, thumbBustQs) : "";
+      copyPromptPaletteThemeScope(root, hoverTip);
+      renderLibraryHoverTip(hoverTip, {
+        name,
+        lines: entry?.lines || [],
+        totalLines: entry?.total ?? entry?.lines?.length ?? 0,
+        thumbUrl,
+        category: cat,
+        accent: color,
+        isPinned: pinned.has(name),
+        isRecipe: isRecipeCategory(cat),
+        error: !entry,
+      });
+      positionPromptPaletteTip(hoverTip, hoverTip.__lastClientX ?? x, hoverTip.__lastClientY ?? y);
+      const img = hoverTip.querySelector(".wg-tip-thumb");
+      if (img) {
+        img.addEventListener("load", () => {
+          if (hoverTip.style.display === "block") {
+            positionPromptPaletteTip(hoverTip, hoverTip.__lastClientX ?? x, hoverTip.__lastClientY ?? y);
+          }
+        }, { once: true });
+      }
+      return;
     }
+    const lines = closestPromptEntries(name, state.knownSet, 3).map((path) => `Did you mean ${path}?`);
     copyPromptPaletteThemeScope(root, hoverTip);
-    hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(known ? name : name + " (not found)")}</div>` +
+    hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(name + " (not found)")}</div>` +
       (lines.length ? lines.map(l => `<div class="wg-tip-line">${escapeHtml(l)}</div>`).join("") :
-        `<div class="wg-tip-line">${known ? "no preview available" : "file missing"}</div>`);
+        `<div class="wg-tip-line">file missing</div>`);
     positionPromptPaletteTip(hoverTip, x, y);
   }
   function hideTip() { hoverRequestVersion += 1; hoverTip.style.display = "none"; }
@@ -107,7 +149,7 @@ export function createLibraryController(ctx) {
   const pickerList = el("pickerList");
 
   let pickerKbIndex = -1;
-  function pickerRows() { return Array.from(pickerList.querySelectorAll(".wg-item")); }
+  function pickerRows() { return Array.from(pickerList.querySelectorAll(".wg-item[data-path], .wg-thumb-item[data-path]")); }
   function movePickerKbIndex(delta) {
     const rows = pickerRows();
     rows.forEach(r => r.classList.remove("wg-kb-active"));
@@ -179,7 +221,7 @@ export function createLibraryController(ctx) {
         usageStore.recordStarter(entry);
         state.starterSaveSuggestion = normalizeLibraryEntryPath(`${entry.modelName}/${entry.categoryName}/${entry.title}`);
       }
-    } else if (item?.value && item.kind !== "booru" && item.kind !== "custom" && item.kind !== "syntax") {
+    } else if (item?.value && item.kind !== "booru" && item.kind !== "custom" && item.kind !== "syntax" && item.kind !== "lora") {
       usageStore.recordLibrary(item.value);
       state.recentList = usageStore.libraryRecent(12);
       renderPickerList(searchInput.value);
@@ -232,48 +274,59 @@ export function createLibraryController(ctx) {
     root.querySelector('[data-act="recipeSave"]').disabled = recipeSelection.size === 0;
   }
 
+  let activeQuickFilter = "all";
+
   function pickerRow(item, filter = "") {
     const cat = categoryOf(item.path);
     const isRecipe = isRecipeCategory(cat);
-    const color = theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation);
+    const color = getCategoryColor(cat);
     const isPinned = pinned.has(item.path);
     const isSelected = recipeSelection.has(item.path);
+    const thumbRel = state.thumbMap?.[item.path];
+    const showListThumb = Boolean(thumbRel) && pickerDrawer?.dataset.listThumbs !== "false";
+    const thumbBustQs = state.thumbBust?.[item.path] ? `&v=${state.thumbBust[item.path]}` : "";
     const row = document.createElement("div");
-    row.className = "wg-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "");
+    row.className = "wg-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "") + (showListThumb ? " has-list-thumb" : "");
     row.dataset.path = item.path;
     const swatchHtml = isRecipe
       ? `<span class="wg-sw wg-sw-recipe" style="background:${color};" title="Palette Recipe">&#128214;</span>`
       : `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>`;
+    const miniThumbHtml = showListThumb
+      ? `<span class="wg-item-thumb-wrap" style="--wg-item-accent:${color};"><img class="wg-item-thumb" src="${escapeHtml(API.thumbnailUrl(thumbRel, thumbBustQs))}" alt="" loading="lazy" decoding="async" fetchpriority="low"></span>`
+      : "";
     const checkboxHtml = state.recipeSelectMode
       ? `<input type="checkbox" class="wg-recipe-check" ${isSelected ? "checked" : ""} title="Add to Palette Recipe selection">`
       : "";
     const injectHtml = theme.syntaxInjectorEnabled !== false
       ? `<button type="button" class="wg-inject-trigger" title="Insert wildcard syntax for &quot;${escapeHtml(item.path)}&quot;" draggable="false">&#9889;</button>`
       : "";
-    row.innerHTML = `${checkboxHtml}${swatchHtml}<span class="wg-name">${highlightMatch(item.path.split("/").pop(), filter)}</span><button type="button" class="wg-copy-trigger" title="Copy __${escapeHtml(item.path)}__" draggable="false">&#128203;</button>${injectHtml}<span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "★" : "☆"}</span>`;
+    row.innerHTML = `${checkboxHtml}${swatchHtml}${miniThumbHtml}<span class="wg-name">${highlightMatch(item.path.split("/").pop(), filter)}</span><button type="button" class="wg-copy-trigger" title="Copy __${escapeHtml(item.path)}__" draggable="false">&#128203;</button>${injectHtml}<span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "★" : "☆"}</span>`;
     return row;
   }
 
   function pickerTile(item) {
     const cat = categoryOf(item.path);
     const isRecipe = isRecipeCategory(cat);
-    const color = theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation);
+    const color = getCategoryColor(cat);
     const isPinned = pinned.has(item.path);
     const isSelected = recipeSelection.has(item.path);
     const name = item.path.split("/").pop();
     const thumbRel = state.thumbMap[item.path];
     const thumbBustQs = state.thumbBust[item.path] ? `&v=${state.thumbBust[item.path]}` : "";
-    const thumbHtml = thumbRel
-      ? `<img class="wg-thumb-img" src="${escapeHtml(API.thumbnailUrl(thumbRel, thumbBustQs))}" alt="" loading="lazy" decoding="async" fetchpriority="low">`
-      : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #121417));"><span class="wg-thumb-fallback-glyph" style="color:${color};">${isRecipe ? "&#128214;" : "&#128193;"}</span></div>`;
+    const thumbHtml = libraryThumbnailMarkup(thumbRel ? API.thumbnailUrl(thumbRel, thumbBustQs) : "", isRecipe);
+
     const tile = document.createElement("div");
-    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "");
+    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "") + (thumbRel ? " has-thumb" : "");
     tile.dataset.path = item.path;
+    tile.style.setProperty("--wg-card-accent", color);
     tile.title = isRecipe ? `${item.path} (Palette Recipe)` : item.path;
     const checkboxHtml = state.recipeSelectMode
       ? `<input type="checkbox" class="wg-recipe-check wg-thumb-check" ${isSelected ? "checked" : ""} title="Add to Palette Recipe selection">`
       : "";
-    tile.innerHTML = `${thumbHtml}${checkboxHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "★" : "☆"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span>`;
+    const injectHtml = theme.syntaxInjectorEnabled !== false
+      ? `<button type="button" class="wg-inject-trigger wg-thumb-inject" title="Insert wildcard syntax for &quot;${escapeHtml(item.path)}&quot;" draggable="false">&#9889;</button>`
+      : "";
+    tile.innerHTML = `${thumbHtml}${checkboxHtml}${injectHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "★" : "☆"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span><span class="wg-thumb-meta">${escapeHtml(item.path.includes("/") ? item.path.slice(0, item.path.lastIndexOf("/")) : "Unfiled")}</span>`;
     return tile;
   }
 
@@ -290,23 +343,130 @@ export function createLibraryController(ctx) {
     }
   }
 
+  function moveCategoryByOffset(cat, delta) {
+    const present = Array.from(new Set(state.libraryCache.map((e) => categoryOf(e.path))));
+    const known = state.catOrder.filter((c) => present.includes(c));
+    const unseen = present.filter((c) => !state.catOrder.includes(c)).sort();
+    const order = [...known, ...unseen];
+    const idx = order.indexOf(cat);
+    if (idx === -1) return;
+    const targetIdx = idx + delta;
+    if (targetIdx < 0 || targetIdx >= order.length) return;
+    const [moved] = order.splice(idx, 1);
+    order.splice(targetIdx, 0, moved);
+    state.catOrder = order;
+    saveCatOrder(state.catOrder);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ catSort: "custom" }, { persist: true, notify: false });
+    renderPickerList(searchInput.value);
+  }
+
+  function hideCategory(cat) {
+    const org = getLibraryOrganization(pickerDrawer);
+    const hidden = new Set(org.hiddenCats || []);
+    hidden.add(cat);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ hiddenCats: Array.from(hidden) });
+  }
+
+  const searchCollapsedCats = new Set();
+
+  function isCatExpanded(cat, hasSearch = Boolean((searchInput.value || "").trim())) {
+    return hasSearch ? !searchCollapsedCats.has(cat) : expandedCats.has(cat);
+  }
+
+  function toggleCategoryExpanded(cat) {
+    const hasSearch = Boolean((searchInput.value || "").trim());
+    if (hasSearch) {
+      if (searchCollapsedCats.has(cat)) searchCollapsedCats.delete(cat);
+      else searchCollapsedCats.add(cat);
+    } else {
+      if (expandedCats.has(cat)) expandedCats.delete(cat);
+      else expandedCats.add(cat);
+      saveExpandedCats(expandedCats);
+    }
+    renderPickerList(searchInput.value);
+  }
+
+  function toggleSectionCollapsed(secId) {
+    const org = getLibraryOrganization(pickerDrawer);
+    const collapsed = new Set(org.collapsedSections || []);
+    if (collapsed.has(secId)) collapsed.delete(secId);
+    else collapsed.add(secId);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ collapsedSections: Array.from(collapsed) });
+  }
+
+  function expandAllCategories() {
+    searchCollapsedCats.clear();
+    for (const entry of state.libraryCache) expandedCats.add(categoryOf(entry.path));
+    saveExpandedCats(expandedCats);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ collapsedSections: [] }, { persist: true, notify: false });
+    renderPickerList(searchInput.value);
+  }
+
+  function collapseAllCategories() {
+    for (const entry of state.libraryCache) searchCollapsedCats.add(categoryOf(entry.path));
+    expandedCats.clear();
+    saveExpandedCats(expandedCats);
+    renderPickerList(searchInput.value);
+  }
+
+  function openCategoryContextMenu(event, cat) {
+    const isExpanded = isCatExpanded(cat);
+    const org = getLibraryOrganization(pickerDrawer);
+    closeInjectMenu();
+    const actions = [
+      {
+        label: isExpanded ? `Collapse "${cat}"` : `Expand "${cat}"`,
+        icon: "jump",
+        group: "folder",
+        onSelect: () => toggleCategoryExpanded(cat),
+      },
+      { label: "Expand all folders", icon: "jump", group: "folder", onSelect: expandAllCategories },
+      { label: "Collapse all folders", icon: "jump", group: "folder", onSelect: collapseAllCategories },
+      { label: `Move "${cat}" up`, icon: "jump", group: "order", onSelect: () => moveCategoryByOffset(cat, -1) },
+      { label: `Move "${cat}" down`, icon: "jump", group: "order", onSelect: () => moveCategoryByOffset(cat, 1) },
+      { label: `Hide "${cat}" folder`, icon: "pin", group: "visibility", onSelect: () => hideCategory(cat) },
+    ];
+    if (org.hiddenCats?.length) {
+      actions.push({
+        label: `Show all hidden folders (${org.hiddenCats.length})`,
+        icon: "pin",
+        group: "visibility",
+        onSelect: () => pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ hiddenCats: [] }),
+      });
+    }
+    openCtxMenu(event.clientX, event.clientY, actions);
+  }
+
   function openLibraryContextMenu(event, path) {
     const cat = categoryOf(path);
     const nowPinned = pinned.has(path);
     const item = state.libraryCache.find(item => item.path === path);
     closeInjectMenu();
     openCtxMenu(event.clientX, event.clientY, [
-      { label: "Edit", icon: "edit", group: "item", onSelect: () => openEditForItem(path) },
-      { label: "Copy path", icon: "path", group: "item", onSelect: () => copyLibraryPath(path) },
-      { label: nowPinned ? "Unpin" : "Pin", icon: "pin", group: "item", onSelect: () => { if (pinned.has(path)) pinned.delete(path); else pinned.add(path); savePinned(pinned); renderPickerList(searchInput.value); } },
+      { label: "Insert wildcard", icon: "plus", group: "insert", onSelect: () => insertWildcard(path) },
+      ...(theme.syntaxInjectorEnabled !== false ? [{ label: "Insert with syntax…", icon: "bolt", group: "insert", onSelect: () => {
+        const editor = node._ppActiveRecipeEditor?.isConnected ? node._ppActiveRecipeEditor : textarea;
+        if (editor === textarea) node._ppRecipeWorkspace?.showEditor();
+        openInjectMenuAtPoint(event.clientX, event.clientY, path, editor, editor === textarea ? render : () => editor.dispatchEvent(new Event("input", { bubbles: true })));
+      } }] : []),
+      { label: "Edit library entry…", icon: "edit", group: "item", onSelect: () => openEditForItem(path) },
+      { label: "Copy wildcard reference", icon: "path", group: "item", onSelect: () => copyLibraryPath(path) },
+      { label: nowPinned ? "Unpin entry" : "Pin entry", icon: "pin", group: "item", onSelect: () => { if (pinned.has(path)) pinned.delete(path); else pinned.add(path); savePinned(pinned); renderPickerList(searchInput.value); } },
       ...libraryThumbnailActions(path, { hasThumbnail: !!state.thumbMap[path], editable: !item?.type || item.type === "txt",
         isActive: () => !libraryDisposed && nodeIsActive(node) }),
       { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
+      { label: `Hide "${cat}" folder`, icon: "pin", group: "nav", onSelect: () => hideCategory(cat) },
     ]);
   }
 
   let delegatedInjectTimer = null;
   pickerList.addEventListener("click", (event) => {
+    const resetFiltersBtn = event.target.closest('[data-act="libResetFilters"]');
+    if (resetFiltersBtn) {
+      event.stopPropagation();
+      resetLibraryFilters();
+      return;
+    }
     const clearRecent = event.target.closest('[data-act="clearRecent"]');
     if (clearRecent) {
       event.stopPropagation();
@@ -315,12 +475,33 @@ export function createLibraryController(ctx) {
       renderPickerList(searchInput.value);
       return;
     }
+    const showHiddenBtn = event.target.closest('[data-act="showHiddenCats"]');
+    if (showHiddenBtn) {
+      event.stopPropagation();
+      pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ hiddenCats: [] });
+      return;
+    }
+    const catActBtn = event.target.closest("[data-cat-act]");
+    if (catActBtn) {
+      event.stopPropagation();
+      const folderEl = catActBtn.closest(".wg-folder[data-cat]");
+      const cat = folderEl?.dataset.cat;
+      if (!cat) return;
+      const act = catActBtn.dataset.catAct;
+      if (act === "up") moveCategoryByOffset(cat, -1);
+      else if (act === "down") moveCategoryByOffset(cat, 1);
+      else if (act === "hide") hideCategory(cat);
+      return;
+    }
+    const secHeader = event.target.closest("[data-sec-collapse]");
+    if (secHeader) {
+      event.stopPropagation();
+      toggleSectionCollapsed(secHeader.dataset.secCollapse);
+      return;
+    }
     const folder = event.target.closest(".wg-folder[data-cat]");
     if (folder) {
-      const cat = folder.dataset.cat;
-      if (expandedCats.has(cat)) expandedCats.delete(cat); else expandedCats.add(cat);
-      saveExpandedCats(expandedCats);
-      renderPickerList(searchInput.value);
+      toggleCategoryExpanded(folder.dataset.cat);
       return;
     }
     const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
@@ -346,7 +527,7 @@ export function createLibraryController(ctx) {
       return;
     }
     if (event.target.closest(".wg-recipe-check")) return;
-    if (host.classList.contains("wg-thumb-item") || event.target.closest(".wg-name, .wg-sw")) {
+    if (host.classList.contains("wg-thumb-item") || event.target.closest(".wg-name, .wg-sw, .wg-item-thumb-wrap") || host.classList.contains("wg-item")) {
       if (state.recipeSelectMode) toggleRecipeSelection(path); else insertWildcard(path);
     }
   });
@@ -355,15 +536,23 @@ export function createLibraryController(ctx) {
     const host = check?.closest("[data-path]");
     if (host) toggleRecipeSelection(host.dataset.path);
   });
-  const contextEntry = event => event.target.closest?.(".wg-item[data-path], .wg-thumb-item[data-path]");
+  const contextEntry = event => event.target.closest?.(".wg-item[data-path], .wg-thumb-item[data-path], .wg-folder[data-cat]");
   const cleanupPickerContext = attachLibraryContextMenu(pickerList, (event) => {
     hideTip();
     cancelNodeTimer(node, delegatedInjectTimer);
-    openLibraryContextMenu(event, contextEntry(event).dataset.path);
+    const target = contextEntry(event);
+    if (!target) return;
+    if (target.classList.contains("wg-folder") && target.dataset.cat) {
+      openCategoryContextMenu(event, target.dataset.cat);
+    } else if (target.dataset.path) {
+      openLibraryContextMenu(event, target.dataset.path);
+    }
   }, contextEntry);
   pickerList.addEventListener("mousemove", (event) => {
     const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
     if (!host) return;
+    hoverTip.__lastClientX = event.clientX;
+    hoverTip.__lastClientY = event.clientY;
     if (hoverTip.style.display === "block") positionPromptPaletteTip(hoverTip, event.clientX, event.clientY);
   });
   pickerList.addEventListener("mouseover", (event) => {
@@ -438,7 +627,9 @@ export function createLibraryController(ctx) {
     probe.classList.add("wg-library-row-probe");
     probeHost.appendChild(probe);
     pickerList.appendChild(probeHost);
-    const measured = Math.ceil(probe.getBoundingClientRect?.().height || probe.offsetHeight || 0);
+    // offsetHeight is in local CSS pixels; viewport rectangles include the
+    // ComfyUI canvas zoom and cannot be used as virtual row strides.
+    const measured = Math.ceil(probe.offsetHeight || probe.getBoundingClientRect?.().height || 0);
     probeHost.remove();
     // One CSS pixel of headroom prevents fractional font metrics from being
     // rounded down differently between the hidden probe and mounted rows.
@@ -446,10 +637,8 @@ export function createLibraryController(ctx) {
   }
 
   function mountVirtualItems(container, items, filter = "") {
-    const grid = state.pickerViewMode === "grid";
-    const density = String(ctx.state.libraryDensity || "medium");
-    const cardHeight = density === "small" ? 112 : density === "large" ? 168 : 136;
-    const minCardWidth = density === "small" ? 74 : density === "large" ? 120 : 92;
+    const grid = state.pickerViewMode !== "list";
+    const geometry = libraryVirtualLayout(pickerDrawer);
     // List virtualization must use the row's real themed/font-scaled height.
     // A hard-coded 32px estimate made each virtual host shorter than its rows
     // at larger UI scales, so following category headers overlapped and clipped
@@ -457,13 +646,25 @@ export function createLibraryController(ctx) {
     const rowHeight = grid ? 32 : measurePickerRowHeight(items?.[0], filter);
     return virtualManager.mount(container, {
       items,
-      mode: grid ? "grid" : "list",
+      mode: ["masonry", "filmstrip"].includes(state.pickerViewMode) ? state.pickerViewMode : grid ? "grid" : "list",
       estimateRowHeight: rowHeight,
-      estimateCardHeight: cardHeight,
-      minCardWidth,
+      ...geometry,
       overscan: 2,
       renderItem: (item) => grid ? pickerTile(item) : pickerRow(item, filter),
     });
+  }
+
+  function refreshDisplayGeometry() {
+    // Static categories reflow in CSS. Only the bounded search window needs
+    // geometry updates; keep its anchor and all existing card/menu listeners.
+    const anchor = virtualManager.captureViewportAnchor();
+    const geometry = libraryVirtualLayout(pickerDrawer);
+    for (const collection of virtualManager.collections) {
+      if (collection.mode === "list") continue;
+      collection.updateLayout(geometry);
+    }
+    virtualManager.restoreViewportAnchor(anchor);
+    virtualManager.refresh();
   }
 
   // Expanded category folders are already an explicit user-controlled window, so
@@ -473,11 +674,10 @@ export function createLibraryController(ctx) {
   // stale estimated spacer height. Very large search result sets still use one
   // virtual collection below.
   function mountStaticItems(container, items, filter = "", category = "") {
-    const grid = state.pickerViewMode === "grid";
+    if (["masonry", "filmstrip"].includes(state.pickerViewMode)) return mountVirtualItems(container, items, filter);
+    const grid = state.pickerViewMode !== "list";
     const host = grid ? document.createElement("div") : null;
-    const categoryColor = category
-      ? (theme.categoryPins[category] || categoryColorFromHue((hashStr(category) % 360 + theme.hueRotate) % 360, theme.saturation))
-      : "";
+    const categoryColor = category ? getCategoryColor(category) : "";
     if (host) {
       host.className = "wg-thumb-grid wg-static-collection" + (category ? " wg-category-content" : "");
       if (categoryColor) host.style.setProperty("--wg-category-accent", categoryColor);
@@ -542,26 +742,31 @@ export function createLibraryController(ctx) {
     const prevScrollTop = pickerList.scrollTop;
     virtualManager.clear();
     renderedLibraryItems = 0;
-    const items = Array.isArray(prefilteredItems)
+
+    const org = getLibraryOrganization(pickerDrawer);
+    org.quickFilter = activeQuickFilter !== "all" ? activeQuickFilter : "";
+    const hiddenSecSet = new Set(org.hiddenSections || []);
+    const allCatsSet = new Set();
+    for (const entry of state.libraryCache) allCatsSet.add(categoryOf(entry.path));
+    const allPresentCats = Array.from(allCatsSet);
+    const knownOrder = state.catOrder.filter((c) => allCatsSet.has(c));
+    const unseenOrder = allPresentCats.filter((c) => !state.catOrder.includes(c)).sort();
+    const canonicalCatOrder = [...knownOrder, ...unseenOrder];
+    if (unseenOrder.length && !requestedFilter) {
+      state.catOrder = canonicalCatOrder.slice();
+      saveCatOrder(state.catOrder);
+    }
+    pickerDrawer.__ppLibraryDisplayBinding?.syncCategories?.(canonicalCatOrder, getCategoryColor);
+
+    const rawItems = Array.isArray(prefilteredItems)
       ? prefilteredItems
       : requestedFilter
         ? (profiler?.measure("library.search", () => libraryIndex.search(requestedFilter, { limit: libraryIndex.size(), pinned, recent: state.recentList })) || libraryIndex.search(requestedFilter, { limit: libraryIndex.size(), pinned, recent: state.recentList }))
         : state.libraryCache;
+    const items = sortLibraryItems(libraryFeatures?.filter(rawItems) || rawItems, org, pinned, state.thumbMap);
+
     profiler?.measure("library.render", () => {
       pickerList.replaceChildren();
-      if (!requestedFilter) {
-        const pinnedItems = state.libraryCache.filter((entry) => pinned.has(entry.path));
-        if (pinnedItems.length) {
-          const label = document.createElement("div"); label.className = "wg-section-label"; label.textContent = "Pinned";
-          pickerList.appendChild(label); mountStaticItems(pickerList, pinnedItems);
-        }
-        const recentItems = state.recentList.filter((path) => !pinned.has(path)).map((path) => libraryIndex.get(path)).filter(Boolean);
-        if (recentItems.length) {
-          const label = document.createElement("div"); label.className = "wg-section-label wg-section-label-row";
-          label.innerHTML = `<span>Recent</span><button type="button" class="wg-clear-recent" data-act="clearRecent" title="Clear recent list">Clear</button>`;
-          pickerList.appendChild(label); mountStaticItems(pickerList, recentItems);
-        }
-      }
 
       if (requestedFilter && items.length > LARGE_SEARCH_VIRTUAL_THRESHOLD) {
         const label = document.createElement("div");
@@ -572,48 +777,190 @@ export function createLibraryController(ctx) {
         return;
       }
 
-      const grouped = new Map();
-      for (const entry of items) {
-        const cat = categoryOf(entry.path);
-        if (!grouped.has(cat)) grouped.set(cat, []);
-        grouped.get(cat).push(entry);
-      }
-      const canReorder = !requestedFilter;
-      let catNames;
-      if (canReorder) {
-        const present = Array.from(grouped.keys());
-        const known = state.catOrder.filter((cat) => present.includes(cat));
-        const unseen = present.filter((cat) => !state.catOrder.includes(cat)).sort();
-        catNames = [...known, ...unseen];
-        if (unseen.length) { state.catOrder = catNames.slice(); saveCatOrder(state.catOrder); }
-      } else catNames = Array.from(grouped.keys()).sort();
+      const renderCategoriesSection = () => {
+        const grouped = new Map();
+        for (const entry of items) {
+          const cat = categoryOf(entry.path);
+          if (!grouped.has(cat)) grouped.set(cat, []);
+          grouped.get(cat).push(entry);
+        }
+        const canReorder = !requestedFilter && !org.quickFilter && (org.catSort || "custom") === "custom";
+        const catNames = sortLibraryCategories(
+          Array.from(grouped.keys()),
+          grouped,
+          { ...org, includeHidden: Boolean(requestedFilter || org.quickFilter) },
+          canonicalCatOrder
+        );
 
-      for (const cat of catNames) {
-        const catItems = grouped.get(cat) || [];
-        const isExpanded = !!requestedFilter || expandedCats.has(cat);
-        const header = document.createElement("div");
-        header.className = "wg-folder" + (isExpanded ? " expanded" : "") + (isRecipeCategory(cat) ? " wg-folder-recipe" : "") + (canReorder ? " wg-draggable" : "");
-        header.dataset.cat = cat; header.draggable = canReorder;
-        const categoryColor = theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation);
-        header.style.setProperty("--wg-category-accent", categoryColor);
-        const folderLabel = isRecipeCategory(cat) ? `&#128214; ${escapeHtml(cat)}` : escapeHtml(cat);
-        header.innerHTML = `<span class="wg-folder-caret">${isExpanded ? "▾" : "▸"}</span><span class="wg-folder-name">${folderLabel}</span><span class="wg-folder-count">${catItems.length}</span>`;
-        header.title = isExpanded ? "Click to collapse" : "Click to expand";
-        pickerList.appendChild(header);
-        if (isExpanded) mountStaticItems(pickerList, catItems, requestedFilter, cat);
+        for (let idx = 0; idx < catNames.length; idx++) {
+          const cat = catNames[idx];
+          const catItems = grouped.get(cat) || [];
+          const isExpanded = isCatExpanded(cat, Boolean(requestedFilter));
+          const header = document.createElement("div");
+          header.className = "wg-folder" + (isExpanded ? " expanded" : "") + (isRecipeCategory(cat) ? " wg-folder-recipe" : "") + (canReorder ? " wg-draggable" : "");
+          header.dataset.cat = cat;
+          header.draggable = canReorder;
+          const categoryColor = getCategoryColor(cat);
+          header.style.setProperty("--wg-category-accent", categoryColor);
+          const folderLabel = isRecipeCategory(cat) ? `&#128214; ${escapeHtml(cat)}` : escapeHtml(cat);
+          const toolsHtml = !requestedFilter
+            ? `<span class="wg-folder-tools">
+                ${canReorder ? `<button type="button" class="wg-folder-act" data-cat-act="up" ${idx === 0 ? "disabled" : ""} title="Move folder up" aria-label="Move ${escapeHtml(cat)} up">↑</button><button type="button" class="wg-folder-act" data-cat-act="down" ${idx === catNames.length - 1 ? "disabled" : ""} title="Move folder down" aria-label="Move ${escapeHtml(cat)} down">↓</button>` : ""}
+                <button type="button" class="wg-folder-act wg-folder-act-hide" data-cat-act="hide" title="Hide &quot;${escapeHtml(cat)}&quot; folder" aria-label="Hide ${escapeHtml(cat)} folder">✕</button>
+              </span>`
+            : "";
+          header.innerHTML = `<span class="wg-folder-caret">${isExpanded ? "▾" : "▸"}</span><span class="wg-folder-name">${folderLabel}</span>${toolsHtml}<span class="wg-folder-count">${catItems.length}</span>`;
+          header.title = isExpanded ? "Click to collapse · Right-click for folder options" : "Click to expand · Right-click for folder options";
+          pickerList.appendChild(header);
+          if (isExpanded) mountStaticItems(pickerList, catItems, requestedFilter, cat);
+        }
+
+        if (!requestedFilter && org.hiddenCats?.length) {
+          const hiddenNote = document.createElement("div");
+          hiddenNote.className = "wg-hidden-cats-bar";
+          hiddenNote.innerHTML = `<span>${org.hiddenCats.length} ${org.hiddenCats.length === 1 ? "folder" : "folders"} hidden</span><button type="button" class="wg-clear-recent" data-act="showHiddenCats">Show all</button>`;
+          pickerList.appendChild(hiddenNote);
+        }
+      };
+
+      const collapsedSecSet = new Set(org.collapsedSections || []);
+      if (!requestedFilter && !org.quickFilter) {
+        const sectionOrder = Array.isArray(org.sectionOrder) ? org.sectionOrder : ["pinned", "recent", "categories"];
+        for (const secId of sectionOrder) {
+          if (hiddenSecSet.has(secId)) continue;
+          if (secId === "pinned") {
+            const pinnedItems = sortLibraryItems(
+              state.libraryCache.filter((entry) => pinned.has(entry.path)),
+              org,
+              pinned,
+              state.thumbMap
+            );
+            if (pinnedItems.length) {
+              const isCollapsed = collapsedSecSet.has("pinned");
+              const label = document.createElement("div");
+              label.className = "wg-section-label wg-section-label-row wg-section-collapsible" + (isCollapsed ? " is-collapsed" : " expanded");
+              label.dataset.secCollapse = "pinned";
+              label.title = isCollapsed ? "Click to expand Pinned" : "Click to collapse Pinned";
+              label.innerHTML = `<span class="wg-section-head-left"><span class="wg-folder-caret">${isCollapsed ? "▸" : "▾"}</span><span>★ Pinned</span></span><span class="wg-section-count">${pinnedItems.length}</span>`;
+              pickerList.appendChild(label);
+              if (!isCollapsed) mountStaticItems(pickerList, pinnedItems);
+            }
+          } else if (secId === "recent") {
+            const recentItems = sortLibraryItems(
+              state.recentList.filter((path) => !pinned.has(path)).map((path) => libraryIndex.get(path)).filter(Boolean),
+              org,
+              pinned,
+              state.thumbMap
+            );
+            if (recentItems.length) {
+              const isCollapsed = collapsedSecSet.has("recent");
+              const label = document.createElement("div");
+              label.className = "wg-section-label wg-section-label-row wg-section-collapsible" + (isCollapsed ? " is-collapsed" : " expanded");
+              label.dataset.secCollapse = "recent";
+              label.title = isCollapsed ? "Click to expand Recent" : "Click to collapse Recent";
+              label.innerHTML = `<span class="wg-section-head-left"><span class="wg-folder-caret">${isCollapsed ? "▸" : "▾"}</span><span>↺ Recent</span></span><span class="wg-section-head-right"><span class="wg-section-count">${recentItems.length}</span><button type="button" class="wg-clear-recent" data-act="clearRecent" title="Clear recent list">Clear</button></span>`;
+              pickerList.appendChild(label);
+              if (!isCollapsed) mountStaticItems(pickerList, recentItems);
+            }
+          } else if (secId === "categories") {
+            renderCategoriesSection();
+          }
+        }
+      } else {
+        renderCategoriesSection();
       }
+
       if (!items.length) {
-        const empty = document.createElement("div"); empty.className = "wg-hint"; empty.style.padding = "6px"; empty.textContent = "no matches"; pickerList.appendChild(empty);
+        const empty = document.createElement("div");
+        empty.className = "wg-hint wg-lib-empty-state";
+        const message = document.createElement("span");
+        message.textContent = org.quickFilter ? `No ${org.quickFilter} entries match` : "No matching entries";
+        empty.appendChild(message);
+        if (requestedFilter || org.quickFilter) {
+          const resetFilters = document.createElement("button");
+          resetFilters.type = "button";
+          resetFilters.className = "wg-lib-empty-reset";
+          resetFilters.dataset.act = "libResetFilters";
+          resetFilters.textContent = requestedFilter && org.quickFilter ? "Clear search & filter" : requestedFilter ? "Clear search" : "Show all";
+          empty.appendChild(resetFilters);
+        }
+        pickerList.appendChild(empty);
       }
     });
     pickerList.scrollTop = Math.min(prevScrollTop, Math.max(0, pickerList.scrollHeight - pickerList.clientHeight));
     virtualManager.refresh();
+    const quickFilterCounts = { all: state.libraryCache.length };
+    for (const key of ["pinned", "thumbs", "recipes"]) {
+      quickFilterCounts[key] = sortLibraryItems(state.libraryCache, { quickFilter: key }, pinned, state.thumbMap).length;
+    }
+    pickerDrawer.__ppLibraryDisplayBinding?.afterListRender?.({ counts: quickFilterCounts });
     profiler?.count("libraryRenders");
     profiler?.gauge("visibleLibraryItems", renderedLibraryItems);
   }
 
+  pickerDrawer.addEventListener("pp-library-organize-change", () => {
+    renderPickerList(searchInput.value);
+  });
+
+  const quickFilterBtns = Array.from(pickerDrawer.querySelectorAll("[data-lib-quick-filter]"));
+  quickFilterBtns.forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const next = btn.dataset.libQuickFilter || "all";
+      activeQuickFilter = activeQuickFilter === next && next !== "all" ? "all" : next;
+      if (activeQuickFilter !== "all") {
+        const matchingItems = sortLibraryItems(state.libraryCache, { quickFilter: activeQuickFilter }, pinned, state.thumbMap);
+        const matchingCats = Array.from(new Set(matchingItems.map((entry) => categoryOf(entry.path))));
+        if (matchingCats.length && !matchingCats.some((cat) => expandedCats.has(cat))) {
+          matchingCats.forEach((cat) => expandedCats.add(cat));
+          saveExpandedCats(expandedCats);
+        }
+      }
+      quickFilterBtns.forEach((candidate) => {
+        const active = candidate.dataset.libQuickFilter === activeQuickFilter;
+        candidate.classList.toggle("active", active);
+        candidate.setAttribute("aria-pressed", String(active));
+      });
+      renderPickerList(searchInput.value);
+    });
+  });
+
+  pickerDrawer.querySelector('[data-act="libExpandAll"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    expandAllCategories();
+  });
+  pickerDrawer.querySelector('[data-act="libCollapseAll"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    collapseAllCategories();
+  });
+
+  function resetLibraryFilters() {
+    searchInput.value = "";
+    searchCollapsedCats.clear();
+    activeQuickFilter = "all";
+    quickFilterBtns.forEach((candidate) => {
+      const active = candidate.dataset.libQuickFilter === "all";
+      candidate.classList.toggle("active", active);
+      candidate.setAttribute("aria-pressed", String(active));
+    });
+    renderPickerList("");
+    searchInput.focus({ preventScroll: true });
+  }
+
   function jumpToCategory(cat) {
     searchInput.value = "";
+    activeQuickFilter = "all";
+    quickFilterBtns.forEach((candidate) => {
+      const active = candidate.dataset.libQuickFilter === "all";
+      candidate.classList.toggle("active", active);
+      candidate.setAttribute("aria-pressed", String(active));
+    });
+    const org = getLibraryOrganization(pickerDrawer);
+    if (org.hiddenCats?.includes(cat)) {
+      pickerDrawer.__ppLibraryDisplayBinding?.setState?.({
+        hiddenCats: org.hiddenCats.filter((c) => c !== cat),
+      }, { persist: true, notify: false });
+    }
     if (!expandedCats.has(cat)) {
       expandedCats.add(cat);
       saveExpandedCats(expandedCats);
@@ -630,6 +977,7 @@ export function createLibraryController(ctx) {
 
   let searchDebounce = null;
   searchInput.addEventListener("input", () => {
+    searchCollapsedCats.clear();
     cancelNodeTimer(node, searchDebounce);
     searchDebounce = scheduleNodeTimer(node, () => renderPickerList(searchInput.value), 35);
   });
@@ -648,9 +996,8 @@ export function createLibraryController(ctx) {
       const rows = pickerRows();
       if (pickerKbIndex < 0 || !rows[pickerKbIndex]) return;
       e.preventDefault();
-      rows[pickerKbIndex].querySelector(".wg-name").click();
+      (rows[pickerKbIndex].querySelector(".wg-name") || rows[pickerKbIndex]).click();
     } else if (e.key === "Escape" && searchInput.value) {
-
       e.preventDefault();
       e.stopPropagation();
       searchInput.value = "";
@@ -722,11 +1069,11 @@ export function createLibraryController(ctx) {
     onThumbnailChanged: async path => { state.thumbBust[path] = Date.now(); await refreshThumbMap(); },
     onChanged: async path => { previewCache.delete(path); await refreshLibrary(); renderPickerList(searchInput.value); },
   });
-  function openEditForItem(path) {
+  function openEditForItem(path, options = {}) {
     closeSettings(); closeStash(); ioRail.close(); closePickerDrawer();
     editDrawer.classList.add("open");
     root.querySelector('[data-act="edit"]').classList.add("active");
-    editPanel.load(path, { confirm: true });
+    editPanel.load(path, { confirm: true, ...options });
   }
 
   const starterPackController = createStarterPackController({
@@ -781,6 +1128,7 @@ export function createLibraryController(ctx) {
     const starterEnabled = theme.starterPacksEnabled !== false;
     const next = name === "starter" && starterEnabled ? "starter" : "personal";
     activeLibraryTab = next;
+    libraryFeatures?.setActive(next === "personal" && pickerDrawer.classList.contains("open"));
     writeEditorPreference("libraryTab", next);
     libraryTabs.forEach((tab) => {
       const selected = tab.dataset.libraryTab === next;
@@ -796,6 +1144,7 @@ export function createLibraryController(ctx) {
       if (selected) panel.removeAttribute("inert");
       else panel.setAttribute("inert", "");
     });
+    pickerDrawer.__ppLibraryDisplayBinding?.syncHeader(next);
     starterPackController.setActive(next === "starter");
     if (next === "starter") {
       prepareStarterPacks();
@@ -806,6 +1155,7 @@ export function createLibraryController(ctx) {
       renderPickerList(searchInput.value);
       if (focus) searchInput.focus({ preventScroll: true });
     }
+    pickerDrawer.__ppLibraryDisplayBinding?.refreshScrollbars?.();
     scheduleDomWidgetRemeasure(node);
   }
 
@@ -827,6 +1177,7 @@ export function createLibraryController(ctx) {
   }
 
   function closePickerDrawer() {
+    libraryFeatures?.setActive(false);
     pickerDrawer.classList.remove("open");
     pickerDrawer.setAttribute("aria-hidden", "true");
     pickerDrawer.setAttribute("inert", "");
@@ -864,18 +1215,13 @@ export function createLibraryController(ctx) {
     else openPickerDrawer();
   });
 
-  const pickerViewToggleBtn = el("pickerViewToggle");
-  function syncPickerViewToggleBtn() {
-    pickerViewToggleBtn.classList.toggle("active", state.pickerViewMode === "grid");
-    pickerViewToggleBtn.title = state.pickerViewMode === "grid" ? "Switch to list view" : "Switch to grid view";
-    pickerViewToggleBtn.innerHTML = svgIcon(state.pickerViewMode === "grid" ? "list" : "grid");
-  }
-  syncPickerViewToggleBtn();
-  pickerViewToggleBtn.addEventListener("click", () => {
-    state.pickerViewMode = state.pickerViewMode === "grid" ? "list" : "grid";
-    savePickerView(state.pickerViewMode);
-    syncPickerViewToggleBtn();
-    renderPickerList(searchInput.value);
+  const cleanupLibraryViewControls = bindLibraryViewControls(pickerDrawer, {
+    getView: () => state.pickerViewMode,
+    setView: (mode) => {
+      state.pickerViewMode = mode;
+      savePickerView(mode);
+      renderPickerList(searchInput.value);
+    },
   });
 
   recipeSelectToggle.addEventListener("click", () => {
@@ -938,11 +1284,17 @@ export function createLibraryController(ctx) {
   root.querySelector('[data-act="closeEditDrawer"]').addEventListener("click", closeEditDrawer);
 
 
+  // The customize panel is portaled outside the drawer while open; retain the
+  // authoritative view control instead of querying only the old DOM ancestry.
+  const collectionViewSelect = pickerDrawer.querySelector("[data-library-view]");
+  libraryFeatures = mountLibraryFeatures({ host: pickerDrawer.querySelector('[data-library-panel="personal"]'), settingsHost: pickerDrawer.querySelector("[data-library-customize-panel]") || pickerDrawer, node, getItems: () => state.libraryCache, getPinned: () => pinned, getThumbnails: () => state.thumbMap, onFilter: () => renderPickerList(searchInput.value), onView: view => { if(collectionViewSelect){collectionViewSelect.value=view==="gallery"?"grid":view;collectionViewSelect.dispatchEvent(new Event("change",{bubbles:true}));} }, onOpenEntry: (path, options) => openEditForItem(path, options), announce: message => notify(message), content: [pickerList], restore: ({text,channel="positive"}) => reviewHistoryRestore(historyTargetEditor(node,textarea,channel),text,applyHistoryText,channel) });
+
   return {
     getAcMatches, commitAcItem, bindEditorHover, selectionSaved, insertWildcard,
     refreshLibrary,
     refreshThumbMap,
     renderPickerList,
+    refreshDisplayGeometry,
     hideTip,
     promptExtractSelectionToWildcard,
     openEditForItem,
@@ -966,6 +1318,7 @@ export function createLibraryController(ctx) {
       };
     },
     cleanup() {
+      libraryFeatures?.cleanup();
       libraryDisposed = true;
       libraryRequestVersion++;
       cleanupLibrarySubscription();
@@ -975,6 +1328,7 @@ export function createLibraryController(ctx) {
       cleanupAutocompleteBinding?.();
       cleanupPins();
       cleanupPickerContext();
+      cleanupLibraryViewControls();
       editPanel.cleanup();
       virtualManager.cleanup();
       starterPackController.cleanup();

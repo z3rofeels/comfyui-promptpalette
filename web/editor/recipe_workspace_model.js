@@ -21,7 +21,7 @@ export function cloneWorkspaceData(value) {
 export const separators = { comma: ", ", newline: "\n", space: " ", none: "" };
 export function fieldId() { return globalThis.crypto?.randomUUID?.() || `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`; }
 export const EXPERIMENT_STATES = ["lock", "vary", "follow"];
-export const FIELD_ACCENT = /^#[0-9a-f]{6}$/i;
+export const FIELD_ACCENT = /^(?:none|#[0-9a-f]{6})$/i;
 export function newField(label = "Section") { return { id: fieldId(), name: label, label, value: "", default: "", enabled: true, collapsed: false, channel: "positive", fieldType: "text", separator: null, experimentState: null, dependsOn: [] }; }
 export function validateWorkspaceRecipe(recipe, { coreOnly = false } = {}) {
   if (recipe?.schema !== WORKSPACE_SCHEMA || !Array.isArray(recipe.fields) || recipe.fields.length > 32 || !Array.isArray(recipe.segments) || recipe.segments.length > 256) throw new Error("Invalid workspace recipe.");

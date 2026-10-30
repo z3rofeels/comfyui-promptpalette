@@ -6,7 +6,7 @@ import { openInjectMenuAtPoint, closeInjectMenu, injectState } from "./injector.
 import { onTagColorsChanged } from "./booru_tag_colors.js";
 import { historyShortcut } from "./history_keys.js";
 import { createRefinementController } from "./refinement_controller.js";
-import { attachEditorContextMenu, contextWildcardAtPoint } from "./context_menu.js";
+import { attachEditorContextMenu } from "./context_menu.js";
 import { saveEditorSelection } from "./selection_library.js";
 import { loadTheme } from "./preferences.js";
 
@@ -36,14 +36,6 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
     render: change, beforeOpen: closeInjectMenu,
     promptTools: { node, getSeed, getMode, project: projectPrompt, apply: (text, start, end) => { atomicEdit(text); editor.value = text; editor.setSelectionRange(start, end); paint(); } },
     syntaxEnabled: () => loadTheme().syntaxInjectorEnabled !== false,
-    tokenContext: (event, selection, handle) => {
-      if (loadTheme().syntaxInjectorEnabled === false) return false;
-      const hit = contextWildcardAtPoint(editor, event, selection, paintSyntax(editor.value).ranges);
-      if (!hit) return false;
-      handle(); editor.setSelectionRange(hit.start, hit.end);
-      openInjectMenuAtPoint(event.clientX, event.clientY, hit.name, editor, change, hit);
-      return true;
-    },
     syntaxAction: (event, selection) => openInjectMenuAtPoint(event.clientX, event.clientY, "", editor, change, selection.start === selection.end ? null : selection),
   });
   // The explicit field action opens the same existing syntax menu.

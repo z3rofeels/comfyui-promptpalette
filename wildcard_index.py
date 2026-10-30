@@ -297,12 +297,21 @@ def _source_signature(root_dir: str) -> tuple[tuple[str, int, int], ...]:
 class WildcardIndexPreview:
     """Read-only resolution view with private sequence counters for previews."""
 
-    def __init__(self, source: "WildcardIndex"):
+    def __init__(self, source: "WildcardIndex | WildcardIndexPreview"):
+        if isinstance(source, WildcardIndexPreview):
+            self._source = source._source
+            self._seq_counters = dict(source._seq_counters)
+            self._combo_counters = dict(source._combo_counters)
+            return
         self._source = source
         with source._seq_lock:
             self._seq_counters = dict(source._seq_counters)
         with source._combo_lock:
             self._combo_counters = dict(source._combo_counters)
+
+    def preview_view(self) -> "WildcardIndexPreview":
+        """Fork current preview cursors without consuming this view or live state."""
+        return WildcardIndexPreview(self)
 
     def get_lines(self, name: str) -> list[str]:
         return self._source.get_lines(name)
@@ -537,7 +546,7 @@ class WildcardIndex:
             leaf_index = self._build_leaf_index(registry)
             with self._registry_lock:
                 # Publish one complete snapshot so readers never observe a half-built index.
-                changed = registry != self._registry or tree_map != self._tree
+                changed = registry != self._registry or tree_map != self._tree or tuple(signature) != self._source_signature
                 self._registry = registry
                 self._leaf_index = leaf_index
                 self._tree = tree_map
@@ -638,32 +647,32 @@ class WildcardIndex:
         safe_name = _normalise_wildcard_name(name)
         if not isinstance(content_text, str):
             raise ValueError("content must be text")
-        with self._registry_lock:
-            root = os.path.realpath(self.root_dir)
-        candidate = os.path.join(root, *safe_name.split("/")) + ".txt"
-        abs_path = os.path.realpath(candidate)
-        try:
-            inside_root = os.path.commonpath([root, abs_path]) == root
-        except ValueError:
-            inside_root = False
-        if not inside_root:
-            raise ValueError("invalid wildcard name")
-
-        entry = {"lines": _clean_lines(content_text.splitlines()), "type": "txt", "abs_path": abs_path}
         with self._scan_lock:
+            with self._registry_lock:
+                root = os.path.realpath(self.root_dir)
+            candidate = os.path.join(root, *safe_name.split("/")) + ".txt"
+            abs_path = os.path.realpath(candidate)
+            try:
+                inside_root = os.path.commonpath([root, abs_path]) == root
+            except ValueError:
+                inside_root = False
+            if not inside_root:
+                raise ValueError("invalid wildcard name")
+
+            entry = {"lines": _clean_lines(content_text.splitlines()), "type": "txt", "abs_path": abs_path}
             try:
                 _atomic_write_text(abs_path, content_text)
             except OSError as exc:
                 raise ValueError(f"couldn't save wildcard: {exc}") from exc
             with self._registry_lock:
                 registry = dict(self._registry)
-                changed = registry.get(safe_name) != entry
                 registry[safe_name] = entry
                 self._registry = registry
                 self._leaf_index = self._build_leaf_index(registry)
                 self._tree = self._build_tree(registry)
-                if changed:
-                    self._revision += 1
+                # Recipe headers are comments to the resolver but still hold
+                # dependencies; every successful save invalidates their cache.
+                self._revision += 1
                 self._acknowledge_source_mutation_locked(root, abs_path)
         return abs_path
 
@@ -687,16 +696,16 @@ class WildcardIndex:
         target_name = _normalise_wildcard_name(target)
         if source_name == target_name:
             return self.get_entry(source_name)["abs_path"] if self.get_entry(source_name) else ""
-        with self._registry_lock:
-            source_entry = _copy_entry(self._registry.get(source_name))
-        if not source_entry:
-            raise FileNotFoundError(source_name)
-        if source_entry["type"] != "txt":
-            raise ValueError("only .txt wildcards can be renamed individually")
-        target_path = self.assert_txt_target_available(target_name)
-        target_base = os.path.splitext(target_path)[0]
-        os.makedirs(os.path.dirname(target_path), exist_ok=True)
         with self._scan_lock:
+            with self._registry_lock:
+                source_entry = _copy_entry(self._registry.get(source_name))
+            if not source_entry:
+                raise FileNotFoundError(source_name)
+            if source_entry["type"] != "txt":
+                raise ValueError("only .txt wildcards can be renamed individually")
+            target_path = self.assert_txt_target_available(target_name)
+            target_base = os.path.splitext(target_path)[0]
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
             text_moved = False
             moved_thumbnails: list[tuple[str, str]] = []
             try:
@@ -729,17 +738,17 @@ class WildcardIndex:
     def copy_txt(self, source: str, target: str) -> str:
         source_name = _normalise_wildcard_name(source)
         target_name = _normalise_wildcard_name(target)
-        with self._registry_lock:
-            source_entry = _copy_entry(self._registry.get(source_name))
-        if not source_entry:
-            raise FileNotFoundError(source_name)
-        if source_entry["type"] != "txt":
-            raise ValueError("only .txt wildcards can be copied individually")
-        target_path = self.assert_txt_target_available(target_name)
-        target_base = os.path.splitext(target_path)[0]
-        os.makedirs(os.path.dirname(target_path), exist_ok=True)
-        created_paths: list[str] = []
         with self._scan_lock:
+            with self._registry_lock:
+                source_entry = _copy_entry(self._registry.get(source_name))
+            if not source_entry:
+                raise FileNotFoundError(source_name)
+            if source_entry["type"] != "txt":
+                raise ValueError("only .txt wildcards can be copied individually")
+            target_path = self.assert_txt_target_available(target_name)
+            target_base = os.path.splitext(target_path)[0]
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            created_paths: list[str] = []
             try:
                 shutil.copy2(source_entry["abs_path"], target_path)
                 created_paths.append(target_path)

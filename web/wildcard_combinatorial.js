@@ -1,3 +1,24 @@
+import { installLoraSidecar } from "./editor/lora_sidecar.js";
+import { bindPromptQueueSync } from "./prompt_palette_compat.js";
+import { addSeedHistory } from "./editor/seed_fortune.js";
+import { mountLibraryFeatures } from "./editor/library_features.js";
+import { reviewHistoryRestore, applyHistoryText, historyTargetEditor } from "./editor/history_restore.js";
+import "./editor/styles.js";
+import { VirtualCollectionManager } from "./library/virtual_collection.js";
+import { libraryVirtualLayout } from "./editor/library_display.js";
+import { bindLibraryResize } from "./editor/library_resize.js";
+import {
+  libraryDisplayMarkup,
+  libraryFilterBarMarkup,
+  libraryThumbnailMarkup,
+  libraryScrollbarMarkup,
+  bindLibraryDisplay,
+  bindLibraryViewControls,
+  getLibraryOrganization,
+  sortLibraryCategories,
+  sortLibraryItems,
+  renderLibraryHoverTip,
+} from "./editor/library_display.js";
 import { installSettingsDiscovery } from "./editor/settings_discovery.js";
 import { sidebarEditingHandlers } from "./editor/sidebar_targets.js";
 import { registerPromptPaletteCommandTarget } from "./prompt_palette_command_bus.js";
@@ -5,7 +26,7 @@ import { bindEditorWildcardHover } from "./editor/editor_hover.js";
 import { historyShortcut } from "./editor/history_keys.js";
 import { saveEditorSelection } from "./editor/selection_library.js";
 import { libraryThumbnailActions } from "./editor/thumbnails.js";
-import { attachEditorContextMenu, attachLibraryContextMenu, contextWildcardAtPoint } from "./editor/context_menu.js";
+import { attachEditorContextMenu, attachLibraryContextMenu } from "./editor/context_menu.js";
 import { app } from "../../scripts/app.js";
 import {
   loadExtensionStylesheet, svgIcon, copyPromptPaletteThemeScope, positionPromptPaletteTip,
@@ -13,7 +34,7 @@ import {
 } from "./prompt_palette_shared.js";
 import { bindSuiteAppearance } from "./editor/suite_appearance.js";
 import { applyToolbarVisibility } from "./editor/toolbar.js";
-import { bindPromptSeedInput } from "./editor/text_utils.js";
+import { bindPromptSeedInput, isRecipeCategory } from "./editor/text_utils.js";
 import { saveTheme } from "./editor/preferences.js";
 import { readCombinatorialPreference, writeCombinatorialPreference } from "./prompt_palette_state.js";
 import { upgradeEditorSurface } from "./editor/editor_surface.js";
@@ -33,6 +54,8 @@ import { libraryAcRows, recentAcRows, mergeUnifiedRows, rankLibraryPaths } from 
 import { createPromptUsageStore } from "./prompt_quickness.js";
 import { createTagPainter, onTagColorsChanged } from "./editor/booru_tag_colors.js";
 import { createStatusBar, statusBarMarkup, wildcardStatusText } from "./editor/status_bar.js";
+import { installPromptSlots } from "./editor/prompt_slots.js";
+import { attachEditorFindReplace } from "./editor/editor_find_replace.js";
 import {
   API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
   editorStylesReady,
@@ -125,16 +148,21 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       <div class="wg-settings-footer"><a class="wg-credit-link" href="https://github.com/z3rofeels/comfyui-promptpalette" target="_blank" rel="noopener noreferrer" title="Prompt Palette on GitHub"><span class="wg-credit-icon">${svgIcon("github", 13)}</span><span>made by <strong>z3rofeels</strong></span></a></div>
     </div>
     <div class="wg-main">
-      <div class="wg-drawer left" data-drawer="picker" role="region" aria-label="My Library" aria-hidden="true" hidden inert>
+      <div class="wg-drawer left wg-library-popup" data-drawer="picker" role="region" aria-label="My Library" aria-hidden="true" hidden inert>
         <div class="wg-drawer-inner">
           <div class="wg-drawer-head">
             <h4>My Library</h4>
+            <div class="wg-search wg-library-head-search"><input type="search" placeholder="Search prompts…" data-el="search" aria-label="Search My Library"></div>
             <div class="wg-drawer-head-actions">
               <button type="button" class="wg-icon-btn" data-act="pickerViewToggle" data-el="pickerViewToggle" title="Toggle grid/list view">${svgIcon("grid")}</button>
+              <button type="button" class="wg-icon-btn wg-lib-customize-btn" data-library-customize-toggle aria-expanded="false" title="Library settings: thumbnail size, aspect ratio, sections &amp; sorting" aria-label="Library settings">${svgIcon("settings", 13)}</button>
+              <button type="button" class="wg-close-btn" data-act="closePickerDrawer" title="Close My Library" aria-label="Close My Library">${svgIcon("close", 14)}</button>
             </div>
           </div>
-          <div class="wg-search"><input type="search" placeholder="Search My Library…" data-el="search"></div>
+          ${libraryDisplayMarkup()}
+          ${libraryFilterBarMarkup()}
           <div class="wg-list" data-el="pickerList"></div>
+          ${libraryScrollbarMarkup("personal")}
         </div>
       </div>
       <div class="wg-body">
@@ -198,7 +226,11 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const pickerDrawer = root.querySelector('[data-drawer="picker"]');
   const searchInput = el("search");
   const pickerList = el("pickerList");
-  const pickerViewToggleBtn = el("pickerViewToggle");
+  let libraryFeatures = null;
+  const visualCollections = new VirtualCollectionManager(pickerList);
+  const libraryDisplay = bindLibraryDisplay(pickerDrawer, () => {
+    for (const collection of visualCollections.collections) collection.updateLayout(libraryVirtualLayout(pickerDrawer));
+  });
   const modeButtons = Array.from(root.querySelectorAll(".pp-mode-btn"));
   const countRow = el("countRow");
   const countInput = el("countInput");
@@ -312,6 +344,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     seedWidget.value = value;
     if (typeof seedWidget.callback === "function") seedWidget.callback(seedWidget.value, node.graph?.canvas, node);
     node.graph?.setDirtyCanvas(true, true);
+    seedInput.value = String(seedWidget.value);
     updateEstimate();
   });
   seedModeSelect.addEventListener("change", () => {
@@ -357,6 +390,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     seedWidget.value = randomSeed;
     seedInput.value = randomSeed;
     if (typeof seedWidget.callback === "function") seedWidget.callback(randomSeed, node.graph?.canvas, node);
+    seedInput.value = String(seedWidget.value);
     node.graph?.setDirtyCanvas(true, true);
     updateEstimate();
   });
@@ -377,6 +411,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     { key: "negative_text", type: "STRING", label: "Negative prompt (text)", default: false, desc: "A wildcard-aware negative prompt, resolved once for the whole batch and returned on the Negative prompt / Negative conditioning outputs." },
     { key: "negative_prefix", type: "STRING", label: "Negative prefix", default: false, desc: "Prepend externally-supplied text (resolved for wildcards too) before the negative prompt." },
     { key: "negative_suffix", type: "STRING", label: "Negative suffix", default: false, desc: "Append externally-supplied text (resolved for wildcards too) after the negative prompt." },
+    { key: "vars_in", type: "STRING", label: "Variables in", default: false, desc: "Receive resolved ${variable} values from an upstream Prompt Palette node's Variables output (or key=value lines)." },
   ];
 
   const IO_OUTPUT_DEFS = [
@@ -392,7 +427,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     { key: "model_passthrough", slotIndex: 7, type: "MODEL", label: "Model (passthrough)", default: false, desc: "The connected Model, unchanged. Per-prompt LoRA-patched models are on Model list." },
     { key: "clip_passthrough", slotIndex: 8, type: "CLIP", label: "CLIP (passthrough)", default: false, desc: "The connected CLIP, unchanged. Per-prompt LoRA-patched CLIPs are on CLIP list." },
     { key: "first_conditioning", slotIndex: 9, type: "CONDITIONING", label: "Conditioning (first)", default: false, desc: "Conditioning for the first generated prompt. None unless a CLIP input is connected. Use Conditioning list for every prompt." },
-    { key: "negative_conditioning", slotIndex: 10, type: "CONDITIONING", label: "Negative conditioning", default: false, desc: "First resolved negative encoded with the unpatched CLIP. For varying negatives use Negative conditioning list." },
+    { key: "negative_conditioning", slotIndex: 10, type: "CONDITIONING", label: "Negative conditioning", default: false, desc: "First resolved negative encoded with the paired LoRA-patched CLIP. For varying negatives use Negative conditioning list." },
     { key: "first_prompt", slotIndex: 11, type: "STRING", label: "Prompt (first)", default: false, desc: "The first generated prompt. Use Prompt list for every prompt." },
     { key: "negative_prompt", slotIndex: 12, type: "STRING", label: "Negative prompt", default: false, desc: "First resolved negative text. For varying negatives use Negative prompt list." },
     { key: "first_seed", slotIndex: 13, type: "INT", label: "Seed used (first)", default: false, desc: "Seed used for the first generated prompt. Use Seed list for every prompt." },
@@ -404,7 +439,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     { key: "batch_metadata_json", slotIndex: 19, type: "STRING", label: "Batch metadata (JSON)", default: false, desc: "One JSON record for the whole batch, including every generated prompt's metadata." },
     { key: "prompt_count", slotIndex: 20, type: "INT", label: "Prompt count", default: false, desc: "How many prompts this batch generated." },
     { key: "negative_prompt_list", slotIndex: 21, type: "STRING", label: "Negative prompt list", default: false, desc: "One negative text per positive prompt, in matching order. Use for prepared variations with different negatives." },
-    { key: "negative_conditioning_list", slotIndex: 22, type: "CONDITIONING", label: "Negative conditioning list", default: false, desc: "One negative conditioning per positive prompt, encoded with the unpatched CLIP. Needs CLIP connected." },
+    { key: "negative_conditioning_list", slotIndex: 22, type: "CONDITIONING", label: "Negative conditioning list", default: false, desc: "One negative conditioning per positive prompt, encoded with the paired LoRA-patched CLIP. Needs CLIP connected." },
+    { key: "variables", slotIndex: 23, type: "STRING", label: "Variables (JSON)", default: false, desc: "Resolved ${variable} assignments from this batch as JSON — connect to another Prompt Palette node's Variables in socket." },
   ];
 
   node.properties = node.properties || {};
@@ -497,7 +533,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   const handleWorkspaceEscape = (event) => {
     if (event.key !== "Escape" || event.defaultPrevented || isDialogOpen() || !root.contains(event.target)) return;
-    if (node._wgIoRailOpen) ioRail.close();
+    if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
+    else if (node._wgIoRailOpen) ioRail.close();
+    else if (node._ppLoraSidecar?.isOpen()) { node._ppLoraSidecar.close({ restoreFocus: true }); }
     else if (pickerDrawer.classList.contains("open")) { closePickerDrawer(); root.querySelector('[data-act="picker"]')?.focus({ preventScroll: true }); }
     else return;
     event.preventDefault(); event.stopPropagation();
@@ -513,13 +551,33 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     onApplied(snapshot, { initial }) {
       Object.assign(theme, snapshot.theme);
       applyToolbarVisibility(root, theme);
+      el("toggleLorasBtn").checked = theme.showLorasBtn !== false;
       el("toggleImportImageBtn").checked = theme.showImportImageBtn !== false;
+      if (el("toggleRecipesBtn")) el("toggleRecipesBtn").checked = theme.showRecipesBtn !== false;
+      if (el("toggleSlotsBtn")) el("toggleSlotsBtn").checked = theme.showSlotsBtn !== false;
+      if (el("toggleLayoutsShortcut")) el("toggleLayoutsShortcut").checked = theme.showLayoutsShortcut !== false;
+      if (el("toggleWorkspaceSnapGrid")) el("toggleWorkspaceSnapGrid").checked = theme.workspaceSnapGrid === true;
+      node._ppRecipeWorkspace?.refreshChrome?.();
       if (!initial) render();
     },
   });
 
+  el("toggleLorasBtn").addEventListener("change", event => saveTheme({ ...loadTheme(), showLorasBtn: event.target.checked, layoutPreset: "custom" }));
   el("toggleImportImageBtn").addEventListener("change", event => {
     saveTheme({ ...loadTheme(), showImportImageBtn: event.target.checked, layoutPreset: "custom" });
+  });
+  el("toggleRecipesBtn")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), showRecipesBtn: event.target.checked, layoutPreset: "custom" });
+  });
+  el("toggleSlotsBtn")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), showSlotsBtn: event.target.checked, layoutPreset: "custom" });
+  });
+  el("toggleLayoutsShortcut")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), showLayoutsShortcut: event.target.checked, layoutPreset: "custom" });
+    node._ppRecipeWorkspace?.refreshChrome?.();
+  });
+  el("toggleWorkspaceSnapGrid")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), workspaceSnapGrid: event.target.checked });
   });
 
   let estimateDebounceTimer = null;
@@ -637,9 +695,36 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const hue = (hashStr(cat) % 360 + theme.hueRotate) % 360;
     return categoryColorFromHue(hue, theme.saturation, currentUiSurface());
   }
+  let lastExecutionMetadata = null;
+  let lastPreviewBranchSelections = [];
+  let lastPreviewBranchSource = "";
+  let findReplaceController = null;
+  let promptSlotsController = null;
+
+  function activeBranchSelections(sourceText = textarea.value) {
+    const meta = lastExecutionMetadata;
+    if (meta && typeof meta === "object") {
+      const metaSource = typeof meta.source_text === "string" ? meta.source_text : meta.source_prompt;
+      if (metaSource === sourceText) {
+        const execBranches = meta.branch_selections || meta.extra?.branch_selections || meta.prompts?.[0]?.extra?.branch_selections;
+        if (Array.isArray(execBranches) && execBranches.length) return execBranches;
+      }
+    }
+    if (lastPreviewBranchSource === sourceText && Array.isArray(lastPreviewBranchSelections) && lastPreviewBranchSelections.length) {
+      return lastPreviewBranchSelections;
+    }
+    return null;
+  }
+
   function highlightText(text) {
     return renderPromptSyntax(syntaxCache.parse(text), {
-      isKnown, categoryOf, buildCategoryColorMap, colorForToken, tagPainter: createTagPainter(theme),
+      isKnown,
+      categoryOf,
+      buildCategoryColorMap,
+      colorForToken,
+      tagPainter: createTagPainter(theme),
+      branchSelections: activeBranchSelections(text),
+      extraDecorations: findReplaceController?.getDecorations?.() || null,
     });
   }
 
@@ -771,7 +856,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     onCommit: (item) => {
       if (item?.kind === "booru" || item?.kind === "custom") {
         try { usageStore.recordTag(item.value, item.kind, item.category); } catch { /* recents are a convenience */ }
-      } else if (item && item.kind !== "syntax" && item.value) {
+      } else if (item && item.kind !== "syntax" && item.kind !== "lora" && item.value) {
         try { usageStore.recordLibrary(item.value); } catch { /* recents are a convenience */ }
       }
       render();
@@ -792,8 +877,13 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   hoverTip.dataset.promptPaletteOwner = String(node.id ?? "node");
   document.body.appendChild(hoverTip);
   let hoverRequestVersion = 0;
+  function getCategoryColor(cat) {
+    return theme.categoryPins[cat] || categoryColorFromHue((hashStr(cat) % 360 + theme.hueRotate) % 360, theme.saturation);
+  }
   async function showTipForName(x, y, name, known) {
     const requestVersion = ++hoverRequestVersion;
+    hoverTip.__lastClientX = x;
+    hoverTip.__lastClientY = y;
     let entry = previewCache.get(name);
     if (!entry && known) {
       try {
@@ -804,6 +894,34 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       }
     }
     if (requestVersion !== hoverRequestVersion || !nodeIsActive(node)) return;
+    if (known) {
+      const cat = categoryOf(name);
+      const color = getCategoryColor(cat);
+      const thumbRel = thumbMap?.[name];
+      const thumbUrl = thumbRel ? API.thumbnailUrl(thumbRel) : "";
+      copyPromptPaletteThemeScope(root, hoverTip);
+      renderLibraryHoverTip(hoverTip, {
+        name,
+        lines: entry?.lines || [],
+        totalLines: entry?.total ?? entry?.lines?.length ?? 0,
+        thumbUrl,
+        category: cat,
+        accent: color,
+        isPinned: pinned.has(name),
+        isRecipe: isRecipeCategory(cat),
+        error: !entry,
+      });
+      positionPromptPaletteTip(hoverTip, hoverTip.__lastClientX ?? x, hoverTip.__lastClientY ?? y);
+      const img = hoverTip.querySelector(".wg-tip-thumb");
+      if (img) {
+        img.addEventListener("load", () => {
+          if (hoverTip.style.display === "block") {
+            positionPromptPaletteTip(hoverTip, hoverTip.__lastClientX ?? x, hoverTip.__lastClientY ?? y);
+          }
+        }, { once: true });
+      }
+      return;
+    }
     const lines = (entry?.lines || []).slice(0, 4);
     copyPromptPaletteThemeScope(root, hoverTip);
     hoverTip.innerHTML = `<div class="wg-tip-title">${escapeHtml(known ? name : name + " (not found)")}</div>` +
@@ -819,7 +937,17 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     getLibrary: () => libraryCache, getKnown: () => knownSet, getSourcePaths: () => tokenRanges.flatMap(t => lookupWildcard(t.name).map(entry => entry.path)),
     closeSettings, closePickerDrawer, openPickerDrawer, syncControlsFromWidgets, refreshLibrary, renderPickerList,
     applyEdit: atomicEdit, undo: performUndo, redo: performRedo, canUndo: () => refinementUndo.canUndo(), canRedo: () => refinementUndo.canRedo(),
+    onPreviewResolved: ({ source, branchSelections }) => {
+      lastPreviewBranchSelections = Array.isArray(branchSelections) ? branchSelections : [];
+      lastPreviewBranchSource = source;
+      if (lastPreviewBranchSelections.length) render();
+    },
   });
+  node._wgAcceptPromptMetadata = (metadata) => {
+    if (!metadata || typeof metadata !== "object") return;
+    lastExecutionMetadata = metadata;
+    render();
+  };
   recipeWorkspace = createRecipeWorkspaceController({
     node, root, textarea, render, flushHistory: () => refinementUndo.flush(), holdHistory: () => refinementUndo.hold(), releaseHistory: () => { refinementUndo.release(); refinementUndo.flush(); }, onUndo: performUndo, onRedo: performRedo,
     onShowEditor: powerTools.showEditor,
@@ -827,7 +955,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     openVariations: scope => powerTools.openVariations(scope),
     bindHover: (editor, getRanges) => bindEditorWildcardHover({ node, editor, getRanges, show: showTipForName, hide: hideTip }),
     onLibrarySaved: async path => { previewCache.delete(path); await refreshLibrary(); },
-    getMatches: getAcMatches, onCommit: item => { if (item?.kind === "booru" || item?.kind === "custom") usageStore.recordTag(item.value, item.kind, item.category); else if (item?.value && item.kind !== "syntax") usageStore.recordLibrary(item.value); },
+    getMatches: getAcMatches, onCommit: item => { if (item?.kind === "booru" || item?.kind === "custom") usageStore.recordTag(item.value, item.kind, item.category); else if (item?.value && item.kind !== "syntax" && item.kind !== "lora") usageStore.recordLibrary(item.value); },
     paintSyntax: highlightText, getSeed: () => seedWidget?.value ?? 0, getMode: () => "entire text as one",
     getLibrary: () => libraryCache, refreshLibrary,
   });
@@ -835,23 +963,64 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const syncHighlightScroll = () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; };
   textarea.addEventListener("scroll", syncHighlightScroll);
 
+  findReplaceController = attachEditorFindReplace({
+    root,
+    textarea,
+    applyEdit: atomicEdit,
+    onStateChange: () => {
+      const { html, decorations } = highlightText(textarea.value);
+      if (!syntaxHighlighter.render(decorations, textarea.value)) highlight.innerHTML = html + "\n";
+    },
+  });
+  node._ppFindReplace = findReplaceController;
+
+  promptSlotsController = installPromptSlots({
+    node,
+    root,
+    textarea,
+    getNegative: () => node._ppNegativePromptState?.current?.() || "",
+    setNegative: (val) => node._ppNegativePromptState?.commit?.(val || ""),
+    getWorkspace: () => recipeWorkspace?.snapshot?.() || null,
+    setWorkspace: (ws) => recipeWorkspace?.restore?.(ws, { commit: true }),
+    onSlotSwitched: (slotKey, _slot, { duplicated }) => {
+      refinementUndo.note(historyValue());
+      refinementUndo.flush();
+      render();
+      notify(
+        "info",
+        duplicated ? `Copied to Slot ${slotKey}` : `Switched to Slot ${slotKey}`,
+        duplicated ? `Duplicated current prompt into Slot ${slotKey}.` : `Active prompt slot: ${slotKey}`
+      );
+    },
+  });
+  node._ppPromptSlots = promptSlotsController;
+
   const cleanupEditorContext = attachEditorContextMenu(textarea, {
     render, beforeOpen: () => { hideTip(); closeInjectMenu(); },
     promptTools: { node, apply: atomicEdit },
     syntaxEnabled: () => theme.syntaxInjectorEnabled !== false,
-    tokenContext: (event, selection, handle) => {
-      if (theme.syntaxInjectorEnabled === false) return false;
-      const tok = contextWildcardAtPoint(textarea, event, selection, tokenRanges);
-      if (!tok) return false;
-      handle(); closeCtxMenu(); textarea.setSelectionRange(tok.start, tok.end);
-      openInjectMenuAtPoint(event.clientX, event.clientY, tok.name, textarea, render, { start: tok.start, end: tok.end });
-      return true;
-    },
+    findAction: (opts) => findReplaceController.openFind(opts),
     syntaxAction: (event, selection) => {
       if (theme.syntaxInjectorEnabled === false) return;
       openInjectMenuAtPoint(event.clientX, event.clientY, "", textarea, render, selection.start === selection.end ? null : selection);
     },
   });
+  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); ioRail.close(); } });
+
+  let activeQuickFilter = "all";
+  let pickerKbIndex = -1;
+  function pickerRows() { return Array.from(pickerList.querySelectorAll(".wg-item[data-path], .wg-thumb-item[data-path]")); }
+  function movePickerKbIndex(delta) {
+    const rows = pickerRows();
+    rows.forEach((r) => r.classList.remove("wg-kb-active"));
+    if (!rows.length) { pickerKbIndex = -1; return; }
+    pickerKbIndex = pickerKbIndex === -1
+      ? (delta > 0 ? 0 : rows.length - 1)
+      : (pickerKbIndex + delta + rows.length) % rows.length;
+    const row = rows[pickerKbIndex];
+    row.classList.add("wg-kb-active");
+    row.scrollIntoView({ block: "nearest" });
+  }
 
   function insertWildcard(path) {
     if (node._ppInsertAdjustableRecipe?.(path)) return;
@@ -861,142 +1030,388 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const caret = start + tag.length;
     textarea.selectionStart = textarea.selectionEnd = caret;
     textarea.focus();
+    usageStore.recordLibrary(path);
     render();
+    renderPickerList(searchInput.value);
   }
-  function pickerItemRow(item, filter) {
-    const row = document.createElement("div");
-    row.className = "wg-item";
-    const cat = categoryOf(item.path);
-    const hueMap = buildCategoryColorMap([cat]);
-    const color = colorForToken(item.path, hueMap);
-    const isPinned = pinned.has(item.path);
-    row.innerHTML =
-      `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>` +
-      `<span class="wg-name">${highlightMatch(item.path.split("/").pop(), filter)}</span>` +
-      `<span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span>`;
-    row.addEventListener("click", (e) => {
-      if (e.target.classList.contains("wg-pin")) return;
-      insertWildcard(item.path);
-    });
-    row.querySelector(".wg-pin").addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
-      savePinned(pinned);
-      renderPickerList(searchInput.value);
-    });
 
-    let openDelay = null;
-    if (theme.syntaxInjectorEnabled !== false) {
-      const trigger = document.createElement("button");
-      trigger.type = "button";
-      trigger.className = "wg-inject-trigger";
-      trigger.title = `Insert wildcard syntax for "${item.path}"`;
-      trigger.innerHTML = "&#9889;";
-      trigger.setAttribute("draggable", "false");
-      trigger.addEventListener("mousedown", (e) => e.stopPropagation());
-      trigger.addEventListener("click", (e) => {
-        e.stopPropagation();
-        cancelNodeTimer(node, openDelay);
-        if (injectState && injectState.trigger === trigger) closeInjectMenu();
-        else openInjectMenu(trigger, item.path, textarea, render);
-      });
-      trigger.addEventListener("mouseenter", () => {
-        cancelNodeTimer(node, openDelay);
-        openDelay = scheduleNodeTimer(node, () => openInjectMenu(trigger, item.path, textarea, render), 90);
-      });
-      trigger.addEventListener("mouseleave", () => {
-        cancelNodeTimer(node, openDelay);
-        scheduleCloseInjectMenu();
-      });
-      row.insertBefore(trigger, row.querySelector(".wg-pin"));
+  async function copyLibraryPath(path, button = null) {
+    try {
+      await navigator.clipboard.writeText(`__${path}__`);
+      if (!button) return;
+      const previous = button.innerHTML;
+      button.innerHTML = "&#10003;";
+      button.classList.add("copied");
+      scheduleNodeTimer(node, () => { button.innerHTML = previous; button.classList.remove("copied"); }, 900);
+    } catch {
+      if (button) button.title = "Copy failed — clipboard permission denied";
     }
-    attachLibraryContextMenu(row, (e) => {
-      cancelNodeTimer(node, openDelay);
-      hideTip(); closeInjectMenu();
-      const nowPinned = pinned.has(item.path);
-      openCtxMenu(e.clientX, e.clientY, [
-        { label: "Copy path", icon: "path", group: "item", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
-        {
-          label: nowPinned ? "Unpin" : "Pin", icon: "pin", group: "item",
-          onSelect: () => {
-            if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
-            savePinned(pinned);
-            renderPickerList(searchInput.value);
-          },
-        },
-        ...libraryThumbnailActions(item.path, { hasThumbnail: !!thumbMap[item.path], editable: !item.type || item.type === "txt",
-          isActive: () => !libraryDisposed && nodeIsActive(node) }),
-        { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
-      ]);
-    });
-    row.addEventListener("mousemove", (e) => showTipForName(e.clientX, e.clientY, item.path, true));
-    row.addEventListener("mouseleave", hideTip);
+  }
+
+  function pickerItemRow(item, filter) {
+    const cat = categoryOf(item.path);
+    const isRecipe = isRecipeCategory(cat);
+    const color = getCategoryColor(cat);
+    const isPinned = pinned.has(item.path);
+    const thumbRel = thumbMap?.[item.path];
+    const showListThumb = Boolean(thumbRel) && pickerDrawer?.dataset.listThumbs !== "false";
+    const row = document.createElement("div");
+    row.className = "wg-item" + (isRecipe ? " wg-item-recipe" : "") + (showListThumb ? " has-list-thumb" : "");
+    row.dataset.path = item.path;
+    const swatchHtml = isRecipe
+      ? `<span class="wg-sw wg-sw-recipe" style="background:${color};" title="Palette Recipe">&#128214;</span>`
+      : `<span class="wg-sw" style="background:${color}; border-radius:50%;"></span>`;
+    const miniThumbHtml = showListThumb
+      ? `<span class="wg-item-thumb-wrap" style="--wg-item-accent:${color};"><img class="wg-item-thumb" src="${escapeHtml(API.thumbnailUrl(thumbRel))}" alt="" loading="lazy" decoding="async" fetchpriority="low"></span>`
+      : "";
+    const injectHtml = theme.syntaxInjectorEnabled !== false
+      ? `<button type="button" class="wg-inject-trigger" title="Insert wildcard syntax for &quot;${escapeHtml(item.path)}&quot;" draggable="false">&#9889;</button>`
+      : "";
+    row.innerHTML =
+      `${swatchHtml}${miniThumbHtml}` +
+      `<span class="wg-name">${highlightMatch(item.path.split("/").pop(), filter)}</span>` +
+      `<button type="button" class="wg-copy-trigger" title="Copy __${escapeHtml(item.path)}__" draggable="false">&#128203;</button>` +
+      `${injectHtml}` +
+      `<span class="wg-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span>`;
     return row;
   }
 
   function pickerTile(item) {
     const cat = categoryOf(item.path);
-    const hueMap = buildCategoryColorMap([cat]);
-    const color = colorForToken(item.path, hueMap);
+    const isRecipe = isRecipeCategory(cat);
+    const color = getCategoryColor(cat);
     const isPinned = pinned.has(item.path);
     const name = item.path.split("/").pop();
     const thumbRel = thumbMap[item.path];
 
-    const thumbHtml = thumbRel
-      ? `<img class="wg-thumb-img" src="${escapeHtml(API.thumbnailUrl(thumbRel))}" alt="" loading="lazy">`
-      : `<div class="wg-thumb-fallback" style="background:color-mix(in srgb, ${color} 20%, var(--wg-surface, #121417));"><span class="wg-thumb-fallback-glyph" style="color:${color};">&#128193;</span></div>`;
+    const thumbHtml = libraryThumbnailMarkup(thumbRel ? API.thumbnailUrl(thumbRel, "") : "", isRecipe);
 
     const tile = document.createElement("div");
-    tile.className = "wg-thumb-item";
-    tile.title = item.path;
-    tile.innerHTML = `${thumbHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span>`;
-
-    tile.addEventListener("click", (e) => {
-      if (e.target.closest(".wg-thumb-pin")) return;
-      insertWildcard(item.path);
-    });
-    tile.querySelector(".wg-thumb-pin").addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
-      savePinned(pinned);
-      renderPickerList(searchInput.value);
-    });
-    attachLibraryContextMenu(tile, (e) => {
-      hideTip(); closeInjectMenu();
-      const nowPinned = pinned.has(item.path);
-      openCtxMenu(e.clientX, e.clientY, [
-        { label: "Copy path", icon: "path", group: "item", onSelect: () => { navigator.clipboard.writeText(`__${item.path}__`).catch(() => {}); } },
-        {
-          label: nowPinned ? "Unpin" : "Pin", icon: "pin", group: "item",
-          onSelect: () => {
-            if (pinned.has(item.path)) pinned.delete(item.path); else pinned.add(item.path);
-            savePinned(pinned);
-            renderPickerList(searchInput.value);
-          },
-        },
-        ...libraryThumbnailActions(item.path, { hasThumbnail: !!thumbMap[item.path], editable: !item.type || item.type === "txt",
-          isActive: () => !libraryDisposed && nodeIsActive(node) }),
-        { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
-      ]);
-    });
-    tile.addEventListener("mousemove", (e) => showTipForName(e.clientX, e.clientY, item.path, true));
-    tile.addEventListener("mouseleave", hideTip);
+    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (thumbRel ? " has-thumb" : "");
+    tile.dataset.path = item.path;
+    tile.style.setProperty("--wg-card-accent", color);
+    tile.title = isRecipe ? `${item.path} (Palette Recipe)` : item.path;
+    const injectHtml = theme.syntaxInjectorEnabled !== false
+      ? `<button type="button" class="wg-inject-trigger wg-thumb-inject" title="Insert wildcard syntax for &quot;${escapeHtml(item.path)}&quot;" draggable="false">&#9889;</button>`
+      : "";
+    tile.innerHTML = `${thumbHtml}${injectHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span><span class="wg-thumb-meta">${escapeHtml(item.path.includes("/") ? item.path.slice(0, item.path.lastIndexOf("/")) : "Unfiled")}</span>`;
     return tile;
   }
 
-  function appendItems(container, items, filter = "") {
-    if (pickerViewMode === "grid") {
+  function moveCategoryByOffset(cat, delta) {
+    const present = Array.from(new Set(libraryCache.map((e) => categoryOf(e.path))));
+    const known = catOrder.filter((c) => present.includes(c));
+    const unseen = present.filter((c) => !catOrder.includes(c)).sort();
+    const order = [...known, ...unseen];
+    const idx = order.indexOf(cat);
+    if (idx === -1) return;
+    const targetIdx = idx + delta;
+    if (targetIdx < 0 || targetIdx >= order.length) return;
+    const [moved] = order.splice(idx, 1);
+    order.splice(targetIdx, 0, moved);
+    catOrder = order;
+    saveCatOrder(catOrder);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ catSort: "custom" }, { persist: true, notify: false });
+    renderPickerList(searchInput.value);
+  }
+
+  const searchCollapsedCats = new Set();
+
+  function isCatExpanded(cat, q = "") {
+    if (q) return !searchCollapsedCats.has(cat);
+    return expandedCats.has(cat);
+  }
+
+  function toggleCategoryExpanded(cat) {
+    const q = (searchInput.value || "").trim().toLowerCase();
+    if (q) {
+      if (searchCollapsedCats.has(cat)) searchCollapsedCats.delete(cat);
+      else searchCollapsedCats.add(cat);
+    } else {
+      if (expandedCats.has(cat)) expandedCats.delete(cat);
+      else expandedCats.add(cat);
+      saveExpandedCats(expandedCats);
+    }
+    renderPickerList(searchInput.value);
+  }
+
+  function toggleSectionCollapsed(secId) {
+    const org = getLibraryOrganization(pickerDrawer);
+    const collapsed = new Set(org.collapsedSections || []);
+    if (collapsed.has(secId)) collapsed.delete(secId);
+    else collapsed.add(secId);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ collapsedSections: Array.from(collapsed) });
+  }
+
+  function hideCategory(cat) {
+    const org = getLibraryOrganization(pickerDrawer);
+    const hidden = new Set(org.hiddenCats || []);
+    hidden.add(cat);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ hiddenCats: Array.from(hidden) });
+  }
+
+  function expandAllCategories() {
+    searchCollapsedCats.clear();
+    for (const entry of libraryCache) expandedCats.add(categoryOf(entry.path));
+    saveExpandedCats(expandedCats);
+    renderPickerList(searchInput.value);
+  }
+
+  function collapseAllCategories() {
+    const q = (searchInput.value || "").trim().toLowerCase();
+    if (q) {
+      for (const entry of libraryCache) searchCollapsedCats.add(categoryOf(entry.path));
+    } else {
+      expandedCats.clear();
+      saveExpandedCats(expandedCats);
+    }
+    renderPickerList(searchInput.value);
+  }
+
+  function openCategoryContextMenu(event, cat) {
+    const q = (searchInput.value || "").trim().toLowerCase();
+    const isExpanded = isCatExpanded(cat, q);
+    const org = getLibraryOrganization(pickerDrawer);
+    closeInjectMenu();
+    const actions = [
+      {
+        label: isExpanded ? `Collapse "${cat}"` : `Expand "${cat}"`,
+        icon: "jump",
+        group: "folder",
+        onSelect: () => toggleCategoryExpanded(cat),
+      },
+      { label: "Expand all folders", icon: "jump", group: "folder", onSelect: expandAllCategories },
+      { label: "Collapse all folders", icon: "jump", group: "folder", onSelect: collapseAllCategories },
+      { label: `Move "${cat}" up`, icon: "jump", group: "order", onSelect: () => moveCategoryByOffset(cat, -1) },
+      { label: `Move "${cat}" down`, icon: "jump", group: "order", onSelect: () => moveCategoryByOffset(cat, 1) },
+      { label: `Hide "${cat}" folder`, icon: "pin", group: "visibility", onSelect: () => hideCategory(cat) },
+    ];
+    if (org.hiddenCats?.length) {
+      actions.push({
+        label: `Show all hidden folders (${org.hiddenCats.length})`,
+        icon: "pin",
+        group: "visibility",
+        onSelect: () => pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ hiddenCats: [] }),
+      });
+    }
+    openCtxMenu(event.clientX, event.clientY, actions);
+  }
+
+  function openLibraryContextMenu(event, path) {
+    const cat = categoryOf(path);
+    const nowPinned = pinned.has(path);
+    const item = libraryCache.find((entry) => entry.path === path);
+    closeInjectMenu();
+    openCtxMenu(event.clientX, event.clientY, [
+      { label: "Insert wildcard", icon: "plus", group: "insert", onSelect: () => insertWildcard(path) },
+      ...(theme.syntaxInjectorEnabled !== false ? [{ label: "Insert with syntax…", icon: "bolt", group: "insert", onSelect: () => openInjectMenuAtPoint(event.clientX, event.clientY, path, textarea, render) }] : []),
+      ...(powerTools?.openEditForItem ? [{ label: "Edit library entry…", icon: "edit", group: "item", onSelect: () => powerTools.openEditForItem(path) }] : []),
+      { label: "Copy wildcard reference", icon: "path", group: "item", onSelect: () => copyLibraryPath(path) },
+      {
+        label: nowPinned ? "Unpin entry" : "Pin entry", icon: "pin", group: "item",
+        onSelect: () => {
+          if (pinned.has(path)) pinned.delete(path); else pinned.add(path);
+          savePinned(pinned);
+          renderPickerList(searchInput.value);
+        },
+      },
+      ...libraryThumbnailActions(path, { hasThumbnail: !!thumbMap[path], editable: !item?.type || item.type === "txt",
+        isActive: () => !libraryDisposed && nodeIsActive(node) }),
+      { label: `Jump to "${cat}"`, icon: "jump", group: "nav", onSelect: () => jumpToCategory(cat) },
+      { label: `Hide "${cat}" folder`, icon: "pin", group: "nav", onSelect: () => hideCategory(cat) },
+    ]);
+  }
+
+  let delegatedInjectTimer = null;
+  pickerList.addEventListener("click", (event) => {
+    const resetFiltersBtn = event.target.closest('[data-act="libResetFilters"]');
+    if (resetFiltersBtn) {
+      event.stopPropagation();
+      resetLibraryFilters();
+      return;
+    }
+    const clearRecent = event.target.closest('[data-act="clearRecent"]');
+    if (clearRecent) {
+      event.stopPropagation();
+      usageStore.clearRecent();
+      renderPickerList(searchInput.value);
+      return;
+    }
+    const showHiddenBtn = event.target.closest('[data-act="showHiddenCats"]');
+    if (showHiddenBtn) {
+      event.stopPropagation();
+      pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ hiddenCats: [] });
+      return;
+    }
+    const catActBtn = event.target.closest("[data-cat-act]");
+    if (catActBtn) {
+      event.stopPropagation();
+      const folderEl = catActBtn.closest(".wg-folder[data-cat]");
+      const cat = folderEl?.dataset.cat;
+      if (!cat) return;
+      const act = catActBtn.dataset.catAct;
+      if (act === "up") moveCategoryByOffset(cat, -1);
+      else if (act === "down") moveCategoryByOffset(cat, 1);
+      else if (act === "hide") hideCategory(cat);
+      return;
+    }
+    const secToggle = event.target.closest("[data-sec-collapse]");
+    if (secToggle) {
+      event.stopPropagation();
+      toggleSectionCollapsed(secToggle.dataset.secCollapse);
+      return;
+    }
+    const folder = event.target.closest(".wg-folder[data-cat]");
+    if (folder) {
+      toggleCategoryExpanded(folder.dataset.cat);
+      return;
+    }
+    const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
+    if (!host) return;
+    const path = host.dataset.path;
+    if (event.target.closest(".wg-copy-trigger")) {
+      event.stopPropagation();
+      copyLibraryPath(path, event.target.closest(".wg-copy-trigger"));
+      return;
+    }
+    if (event.target.closest(".wg-inject-trigger")) {
+      event.stopPropagation();
+      cancelNodeTimer(node, delegatedInjectTimer);
+      const trigger = event.target.closest(".wg-inject-trigger");
+      if (injectState && injectState.trigger === trigger) closeInjectMenu();
+      else openInjectMenu(trigger, path, textarea, render);
+      return;
+    }
+    if (event.target.closest(".wg-pin, .wg-thumb-pin")) {
+      event.stopPropagation();
+      if (pinned.has(path)) pinned.delete(path); else pinned.add(path);
+      savePinned(pinned);
+      renderPickerList(searchInput.value);
+      return;
+    }
+    insertWildcard(path);
+  });
+
+  const contextEntry = (event) => event.target.closest?.(".wg-item[data-path], .wg-thumb-item[data-path], .wg-folder[data-cat]");
+  const cleanupPickerContext = attachLibraryContextMenu(pickerList, (event) => {
+    hideTip();
+    cancelNodeTimer(node, delegatedInjectTimer);
+    const target = contextEntry(event);
+    if (!target) return;
+    if (target.classList.contains("wg-folder") && target.dataset.cat) {
+      openCategoryContextMenu(event, target.dataset.cat);
+    } else if (target.dataset.path) {
+      openLibraryContextMenu(event, target.dataset.path);
+    }
+  }, contextEntry);
+
+  pickerList.addEventListener("mousemove", (event) => {
+    const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
+    if (!host) return;
+    hoverTip.__lastClientX = event.clientX;
+    hoverTip.__lastClientY = event.clientY;
+    if (hoverTip.style.display === "block") positionPromptPaletteTip(hoverTip, event.clientX, event.clientY);
+  });
+  pickerList.addEventListener("mouseover", (event) => {
+    const trigger = event.target.closest(".wg-inject-trigger");
+    if (trigger && !trigger.contains(event.relatedTarget)) {
+      cancelScheduledCloseInjectMenu();
+      cancelNodeTimer(node, delegatedInjectTimer);
+      const path = trigger.closest("[data-path]")?.dataset.path;
+      delegatedInjectTimer = scheduleNodeTimer(node, () => { if (path) openInjectMenu(trigger, path, textarea, render); }, 90);
+      return;
+    }
+    const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
+    if (host && !host.contains(event.relatedTarget)) showTipForName(event.clientX, event.clientY, host.dataset.path, true);
+  });
+  pickerList.addEventListener("mouseout", (event) => {
+    const trigger = event.target.closest(".wg-inject-trigger");
+    if (trigger && !trigger.contains(event.relatedTarget)) {
+      cancelNodeTimer(node, delegatedInjectTimer);
+      scheduleCloseInjectMenu();
+    }
+    const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");
+    if (host && !host.contains(event.relatedTarget)) hideTip();
+  });
+
+  let dragCat = null;
+  pickerList.addEventListener("dragstart", (event) => {
+    const header = event.target.closest?.(".wg-folder.wg-draggable[data-cat]");
+    if (!header) return;
+    dragCat = header.dataset.cat;
+    header.classList.add("dragging");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", dragCat);
+  });
+  pickerList.addEventListener("dragend", (event) => {
+    event.target.closest?.(".wg-folder")?.classList.remove("dragging");
+    dragCat = null;
+    pickerList.querySelectorAll(".wg-folder.drag-over").forEach((el) => el.classList.remove("drag-over"));
+  });
+  pickerList.addEventListener("dragover", (event) => {
+    const header = event.target.closest?.(".wg-folder.wg-draggable[data-cat]");
+    if (!header || !dragCat || dragCat === header.dataset.cat) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    header.classList.add("drag-over");
+  });
+  pickerList.addEventListener("dragleave", (event) => event.target.closest?.(".wg-folder")?.classList.remove("drag-over"));
+  pickerList.addEventListener("drop", (event) => {
+    const header = event.target.closest?.(".wg-folder.wg-draggable[data-cat]");
+    if (!header) return;
+    event.preventDefault();
+    header.classList.remove("drag-over");
+    const dragged = dragCat || event.dataTransfer.getData("text/plain");
+    const cat = header.dataset.cat;
+    if (!dragged || dragged === cat) return;
+    const from = catOrder.indexOf(dragged), to = catOrder.indexOf(cat);
+    if (from === -1 || to === -1) return;
+    catOrder.splice(from, 1);
+    catOrder.splice(to, 0, dragged);
+    saveCatOrder(catOrder);
+    renderPickerList(searchInput.value);
+  });
+
+  function appendItems(container, items, filter = "", category = "") {
+    if (["masonry", "filmstrip"].includes(pickerViewMode)) {
+      visualCollections.mount(container, { ...libraryVirtualLayout(pickerDrawer), items, mode: pickerViewMode, renderItem: pickerTile });
+      return;
+    }
+    const categoryColor = category ? getCategoryColor(category) : "";
+    if (pickerViewMode !== "list") {
       const grid = document.createElement("div");
-      grid.className = "wg-thumb-grid";
-      items.forEach(item => grid.appendChild(pickerTile(item)));
+      grid.className = "wg-thumb-grid wg-static-collection" + (category ? " wg-category-content" : "");
+      if (categoryColor) grid.style.setProperty("--wg-category-accent", categoryColor);
+      items.forEach((item) => grid.appendChild(pickerTile(item)));
       container.appendChild(grid);
     } else {
-      items.forEach(item => container.appendChild(pickerItemRow(item, filter)));
+      items.forEach((item, index) => {
+        const row = pickerItemRow(item, filter);
+        if (category) {
+          row.classList.add("wg-category-entry");
+          if (index === 0) row.classList.add("wg-category-first");
+          if (index === items.length - 1) row.classList.add("wg-category-last");
+          if (categoryColor) row.style.setProperty("--wg-category-accent", categoryColor);
+        }
+        container.appendChild(row);
+      });
     }
   }
 
   function jumpToCategory(cat) {
     searchInput.value = "";
+    activeQuickFilter = "all";
+    quickFilterBtns.forEach((candidate) => {
+      const active = candidate.dataset.libQuickFilter === "all";
+      candidate.classList.toggle("active", active);
+      candidate.setAttribute("aria-pressed", String(active));
+    });
+    const org = getLibraryOrganization(pickerDrawer);
+    if (org.hiddenCats?.includes(cat)) {
+      pickerDrawer.__ppLibraryDisplayBinding?.setState?.({
+        hiddenCats: org.hiddenCats.filter((c) => c !== cat),
+      }, { persist: true, notify: false });
+    }
     if (!expandedCats.has(cat)) {
       expandedCats.add(cat);
       saveExpandedCats(expandedCats);
@@ -1012,113 +1427,251 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function renderPickerList(filter = "") {
-
+    visualCollections.clear();
     if (ctxMenuOpen) closeCtxMenu();
     if (injectState && injectState.textarea === textarea) closeInjectMenu();
+    pickerKbIndex = -1;
     const q = (filter || "").trim().toLowerCase();
-    let items = libraryCache;
-    if (q) items = items.filter(i => i.path.toLowerCase().includes(q));
+    const org = getLibraryOrganization(pickerDrawer);
+    org.quickFilter = activeQuickFilter !== "all" ? activeQuickFilter : "";
+    const hiddenSecSet = new Set(org.hiddenSections || []);
+
+    const allCatsSet = new Set();
+    for (const entry of libraryCache) allCatsSet.add(categoryOf(entry.path));
+    const allPresentCats = Array.from(allCatsSet);
+    const knownOrder = catOrder.filter((c) => allCatsSet.has(c));
+    const unseenOrder = allPresentCats.filter((c) => !catOrder.includes(c)).sort();
+    const canonicalCatOrder = [...knownOrder, ...unseenOrder];
+    if (unseenOrder.length && !q) {
+      catOrder = canonicalCatOrder.slice();
+      saveCatOrder(catOrder);
+    }
+    pickerDrawer.__ppLibraryDisplayBinding?.syncCategories?.(canonicalCatOrder, getCategoryColor);
+
+    let rawItems = libraryCache;
+    if (q) rawItems = rawItems.filter((i) => i.path.toLowerCase().includes(q));
+    const items = sortLibraryItems(libraryFeatures?.filter(rawItems) || rawItems, org, pinned, thumbMap);
+    const prevScrollTop = pickerList.scrollTop;
     pickerList.innerHTML = "";
 
-    if (pinned.size && !q) {
-      const pinnedItems = items.filter(i => pinned.has(i.path));
-      if (pinnedItems.length) {
-        const lbl = document.createElement("div");
-        lbl.className = "wg-section-label"; lbl.textContent = "PINNED";
-        pickerList.appendChild(lbl);
-        appendItems(pickerList, pinnedItems, q);
+    const renderCategoriesSection = () => {
+      const grouped = new Map();
+      items.forEach((item) => {
+        const cat = categoryOf(item.path);
+        if (!grouped.has(cat)) grouped.set(cat, []);
+        grouped.get(cat).push(item);
+      });
+      const canReorder = !q && !org.quickFilter && (org.catSort || "custom") === "custom";
+      const cats = sortLibraryCategories(
+        Array.from(grouped.keys()),
+        grouped,
+        { ...org, includeHidden: Boolean(q || org.quickFilter) },
+        canonicalCatOrder
+      );
+      cats.forEach((cat, idx) => {
+        const catItems = grouped.get(cat) || [];
+        const isExpanded = isCatExpanded(cat, q);
+        const header = document.createElement("div");
+        header.className = "wg-folder" + (isExpanded ? " expanded" : "") + (isRecipeCategory(cat) ? " wg-folder-recipe" : "") + (canReorder ? " wg-draggable" : "");
+        header.dataset.cat = cat;
+        header.draggable = canReorder;
+        const categoryColor = getCategoryColor(cat);
+        header.style.setProperty("--wg-category-accent", categoryColor);
+        const folderLabel = isRecipeCategory(cat) ? `&#128214; ${escapeHtml(cat)}` : escapeHtml(cat);
+        const toolsHtml = !q && !org.quickFilter
+          ? `<span class="wg-folder-tools">
+              ${canReorder ? `<button type="button" class="wg-folder-act" data-cat-act="up" ${idx === 0 ? "disabled" : ""} title="Move folder up" aria-label="Move ${escapeHtml(cat)} up">↑</button><button type="button" class="wg-folder-act" data-cat-act="down" ${idx === cats.length - 1 ? "disabled" : ""} title="Move folder down" aria-label="Move ${escapeHtml(cat)} down">↓</button>` : ""}
+              <button type="button" class="wg-folder-act wg-folder-act-hide" data-cat-act="hide" title="Hide &quot;${escapeHtml(cat)}&quot; folder" aria-label="Hide ${escapeHtml(cat)} folder">✕</button>
+            </span>`
+          : "";
+        header.innerHTML = `<span class="wg-folder-caret">${isExpanded ? "\u25BE" : "\u25B8"}</span><span class="wg-folder-name">${folderLabel}</span>${toolsHtml}<span class="wg-folder-count">${catItems.length}</span>`;
+        header.title = isExpanded ? "Click to collapse · Right-click for folder options" : "Click to expand · Right-click for folder options";
+        pickerList.appendChild(header);
+        if (isExpanded) appendItems(pickerList, catItems, q, cat);
+      });
+
+      if (!q && !org.quickFilter && org.hiddenCats?.length) {
+        const hiddenNote = document.createElement("div");
+        hiddenNote.className = "wg-hidden-cats-bar";
+        hiddenNote.innerHTML = `<span>${org.hiddenCats.length} ${org.hiddenCats.length === 1 ? "folder" : "folders"} hidden</span><button type="button" class="wg-clear-recent" data-act="showHiddenCats">Show all</button>`;
+        pickerList.appendChild(hiddenNote);
       }
+    };
+
+    const collapsedSecSet = new Set(org.collapsedSections || []);
+    if (!q && !org.quickFilter) {
+      const sectionOrder = Array.isArray(org.sectionOrder) ? org.sectionOrder : ["pinned", "recent", "categories"];
+      const byPath = new Map(libraryCache.map((entry) => [entry.path, entry]));
+      for (const secId of sectionOrder) {
+        if (hiddenSecSet.has(secId)) continue;
+        if (secId === "pinned") {
+          const pinnedItems = sortLibraryItems(
+            libraryCache.filter((i) => pinned.has(i.path)),
+            org,
+            pinned,
+            thumbMap
+          );
+          if (pinnedItems.length) {
+            const secCollapsed = collapsedSecSet.has("pinned");
+            const lbl = document.createElement("div");
+            lbl.className = "wg-section-label wg-section-label-row wg-section-collapsible" + (secCollapsed ? " is-collapsed" : "");
+            lbl.dataset.secCollapse = "pinned";
+            lbl.title = secCollapsed ? "Click to expand Pinned" : "Click to collapse Pinned";
+            lbl.innerHTML = `<span class="wg-sec-label-main"><span class="wg-folder-caret">${secCollapsed ? "\u25B8" : "\u25BE"}</span><span>★ Pinned</span></span><span class="wg-section-count">${pinnedItems.length}</span>`;
+            pickerList.appendChild(lbl);
+            if (!secCollapsed) appendItems(pickerList, pinnedItems, q);
+          }
+        } else if (secId === "recent") {
+          const recentPaths = usageStore.libraryRecent(12).filter((p) => !pinned.has(p));
+          const recentItems = sortLibraryItems(
+            recentPaths.map((p) => byPath.get(p)).filter(Boolean),
+            org,
+            pinned,
+            thumbMap
+          );
+          if (recentItems.length) {
+            const secCollapsed = collapsedSecSet.has("recent");
+            const lbl = document.createElement("div");
+            lbl.className = "wg-section-label wg-section-label-row wg-section-collapsible" + (secCollapsed ? " is-collapsed" : "");
+            lbl.dataset.secCollapse = "recent";
+            lbl.title = secCollapsed ? "Click to expand Recent" : "Click to collapse Recent";
+            lbl.innerHTML = `<span class="wg-sec-label-main"><span class="wg-folder-caret">${secCollapsed ? "\u25B8" : "\u25BE"}</span><span>↺ Recent</span></span><button type="button" class="wg-clear-recent" data-act="clearRecent" title="Clear recent list">Clear</button>`;
+            pickerList.appendChild(lbl);
+            if (!secCollapsed) appendItems(pickerList, recentItems, q);
+          }
+        } else if (secId === "categories") {
+          renderCategoriesSection();
+        }
+      }
+    } else {
+      renderCategoriesSection();
     }
 
-    const grouped = {};
-    items.forEach(item => { const cat = categoryOf(item.path); (grouped[cat] = grouped[cat] || []).push(item); });
-    const cats = Object.keys(grouped).sort((a, b) => {
-      const ia = catOrder.indexOf(a), ib = catOrder.indexOf(b);
-      if (ia !== -1 && ib !== -1) return ia - ib;
-      if (ia !== -1) return -1;
-      if (ib !== -1) return 1;
-      return a.localeCompare(b);
-    });
-    cats.forEach(cat => {
-      if (!catOrder.includes(cat)) { catOrder.push(cat); saveCatOrder(catOrder); }
-      const isExpanded = q ? true : expandedCats.has(cat);
-      const header = document.createElement("div");
-      header.className = "wg-folder" + (isExpanded ? " expanded" : "");
-      header.dataset.cat = cat;
-      header.innerHTML = `<span class="wg-folder-caret">${isExpanded ? "\u25BE" : "\u25B8"}</span><span class="wg-folder-name">${escapeHtml(cat)}</span><span class="wg-folder-count">${grouped[cat].length}</span>`;
-      header.addEventListener("click", () => {
-        if (expandedCats.has(cat)) expandedCats.delete(cat); else expandedCats.add(cat);
-        saveExpandedCats(expandedCats);
-        renderPickerList(searchInput.value);
-      });
-      pickerList.appendChild(header);
-      if (isExpanded) appendItems(pickerList, grouped[cat], q);
-    });
-
-    if (!items.length) pickerList.innerHTML = `<div class="wg-hint" style="padding:6px;">no matches</div>`;
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "wg-hint wg-lib-empty-state";
+      const message = document.createElement("span");
+      message.textContent = org.quickFilter ? `No ${org.quickFilter} entries match` : "No matching entries";
+      empty.appendChild(message);
+      if (q || org.quickFilter) {
+        const resetFilters = document.createElement("button");
+        resetFilters.type = "button";
+        resetFilters.className = "wg-lib-empty-reset";
+        resetFilters.dataset.act = "libResetFilters";
+        resetFilters.textContent = q && org.quickFilter ? "Clear search & filter" : q ? "Clear search" : "Show all";
+        empty.appendChild(resetFilters);
+      }
+      pickerList.appendChild(empty);
+    }
+    pickerList.scrollTop = Math.min(prevScrollTop, Math.max(0, pickerList.scrollHeight - pickerList.clientHeight));
+    const quickFilterCounts = { all: libraryCache.length };
+    for (const key of ["pinned", "thumbs", "recipes"]) {
+      quickFilterCounts[key] = sortLibraryItems(libraryCache, { quickFilter: key }, pinned, thumbMap).length;
+    }
+    pickerDrawer.__ppLibraryDisplayBinding?.afterListRender?.({ counts: quickFilterCounts });
   }
+
+  pickerDrawer.addEventListener("pp-library-organize-change", () => {
+    renderPickerList(searchInput.value);
+  });
+
+  const quickFilterBtns = Array.from(pickerDrawer.querySelectorAll("[data-lib-quick-filter]"));
+  quickFilterBtns.forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const next = btn.dataset.libQuickFilter || "all";
+      activeQuickFilter = activeQuickFilter === next && next !== "all" ? "all" : next;
+      quickFilterBtns.forEach((candidate) => {
+        const active = candidate.dataset.libQuickFilter === activeQuickFilter;
+        candidate.classList.toggle("active", active);
+        candidate.setAttribute("aria-pressed", String(active));
+      });
+      renderPickerList(searchInput.value);
+    });
+  });
+
+  function resetLibraryFilters() {
+    searchInput.value = "";
+    searchCollapsedCats.clear();
+    activeQuickFilter = "all";
+    quickFilterBtns.forEach((candidate) => {
+      const active = candidate.dataset.libQuickFilter === "all";
+      candidate.classList.toggle("active", active);
+      candidate.setAttribute("aria-pressed", String(active));
+    });
+    renderPickerList("");
+    searchInput.focus({ preventScroll: true });
+  }
+
+  pickerDrawer.querySelector('[data-act="libExpandAll"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    expandAllCategories();
+  });
+  pickerDrawer.querySelector('[data-act="libCollapseAll"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    collapseAllCategories();
+  });
+  pickerDrawer.querySelector('[data-act="closePickerDrawer"]')?.addEventListener("click", (e) => {
+    e.preventDefault();
+    closePickerDrawer();
+  });
+
   let searchDebounce = null;
   searchInput.addEventListener("input", () => {
+    searchCollapsedCats.clear();
     cancelNodeTimer(node, searchDebounce);
-    searchDebounce = scheduleNodeTimer(node, () => renderPickerList(searchInput.value), 150);
+    searchDebounce = scheduleNodeTimer(node, () => renderPickerList(searchInput.value), 60);
   });
-
-  const PICKER_MIN_WIDTH = 220;
-  const PICKER_MAX_WIDTH = 640;
-  function loadPickerWidth() {
-    const w = Number(readCombinatorialPreference("pickerWidth", PICKER_MIN_WIDTH));
-    return Number.isFinite(w) ? Math.min(PICKER_MAX_WIDTH, Math.max(PICKER_MIN_WIDTH, w)) : PICKER_MIN_WIDTH;
-  }
-  function savePickerWidth(w) {
-    writeCombinatorialPreference("pickerWidth", Number(w));
-  }
-  let pickerWidth = loadPickerWidth();
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      if (!pickerRows().length) return;
+      e.preventDefault();
+      movePickerKbIndex(1);
+    } else if (e.key === "ArrowUp") {
+      if (!pickerRows().length) return;
+      e.preventDefault();
+      movePickerKbIndex(-1);
+    } else if (e.key === "Enter") {
+      const rows = pickerRows();
+      if (pickerKbIndex < 0 || !rows[pickerKbIndex]) return;
+      e.preventDefault();
+      rows[pickerKbIndex].click();
+    } else if (e.key === "Escape" && searchInput.value) {
+      e.preventDefault();
+      e.stopPropagation();
+      searchInput.value = "";
+      searchCollapsedCats.clear();
+      renderPickerList("");
+    }
+  });
 
   const pickerResizeHandle = document.createElement("div");
-  pickerResizeHandle.className = "wg-drawer-resize-handle";
-  pickerResizeHandle.title = "Drag to resize";
+  pickerResizeHandle.className = "wg-drawer-resize-handle wg-library-resize-handle";
+  pickerResizeHandle.title = "Drag to resize Library · Double-click to reset";
+  pickerResizeHandle.tabIndex = 0;
+  pickerResizeHandle.setAttribute("role", "separator");
+  pickerResizeHandle.setAttribute("aria-orientation", "vertical");
+  pickerResizeHandle.setAttribute("aria-label", "Resize Library");
   pickerDrawer.appendChild(pickerResizeHandle);
-
-  let resizingPicker = false;
-  let resizeStartX = 0;
-  let resizeStartWidth = 0;
-  let previousBodyUserSelect = null;
-  pickerResizeHandle.addEventListener("mousedown", (e) => {
-    if (!pickerDrawer.classList.contains("open")) return;
-    resizingPicker = true;
-    resizeStartX = e.clientX;
-    resizeStartWidth = pickerDrawer.getBoundingClientRect().width;
-    pickerDrawer.classList.add("resizing");
-    previousBodyUserSelect = document.body.style.userSelect;
-    document.body.style.userSelect = "none";
-    e.preventDefault();
+  const libraryResize = bindLibraryResize({
+    drawer: pickerDrawer, handle: pickerResizeHandle,
+    load: () => readCombinatorialPreference("pickerWidth", null),
+    save: width => writeCombinatorialPreference("pickerWidth", width),
   });
 
-  const handlePickerResizeMove = (e) => {
-    if (!resizingPicker) return;
-    pickerWidth = Math.min(PICKER_MAX_WIDTH, Math.max(PICKER_MIN_WIDTH, resizeStartWidth + (e.clientX - resizeStartX)));
-    pickerDrawer.style.width = pickerWidth + "px";
-  };
-  const handlePickerResizeUp = () => {
-    if (!resizingPicker) return;
-    resizingPicker = false;
-    pickerDrawer.classList.remove("resizing");
-    document.body.style.userSelect = previousBodyUserSelect ?? "";
-    previousBodyUserSelect = null;
-    savePickerWidth(pickerWidth);
-  };
-  document.addEventListener("mousemove", handlePickerResizeMove);
-  document.addEventListener("mouseup", handlePickerResizeUp);
-
   function openPickerDrawer() {
+    libraryFeatures?.setActive(true);
     pickerDrawer.hidden = false;
     pickerDrawer.removeAttribute("inert");
     pickerDrawer.setAttribute("aria-hidden", "false");
     pickerDrawer.classList.add("open");
     action("picker").classList.add("active");
-    pickerDrawer.style.width = pickerWidth + "px";
+    libraryResize.apply();
+    pickerDrawer.__ppLibraryDisplayBinding?.refreshScrollbars?.();
   }
   function closePickerDrawer() {
+    libraryFeatures?.setActive(false);
+    libraryResize.finish();
     pickerDrawer.classList.remove("open");
     action("picker").classList.remove("active");
     pickerDrawer.style.width = "";
@@ -1138,18 +1691,19 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     }
   });
 
-  function syncPickerViewToggleBtn() {
-    pickerViewToggleBtn.classList.toggle("active", pickerViewMode === "grid");
-    pickerViewToggleBtn.title = pickerViewMode === "grid" ? "Switch to list view" : "Switch to grid view";
-    pickerViewToggleBtn.innerHTML = svgIcon(pickerViewMode === "grid" ? "list" : "grid");
-  }
-  syncPickerViewToggleBtn();
-  pickerViewToggleBtn.addEventListener("click", () => {
-    pickerViewMode = pickerViewMode === "grid" ? "list" : "grid";
-    savePickerView(pickerViewMode);
-    syncPickerViewToggleBtn();
-    renderPickerList(searchInput.value);
+  const cleanupLibraryViewControls = bindLibraryViewControls(pickerDrawer, {
+    getView: () => pickerViewMode,
+    setView: (mode) => {
+      pickerViewMode = mode;
+      savePickerView(mode);
+      renderPickerList(searchInput.value);
+    },
   });
+
+  // The customize panel is portaled outside the drawer while open; retain the
+  // authoritative view control instead of querying only the old DOM ancestry.
+  const collectionViewSelect = pickerDrawer.querySelector("[data-library-view]");
+  libraryFeatures = mountLibraryFeatures({ host: pickerDrawer.querySelector(".wg-drawer-inner"), settingsHost: pickerDrawer.querySelector("[data-library-customize-panel]") || pickerDrawer, node, getItems: () => libraryCache, getPinned: () => pinned, getThumbnails: () => thumbMap, onFilter: () => renderPickerList(searchInput.value), onView: view => { if(collectionViewSelect){collectionViewSelect.value=view==="gallery"?"grid":view;collectionViewSelect.dispatchEvent(new Event("change",{bubbles:true}));} }, onOpenEntry: (path, options) => powerTools.openEditForItem?.(path, options), content: [pickerList], restore: ({text,channel="positive"}) => reviewHistoryRestore(historyTargetEditor(node,textarea,channel),text,applyHistoryText,channel) });
 
   let libraryRequestVersion = 0;
   let libraryDisposed = false;
@@ -1254,6 +1808,12 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, frame);
   };
 
+  const cleanupQueueSync = bindPromptQueueSync(node, () => {
+    syncControlsFromWidgets();
+    if (seedWidget) addSeedHistory(seedWidget.value);
+    updateEstimate();
+  });
+
   return {
     root: frame,
     refreshFromHidden,
@@ -1269,10 +1829,15 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       root.removeEventListener("pointerdown", commandTarget.activate, true);
       root.removeEventListener("focusin", commandTarget.activate, true);
       cleanupImageImport();
+      libraryFeatures?.cleanup();
       libraryDisposed = true; libraryRequestVersion++;
       cleanupLibrarySubscription();
+      cleanupLibraryViewControls();
+      visualCollections.cleanup();
+      libraryDisplay.cleanup();
       if (node._wgRefreshLibrary === refreshLibrary) delete node._wgRefreshLibrary;
       hideTip(); previewCache.clear();
+      cleanupQueueSync();
       cleanupSeedInput();
       refinementController.cleanup(); refinementUndo.cleanup();
       recipeWorkspace?.cleanup(); powerTools?.cleanup();
@@ -1286,7 +1851,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       textarea.removeEventListener("blur", repaintEditorHighlights);
       editorSurface.cleanup();
       statusBar.cleanup();
+      loraSidecar?.cleanup();
       cleanupEditorContext();
+      cleanupPickerContext?.();
       delete textarea.__ppExtractSelectionToWildcard;
       delete textarea.__ppSaveSelectionAsList;
       cleanupAutocompleteBinding?.();
@@ -1296,14 +1863,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       hoverTip.remove();
       root.removeEventListener("keydown", handleWorkspaceEscape);
       document.removeEventListener("keydown", handleWorkspaceEscape);
-      document.removeEventListener("mousemove", handlePickerResizeMove);
-      document.removeEventListener("mouseup", handlePickerResizeUp);
-      if (resizingPicker) {
-        resizingPicker = false;
-        pickerDrawer.classList.remove("resizing");
-        document.body.style.userSelect = previousBodyUserSelect ?? "";
-        previousBodyUserSelect = null;
-      }
+      libraryResize.cleanup();
       clearNodeTimers(node);
       appearanceBinding.cleanup();
       settingsDrawer.unregister();

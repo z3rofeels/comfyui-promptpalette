@@ -19,7 +19,7 @@ export function createLibraryEntryEditor({ drawer, el, getLibrary, onChanged = n
   async function mayDiscard() {
     return !dirty() || await dialogConfirm({ title: "Unsaved library changes", message: "Discard these changes and open another entry?" });
   }
-  async function load(path, { confirm = false, existing = false } = {}) {
+  async function load(path, { confirm = false, existing = false, cursor = null } = {}) {
     if (busy || disposed) return false;
     // Reserve request order before awaiting a discard dialog, so a newer open
     // cannot be replaced by an earlier read.
@@ -37,7 +37,23 @@ export function createLibraryEntryEditor({ drawer, el, getLibrary, onChanged = n
       if (data?.found && typeof data.content !== "string") throw new Error("This entry returned invalid content. Your previous draft is kept.");
       name.value = path;
       content.value = data?.found ? data.content : "";
-      content.scrollTop = content.scrollLeft = 0; content.setSelectionRange(0, 0);
+      if (cursor != null) {
+        const start = typeof cursor === "number" ? cursor : (cursor.start ?? cursor.offset ?? 0);
+        const end = typeof cursor === "number" ? cursor : (cursor.end ?? start);
+        const clampedStart = Math.max(0, Math.min(start, content.value.length));
+        const clampedEnd = Math.max(clampedStart, Math.min(end, content.value.length));
+        content.setSelectionRange(clampedStart, clampedEnd);
+        setTimeout(() => {
+          try {
+            content.focus();
+            content.setSelectionRange(clampedStart, clampedEnd);
+            const linesBefore = content.value.slice(0, clampedStart).split("\n").length - 1;
+            content.scrollTop = Math.max(0, linesBefore * 18 - 60);
+          } catch {}
+        }, 30);
+      } else {
+        content.scrollTop = content.scrollLeft = 0; content.setSelectionRange(0, 0);
+      }
       setBaseline({ path, content: content.value, found: !!data?.found, editable: data?.editable !== false });
       message(data?.found ? (baseline.editable ? `Editing ${path}` : "YAML/JSON entries are read-only. Edit their source file.") : "New entry — add a path and one prompt option per line.");
       return true;

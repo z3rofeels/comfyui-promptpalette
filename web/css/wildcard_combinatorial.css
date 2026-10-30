@@ -122,12 +122,25 @@
 
 /* Reuse the compact stacked workspace treatment for this node's library. */
 @container (max-width: 560px) {
-  .pp-node.wg-root > .wg-main:has(> .wg-drawer.open) { flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
-  .pp-node.wg-root > .wg-main:has(> .wg-drawer.open) > .wg-body { flex: 1 0 250px; min-height: 250px; box-sizing: border-box; width: 100%; }
-  .pp-node.wg-root > .wg-main > .wg-drawer.open {
+  .pp-node.wg-root > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) { flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
+  .pp-node.wg-root > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) > .wg-body { flex: 1 0 250px; min-height: 250px; box-sizing: border-box; width: 100%; }
+  .pp-node.wg-root > .wg-main > .wg-drawer.open:not(.wg-library-popup) {
     position: relative !important; inset: auto !important; transform: none !important;
     order: -1; width: 100% !important; max-width: 100% !important; height: min(280px, 55%) !important;
     min-height: 170px !important; flex: 0 0 min(280px, 55%) !important; border-right: 0; border-bottom: 1px solid var(--wg-border);
   }
-  .pp-node.wg-root > .wg-main > .wg-drawer.open > .wg-drawer-inner { width: 100%; }
+  .pp-node.wg-root > .wg-main > .wg-drawer.open:not(.wg-library-popup) > .wg-drawer-inner { width: 100%; }
 }
+
+/* Shared Library divider uses CSS-pixel width in both canvas renderers. */
+.pp-node > .wg-main > .wg-library-popup {
+  container-type: inline-size;
+  container-name: pp-library;
+}
+.pp-node > .wg-main > .wg-library-popup.open {
+  width: var(--wg-library-width, 360px);
+  flex: 0 0 var(--wg-library-width, 360px);
+  min-width: 0;
+  max-width: var(--wg-library-max-width, calc(100% - 120px));
+}
+.pp-node > .wg-main > .wg-library-popup.resizing { transition: none; }

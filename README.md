@@ -29,6 +29,116 @@
 </p>
 
 ---
+### Recent updates — 2.0.8
+
+### LoraPal: your local LoRA collection
+
+Open **LoraPal** on the toolbar, or choose **Insert syntax → Browse LoRAs** from the editor menu. Drag and resize its sidecar, or leave **Follow node** enabled to keep it beside your editor.
+
+- Search your folders, filter favorites, and choose **Grid** or **List**. Local images and video previews help you find the right LoRA. Videos play silently on hover or keyboard focus.
+- The **Previews** switch is directly beside **Grid / List** and **Size**, above the collection. Previews start enabled. Use **Size** to scale thumbnails from **80–240px**; double-click the slider to reset it.
+- LoraPal reads matching local artwork and metadata, including **JPEG**, **MP4**, and supported Civitai Helper, LoRA Manager, and rgthree sidecars. A folder containing one LoRA can also use generic files such as `metadata.json`, `preview.jpeg`, or `preview.mp4`. Nothing is fetched online.
+- Click **+ Add** to insert a LoRA. Select a card to inspect its recorded trigger words, model information, and suggested strengths. Trigger-word chips are optional; choose the words you want before inserting.
+- Supply your own thumbnail with **Set image / Change image** in the info area or the card's right-click menu. **Use folder preview** restores the local artwork. In **LoRA settings → Thumbnail framing**, choose **Fill thumbnail** or **Show whole image**.
+
+In **Active in Prompt**, adjust **Model** and **CLIP** strengths, mute an entry, swap it, or remove it. **Dock at end** groups standalone LoRA tags below your text. Open **LoRA settings** for the execution mode, optional tag autocomplete, highlighting, and default color; individual LoRAs can have their own colors too.
+
+For integrated loading, connect MODEL and CLIP into Palette and route its patched outputs downstream. Choose **External** when another loader reads the tags. See the [LoRA guide](LORA_GUIDE.md) for wiring, filenames, and syntax examples.
+
+<!-- Add screenshots / demo: LoraPal gallery, visible preview controls, local metadata, Active in Prompt. -->
+
+### LoRA Audition Lab
+
+Inside LoraPal, select a LoRA and open **LoRA Audition Lab** to compare choices or strengths.
+
+- Use **A/B**, **3-Step**, or **5-Step** presets, or enter your own strength values. Model and CLIP strengths can stay linked or be adjusted separately.
+- Choose **Cycle**, **Seeded trial**, or **Fresh random choice** to control how alternatives change.
+- Use **Batch alternatives** with **Combinatorial** for a comparison batch. Keep the sampler's noise seed fixed when comparing strengths; Palette's seed controls prompt choices separately.
+- Right-click an inserted LoRA tag for quick strength changes, swapping, and variation syntax.
+
+
+
+### Fields that fit your workspace
+
+Enable **Adjustable Recipe Workspace** in **Settings → Power tools** to build prompts from separate fields. Existing **Vary / Lock / Follow** modes, snapshots, and compiled previews are available alongside the new layout controls.
+
+- Open **Settings → Layout → Fields editor**. Choose **1 column**, **up to 2**, **up to 3**, or **Auto-fit**, then set a minimum field height. Columns share the available width, and narrower nodes use fewer columns.
+- Drag a field's bottom grip to set its height. Manual resizing snaps to **8px** by default; double-click the grip to restore the grid height. **Field settings → Editor height** also offers Grid cell, Fit content, and Custom pixels.
+- Choose which titles, counts, mode badges, channel indicators, Include switches, and quick buttons appear under **Field headers**. **Workspace bar** controls the name and Add, Save, Variation Lab, Layouts, and Unlink shortcuts. **Layout and help** contains resize handles, snapping, and explanatory notes.
+- Hidden shortcuts remain accessible through **Field settings** or **Workspace settings**. **Reset Fields UI** restores the visibility and grid preferences while keeping your prompt content.
+
+Choose **No accent** for a quieter field card. Collapsed fields show syntax-colored previews.
+
+
+
+### More ways to browse your library
+
+Open the node's **Library**, then its settings gear. **Tiles** and **Contact sheet** join **List**, **Gallery**, **Masonry**, and **Filmstrip / detail** views.
+
+Adjust card size, aspect ratio, image fit, spacing, captions, and visible filter shortcuts. **Fit** shows the whole image; **Fill** covers its frame. Drag the library's side handle to resize the drawer.
+
+The themed **Library settings** window can also be moved and resized. Use **Follow library** to keep it nearby, or **Reset window** to restore its position and size.
+
+
+
+### Quick prompt slots A–D
+
+Use **A–D** on the toolbar to switch between four prompt drafts in the same node. Each slot keeps its positive text, negative text, and Fields workspace with the workflow.
+
+Click a letter to switch. **Alt/Option+click** copies the current prompt into that slot and switches to it. Show or hide the control in **Settings → Layout → Toolbar modules → Quick slots A–D**.
+
+
+
+### Seed Lab and the compact seed bar
+
+Enable **Settings → Layout → Toolbar modules → Seed controls** to type, copy, randomize, or step through seeds. Hold **Shift** while stepping to move by ten.
+
+Open **Seed Lab** for recent seeds, pinned favorites, presets, **Seed Fortune**, and the **Wheel of Fortune**. Choose a candidate and apply it when you want to use it. The separate **Seed Fortunes & Wheel** toggle controls those optional extras.
+
+Palette's seed controls prompt resolution; your sampler's seed controls image noise. Fortune descriptions are creative suggestions, not predictions of image quality.
+
+
+
+### Make the interface your own
+
+Open the editor's **Settings** and use the search box to find a control by name. Select a result to jump to its tab and reveal it.
+
+| Where | What you can change |
+| --- | --- |
+| **Layout → Workspace level** | Start with **Core**, **Creator**, or **Power User**. These presets change the existing visibility and optional tool settings; each control remains editable. |
+| **Layout → Toolbar** | Choose always visible, auto-hide, collapsed, or hidden presentation; adjust button size and order. **Toolbar modules** lets you toggle individual shortcuts, including LoraPal and A–D slots. Settings remains accessible. |
+| **Layout → Preview update mode** | Choose **Manual**, **After pause**, or **Live** for resolved preview updates. |
+| **Layout → Fields editor** | Customize the field grid, header controls, workspace shortcuts, resizing, and help notes. |
+| **Appearance → Typography** | Set **Menus & hover cards** independently from prompt text and interface text. The **80–250%** range covers autocomplete, syntax menus, right-click menus, and library hover previews. |
+| **Editor & suggestions** | Toggle autocomplete images, syntax help, and automatic prompt history. |
+
+
+
+### Find & Replace
+
+Focus the main prompt editor and press **Ctrl/Cmd+F** for Find. Use **Ctrl+H** or **Cmd+Option+F**, or expand the Find bar, to reveal Replace.
+
+Match case or whole words, step through results, and replace one occurrence or all matches. Select text first and enable **In selection** to limit changes to that passage. Replacements support undo; **Esc** closes the bar.
+
+
+
+### Anima mode in Weight Controller
+
+In the **Weight Controller** node, choose **Anima 1.0 (High-Scale Qwen)** from the weighting-mode menu. Explicit weights such as `(warm lighting:2.4)` stay in the output, with values capped at **3.5**. The mode keeps your chosen strengths without automatically boosting them; optional **Soft Safety Clamp** is still available under **Advanced**.
+
+Nested explicit groups multiply their weights. Anima mode also preserves artist names and literal prompt structures such as JSON, quoted text, and LoRA tags.
+
+
+
+### Optional library intelligence and generation history
+
+- Browse natural-ratio **Masonry** cards or inspect entries in **Filmstrip / detail** alongside the existing library views.
+- Open **Collections, relationships & dependencies** in Library settings to save virtual filters, inspect references and missing targets, and organize metadata without moving wildcard files.
+- Apply an opt-in relationship rule set to a Palette node to constrain participating wildcard choices. Invalid or incompatible rules report an error instead of generating an invalid combination.
+- Open **Recent generations** to enable local run-associated history, browse results, favorite and compare images, add notes, and review authored text before restoring it. Prompt recording is a separate choice; original images stay in ComfyUI output/temp.
+- History labels distinguish run context from proven image-specific prompts. Capture is disabled when authenticated ownership cannot be established in multi-user mode.
+
+Relationship rules require clearing prepared literal batches; repeated references to a participating entry share a selected choice.
 
 ## Recent updates — 2.0.7
 

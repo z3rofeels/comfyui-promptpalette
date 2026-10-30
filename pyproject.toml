@@ -1,7 +1,7 @@
 [project]
 name = "zf-prompt-palette"
-version = "2.0.7"
-description = "Prompt editing and organization for ComfyUI: reusable wildcard libraries, a visual style sidebar, thumbnail autocomplete, offline Booru and Anima artist tags, controlled field comparisons, combinatorial batches, and model-aware weighting."
+version = "2.0.8"
+description = "Prompt editing and organization for ComfyUI: reusable wildcard libraries, a visual style sidebar, thumbnail autocomplete, offline Booru and Anima artist tags, flexible library views, seed tools, smart collections, wildcard relationships, local generation history, LoRA browsing and auditioning, Find & Replace, combinatorial batches, and model-aware weighting."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
@@ -14,6 +14,8 @@ keywords = [
     "anima", "artist-tags", "style-gallery", "prompt-variations",
     "combinatorial", "batch-prompts", "prompt-weighting",
     "visual-autocomplete", "library-thumbnails", "prompt-comparison",
+    "smart-collections", "wildcard-relationships", "generation-history",
+    "lora", "lora-browser", "find-replace",
 ]
 dependencies = [
     "PyYAML>=6.0",

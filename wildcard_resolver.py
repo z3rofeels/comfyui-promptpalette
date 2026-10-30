@@ -1,5 +1,6 @@
 
 
+import json
 import re
 import random
 import itertools
@@ -67,15 +68,120 @@ class WildcardResolver:
                 f"prompt expansion exceeded the {MAX_COMBINATORIAL_DEPTH}-step nesting safety limit"
             )
 
-    def __init__(self, index):
+    @classmethod
+    def parse_variables_input(cls, raw):
+        if not raw:
+            return {}
+        if isinstance(raw, (list, tuple)):
+            merged = {}
+            for item in raw:
+                merged.update(cls.parse_variables_input(item))
+            return merged
+        if isinstance(raw, dict):
+            source = raw
+            if (
+                "variables" in raw
+                and isinstance(raw["variables"], dict)
+                and not all(isinstance(k, str) and VAR_NAME_RE.match(k.strip()) for k in raw)
+            ):
+                source = raw["variables"]
+            out = {}
+            for k, v in source.items():
+                if not isinstance(k, str):
+                    continue
+                key = k.strip()
+                if not VAR_NAME_RE.match(key) or v is None:
+                    continue
+                if isinstance(v, tuple) and len(v) == 2 and v[0] in ("resolved", "raw"):
+                    out[key] = str(v[1])
+                elif isinstance(v, (dict, list)):
+                    out[key] = json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+                else:
+                    out[key] = str(v)
+            return out
+        if not isinstance(raw, str):
+            return {}
+        text = raw.strip()
+        if not text:
+            return {}
+        if text.startswith("{") or text.startswith("["):
+            try:
+                parsed = json.loads(text)
+            except Exception:
+                parsed = None
+            if isinstance(parsed, dict):
+                return cls.parse_variables_input(parsed)
+            if isinstance(parsed, list):
+                out = {}
+                for item in parsed:
+                    if isinstance(item, dict) and isinstance(item.get("name"), str):
+                        key = item["name"].strip()
+                        if VAR_NAME_RE.match(key) and "value" in item and item["value"] is not None:
+                            out[key] = str(item["value"])
+                    else:
+                        out.update(cls.parse_variables_input(item))
+                return out
+        out = {}
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            k, _, v = stripped.partition("=")
+            key = k.strip()
+            if key.startswith("${") and key.endswith("}"):
+                key = key[2:-1].strip()
+            if VAR_NAME_RE.match(key):
+                out[key] = v.strip()
+        return out
+
+    def __init__(self, index, initial_variables=None):
 
         self.index = index
         self.used_names = []
-        self.variables = {}
+        self._initial_variables = {
+            k: ("resolved", v)
+            for k, v in self.parse_variables_input(initial_variables).items()
+        }
+        self.variables = dict(self._initial_variables)
+        self.branch_selections = []
+        self._record_branches = True
+        self._combo_branch_meta = {}
         self.last_generation_truncated = False
         self._param_stack = []
         self._variable_stack = []
         self._generation_chars = 0
+
+    def export_variables(self, rng=None):
+        exported = {}
+        for name, entry in self.variables.items():
+            if not isinstance(name, str) or not VAR_NAME_RE.match(name):
+                continue
+            if isinstance(entry, tuple) and len(entry) == 2:
+                kind, val = entry
+                if kind == "resolved":
+                    exported[name] = str(val)
+                else:
+                    prev_record = self._record_branches
+                    self._record_branches = False
+                    try:
+                        exported[name] = self._run_passes(
+                            str(val), rng or random.Random(0), {}, 1
+                        ).strip()
+                    except Exception:
+                        exported[name] = str(val)
+                    finally:
+                        self._record_branches = prev_record
+            elif entry is not None:
+                exported[name] = str(entry)
+        return exported
+
+    def export_variables_json(self, rng=None):
+        return json.dumps(
+            self.export_variables(rng=rng),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
 
     def strip_comments(self, text):
         lines = text.split("\n")
@@ -138,13 +244,23 @@ class WildcardResolver:
             remaining //= sizes[pos]
 
         combo_map = {}
+        self._combo_branch_meta = {}
         for (whole, _size, kind, payload), i in zip(groups, idx):
             if kind == "wc":
                 name, lines = payload
                 combo_map[whole] = lines[i]
                 self.used_names.append(name)
             else:
-                combo_map[whole] = payload[i].strip()
+                picked = payload[i].strip()
+                combo_map[whole] = picked
+                self._combo_branch_meta[whole] = {
+                    "kind": "brace",
+                    "raw": whole,
+                    "chosen": picked,
+                    "chosen_options": [picked],
+                    "chosen_indices": [i],
+                    "options": [o.strip() for o in payload],
+                }
         return combo_map
 
     def _resolve_wildcards(self, text, rng, combo_map=None):
@@ -342,6 +458,8 @@ class WildcardResolver:
         def repl(m):
             whole = m.group(0)
             if whole in combo_map:
+                if self._record_branches and whole in self._combo_branch_meta:
+                    self.branch_selections.append(dict(self._combo_branch_meta[whole]))
                 return combo_map[whole]
             inner = m.group(1)
             mode = ""
@@ -372,7 +490,33 @@ class WildcardResolver:
                 count = random.randint(lo, max(lo, hi)) if always_random else rng.randint(lo, max(lo, hi))
                 count = min(count, len(options))
                 chosen = random.sample(options, count) if always_random else rng.sample(options, count)
-                return joiner.join(c.strip() for c in chosen)
+                result_str = joiner.join(c.strip() for c in chosen)
+                if self._record_branches and len(options) > 1:
+                    options_clean = [
+                        (WEIGHT_RE.match(o).group(2) if WEIGHT_RE.match(o) else o).strip()
+                        for o in options
+                    ]
+                    chosen_clean = [
+                        (WEIGHT_RE.match(c).group(2) if WEIGHT_RE.match(c) else c).strip()
+                        for c in chosen
+                    ]
+                    used_idx = set()
+                    chosen_indices = []
+                    for raw_c in chosen:
+                        for idx_opt, raw_o in enumerate(options):
+                            if idx_opt not in used_idx and raw_o == raw_c:
+                                used_idx.add(idx_opt)
+                                chosen_indices.append(idx_opt)
+                                break
+                    self.branch_selections.append({
+                        "kind": "brace",
+                        "raw": whole,
+                        "chosen": result_str,
+                        "chosen_options": chosen_clean,
+                        "chosen_indices": chosen_indices,
+                        "options": options_clean,
+                    })
+                return result_str
 
             options = self._split_top_level(inner)
             weighted = []
@@ -387,22 +531,36 @@ class WildcardResolver:
                     weighted.append((1, opt))
 
             key = "|".join(o for _, o in weighted)
+            chosen_idx = len(weighted) - 1
             if mode in ("+", "@"):
-                i = self.index.next_sequential_index("__brace__" + key, len(weighted), 1)
-                return weighted[i][1].strip()
-            if mode == "-":
-                i = self.index.next_sequential_index("__brace__" + key, len(weighted), -1)
-                return weighted[i][1].strip()
+                chosen_idx = self.index.next_sequential_index("__brace__" + key, len(weighted), 1)
+                picked_str = weighted[chosen_idx][1].strip()
+            elif mode == "-":
+                chosen_idx = self.index.next_sequential_index("__brace__" + key, len(weighted), -1)
+                picked_str = weighted[chosen_idx][1].strip()
+            else:
+                picker = random if mode in ("*", "~") else rng
+                total = sum(w for w, _ in weighted)
+                r = picker.uniform(0, total)
+                upto = 0
+                picked_str = weighted[-1][1].strip()
+                for idx_w, (w, opt) in enumerate(weighted):
+                    upto += w
+                    if r <= upto:
+                        chosen_idx = idx_w
+                        picked_str = opt.strip()
+                        break
 
-            picker = random if mode in ("*", "~") else rng
-            total = sum(w for w, _ in weighted)
-            r = picker.uniform(0, total)
-            upto = 0
-            for w, opt in weighted:
-                upto += w
-                if r <= upto:
-                    return opt.strip()
-            return weighted[-1][1].strip()
+            if self._record_branches and len(weighted) > 1:
+                self.branch_selections.append({
+                    "kind": "brace",
+                    "raw": whole,
+                    "chosen": picked_str,
+                    "chosen_options": [picked_str],
+                    "chosen_indices": [chosen_idx],
+                    "options": [o.strip() for _, o in weighted],
+                })
+            return picked_str
 
         prev = None
         out = text
@@ -561,7 +719,19 @@ class WildcardResolver:
                     raise ValueError(f"[{kind}] requires an expression")
                 branch_active = active and self._eval_condition(expr, env, rng, combo_map, depth + 1) if kind == "if" else False
                 value = self._condition_value(expr, env, rng, combo_map, depth + 1) if kind == "switch" and active else ""
-                stack.append({"kind": kind, "parent": active, "active": branch_active, "taken": branch_active, "fallback": False, "value": value})
+                stack.append({
+                    "kind": kind,
+                    "open_expr": expr,
+                    "parent": active,
+                    "active": branch_active,
+                    "taken": branch_active,
+                    "fallback": False,
+                    "value": value,
+                    "branch_index": 0 if kind == "if" else -1,
+                    "taken_index": 0 if branch_active else -1,
+                    "taken_kind": kind if branch_active else None,
+                    "taken_expr": expr if branch_active else "",
+                })
                 active = branch_active
             elif kind in {"elif", "else", "case", "default"}:
                 expected = "switch" if kind in {"case", "default"} else "if"
@@ -572,6 +742,7 @@ class WildcardResolver:
                     raise ValueError(f"[{kind}] cannot follow a fallback branch")
                 if kind in {"elif", "case"} and not expr:
                     raise ValueError(f"[{kind}] requires an expression")
+                frame["branch_index"] += 1
                 eligible = frame["parent"] and not frame["taken"]
                 if kind == "elif":
                     active = eligible and self._eval_condition(expr, env, rng, combo_map, depth + 1)
@@ -580,12 +751,25 @@ class WildcardResolver:
                 else:
                     active = eligible
                     frame["fallback"] = True
+                if active:
+                    frame["taken_index"] = frame["branch_index"]
+                    frame["taken_kind"] = kind
+                    frame["taken_expr"] = expr
                 frame["active"] = active
                 frame["taken"] = frame["taken"] or active
             else:
                 if not stack or stack[-1]["kind"] != kind[1:]:
                     raise ValueError(f"[{kind}] has no matching opening block")
-                stack.pop()
+                frame = stack.pop()
+                if self._record_branches and frame.get("parent"):
+                    self.branch_selections.append({
+                        "kind": "conditional",
+                        "block": frame["kind"],
+                        "open_expr": frame["open_expr"],
+                        "chosen_index": frame["taken_index"],
+                        "chosen_tag": frame["taken_kind"],
+                        "chosen_expr": frame["taken_expr"],
+                    })
                 active = stack[-1]["active"] if stack else True
             cursor = token.end()
         output.append(text[cursor:] if active else "")
@@ -624,8 +808,11 @@ class WildcardResolver:
             text = self._check_size(self._resolve_wildcards(text, rng, combo_map))
         return self._restore_json_literals(text, literals)
 
-    def resolve(self, text, seed=0):
-        self.variables = {}
+    def resolve(self, text, seed=0, reset_variables=True, reset_branches=True):
+        if reset_variables:
+            self.variables = dict(self._initial_variables)
+        if reset_branches:
+            self.branch_selections = []
         self._param_stack = []
         self._variable_stack = []
         literals = JsonLiterals()
@@ -638,15 +825,29 @@ class WildcardResolver:
         text = self._run_passes(text, rng, combo_map)
         return self._restore_json_literals(text, literals).strip()
 
-    def resolve_lines(self, text, seed=0):
-
+    def resolve_lines(self, text, seed=0, reset_variables=True, reset_branches=True):
+        if reset_variables:
+            self.variables = dict(self._initial_variables)
+        if reset_branches:
+            self.branch_selections = []
         literals = JsonLiterals()
         text = literals.protect(self._check_size(text))
         results = []
         for i, line in enumerate(text.split("\n")):
             if not line.strip() or line.lstrip().startswith("#"):
                 continue
-            results.append(self._check_size(literals.restore(self.resolve(line, seed=seed + i))))
+            results.append(
+                self._check_size(
+                    literals.restore(
+                        self.resolve(
+                            line,
+                            seed=seed + i,
+                            reset_variables=False,
+                            reset_branches=False,
+                        )
+                    )
+                )
+            )
         return results
 
     def generate_combinatorial(self, text, seed=0, max_prompts=None):
@@ -662,11 +863,21 @@ class WildcardResolver:
 
         self.last_generation_truncated = False
         self._generation_chars = 0
-        self.variables = {}
+        self.variables = dict(self._initial_variables)
+        self.branch_selections = []
         self._param_stack = []
         self._variable_stack = []
         results = []
-        self._expand_combinatorial(text, {}, rng, limit, results)
+        self._expand_combinatorial(text, dict(self._initial_variables), rng, limit, results)
+
+        if results:
+            first_env = results[0][1]
+            if isinstance(first_env, dict):
+                for k, v in first_env.items():
+                    if isinstance(v, tuple) and len(v) == 2 and isinstance(v[1], str):
+                        self.variables[k] = (v[0], literals.restore(v[1].replace(_ZW, "")))
+                    else:
+                        self.variables[k] = v
 
         restored, chars = [], 0
         for s, _env in results[:limit]:
@@ -680,7 +891,7 @@ class WildcardResolver:
     def count_combinatorial(self, text, seed=0, limit=20000):
 
         text = JsonLiterals().protect(self._check_size(text))
-        self.variables = {}
+        self.variables = dict(self._initial_variables)
         self._param_stack = []
         self._variable_stack = []
         text = self.strip_comments(text)
@@ -689,7 +900,7 @@ class WildcardResolver:
 
         limit = max(1, limit)
         counter = [0]
-        truncated = self._count_combinatorial(text, {}, rng, limit, counter)
+        truncated = self._count_combinatorial(text, dict(self._initial_variables), rng, limit, counter)
         return counter[0], truncated
 
     def _count_combinatorial(self, s, env, rng, limit, counter, depth=0):
@@ -990,14 +1201,25 @@ class WildcardResolver:
                 else:
                     branches = []
                     seen_vals = set()
-                    for opt in self._split_top_level(inner):
-                        wm = WEIGHT_RE.match(opt)
-                        val = (wm.group(2) if wm else opt).strip()
-
-                        if val in seen_vals:
+                    raw_options = [
+                        (WEIGHT_RE.match(opt).group(2) if WEIGHT_RE.match(opt) else opt).strip()
+                        for opt in self._split_top_level(inner)
+                    ]
+                    for opt in raw_options:
+                        if opt in seen_vals:
                             continue
-                        seen_vals.add(val)
-                        branches.append((s[:start] + val + s[end:], env))
+                        seen_vals.add(opt)
+                        branches.append((s[:start] + opt + s[end:], env))
+                    if self._record_branches and len(results) == 0 and len(raw_options) > 1 and branches:
+                        first_val = raw_options[0]
+                        self.branch_selections.append({
+                            "kind": "brace",
+                            "raw": m.group(0),
+                            "chosen": first_val,
+                            "chosen_options": [first_val],
+                            "chosen_indices": [0],
+                            "options": raw_options,
+                        })
 
         elif kind == "param":
             m = obj

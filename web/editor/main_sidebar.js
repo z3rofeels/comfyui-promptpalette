@@ -1,10 +1,15 @@
+import { mountLibraryFeatures } from "./library_features.js";
+import { reviewHistoryRestore, applyHistoryText, historyTargetEditor } from "./history_restore.js";
+import { SidebarHoverPreview } from "./sidebar_hover_preview.js";
+import { SidebarDisplayControls } from "./sidebar_display_controls.js";
+import { sidebarLayoutMetrics, snapSidebarSize } from "./sidebar_layout.js";
 import { sidebarTargets, sidebarTextNeedsResolution } from "./sidebar_targets.js";
 import { app } from "../../../scripts/app.js";
 import { API } from "../prompt_palette_api.js";
 import { onPromptPaletteCommandTargetsChanged } from "../prompt_palette_command_bus.js";
-import { applyPromptPaletteThemeScope, onPromptPaletteAppearanceChanged, installPromptPaletteKeyboardBoundary, navigatePromptPaletteTabs, svgIcon } from "../prompt_palette_shared.js";
+import { onPromptPaletteAppearanceChanged, navigatePromptPaletteTabs, svgIcon } from "../prompt_palette_shared.js";
 import { readSuiteAppearanceSnapshot } from "./suite_appearance.js";
-import { loadPinned, savePinned, onLibraryPinsChanged, loadSidebarDisplay, saveSidebarDisplay, sidebarDisplayMetrics } from "./preferences.js";
+import { loadPinned, savePinned, onLibraryPinsChanged, loadSidebarDisplay, saveSidebarDisplay } from "./preferences.js";
 import { createPromptUsageStore } from "../prompt_quickness.js";
 import { PromptLibraryModel } from "../library/library_model.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
@@ -23,6 +28,7 @@ import { editorStylesReady } from "./styles.js";
 import { createStyleExplorer } from "./style_explorer.js";
 import { createSidebarQuickPreview } from "./sidebar_preview.js";
 import { styleInsertionAtSelection } from "./style_library_model.js";
+import { SidebarPresentation, captureSidebarFocus, restoreSidebarFocus } from "./sidebar_presentation.js";
 
 const TAB_ID = "prompt-palette-library";
 const session = { tab: "library", search: "", folder: "", filter: "all", code: "{+a|b|c}", entry: null, entryOpen: false, syntaxWorkshop: false, guideIndex: null, guideSearch: "", targetNode: null, targetWidget: null };
@@ -34,42 +40,34 @@ export function createPromptPaletteSidebar(container) {
   const root = make("section", "pp-main-sidebar wg-root"); root.setAttribute("aria-label", "Prompt Palette library and syntax");
   container.classList.add("pp-sidebar-host");
   container.append(root);
-  // Node drawers use document outside-click handlers. A sidebar action is inside
-  // the Prompt Palette workspace, so it must not immediately close what it opens.
-  root.addEventListener("click", event => event.stopPropagation());
-  const cleanups = [installPromptPaletteKeyboardBoundary(root)];
-  // Some custom-tab hosts size to their content instead of supplying a definite
-  // flex height. Keep our owned surface inside the visible viewport either way.
-  const constrainHeight = () => {
-    const rect = container.getBoundingClientRect();
-    if (!rect.width) return;
-    const limit = Math.max(0, document.documentElement.clientHeight - Math.max(0, rect.top));
-    const value = `${limit}px`; if (root.style.maxHeight !== value) root.style.maxHeight = value;
-  };
-  const heightObserver = new ResizeObserver(constrainHeight);
-  heightObserver.observe(container); heightObserver.observe(document.documentElement); constrainHeight();
-  cleanups.push(() => { heightObserver.disconnect(); container.classList.remove("pp-sidebar-host"); });
+  const presentation = new SidebarPresentation(root, container);
+  const cleanups = [() => container.classList.remove("pp-sidebar-host")];
+  let libraryFeatures = null;
   let disposed = false, libraryVersion = 0, previewVersion = 0, previewAbort = null;
   let currentNode = session.targetNode, currentWidget = session.targetWidget, lockedSelection = null, templateRange = session.code === "{+a|b|c}" ? [2, 7] : null, items = [], thumbnails = {};
   let appearance = readSuiteAppearanceSnapshot();
   const model = new PromptLibraryModel(), usage = createPromptUsageStore();
   let renderedTargets = [];
   const header = make("header", "pp-sidebar-head");
-  const brand = make("div", "pp-sidebar-brand"); brand.innerHTML = `<span class="pp-sidebar-brandmark">${svgIcon("gallery", 21)}</span><div><strong>Prompt Palette</strong><small>Your prompting studio</small></div>`;
+  const brand = make("div", "pp-sidebar-brand"); brand.innerHTML = `<span class="pp-sidebar-brandmark">${svgIcon("gallery", 24)}</span><div><strong>Prompt Palette</strong><small>Your prompting studio</small></div>`;
   header.append(brand); root.append(header);
   const appearanceMenu = make("details", "pp-sidebar-appearance");
-  const appearanceSummary = make("summary"); appearanceSummary.innerHTML = svgIcon("settings", 17); appearanceSummary.title = "Sidebar appearance"; appearanceSummary.setAttribute("aria-label", "Sidebar appearance");
+  const appearanceSummary = make("summary"); appearanceSummary.innerHTML = svgIcon("settings", 16); appearanceSummary.title = "Sidebar settings"; appearanceSummary.setAttribute("aria-label", "Sidebar settings");
   const appearanceBody = make("div", "pp-sidebar-appearance-body");
   appearanceBody.append(make("strong", "", "Make it yours"));
   const preset = select("Sidebar presentation preset", [["custom", "Custom presentation"], ["studio", "Studio · balanced"], ["showcase", "Showcase · image focused"], ["minimal", "Minimal · library only"]]);
   appearanceBody.append(preset);
   const chromeControls = new Map();
-  for (const [key, title] of [["images", "Preview images"], ["prompt", "Prompt text on cards"], ["descriptions", "Descriptions on cards"], ["styles", "Explore tab"], ["syntax", "Syntax tab"], ["tools", "Tools tab"], ["intro", "Collection introductions"], ["modelHelp", "Model prompting guide"], ["artists", "Artists collection"], ["tags", "Booru tags collection"], ["favorites", "Favorites collection"], ["previews", "My previews collection"], ["custom", "My words collection"]]) {
+  for (const [key, title] of [["fillRows", "Fill gallery rows"], ["hoverImages", "Thumbnail hover previews"], ["hoverText", "Hover prompt samples"], ["displayControls", "Keep size controls in toolbar"], ["ratioControls", "Keep aspect ratios in toolbar"], ["images", "Preview images"], ["prompt", "Prompt text on cards"], ["descriptions", "Descriptions on cards"], ["styles", "Explore tab"], ["syntax", "Syntax tab"], ["tools", "Tools tab"], ["intro", "Collection introductions"], ["modelHelp", "Model prompting guide"], ["artists", "Artists collection"], ["tags", "Booru tags collection"], ["favorites", "Favorites collection"], ["previews", "My previews collection"], ["custom", "My words collection"]]) {
+    if (key === "fillRows") appearanceBody.append(make("strong", "", "Gallery layout"));
+    if (key === "hoverImages") appearanceBody.append(make("strong", "", "Hover previews"));
+    if (key === "displayControls") appearanceBody.append(make("strong", "", "Toolbar"));
     if (key === "images") appearanceBody.append(make("strong", "", "Cards"));
     if (key === "styles") appearanceBody.append(make("strong", "", "Sidebar tabs"));
     if (key === "intro") appearanceBody.append(make("strong", "", "Guidance"));
     if (key === "artists") appearanceBody.append(make("strong", "", "Explore collections"));
     const label = make("label", "pp-sidebar-toggle"), input = make("input"); input.type = "checkbox";
+    if (key === "fillRows") label.title = "Share the full row width. Turn off to keep exact card sizes.";
     label.append(input, make("span", "", title)); appearanceBody.append(label); chromeControls.set(key, input);
     input.addEventListener("change", () => { saveSidebarDisplay({ chrome: { [key]: input.checked } }); preset.value = "custom"; applySidebarChrome(); updateDisplay(); });
   }
@@ -95,7 +93,10 @@ export function createPromptPaletteSidebar(container) {
     root.dataset.descriptions = String(state.chrome.descriptions); root.dataset.imageFit = state.chrome.fit;
     for (const key of ["styles", "syntax", "tools"]) { const tab = tabButtons.get(key); if (tab) tab.hidden = !state.chrome[key]; }
     root.dataset.intro = String(state.chrome.intro); root.dataset.modelHelp = String(state.chrome.modelHelp);
+    hoverPreview.dismiss();
+    quickPreview.hide();
     styleExplorer.refreshVisibility();
+    syncDisplayControls();
     if (["styles", "syntax", "tools"].includes(session.tab) && !state.chrome[session.tab]) activate("library");
   }
   root.addEventListener("keydown", event => { if (event.key === "Escape" && appearanceMenu.open) { appearanceMenu.open = false; appearanceSummary.focus(); event.preventDefault(); event.stopPropagation(); } });
@@ -107,23 +108,19 @@ export function createPromptPaletteSidebar(container) {
   const message = make("div", "pp-sidebar-message"); message.setAttribute("role", "status"); message.setAttribute("aria-live", "polite");
   function announce(text, error = false) { message.textContent = text; message.classList.toggle("is-error", error); }
   const quickPreview = createSidebarQuickPreview(root, announce); cleanups.push(() => quickPreview.cleanup());
-  const displayBar = make("div", "pp-sidebar-display"); tabs.after(displayBar);
-  const layout = select("Sidebar layout", [["gallery", "Gallery"], ["list", "List"]]); displayBar.append(layout);
-  const sizeLabel = make("label", "pp-sidebar-size"); sizeLabel.append(make("span", "pp-sidebar-size-caption", "Item size")); const size = make("input"); size.type = "range"; size.min = "10"; size.max = "150"; size.step = "1"; size.setAttribute("aria-label", "Sidebar item size");
-  const sizeValue = make("output"); sizeLabel.append(size, sizeValue); displayBar.append(sizeLabel);
+  const hoverPreview = new SidebarHoverPreview(root, presentation); cleanups.push(() => hoverPreview.cleanup());
   let displayFrame = 0;
   function displayKey() { return session.tab === "styles" ? styleExplorer.displayKey() : "library"; }
+  const displayControls = new SidebarDisplayControls({ presentation, tabs, settingsHost: appearanceBody, settingsAnchor: preset,
+    getKey: displayKey, onChange: updateDisplay, onDismiss: () => { quickPreview.hide(); hoverPreview.dismiss(); } });
   function syncDisplayControls() {
-    displayBar.hidden = !["library", "styles"].includes(session.tab) || (session.tab === "library" && session.entryOpen);
-    const state = loadSidebarDisplay(); layout.value = state.layouts[displayKey()] || "gallery"; size.value = String(Math.round(state.scale * 100)); sizeValue.textContent = `${size.value}%`;
+    displayControls.sync(["library", "styles"].includes(session.tab) && !(session.tab === "library" && session.entryOpen) && (session.tab !== "styles" || styleExplorer.isBrowsing()));
   }
   function updateDisplay() {
     if (displayFrame) return;
     displayFrame = requestAnimationFrame(() => { displayFrame = 0; if (disposed) return; if (session.tab === "styles") styleExplorer.refreshAppearance(); else if (session.tab === "library") paintLibraryCollection(); });
   }
-  layout.addEventListener("change", () => { saveSidebarDisplay({ layouts: { [displayKey()]: layout.value } }); quickPreview.hide(); updateDisplay(); });
-  size.addEventListener("input", () => { saveSidebarDisplay({ scale: Number(size.value) / 100 }); sizeValue.textContent = `${size.value}%`; updateDisplay(); });
-  cleanups.push(() => { if (displayFrame) cancelAnimationFrame(displayFrame); });
+  cleanups.push(() => { if (displayFrame) cancelAnimationFrame(displayFrame); displayControls.cleanup(); });
   function target() { return sidebarTargets(app.graph).find(t => t.node === currentNode && (t.widget || null) === currentWidget); }
   function selection() {
     const t = target();
@@ -182,6 +179,7 @@ export function createPromptPaletteSidebar(container) {
       const active = key === session.tab, b = tabButtons.get(key);
       b.classList.toggle("active", active); b.setAttribute("aria-selected", String(active)); b.tabIndex = active ? 0 : -1;
     }
+    libraryFeatures?.setActive(session.tab === "library");
     quickPreview.hide(); syncDisplayControls();
     appearanceMenu.open = false;
     if (session.tab === "library") renderLibrary();
@@ -192,11 +190,11 @@ export function createPromptPaletteSidebar(container) {
   for (const [key, label] of [["library", "Library"], ["styles", "Explore"], ["syntax", "Syntax"], ["tools", "Tools"]]) {
     const pane = make("div", `pp-sidebar-pane pp-sidebar-${key}`); pane.id = `pp-sidebar-${sidebarSequence}-${key}`; pane.setAttribute("role", "tabpanel"); pane.tabIndex = 0;
     const tab = button(label, () => activate(key)); tab.id = `${pane.id}-tab`; tab.setAttribute("role", "tab"); tab.setAttribute("aria-controls", pane.id); pane.setAttribute("aria-labelledby", tab.id);
+    tab.addEventListener("keydown", event => navigatePromptPaletteTabs(event, [...tabButtons.values()].filter(item => !item.hidden), item => { item.click(); item.focus(); }));
     tabs.append(tab); panes.set(key, pane); tabButtons.set(key, tab); root.append(pane);
   }
-  tabs.addEventListener("keydown", event => navigatePromptPaletteTabs(event, [...tabButtons.values()].filter(tab => !tab.hidden), tab => { tab.click(); tab.focus(); }));
   const targetDock = make("div", "pp-sidebar-target-dock"); targetDock.append(targetLabel, targetHint); root.append(targetDock, message);
-  const styleExplorer = createStyleExplorer(panes.get("styles"), { announce, onViewChanged: syncDisplayControls, insert: async (text, { replace = false } = {}) => {
+  const styleExplorer = createStyleExplorer(panes.get("styles"), { presentation, hoverPreview, announce, onViewChanged: syncDisplayControls, insert: async (text, { replace = false } = {}) => {
     try {
       const snap = selection();
       if (replace) { snap.start = 0; snap.end = snap.source.length; }
@@ -215,14 +213,19 @@ export function createPromptPaletteSidebar(container) {
   const actions = make("div", "pp-sidebar-actions");
   const create = button("New entry", () => editEntry(""), "primary");
   const refresh = button("Rescan", async () => { quickPreview.invalidate(); refresh.disabled = true; try { await API.refreshWildcards(); await refreshLibrary(); } catch (error) { announce(error.message, true); } finally { if (!disposed) refresh.disabled = false; } });
-  const categoryPreview = button("Quick view", () => quickPreview.show(folder.value || "All library categories", libraryMatches.slice(0, 3).map(item => item.path), { total: libraryMatches.length }));
+  const categoryPreview = button("Quick view", () => { appearanceMenu.open = false; quickPreview.show(folder.value || "All library categories", libraryMatches.slice(0, 3).map(item => item.path), { total: libraryMatches.length }); });
   const resumeEntry = button("Resume edits", () => showEntry()); resumeEntry.hidden = true;
-  actions.append(create, resumeEntry, refresh, categoryPreview); browse.append(actions);
+  actions.append(create, resumeEntry); browse.append(actions);
+  const libraryActions = make("section", "pp-sidebar-display-settings");
+  libraryActions.append(make("strong", "", "Library actions"));
+  const libraryActionButtons = make("div", "pp-sidebar-actions");
+  libraryActionButtons.append(refresh, categoryPreview); libraryActions.append(libraryActionButtons);
+  appearanceBody.append(libraryActions);
   const libraryHint = make("p", "pp-sidebar-note pp-sidebar-library-hint", "Click to insert · pencil to edit"); browse.append(libraryHint);
   const count = make("small", "pp-sidebar-note"); browse.append(count);
   const list = make("div", "pp-sidebar-list"); list.tabIndex = 0; list.setAttribute("aria-label", "Library entries"); browse.append(list);
   const virtual = new VirtualCollectionManager(list);
-  let libraryMatches = [], libraryPins = loadPinned(), libraryGeometry = "";
+  let libraryMatches = [], libraryPins = loadPinned(), libraryGeometry = "", libraryCollection = null;
   const entryHost = make("div", "pp-sidebar-entry"); entryHost.innerHTML = libraryEditShell(); entryHost.hidden = true; libraryPane.append(entryHost);
   const el = key => entryHost.querySelector(`[data-el="${key}"]`);
   let entryEditor = null, hasEntryDraft = !!session.entry, insertEntry = null;
@@ -263,11 +266,11 @@ export function createPromptPaletteSidebar(container) {
     syncEntryState(); syncDisplayControls();
     if (focus) (el("editName").value ? el("editContent") : el("editName")).focus({ preventScroll: true });
   }
-  async function editEntry(path) {
+  async function editEntry(path, options = {}) {
     const draft = entryEditor.snapshot();
-    if (hasEntryDraft && path && draft.baseline.path === path) { showEntry(); return; }
+    if (hasEntryDraft && path && draft.baseline.path === path && !options.cursor) { showEntry(); return; }
     quickPreview.hide();
-    const opened = await entryEditor.load(path, { confirm: true, existing: !!path });
+    const opened = await entryEditor.load(path, { confirm: true, existing: !!path, ...options });
     if (disposed) return;
     if (!opened) {
       if (el("editStatus").classList.contains("err")) announce(el("editStatus").textContent, true);
@@ -277,16 +280,20 @@ export function createPromptPaletteSidebar(container) {
   }
   syncEntryState();
   function renderRow(item) {
-    const gallery = list.dataset.layout === "gallery";
+    const gallery = list.dataset.layout !== "list";
     const row = make("div", "pp-sidebar-row"); row.dataset.path = item.path; row.classList.toggle("is-editing", hasEntryDraft && entryEditor.snapshot().baseline.path === item.path); row.classList.toggle("pp-sidebar-gallery-card", gallery);
     const theme = appearance.theme, cat = categoryOf(item.path);
-    row.style.setProperty("--pp-entry-color", theme.categoryPins?.[cat] || categoryColorFromHue((hashStr(cat) % 360 + (Number(theme.hueRotate) || 0)) % 360, theme.saturation, appearance.colors.bg));
-    if (thumbnails[item.path] && loadSidebarDisplay().chrome.images) { const img = make("img", "pp-sidebar-thumb"); img.alt = ""; img.loading = "lazy"; img.decoding = "async"; img.src = API.thumbnailUrl(thumbnails[item.path]); img.addEventListener("error", () => img.remove(), { once: true }); row.append(img); }
+    presentation.category(row, cat, theme.categoryPins?.[cat] || categoryColorFromHue((hashStr(cat) % 360 + (Number(theme.hueRotate) || 0)) % 360, theme.saturation, appearance.colors.bg));
+    const fallback = () => { const mark = make("div", "pp-sidebar-gallery-fallback"); mark.innerHTML = svgIcon("recipe", 24); mark.append(make("span", "", cat)); return mark; };
+    const media = gallery ? make("div", "pp-sidebar-media") : row;
+    if (gallery) row.append(media);
+    if (thumbnails[item.path] && loadSidebarDisplay().chrome.images) { const img = make("img", "pp-sidebar-thumb"); img.alt = ""; img.loading = "lazy"; img.decoding = "async"; img.src = API.thumbnailUrl(thumbnails[item.path]); img.addEventListener("error", () => { if (gallery) img.replaceWith(fallback()); else img.classList.add("is-unavailable"); }, { once: true }); media.append(img); }
     const copy = button("", () => insertLibrary(item.path), "pp-sidebar-row-copy");
     copy.setAttribute("aria-label", `Insert ${item.path}`);
     copy.append(make("strong", "", item.path.split("/").pop()), make("small", "", `${cat} · ${Number(item.count) || 0} options`)); copy.title = `Insert ${item.path} into the selected prompt`; row.append(copy);
-    if (gallery && !thumbnails[item.path]) { const mark = make("div", "pp-sidebar-gallery-fallback"); mark.innerHTML = svgIcon("recipe", 28); mark.append(make("span", "", cat)); row.prepend(mark); }
-    quickPreview.bind(copy, item.path);
+    if (gallery && !thumbnails[item.path]) media.append(fallback());
+    quickPreview.bind(copy, item.path, { image: !!thumbnails[item.path] });
+    hoverPreview.bind(row, { title: item.path.split("/").pop(), subtitle: `${cat} · ${Number(item.count) || 0} options`, image: thumbnails[item.path] ? API.thumbnailUrl(thumbnails[item.path]) : "" });
     const inspect = button("", () => quickPreview.show(item.path, [item.path], { anchor: inspect }), "pp-sidebar-icon"); inspect.innerHTML = svgIcon("eye", 14); inspect.setAttribute("aria-label", `Quick view ${item.path}`); inspect.title = "Inspect sample lines without editing"; row.append(inspect);
     const pins = libraryPins;
     const pin = button(pins.has(item.path) ? "★" : "☆", () => { const next = loadPinned(); if (next.has(item.path)) next.delete(item.path); else next.add(item.path); savePinned(next); }, "pp-sidebar-icon");
@@ -297,7 +304,10 @@ export function createPromptPaletteSidebar(container) {
     row.addEventListener("contextmenu", event => {
       event.preventDefault(); event.stopPropagation();
       openCtxMenu(event.clientX, event.clientY, [
-        { label: "Edit", icon: "edit", group: "item", onSelect: () => editEntry(item.path) },
+        { label: "Insert into selected target", icon: "plus", group: "insert", onSelect: () => insertLibrary(item.path) },
+        { label: "Quick view", icon: "eye", group: "item", onSelect: () => quickPreview.show(item.path, [item.path], { anchor: row }) },
+        { label: pins.has(item.path) ? "Unpin entry" : "Pin entry", icon: "pin", group: "item", onSelect: () => pin.click() },
+        { label: "Edit library entry…", icon: "edit", group: "item", onSelect: () => editEntry(item.path) },
         ...libraryThumbnailActions(item.path, { hasThumbnail: !!thumbnails[item.path], editable: !item.type || item.type === "txt",
           isActive: () => !disposed }),
       ]);
@@ -306,17 +316,46 @@ export function createPromptPaletteSidebar(container) {
   }
   function paintLibraryCollection() {
     if (disposed) return;
-    const oldScroll = list.scrollTop, metrics = sidebarDisplayMetrics("library", appearance.theme.uiFontScale);
-    const geometry = `${metrics.mode}|${metrics.scale}|${metrics.rowHeight}`;
+    const oldScroll = list.scrollTop, metrics = sidebarLayoutMetrics("library", appearance.theme.uiFontScale, list.clientWidth);
+    const images = loadSidebarDisplay().chrome.images;
+    const geometry = `${metrics.mode}|${metrics.scale}|${metrics.rowHeight}|${metrics.cardWidth}|${metrics.ratio}|${images}`;
+    const positions = geometry !== libraryGeometry ? presentation.captureLayout(list) : null;
     const anchor = geometry !== libraryGeometry ? virtual.captureViewportAnchor() : null;
+    const imagesChanged = libraryGeometry.split("|").at(-1) !== String(images);
     libraryGeometry = geometry;
-    virtual.clear(); list.replaceChildren(); libraryPins = loadPinned();
-    list.dataset.density = metrics.scale < .45 ? "micro" : "normal";
-    list.dataset.layout = metrics.mode; list.style.setProperty("--pp-library-scale", metrics.scale); list.style.setProperty("--pp-library-font-scale", metrics.font); list.style.setProperty("--pp-library-row-height", `${metrics.rowHeight}px`);
-    if (!libraryMatches.length) { list.append(make("p", "pp-sidebar-empty", items.length ? "No matching entries." : "No library entries yet. Create an entry here or set your library folder in ComfyUI Settings → Prompt Palette.")); return; }
-    virtual.mount(list, { items: libraryMatches, renderItem: renderRow, estimateRowHeight: metrics.rowHeight, mode: metrics.mode === "gallery" ? "grid" : "list", minCardWidth: metrics.cardWidth, estimateCardHeight: metrics.cardWidth + Math.round(76 * metrics.font * (Number(appearance.theme.uiFontScale) || 1)) });
-    list.scrollTop = oldScroll; virtual.restoreViewportAnchor(anchor); virtual.refresh();
+    libraryPins = loadPinned();
+    list.dataset.density = metrics.density;
+    list.dataset.layout = metrics.mode;
+    presentation.set(list, { "--pp-library-card-width": `${metrics.cardWidth}px`, "--pp-library-ratio": metrics.ratio, "--pp-library-scale": metrics.scale, "--pp-library-font-scale": metrics.font, "--pp-library-row-height": `${metrics.rowHeight}px` });
+    if (!libraryMatches.length) { virtual.clear(); libraryCollection = null; list.replaceChildren(make("p", "pp-sidebar-empty", items.length ? "No matching entries." : "No library entries yet. Create an entry here or set your library folder in ComfyUI Settings → Prompt Palette.")); return; }
+    const tiny = metrics.density === "tiny", micro = metrics.density === "micro";
+    const ui = Number(appearance.theme.uiFontScale) || 1;
+    const caption = tiny ? 0 : snapSidebarSize((micro ? 28 : 44) * ui);
+    const imageHeight = images ? (metrics.cardWidth - (tiny ? 10 : 18)) / metrics.ratio : 0;
+    // Normal cards: 18px padding/borders + 32px actions + 8px row gap,
+    // plus two inner gaps with images or one without. Tiny cards omit actions.
+    const cardHeight = imageHeight + (tiny ? (images ? 18 : snapSidebarSize(32 * ui) + 8) : caption + (images ? 74 : 66));
+    presentation.set(list, { "--pp-library-caption": `${caption}px`, "--pp-library-image-height": `${imageHeight}px` });
+    const layoutOptions = { estimateRowHeight: metrics.rowHeight, mode: metrics.mode === "gallery" ? "grid" : metrics.mode, minCardWidth: metrics.cardWidth, columnCount: metrics.columns, fixedCardWidth: true, imageAspectRatio: images ? metrics.ratio : 1000, estimateCardHeight: cardHeight };
+
+    if (!libraryCollection) {
+      list.replaceChildren();
+      libraryCollection = virtual.mount(list, { ...layoutOptions, items: libraryMatches, renderItem: renderRow, gap: 8, strideGrid: 4, preserveViewport: true,
+        styleDeclaration: presentation.declaration, releaseStyle: element => presentation.release(element),
+        captureFocus: () => captureSidebarFocus(list, ".pp-sidebar-row", "path"),
+        restoreFocus: snapshot => restoreSidebarFocus(list, ".pp-sidebar-row", "path", snapshot) });
+    } else {
+      libraryCollection.updateLayout(layoutOptions);
+      if (libraryCollection.items !== libraryMatches || imagesChanged) libraryCollection.setItems(libraryMatches);
+    }
+    list.scrollTop = oldScroll; virtual.restoreViewportAnchor(anchor); libraryCollection.render(); virtual.refresh();
+    presentation.animateLayout(list, positions);
   }
+  let libraryWidth = 0;
+  const libraryResize = new ResizeObserver(() => {
+    if (list.clientWidth && list.clientWidth !== libraryWidth) { libraryWidth = list.clientWidth; updateDisplay(); }
+  });
+  libraryResize.observe(list); cleanups.push(() => libraryResize.disconnect());
   function renderLibrary() {
     if (disposed) return;
     session.search = search.value; session.folder = folder.value; session.filter = filter.value;
@@ -325,12 +364,16 @@ export function createPromptPaletteSidebar(container) {
     if (folder.value) matches = matches.filter(item => item.path.startsWith(folder.value + "/"));
     if (filter.value === "pins") matches = matches.filter(item => pins.has(item.path));
     if (filter.value === "recent") { matches = matches.filter(item => recents.includes(item.path)); matches.sort((a, b) => recents.indexOf(a.path) - recents.indexOf(b.path)); }
+    matches = libraryFeatures?.filter(matches) || matches;
     libraryMatches = matches;
     count.textContent = `${matches.length.toLocaleString()} of ${items.length.toLocaleString()} entries`; categoryPreview.disabled = !matches.length;
     paintLibraryCollection();
   }
+  libraryFeatures = mountLibraryFeatures({ host: browse, settingsHost: libraryActions, getNode: () => currentNode, getItems: () => items, getPinned: () => loadPinned(), getThumbnails: () => thumbnails, onFilter: () => renderLibrary(), onView: view => { saveSidebarDisplay({layouts:{library:view==="grid"?"gallery":view}}); updateDisplay(); }, onOpenEntry: (path, options) => editEntry(path, options), announce, content: [list, search, controls, actions, libraryHint, count], restore: ({text,channel="positive"}) => { const snap = selection(); const fieldChannel=snap.editor?.closest?.(".pp-recipe-field")?.querySelector("[data-channel]")?.dataset.channel; const editor=fieldChannel===channel?snap.editor:historyTargetEditor(currentNode,channel==="positive"?target()?.handlers.sidebarEditor?.():null,channel); return reviewHistoryRestore(editor,text,applyHistoryText,channel); } });
+  cleanups.push(() => libraryFeatures.cleanup());
+
   async function refreshLibrary() {
-    quickPreview.invalidate();
+    quickPreview.invalidate(); hoverPreview.dismiss();
     const request = ++libraryVersion;
     try {
       const [next, images] = await Promise.all([API.list(), API.categories()]);
@@ -521,22 +564,23 @@ export function createPromptPaletteSidebar(container) {
   targets.addEventListener("change", () => {
     const selected = targets.value === "" ? null : sidebarTargets(app.graph)[Number(targets.value)];
     currentNode = selected?.node || null; currentWidget = selected?.widget || null;
+    libraryFeatures?.refresh();
     lockedSelection = null; invalidatePreview(); refreshTargets(); paintCode();
   });
   targets.addEventListener("pointerdown", refreshTargets);
   targets.addEventListener("focus", refreshTargets);
   const themeApply = () => {
-    appearance = readSuiteAppearanceSnapshot(); applyPromptPaletteThemeScope(root, appearance.colors, appearance.typography, appearance.effects);
-    root.classList.toggle("wg-reduce-motion", !!appearance.theme.reduceMotion);
+    appearance = readSuiteAppearanceSnapshot(); presentation.applyTheme(appearance);
     styleExplorer.refreshAppearance();
     if (items.length) renderLibrary();
   };
   cleanups.push(onPromptPaletteAppearanceChanged(themeApply), API.onLibraryChanged(refreshLibrary), onLibraryPinsChanged(renderLibrary), onPromptPaletteCommandTargetsChanged(refreshTargets));
   applySidebarChrome(); themeApply(); refreshTargets(); activate(session.tab); refreshLibrary();
   return { refreshTargets, cleanup() {
+    if (disposed) return;
     session.entry = entryEditor.snapshot(); session.entryOpen = !entryHost.hidden;
     disposed = true; libraryVersion++; previewVersion++; previewAbort?.abort();
-    cleanups.forEach(fn => fn()); entryEditor.cleanup(); virtual.cleanup(); root.remove();
+    cleanups.forEach(fn => fn()); entryEditor.cleanup(); virtual.cleanup(); presentation.cleanup(); root.remove();
   } };
 }
 createPromptPaletteSidebar.sequence = 0;
@@ -556,7 +600,7 @@ function registerSidebar(enabled) {
 app.registerExtension({ name: "comfyui.promptpalette.main-sidebar",
   settings: [{ id: "PromptPalette.MainSidebarEnabled", category: ["Prompt Palette", "Prompt Library", "Main sidebar"], name: "Show Prompt Palette in the main sidebar", type: "boolean", defaultValue: true,
     tooltip: "Access My Library, editable syntax and existing prompting tools beside the ComfyUI canvas. The node’s own library panel remains available.", onChange: value => registerSidebar(value !== false) }],
-  async setup() { await editorStylesReady; registerSidebar(app.ui?.settings?.getSettingValue?.("PromptPalette.MainSidebarEnabled", true) !== false); },
+  async setup() { await editorStylesReady; registerSidebar(app.extensionManager.setting.get("PromptPalette.MainSidebarEnabled") !== false); },
   nodeCreated() { queueMicrotask(() => mounted?.refreshTargets()); },
   afterConfigureGraph() { mounted?.refreshTargets(); },
 });

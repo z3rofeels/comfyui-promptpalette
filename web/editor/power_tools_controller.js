@@ -287,10 +287,11 @@ export function createPowerToolsController(ctx) {
     const workspaceKey = workspace ? JSON.stringify(workspace.snapshot().recipe) : null;
     if (workspace) analysis = workspace.analyze();
     const worker = ctx.state.workerClient;
-    if (!analysis && worker?.shouldUseForPrompt?.(text)) {
+    const hasExternalVars = Boolean(node?.inputs?.some?.((inp) => inp?.name === "vars_in" && inp.link != null));
+    if (!analysis && !hasExternalVars && worker?.shouldUseForPrompt?.(text)) {
       try { analysis = await worker.validate(text, tokenCount); } catch { analysis = null; }
     }
-    if (!analysis) analysis = analyzePromptSource({ text, parsed: ctx.state.parsedPrompt, libraryEntries: ctx.state.libraryCache, tokenCount });
+    if (!analysis) analysis = analyzePromptSource({ text, parsed: ctx.state.parsedPrompt, libraryEntries: ctx.state.libraryCache, tokenCount, externalVariables: hasExternalVars });
     if (requestId !== doctorAnalysisRequestId || textarea.value !== text || !ctx.state.powerTools.promptDoctor || workspace && (!workspace.isActive() || workspaceKey !== JSON.stringify(workspace.snapshot().recipe))) return;
     currentDoctorAnalysis = analysis;
     const count = currentDoctorAnalysis.issues.length;
@@ -639,6 +640,20 @@ export function createPowerToolsController(ctx) {
       if (requested == null) return;
       const target = normalizeLibraryEntryPath(requested);
       if (!target || target === path) return;
+      try {
+        const depRes = await api.fetchApi(`/zf-prompt-palette/api/v1/library/dependencies?entry=${encodeURIComponent(path)}`);
+        if (depRes.ok) {
+          const depData = await depRes.json();
+          const refs = depData.referenced_by || [];
+          if (refs.length) {
+            const confirmed = await dialogConfirm({
+              title: "Rename entry with references",
+              message: `“${path}” is referenced by ${refs.length} entry${refs.length === 1 ? "" : "ies"} (${refs.slice(0, 3).join(", ")}${refs.length > 3 ? "…" : ""}). Rename anyway? Metadata and relationships will relink automatically.`,
+            });
+            if (!confirmed) return;
+          }
+        }
+      } catch {}
       const result = await API.libraryAction("rename", path, target);
       if (!result.ok) return notify("error", "Rename failed", result.error || "The entry could not be renamed.");
       libraryManagerSelection.delete(path);

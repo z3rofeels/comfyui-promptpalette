@@ -19,7 +19,7 @@ export function attachLibraryEditPromptTools({ drawer, el, getLibrary, getMatche
   const change = () => content.dispatchEvent(new Event("input", { bubbles: true }));
   const commit = onCommit || (item => {
     if (item?.kind === "booru" || item?.kind === "custom") usage.recordTag(item.value, item.kind, item.category);
-    else if (item?.value && item.kind !== "syntax") usage.recordLibrary(item.value);
+    else if (item?.value && item.kind !== "syntax" && item.kind !== "lora") usage.recordLibrary(item.value);
   });
   async function lookup(query, kind = "wildcard") {
     const items = getLibrary() || [];

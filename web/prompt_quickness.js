@@ -464,6 +464,30 @@ export const PROMPT_PALETTE_HELP = [
     keywords: "io inputs outputs labels compact rail socket",
     body: "Open I/O to show socket names and choose what is visible. Close it to return to the compact top rail. Connected sockets stay visible so links are never lost.",
   },
+  {
+    id: "slots-abcd",
+    title: "Quick four-slot prompt switching (A / B / C / D)",
+    keywords: "slots a b c d switch test compare variations workflow persistent alt+1 alt+2 alt+3 alt+4",
+    body: "Use the A / B / C / D slot buttons in the toolbar (or Alt+1..4) to switch between four workflow-persistent prompt drafts on the same node. Alt+Click any inactive slot to duplicate your current prompt into that slot for rapid A/B/C/D testing.",
+  },
+  {
+    id: "find-replace",
+    title: "Find and replace in the primary editor",
+    keywords: "find replace ctrl+f ctrl+h cmd+f cmd+h selection scoped in selection case sensitive",
+    body: "Press Ctrl+F (Cmd+F) to find or Ctrl+H (Cmd+H / Cmd+Alt+F) to find and replace directly in the primary prompt editor. Toggle 'In selection' (or select a multi-line block before pressing Ctrl+H) to scope replacements strictly to the selected range while keeping single-step Undo.",
+  },
+  {
+    id: "variables-propagation",
+    title: "Cross-node variable sharing (Variables in / Variables out)",
+    keywords: "variables vars_in inter-node cross-node share propagate json key=value",
+    body: "Enable 'Variables (JSON)' output and 'Variables in' input in the I/O rail to pass resolved ${name=value} prompt variables from an upstream Prompt Palette node into downstream Prompt Palette or Combinatorial nodes.",
+  },
+  {
+    id: "branch-inspection",
+    title: "Post-run inline branch inspection",
+    keywords: "post-run inline inspection branch highlight selected choice conditional color",
+    body: "After queueing or previewing a prompt, winning branches inside {choice|groups} and [if]/[switch] blocks are highlighted directly in the primary editor with distinct branch colors while unchosen branches dim for immediate visual separation.",
+  },
 ];
 
 export function searchPromptPaletteHelp(query) {

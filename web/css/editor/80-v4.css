@@ -118,7 +118,7 @@
 }
 .wg-theme-pack-copy small {
   color:var(--wg-text-faint,#8f887e);
-  font-size:7.8px;
+  font-size: 9px;
   font-weight:600;
   line-height:1.15;
   text-transform:none;
@@ -254,7 +254,7 @@
   text-overflow:clip;
   white-space:normal;
   color:var(--wg-text-faint,#8f887e);
-  font-size:7.5px;
+  font-size: 9px;
   font-weight:550;
   line-height:1.2;
   text-transform:none;
@@ -283,7 +283,7 @@
 .wg-theme-selection-copy small {
   grid-column:1 / -1;
   color:var(--wg-text-faint,#8f887e);
-  font-size:7.4px;
+  font-size: 9px;
   font-weight:650;
   text-transform:uppercase;
   letter-spacing:.055em;
@@ -295,7 +295,7 @@
 }
 .wg-theme-selection-copy span {
   color:var(--wg-text-faint,#8f887e);
-  font-size:8px;
+  font-size: 9px;
 }
 .wg-theme-selection-bar .wg-button { flex:0 0 auto; }
 

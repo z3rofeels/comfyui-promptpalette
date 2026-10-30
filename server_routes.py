@@ -26,9 +26,183 @@ from .wildcard_resolver import WildcardResolver
 from .booru_database import active_db_path, normalize_lookup, normalize_tag
 from . import style_indexes
 from .image_prompt_import import import_image_prompts, MAX_IMPORT_BYTES
+from .feature_store import require_same_origin, user_store
+from . import lora_support
+from .lora_previews import MEDIA_TYPES
 
 logger = logging.getLogger(__name__)
 routes = PromptServer.instance.routes
+
+
+@routes.get("/prompt_palette/loras")
+async def prompt_palette_loras(_request):
+    if _request.query.get("refresh") == "1":
+        lora_support.clear_preview_cache()
+        lora_support._METADATA_CACHE.clear()
+    names = await asyncio.to_thread(lora_support.catalog)
+    folders = await asyncio.to_thread(lora_support.catalog_folders, names)
+    return web.json_response({"names": names, "folders": folders})
+
+
+@routes.get("/prompt_palette/lora_preview")
+async def prompt_palette_lora_preview(request):
+    name = request.query.get("name", "")
+    names = await asyncio.to_thread(lora_support.catalog)
+    filename, status = lora_support.resolve_name(name, names)
+    if status != "found":
+        raise web.HTTPNotFound()
+    import folder_paths
+    full = folder_paths.get_full_path("loras", filename)
+    if not full:
+        raise web.HTTPNotFound()
+    source = request.query.get("source", "auto")
+    if source not in ("auto", "folder", "custom"):
+        raise web.HTTPBadRequest(text="Invalid preview source")
+    custom = None
+    if source != "folder":
+        try:
+            custom = _lora_custom_preview(request, full)
+        except (web.HTTPServiceUnavailable, OSError):
+            pass
+    is_custom = custom is not None and custom.is_file()
+    if source == "custom" and not is_custom:
+        raise web.HTTPNotFound()
+    previews = []
+    if is_custom:
+        candidate = custom
+    else:
+        try:
+            index = int(request.query.get("index", "0"))
+        except ValueError:
+            raise web.HTTPBadRequest(text="Invalid preview index") from None
+        previews = await asyncio.to_thread(lora_support.find_previews, full)
+        candidate = previews[index] if 0 <= index < len(previews) else None
+    if candidate and candidate.is_file():
+        if request.query.get("poster") == "1":
+            if lora_support.preview_type(candidate) != "video":
+                raise web.HTTPBadRequest(text="Poster requires a video preview")
+            poster = await asyncio.to_thread(lora_support.preview_poster, candidate)
+            if poster:
+                return web.Response(body=poster, content_type="image/jpeg", headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
+            raise web.HTTPUnsupportedMediaType(text="No local video decoder available; add a JPEG preview for this codec")
+        # FileResponse streams media and supports byte ranges for video seeking.
+        return web.FileResponse(candidate, headers={"X-PP-Preview-Types": ",".join(lora_support.preview_type(path) for path in previews), "X-PP-Preview-Source": "custom" if is_custom else "folder", "Content-Type": MEDIA_TYPES[candidate.suffix.lower()], "X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"})
+    raise web.HTTPNotFound()
+
+
+@routes.get("/prompt_palette/lora_info")
+async def prompt_palette_lora_info(request):
+    name = request.query.get("name", "")
+    names = await asyncio.to_thread(lora_support.catalog)
+    filename, status = lora_support.resolve_name(name, names)
+    if status != "found" or not filename:
+        return web.json_response({"error": "not_found", "status": status}, status=404)
+    meta = await asyncio.to_thread(lora_support.get_lora_metadata, filename)
+    return web.json_response(_lora_user_metadata(request, filename, meta))
+
+
+@routes.post("/prompt_palette/lora_batch_info")
+async def prompt_palette_lora_batch_info(request):
+    require_same_origin(request)
+    try:
+        body = await _read_json_object(request)
+    except ValueError as exc:
+        return _error(str(exc))
+    req_names = body.get("names", [])
+    if not isinstance(req_names, list):
+        return web.json_response({"error": "invalid_names"}, status=400)
+    names = await asyncio.to_thread(lora_support.catalog)
+    results = {}
+    def fetch_batch():
+        for name in req_names[:120]:
+            if not isinstance(name, str):
+                continue
+            filename, status = lora_support.resolve_name(name, names)
+            if status == "found" and filename:
+                try:
+                    results[name] = _lora_user_metadata(request, filename, lora_support.get_lora_metadata(filename))
+                except (OSError, ValueError, TypeError, RecursionError) as exc:
+                    logger.warning("LoraPal could not read metadata for %r: %s", filename, exc)
+                    results[name] = {"name": filename, "metadata_error": "Could not read local metadata"}
+    await asyncio.to_thread(fetch_batch)
+    return web.json_response({"info": results})
+
+
+def _lora_custom_preview(request, full_path):
+    # Keep user artwork out of shared/read-only model folders. Never accept a
+    # client filesystem path; identity comes from ComfyUI's resolved catalog.
+    store = user_store(request)
+    directory = store.root / "lora_previews"
+    key = hashlib.sha256(str(Path(full_path).resolve()).encode("utf-8")).hexdigest()
+    path = directory / (key + ".png")
+    if directory.is_symlink() or path.is_symlink() or not path.resolve().is_relative_to(store.trusted_root):
+        raise web.HTTPForbidden(text="Unsafe LoRA preview path")
+    return path
+
+
+def _lora_user_metadata(request, filename, metadata):
+    import folder_paths
+    full = folder_paths.get_full_path("loras", filename)
+    try:
+        custom = bool(full and _lora_custom_preview(request, full).is_file())
+    except (web.HTTPServiceUnavailable, OSError):
+        custom = False
+    return {**metadata, "custom_preview": custom, "has_preview": custom or metadata.get("has_preview", False),
+            "preview_type": "image" if custom else metadata.get("preview_type")}
+
+
+@routes.post("/prompt_palette/lora_thumbnail")
+async def prompt_palette_lora_thumbnail(request):
+    require_same_origin(request)
+    try:
+        name, image, _extension = await _read_thumbnail_multipart(request, allow_webp=True)
+        names = await asyncio.to_thread(lora_support.catalog)
+        filename, status = lora_support.resolve_name(name, names)
+        if status != "found":
+            raise ValueError("Choose an existing local LoRA")
+        import folder_paths
+        full = folder_paths.get_full_path("loras", filename)
+        if not full:
+            raise ValueError("LoRA file no longer exists")
+        target = _lora_custom_preview(request, full)
+        def save():
+            import io
+            from PIL import Image
+            try:
+                opened = Image.open(io.BytesIO(image))
+            except Image.DecompressionBombError as exc:
+                raise ValueError("Choose an image up to 40 megapixels") from exc
+            with opened as img:
+                if img.format not in ("PNG", "JPEG", "WEBP") or img.width * img.height > 40_000_000:
+                    raise ValueError("Use a PNG, JPEG or WebP image up to 40 megapixels")
+                img.thumbnail((1600, 1600))
+                output = io.BytesIO()
+                img.convert("RGBA").save(output, format="PNG")
+                _atomic_write_bytes(str(target), output.getvalue())
+        await asyncio.to_thread(save)
+        return web.json_response({"ok": True})
+    except (ValueError, OSError) as exc:
+        return _error(str(exc), ok=False)
+
+
+@routes.post("/prompt_palette/remove_lora_thumbnail")
+async def prompt_palette_remove_lora_thumbnail(request):
+    require_same_origin(request)
+    try:
+        data = await _read_json_object(request)
+        name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS)
+        filename, status = lora_support.resolve_name(name, await asyncio.to_thread(lora_support.catalog))
+        if status != "found":
+            raise ValueError("Choose an existing local LoRA")
+        import folder_paths
+        full = folder_paths.get_full_path("loras", filename)
+        if not full:
+            raise ValueError("LoRA file no longer exists")
+        await asyncio.to_thread(_lora_custom_preview(request, full).unlink, missing_ok=True)
+        return web.json_response({"ok": True})
+    except (ValueError, OSError) as exc:
+        return _error(str(exc), ok=False)
+
 
 MAX_JSON_BYTES = 2 * 1024 * 1024
 MAX_TEXT_CHARS = 1_000_000
@@ -394,6 +568,7 @@ async def style_index_route(request):
 
 @routes.post("/prompt_palette/styles")
 async def import_style_index_route(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, style_indexes.MAX_INDEX_BYTES)
         index_id = await asyncio.to_thread(style_indexes.import_index, data.get("index"))
@@ -412,6 +587,7 @@ async def style_annotations_route(request):
 
 @routes.post("/prompt_palette/style_annotations")
 async def save_style_annotation_route(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         return web.json_response(await asyncio.to_thread(style_indexes.save_annotation, data))
@@ -421,6 +597,7 @@ async def save_style_annotation_route(request):
 
 @routes.post("/prompt_palette/completion_previews")
 async def completion_previews_route(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, 128 * 1024)
         return web.json_response({"items": await asyncio.to_thread(style_indexes.completion_previews, data.get("items"))})
@@ -430,6 +607,7 @@ async def completion_previews_route(request):
 
 @routes.post("/prompt_palette/import_image_prompts")
 async def import_image_prompt_route(request):
+    require_same_origin(request)
     try:
         if request.content_length is not None and request.content_length > MAX_IMPORT_BYTES + 64 * 1024:
             raise ValueError("Image exceeds the 32MB import limit.")
@@ -507,6 +685,7 @@ def _booru_lookup_categories(tags: list[str]) -> dict[str, str]:
 
 @routes.post("/prompt_palette/booru_lookup")
 async def lookup_booru_tags(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         raw = data.get("tags")
@@ -829,6 +1008,7 @@ def _import_custom_rows(text: str, mode: str) -> dict[str, int]:
 
 @routes.post("/prompt_palette/custom_words/add")
 async def add_custom_word(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         word = _clean_custom_word_field(data.get("word"), "word")
@@ -881,6 +1061,7 @@ async def manage_custom_words(request):
 
 @routes.post("/prompt_palette/custom_words/remove")
 async def remove_custom_words(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         raw_ids = data.get("ids")
@@ -901,6 +1082,7 @@ async def remove_custom_words(request):
 
 @routes.post("/prompt_palette/custom_words/import")
 async def import_custom_words(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, limit=None)
         text = _bounded_text(data.get("text"), "text", limit=None)
@@ -1003,6 +1185,7 @@ async def get_content(request):
 
 @routes.post("/prompt_palette/save")
 async def save_wildcard(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS)
@@ -1019,6 +1202,7 @@ async def save_wildcard(request):
 
 @routes.post("/prompt_palette/delete")
 async def delete_wildcard(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS)
@@ -1034,6 +1218,7 @@ async def delete_wildcard(request):
 
 @routes.post("/prompt_palette/refresh")
 async def refresh_index(request):
+    require_same_origin(request)
     try:
         index = await asyncio.to_thread(get_index)
         await asyncio.to_thread(index.rescan, True)
@@ -1067,19 +1252,22 @@ def _remote_set_path_allowed() -> bool:
 
 @routes.post("/prompt_palette/set_path")
 async def set_path(request):
+    require_same_origin(request)
     try:
         index = await asyncio.to_thread(get_index)
         data = await _read_json_object(request)
         path = _bounded_text(data.get("path"), "path", MAX_PATH_CHARS)
+        # Reset changes the active root and deletes its saved override too.
+        # Apply the same host permission to both folder-changing actions.
+        if not _request_is_local(request) and not _remote_set_path_allowed():
+            return _error(
+                "changing or resetting the wildcard folder is only allowed from the machine running ComfyUI. "
+                f"Set {_ALLOW_REMOTE_SET_PATH_ENV}=1 to allow it for remote or proxied sessions, "
+                "or configure wildcards_config.json / extra_model_paths.yaml instead",
+                403,
+                ok=False,
+            )
         if path.strip():
-            if not _request_is_local(request) and not _remote_set_path_allowed():
-                return _error(
-                    "changing the wildcard folder is only allowed from the machine running ComfyUI. "
-                    f"Set {_ALLOW_REMOTE_SET_PATH_ENV}=1 to allow it for remote or proxied sessions, "
-                    "or configure wildcards_config.json / extra_model_paths.yaml instead",
-                    403,
-                    ok=False,
-                )
             await asyncio.to_thread(index.set_root, path)
         else:
             await asyncio.to_thread(index.reset_root)
@@ -1093,11 +1281,15 @@ async def set_path(request):
 
 @routes.post("/prompt_palette/resolve")
 async def resolve_prompt(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, limit=None)
         text = _bounded_text(data.get("text"), "text", limit=None)
         seed = _bounded_int(data.get("seed", 0), "seed")
         mode = data.get("mode", "entire text as one")
+        vars_in = data.get("vars_in", "")
+        if not isinstance(vars_in, (str, dict, list)) and vars_in is not None:
+            raise ValueError("invalid vars_in payload")
         positive_antonyms = data.get("positive_antonyms", False)
         if not isinstance(positive_antonyms, bool):
             raise ValueError("invalid Positive Antonyms flag")
@@ -1116,7 +1308,7 @@ async def resolve_prompt(request):
         return _error("couldn't load wildcard library", 500)
 
     def resolve_and_count():
-        resolver = WildcardResolver(index.preview_view()) if index is not None else None
+        resolver = WildcardResolver(index.preview_view(), initial_variables=vars_in) if index is not None else None
         resolved = text if not should_resolve else (
             "\n".join(resolver.resolve_lines(text, seed=seed))
             if mode == "line by line"
@@ -1124,6 +1316,9 @@ async def resolve_prompt(request):
         )
         resolved = apply_positive_antonyms(resolved, positive_antonyms)
         response: dict[str, Any] = {"resolved": resolved}
+        if resolver is not None:
+            response["variables"] = resolver.export_variables()
+            response["branch_selections"] = resolver.branch_selections
         token_stats = count_clip_tokens(resolved)
         if token_stats is not None:
             response["token_stats"] = token_stats
@@ -1141,6 +1336,7 @@ async def resolve_prompt(request):
 
 @routes.post("/prompt_palette/inspect")
 async def inspect_prompt(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         text = _bounded_text(data.get("text"), "text")
@@ -1168,6 +1364,13 @@ async def inspect_prompt(request):
             except Exception:
                 available = None
             result = inspect_resolved_prompt(resolved, PromptPaletteWeightController._parse_weighted_segments(resolved), available)
+            lora_records = lora_support.extract(resolved)[1]
+            if lora_records:
+                lora_names = lora_support.catalog()
+                for record in lora_records[:64]:
+                    filename, status = lora_support.resolve_name(record["name"], lora_names)
+                    record.update(status=status, filename=filename)
+            result["loras"] = lora_records[:64]
             result.update({"resolved": resolved, "token_stats": count_clip_tokens(resolved, include_layout=True),
                            "variables": [{"name": name, "value": str(value)} for name, (kind, value) in (resolver.variables.items() if resolver else []) if kind == "resolved"][:64]})
             return result
@@ -1182,6 +1385,7 @@ async def inspect_prompt(request):
 
 @routes.post("/prompt_palette/capture_selection")
 async def capture_prompt_selection(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         text = _bounded_text(data.get("text"), "text")
@@ -1203,6 +1407,7 @@ async def capture_prompt_selection(request):
 
 @routes.post("/prompt_palette/resolve_variations")
 async def resolve_variations(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, limit=None)
         text = _bounded_text(data.get("text"), "text", limit=None)
@@ -1252,6 +1457,7 @@ async def resolve_variations(request):
 
 @routes.post("/prompt_palette/resolve_combinatorial")
 async def resolve_combinatorial(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, limit=None)
         text = _bounded_text(data.get("text"), "text", limit=None)
@@ -1272,7 +1478,7 @@ async def resolve_combinatorial(request):
         return _error("couldn't load wildcard library", 500)
 
     def generate():
-        resolver = WildcardResolver(index)
+        resolver = WildcardResolver(index.preview_view())
         prompts = resolver.generate_combinatorial(text, seed=seed, max_prompts=max_prompts)
         return prompts, resolver.last_generation_truncated
 
@@ -1288,6 +1494,7 @@ async def resolve_combinatorial(request):
 
 @routes.post("/prompt_palette/resolve_workspace")
 async def resolve_workspace(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, limit=None)
         payload = read_runtime(data.get("runtime"))
@@ -1316,6 +1523,7 @@ async def resolve_workspace(request):
 
 @routes.post("/prompt_palette/count_combinatorial")
 async def count_combinatorial(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request, limit=None)
         text = _bounded_text(data.get("text"), "text", limit=None)
@@ -1336,7 +1544,7 @@ async def count_combinatorial(request):
         return _error("couldn't load wildcard library", 500)
 
     def count():
-        resolver = WildcardResolver(index)
+        resolver = WildcardResolver(index.preview_view())
         return resolver.count_combinatorial(text, seed=seed, limit=min(COUNT_ONLY_LIMIT, cap))
 
     try:
@@ -1472,6 +1680,7 @@ async def library_health(request):
 
 @routes.post("/prompt_palette/library_action")
 async def library_action(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         action = _bounded_text(data.get("action"), "action", 64).strip().lower()
@@ -1483,6 +1692,13 @@ async def library_action(request):
             if not source or not target:
                 raise ValueError("source and target are required")
             await asyncio.to_thread(index.rename_txt, source, target)
+            try:
+                from .feature_store import user_store
+                store = user_store(request)
+                library_id = hashlib.sha256(index.get_root_dir().encode()).hexdigest()
+                await asyncio.to_thread(store.relink_entry_metadata, source, target, library_id)
+            except Exception:
+                logger.warning('Prompt Palette renamed the entry but retained metadata that could not be relinked', exc_info=True)
         elif action == "copy":
             if not source or not target:
                 raise ValueError("source and target are required")
@@ -1528,6 +1744,7 @@ async def library_action(request):
 
 @routes.post("/prompt_palette/library_batch")
 async def library_batch(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         action = _bounded_text(data.get("action"), "action", 64).strip().lower()
@@ -1587,6 +1804,15 @@ async def library_batch(request):
                 else:
                     await asyncio.to_thread(index.rename_txt, source, target)
                 completed.append({"source": source, "target": target})
+            if action != "copy_to_folder":
+                try:
+                    from .feature_store import user_store
+                    store = user_store(request)
+                    library_id = hashlib.sha256(index.get_root_dir().encode()).hexdigest()
+                    for item in completed:
+                        await asyncio.to_thread(store.relink_entry_metadata, item["source"], item["target"], library_id)
+                except Exception:
+                    logger.warning('Prompt Palette moved entries but retained metadata that could not be relinked', exc_info=True)
         except Exception:
             # Batch operations are all-or-nothing where the filesystem permits it.
             # Roll back earlier successful items before surfacing the original error.
@@ -1668,7 +1894,7 @@ def _atomic_write_bytes(path: str, data: bytes) -> None:
         raise
 
 
-async def _read_thumbnail_multipart(request: web.Request) -> tuple[str, bytes, str]:
+async def _read_thumbnail_multipart(request: web.Request, *, allow_webp=False) -> tuple[str, bytes, str]:
     if request.content_length is not None and request.content_length > MAX_THUMB_BYTES + 64 * 1024:
         raise ValueError("file too large (max 8MB)")
     reader = await request.multipart()
@@ -1698,16 +1924,19 @@ async def _read_thumbnail_multipart(request: web.Request) -> tuple[str, bytes, s
     if not name or not image:
         raise ValueError("missing name or file")
     extension = _image_extension(bytes(image))
+    if allow_webp and image[:4] == b"RIFF" and image[8:12] == b"WEBP":
+        extension = ".webp"
     if extension is None:
-        raise ValueError("only valid PNG or JPEG images are supported")
+        raise ValueError("Use a valid PNG, JPEG or WebP image" if allow_webp else "only valid PNG or JPEG images are supported")
     supplied_extension = os.path.splitext(filename.lower())[1]
-    if supplied_extension and supplied_extension not in THUMB_EXTS:
-        raise ValueError("only .jpg/.jpeg/.png supported")
+    if supplied_extension and supplied_extension not in (THUMB_EXTS + ((".webp",) if allow_webp else ())):
+        raise ValueError("Use .jpg, .jpeg, .png or .webp" if allow_webp else "only .jpg/.jpeg/.png supported")
     return name, bytes(image), extension
 
 
 @routes.post("/prompt_palette/set_thumbnail")
 async def set_thumbnail(request):
+    require_same_origin(request)
     try:
         name, image, extension = await _read_thumbnail_multipart(request)
         index = await _get_fresh_index()
@@ -1740,6 +1969,7 @@ async def set_thumbnail(request):
 
 @routes.post("/prompt_palette/remove_thumbnail")
 async def remove_thumbnail(request):
+    require_same_origin(request)
     try:
         data = await _read_json_object(request)
         name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS).strip()
@@ -1770,3 +2000,11 @@ async def remove_thumbnail(request):
         logger.exception("Could not process thumbnail removal")
         return _error("couldn't process thumbnail removal", 500, ok=False)
     return web.json_response({"ok": True, "removed": removed})
+
+# Optional metadata features register handlers only. Stores remain lazy and no
+# new feature data is written until explicitly used by an authenticated user.
+from .feature_routes import register_feature_routes
+from .generation_history_routes import register_generation_history_routes
+register_feature_routes(routes)
+register_generation_history_routes(routes)
+from . import relationship_routes  # registers against the same host route table

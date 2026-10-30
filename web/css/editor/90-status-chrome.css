@@ -3,6 +3,7 @@
 .wg-node-frame.wg-node-frame, .pp-node-frame.pp-node-frame { padding: 0; }
 .wg-node-frame > .wg-node.wg-root,
 .pp-node-frame > .pp-node.wg-root {
+  position: relative;
   box-sizing: border-box; border: 0; box-shadow: none;
   border-radius: 0 0 var(--wg-corner-radius, 8px) var(--wg-corner-radius, 8px);
 }
@@ -17,6 +18,7 @@
 }
 .wg-root .wg-editor-layer { padding: 10px 12px; }
 .wg-root .wg-editor-wrap:focus-within { box-shadow: inset 2px 0 var(--wg-accent, #d49a52); }
+.wg-node:has(.wg-editor-wrap:focus-within) > .wg-toolbar { border-bottom-color: color-mix(in srgb, var(--wg-accent, #d49a52) 38%, var(--wg-border, #2a2e34)); transition: border-color 160ms ease; }
 .wg-node > .wg-toolbar { min-height: 34px; padding: 4px; gap: 4px; }
 .wg-node > .wg-toolbar .wg-pill-resolve {
   border: 0; box-shadow: none; border-radius: 5px;
@@ -29,11 +31,13 @@
 }
 .wg-root .wg-statusbar {
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center; gap: 6px; flex: 0 0 auto; min-width: 0;
-  box-sizing: border-box; min-height: 28px; margin: 0; padding: 3px 8px;
+  align-items: center; gap: var(--pp-s-2, 6px); flex: 0 0 auto; min-width: 0;
+  box-sizing: border-box; height: 24px; min-height: 24px; max-height: 26px; margin: 0; padding: 2px var(--pp-s-3, 8px);
   background: var(--wg-surface, #121417);
   border-top: 1px solid color-mix(in srgb, var(--wg-border, #2a2e34) 60%, transparent);
+  contain: layout style;
 }
+.wg-root .wg-statusbar[data-empty="true"]:not(.wg-status-measure) { display: none !important; }
 .wg-root .wg-statusbar[data-has-doctor="false"] { grid-template-columns: minmax(0, 1fr) 0 auto; }
 .wg-status-left { min-width: 0; overflow: hidden; }
 .wg-statusbar .wg-legend {
@@ -55,8 +59,8 @@
 .wg-statusbar[data-legend-mode="minimal"] .wg-legend:not(:empty)::before { content: "…"; color: var(--wg-text-faint, #8f887e); }
 .wg-statusbar[data-legend-mode="minimal"] .wg-chip { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .wg-root .wg-statusbar .wg-doctor-chip {
-  position: static; justify-self: center; box-sizing: border-box; min-height: 24px;
-  padding: 2px 7px; gap: 5px; font-size: calc(9px * var(--wg-ui-font-scale, 1));
+  position: static; justify-self: center; box-sizing: border-box; height: 20px; min-height: 20px;
+  padding: 1px 6px; gap: 4px; font-size: calc(9px * var(--wg-ui-font-scale, 1));
   white-space: nowrap; box-shadow: none;
 }
 .wg-doctor-icon { display: inline-flex; }
@@ -235,23 +239,23 @@
 .ppwc-guide > summary { cursor: pointer; color: var(--wg-text-dim); font-size: 11px; }
 .wg-ac-menu, .wg-ctx-menu, .wg-tip { box-shadow: var(--wg-popup-shadow, 0 10px 28px rgb(0 0 0 / .28)); }
 .wg-ac-menu .wg-ac-item { border-color: transparent; border-radius: 4px; }
-.wg-ac-menu .wg-ac-copy strong { font-size: calc(11px * var(--wg-ui-font-scale, 1)); line-height: 1.4; }
-.wg-ac-menu .wg-ac-group, .wg-ac-menu.wg-inject-menu .wg-inject-head { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
-.wg-ac-menu .wg-ac-pill, .wg-ac-menu .wg-ac-copy small { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
-.wg-ac-menu .wg-ac-item:is(:hover, .active) { border-color: transparent; }
-.wg-ac-menu .wg-ac-item:is(:hover, .active)::before { box-shadow: none; }
+.wg-ac-menu .wg-ac-copy strong { font-size: calc(11px * var(--wg-menu-scale, 1)); line-height: 1.4; }
+.wg-ac-menu .wg-ac-group, .wg-ac-menu.wg-inject-menu .wg-inject-head { font-size: max(9px, calc(8px * var(--wg-menu-scale, 1))); }
+.wg-ac-menu .wg-ac-pill, .wg-ac-menu .wg-ac-copy small { font-size: max(9px, calc(8px * var(--wg-menu-scale, 1))); }
+.wg-ac-menu .wg-ac-item:hover:not(.active) { border-color: transparent; }
+.wg-ac-menu .wg-ac-item:hover:not(.active)::before { box-shadow: none; }
 .wg-ac-menu .wg-ac-pill { border: 0; border-radius: 4px; }
 .wg-ac-menu .wg-ac-item[data-ac-library] .wg-ac-copy strong::before { border-radius: 1px; }
 .wg-ac-menu.wg-inject-menu .wg-inject-copy small { display: none; }
-.wg-ac-menu.wg-inject-menu .wg-inject-item { align-items: center; min-height: calc(27px * var(--wg-ui-font-scale, 1)); }
-.wg-ac-menu.wg-inject-menu { min-width: min(340px, calc(100vw - 16px)); max-height: min(560px, calc(100vh - 16px)); }
+.wg-ac-menu.wg-inject-menu .wg-inject-item { align-items: center; min-height: calc(27px * var(--wg-menu-scale, 1)); }
+.wg-ac-menu.wg-inject-menu { min-width: min(calc(340px * var(--wg-menu-scale, 1)), calc(100vw - 16px)); max-height: min(calc(560px * var(--wg-menu-scale, 1)), calc(100vh - 16px)); }
 .wg-ctx-menu { max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; box-sizing: border-box; }
 .wg-ctx-item:is(:hover, .active) { background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); color: var(--wg-text); }
-.wg-ctx-item { font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
-.wg-tip { max-width: min(320px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: hidden; box-sizing: border-box; border-color: var(--wg-border); border-left: 2px solid var(--wg-accent); }
-.wg-tip .wg-tip-title { font-size: calc(10px * var(--wg-ui-font-scale, 1)); overflow-wrap: anywhere; }
+.wg-ctx-item { font-size: calc(11px * var(--wg-menu-scale, 1)); }
+.wg-tip { max-width: min(calc(320px * var(--wg-menu-scale, 1)), calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: hidden; box-sizing: border-box; border-color: var(--wg-border); border-left: 2px solid var(--wg-accent); }
+.wg-tip .wg-tip-title { font-size: calc(10px * var(--wg-menu-scale, 1)); overflow-wrap: anywhere; }
 .wg-tip .wg-tip-line { color: var(--wg-text-dim); overflow-wrap: anywhere; }
-.wg-tip { font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+.wg-tip { font-size: calc(10px * var(--wg-menu-scale, 1)); }
 @container (max-width: 420px) {
   .ppwc-surface.wg-root .ppwc-controls { grid-template-columns: minmax(0, 1fr); }
   .ppwc-surface.wg-root .ppwc-advanced { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -307,12 +311,12 @@
 .wg-root .wg-library-popup .wg-starter-category-group { border: 0; border-bottom: 1px solid var(--wg-border); border-radius: 0; background: transparent; }
 .wg-root .wg-starter-category-group > summary { min-height: 40px; padding: 4px 3px; }
 .wg-root .wg-starter-category-copy strong { font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
-.wg-root .wg-starter-category-copy small { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-starter-category-copy small { font-size: max(9px, calc(8px * var(--wg-ui-font-scale, 1))); }
 .wg-root .wg-starter-category-content { padding: 6px 0 8px; background: transparent; }
 .wg-root .wg-starter-card { border-color: transparent; border-radius: min(var(--wg-corner-radius), 6px); box-shadow: none; }
 .wg-root .wg-starter-card:hover { border-color: color-mix(in srgb, var(--wg-accent) 45%, var(--wg-border)); box-shadow: none; }
 .wg-root .wg-starter-card h5 { font-size: calc(9px * var(--wg-ui-font-scale, 1)); }
-.wg-root .wg-starter-card p { font-size: calc(8px * var(--wg-ui-font-scale, 1)); }
+.wg-root .wg-starter-card p { font-size: max(9px, calc(8px * var(--wg-ui-font-scale, 1))); }
 .wg-root .wg-starter-card-actions button { color: var(--wg-text-dim); border-color: transparent; background: transparent; }
 .wg-root .wg-starter-card-actions button:hover { color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); }
 .wg-root .wg-starter-card-actions button[aria-pressed="true"] { color: var(--wg-accent); }
@@ -325,8 +329,8 @@
 .wg-root .pp-recipe-field-head .wg-button { min-height: 26px; }
 .wg-root .pp-recipe-field-head input { flex: none; width: 14px; height: 14px; }
 .wg-root .pp-recipe-toolbar { padding-bottom: 6px; }
-.wg-ctx-menu.wg-root { padding: 5px; border-radius: var(--wg-corner-radius, 10px); border: 1px solid var(--wg-border); background: var(--wg-panel-bg); }
-.wg-ctx-menu.wg-root .wg-ctx-item { border-radius: 5px; padding: 7px 10px; line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
+.wg-ctx-menu.wg-root { padding: calc(5px * var(--wg-menu-scale, 1)); border-radius: var(--wg-corner-radius, 10px); border: 1px solid var(--wg-border); background: var(--pp-glass, var(--wg-panel-bg)); -webkit-backdrop-filter: blur(var(--pp-glass-blur, 14px)) saturate(var(--pp-glass-sat, 1.45)); backdrop-filter: blur(var(--pp-glass-blur, 14px)) saturate(var(--pp-glass-sat, 1.45)); }
+.wg-ctx-menu.wg-root .wg-ctx-item { border-radius: 5px; padding: calc(7px * var(--wg-menu-scale, 1)) calc(10px * var(--wg-menu-scale, 1)); line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
 .wg-ctx-menu.wg-root .wg-ctx-item:focus { outline: none; box-shadow: inset 2px 0 var(--wg-accent); }
 .wg-root .wg-power-popup { container-type: inline-size; container-name: pp-power; }
 @container pp-power (max-width: 300px) { .wg-root .wg-power-popup .wg-two-col { grid-template-columns: minmax(0,1fr); } }
@@ -342,13 +346,13 @@
 .wg-root .pp-iteration-heading { color: var(--wg-text); font-size: calc(11px * var(--wg-ui-font-scale, 1)); text-transform: none; letter-spacing: 0; }
 
 /* Context menu v2: sectioned actions, icon column, shortcut hints, danger and disabled states. */
-.wg-ctx-menu.wg-root { min-width: 188px; padding: 4px; }
+.wg-ctx-menu.wg-root { min-width: min(calc(188px * var(--wg-menu-scale, 1)), calc(100vw - 16px)); padding: calc(4px * var(--wg-menu-scale, 1)); }
 .wg-ctx-menu.wg-root[style*="display: block"] { animation: pp-ctx-in 110ms cubic-bezier(.2, .8, .2, 1); }
-.wg-ctx-menu.wg-root .wg-ctx-item { display: flex; align-items: center; gap: 8px; box-sizing: border-box; min-height: 28px; padding: 5px 10px 5px 8px; white-space: normal; }
-.wg-ctx-menu .wg-ctx-icon { flex: none; display: inline-flex; width: 16px; justify-content: center; color: var(--wg-text-dim); }
+.wg-ctx-menu.wg-root .wg-ctx-item { display: flex; align-items: center; gap: calc(8px * var(--wg-menu-scale, 1)); box-sizing: border-box; min-height: calc(28px * var(--wg-menu-scale, 1)); padding: calc(5px * var(--wg-menu-scale, 1)) calc(10px * var(--wg-menu-scale, 1)) calc(5px * var(--wg-menu-scale, 1)) calc(8px * var(--wg-menu-scale, 1)); white-space: normal; }
+.wg-ctx-menu .wg-ctx-icon { flex: none; display: inline-flex; width: calc(16px * var(--wg-menu-scale, 1)); justify-content: center; color: var(--wg-text-dim); }
 .wg-ctx-menu .wg-ctx-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-.wg-ctx-menu .wg-ctx-item[data-hint]::after { content: attr(data-hint); flex: none; margin-left: 18px; font: 10px/1 "SF Mono", "Cascadia Code", Consolas, monospace; color: var(--wg-text-faint); letter-spacing: .02em; }
-.wg-ctx-menu .wg-ctx-sep { height: 1px; margin: 4px 6px; background: var(--wg-border); opacity: .8; }
+.wg-ctx-menu .wg-ctx-item[data-hint]::after { content: attr(data-hint); flex: none; margin-left: calc(18px * var(--wg-menu-scale, 1)); font: calc(10px * var(--wg-menu-scale, 1))/1 "SF Mono", "Cascadia Code", Consolas, monospace; color: var(--wg-text-faint); letter-spacing: .02em; }
+.wg-ctx-menu .wg-ctx-sep { height: calc(1px * var(--wg-menu-scale, 1)); margin: calc(4px * var(--wg-menu-scale, 1)) calc(6px * var(--wg-menu-scale, 1)); background: var(--wg-border); opacity: .8; }
 .wg-ctx-menu .wg-ctx-item:is(:hover, .active) .wg-ctx-icon { color: var(--wg-accent); }
 .wg-ctx-menu.wg-root .wg-ctx-item:focus-visible, .wg-ctx-menu.wg-root .wg-ctx-item.active { box-shadow: inset 2px 0 var(--wg-accent); }
 .wg-ctx-menu .wg-ctx-item.danger:is(:hover, .active) { background: color-mix(in srgb, var(--wg-danger, #d96a5a) 16%, var(--wg-panel-bg)); }
@@ -357,3 +361,19 @@
 .wg-ctx-menu .wg-ctx-item[aria-disabled="true"] .wg-ctx-icon { color: var(--wg-text-dim); }
 @keyframes pp-ctx-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .wg-ctx-menu.wg-root[style*="display: block"] { animation: none; } }
+
+/* Solid fallback for the translucent tooltip and context menu. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .wg-tip, .wg-ctx-menu.wg-root { background: var(--wg-panel-bg); }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .wg-tip, .wg-ctx-menu.wg-root { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--wg-panel-bg); }
+}
+.wg-root.wg-high-contrast .wg-ctx-menu, .wg-ctx-menu.wg-high-contrast { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--wg-panel-bg); }
+
+/* Section labels share the menu scale; they never join keyboard navigation. */
+.wg-ctx-menu .wg-ctx-heading {
+  padding: calc(5px * var(--wg-menu-scale, 1)) calc(8px * var(--wg-menu-scale, 1)) calc(3px * var(--wg-menu-scale, 1));
+  color: var(--wg-text-dim); font-size: calc(9px * var(--wg-menu-scale, 1));
+  font-weight: 700; letter-spacing: .04em; line-height: 1.35;
+}

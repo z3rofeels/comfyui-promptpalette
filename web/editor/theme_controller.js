@@ -1,4 +1,5 @@
-import { downloadJsonFile, pickJsonFile, normalizeThemeFilename, svgIcon, applyPromptPaletteThemeScope, promptPaletteEffectSettings, clearLegacyPromptPaletteGlobalTheme, applyPromptPaletteNodeChrome, onPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
+import { normalizePromptPaletteMenuScale, downloadJsonFile, pickJsonFile, normalizeThemeFilename, svgIcon, applyPromptPaletteThemeScope, promptPaletteEffectSettings, clearLegacyPromptPaletteGlobalTheme, applyPromptPaletteNodeChrome, onPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
+import { FIELD_EDITOR_DEFAULTS, normalizeFieldEditorPreferences } from "./field_editor_preferences.js";
 import { replacePowerToolPreferences } from "../prompt_palette_state.js";
 import { searchPromptPaletteHelp } from "../prompt_quickness.js";
 import { scheduleNodeTimer, cancelNodeTimer } from "../prompt_palette_compat.js";
@@ -29,6 +30,7 @@ export function createThemeController(ctx) {
   const fontStatus = el("fontStatus");
   const editorFontRange = el("editorFontRange"), editorFontOut = el("editorFontOut");
   const uiFontRange = el("uiFontRange"), uiFontOut = el("uiFontOut");
+  const menuScaleRange = el("menuScaleRange"), menuScaleOut = el("menuScaleOut");
   const promptTextColorInput = el("promptTextColor");
   const promptTextColorAuto = el("promptTextColorAuto");
 
@@ -53,6 +55,7 @@ export function createThemeController(ctx) {
       "font-family": theme.fontFamily?.trim() ? `"${theme.fontFamily.trim()}"` : "",
       "editor-font-size": `${theme.editorFontSize}px`,
       "ui-font-scale": theme.uiFontScale,
+      "menu-scale": normalizePromptPaletteMenuScale(theme.menuScale),
       "prompt-text": resolvedPromptTextColor(),
     };
     applyPromptPaletteThemeScope(root, {}, typography);
@@ -77,6 +80,8 @@ export function createThemeController(ctx) {
     editorFontOut.textContent = `${theme.editorFontSize}px`;
     uiFontRange.value = Math.round(theme.uiFontScale * 100);
     uiFontOut.textContent = `${Math.round(theme.uiFontScale * 100)}%`;
+    if (menuScaleRange) menuScaleRange.value = Math.round(normalizePromptPaletteMenuScale(theme.menuScale) * 100);
+    if (menuScaleOut) menuScaleOut.textContent = `${menuScaleRange.value}%`;
     promptTextColorAuto.checked = theme.promptTextColorMode !== "custom";
     promptTextColorInput.disabled = promptTextColorAuto.checked;
     promptTextColorInput.value = resolvedPromptTextColor();
@@ -99,6 +104,12 @@ export function createThemeController(ctx) {
     uiFontOut.textContent = `${uiFontRange.value}%`;
     saveTheme(theme); applyFontSettings(); refreshLibraryTypographyGeometry(); updateThemeJson();
   });
+  const setMenuScale = value => {
+    theme.menuScale = normalizePromptPaletteMenuScale(value);
+    saveTheme(theme); applyFontSettings(); refreshFontControlsUI(); updateThemeJson();
+  };
+  menuScaleRange?.addEventListener("input", () => setMenuScale(Number(menuScaleRange.value) / 100));
+  settingsRoot.querySelector('[data-act="menuScaleReset"]')?.addEventListener("click", () => setMenuScale(1));
   promptTextColorInput.addEventListener("input", () => {
     theme.promptTextColor = promptTextColorInput.value;
     theme.promptTextColorMode = "custom";
@@ -491,6 +502,7 @@ export function createThemeController(ctx) {
         fontFamily: theme.fontFamily || "",
         editorFontSize: Number(theme.editorFontSize) || 12.5,
         uiFontScale: Number(theme.uiFontScale) || 1,
+        menuScale: normalizePromptPaletteMenuScale(theme.menuScale),
       },
       effects: {
         cornerRadius: Math.max(4, Math.min(18, Number(theme.cornerRadius) || 10)),
@@ -499,6 +511,7 @@ export function createThemeController(ctx) {
         "syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "booruAutocompleteEnabled",
         "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors", "animaArtistFormatting",
         "autocompletePreviews", "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme", "toolbarMode", "toolbarScale", "toolbarSize", "toolbarOrder",
+        "workspaceSnapGrid", "fieldEditorColumns", "fieldEditorMinHeight",
       ].includes(key))),
     };
   }
@@ -566,6 +579,7 @@ export function createThemeController(ctx) {
       if (typeof pack.typography.fontFamily === "string") theme.fontFamily = pack.typography.fontFamily.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 120);
       if (Number.isFinite(Number(pack.typography.editorFontSize))) theme.editorFontSize = Math.max(10, Math.min(64, Number(pack.typography.editorFontSize)));
       if (Number.isFinite(Number(pack.typography.uiFontScale))) theme.uiFontScale = Math.max(.8, Math.min(2, Number(pack.typography.uiFontScale)));
+      if (Object.hasOwn(pack.typography, "menuScale")) theme.menuScale = normalizePromptPaletteMenuScale(pack.typography.menuScale);
     }
     if (pack.effects && typeof pack.effects === "object") {
       // Older v4 theme exports may contain surfaceStyle/atmosphere fields.
@@ -896,6 +910,8 @@ export function createThemeController(ctx) {
   const toolbarSeedExtra = el("seedbar");
   const dayNightBtn = el("dayNightBtn");
   const toggleSeedControlsCb = el("toggleSeedControls");
+  const toggleSeedFortuneCb = el("toggleSeedFortune");
+  const fieldEditorControls = [...settingsRoot.querySelectorAll("[data-field-preference]")];
   const toggleDayNightBtnCb = el("toggleDayNightBtn");
   const toggleSyntaxInjectorCb = el("toggleSyntaxInjector");
   const togglePromptHistoryCb = el("togglePromptHistory");
@@ -910,21 +926,21 @@ export function createThemeController(ctx) {
   const TOOLBAR_KEYS = TOOLBAR_BTN_TOGGLES.map(([, key]) => key);
   const LAYOUT_PRESETS = {
     minimal: {
-      showGalleryBtn: true, showEditBtn: false, showImportImageBtn: false, showRecipesBtn: false, showStashBtn: false,
+      showGalleryBtn: true, showLorasBtn: false, showEditBtn: false, showImportImageBtn: false, showRecipesBtn: false, showStashBtn: false,
       showRefreshBtn: false, showUndoBtn: false, showRedoBtn: false, showResolveBtn: true,
-      showCopyBtn: true, showClearBtn: false, showSeedControls: false, showDayNightBtn: false,
+      showCopyBtn: true, showClearBtn: false, showSeedControls: false, seedFortuneEnabled: false, showDayNightBtn: false,
       syntaxInjectorEnabled: false,
     },
     balanced: {
-      showGalleryBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
+      showGalleryBtn: true, showLorasBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
       showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true,
-      showCopyBtn: true, showClearBtn: true, showSeedControls: false, showDayNightBtn: true,
+      showCopyBtn: true, showClearBtn: true, showSeedControls: false, seedFortuneEnabled: true, showDayNightBtn: true,
       syntaxInjectorEnabled: true,
     },
     studio: {
-      showGalleryBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
+      showGalleryBtn: true, showLorasBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
       showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true,
-      showCopyBtn: true, showClearBtn: true, showSeedControls: true, showDayNightBtn: true,
+      showCopyBtn: true, showClearBtn: true, showSeedControls: true, seedFortuneEnabled: true, showDayNightBtn: true,
       syntaxInjectorEnabled: true,
     },
   };
@@ -936,6 +952,7 @@ export function createThemeController(ctx) {
     zenBtn.title = on ? "Exit Zen mode" : "Enter Zen mode";
     toggleZenModeCb.checked = on;
     if (on) {
+      node._ppLoraSidecar?.close();
       closeAllPowerPopups();
       closeStash();
       closePickerDrawer();
@@ -969,8 +986,16 @@ export function createThemeController(ctx) {
     }
   }
   function applyToolbarSettings() {
-    toolbarSeedExtra.classList.toggle("on", !!theme.showSeedControls);
-    dayNightBtn.style.display = theme.showDayNightBtn ? "" : "none";
+    toolbarSeedExtra?.classList?.toggle("on", !!theme.showSeedControls);
+    const fortuneChip = toolbarSeedExtra?.querySelector('[data-el="seedFortuneBadge"]');
+    if (fortuneChip) {
+      fortuneChip.style.display = theme.seedFortuneEnabled !== false ? "inline-flex" : "none";
+    }
+    const wheelBtn = toolbarSeedExtra?.querySelector('[data-act="seedOpenWheel"]');
+    if (wheelBtn) {
+      wheelBtn.style.display = theme.seedFortuneEnabled !== false ? "inline-flex" : "none";
+    }
+    if (dayNightBtn) dayNightBtn.style.display = theme.showDayNightBtn ? "" : "none";
     applyToolbarVisibility(root, theme);
     settingsRoot.querySelectorAll("[data-layout-preset]").forEach(button => {
       button.classList.toggle("active", button.dataset.layoutPreset === theme.layoutPreset);
@@ -978,7 +1003,14 @@ export function createThemeController(ctx) {
   }
   function refreshToolbarSettingsUI() {
     if (toggleAutocompletePreviews) toggleAutocompletePreviews.checked = theme.autocompletePreviews !== false;
-    toggleSeedControlsCb.checked = !!theme.showSeedControls;
+    if (toggleSeedControlsCb) toggleSeedControlsCb.checked = !!theme.showSeedControls;
+    if (toggleSeedFortuneCb) toggleSeedFortuneCb.checked = theme.seedFortuneEnabled !== false;
+    const fieldPreferences = normalizeFieldEditorPreferences(theme);
+    for (const control of fieldEditorControls) {
+      const value = fieldPreferences[control.dataset.fieldPreference];
+      if (control.type === "checkbox") control.checked = value;
+      else control.value = String(value);
+    }
     toggleDayNightBtnCb.checked = !!theme.showDayNightBtn;
     toggleSyntaxInjectorCb.checked = theme.syntaxInjectorEnabled !== false;
     togglePromptHistoryCb.checked = theme.promptHistoryEnabled !== false;
@@ -1059,11 +1091,37 @@ export function createThemeController(ctx) {
       updateThemeJson();
     });
   });
-  toggleSeedControlsCb.addEventListener("change", () => {
-    theme.showSeedControls = toggleSeedControlsCb.checked;
-    markLayoutCustom();
+  if (toggleSeedControlsCb) {
+    toggleSeedControlsCb.addEventListener("change", () => {
+      theme.showSeedControls = toggleSeedControlsCb.checked;
+      markLayoutCustom();
+      saveTheme(theme);
+      applyToolbarSettings();
+      updateThemeJson();
+    });
+  }
+  if (toggleSeedFortuneCb) {
+    toggleSeedFortuneCb.addEventListener("change", () => {
+      theme.seedFortuneEnabled = toggleSeedFortuneCb.checked;
+      markLayoutCustom();
+      saveTheme(theme);
+      applyToolbarSettings();
+      updateThemeJson();
+    });
+  }
+  for (const control of fieldEditorControls) {
+    control.addEventListener("change", () => {
+      const key = control.dataset.fieldPreference;
+      theme[key] = control.type === "checkbox" ? control.checked : control.value;
+      Object.assign(theme, normalizeFieldEditorPreferences(theme));
+      saveTheme(theme);
+      updateThemeJson();
+    });
+  }
+  settingsRoot.querySelector('[data-act="resetFieldEditorUi"]')?.addEventListener("click", () => {
+    Object.assign(theme, FIELD_EDITOR_DEFAULTS);
     saveTheme(theme);
-    applyToolbarSettings();
+    refreshToolbarSettingsUI();
     updateThemeJson();
   });
   toggleDayNightBtnCb.addEventListener("change", () => {
@@ -1150,6 +1208,7 @@ export function createThemeController(ctx) {
   settingsRoot.querySelector('[data-act="toolbarAllOn"]').addEventListener("click", () => {
     TOOLBAR_KEYS.forEach(key => { theme[key] = true; });
     theme.showSeedControls = true;
+    theme.seedFortuneEnabled = true;
     theme.showDayNightBtn = true;
     theme.layoutPreset = "custom";
     saveTheme(theme); applyToolbarSettings(); refreshToolbarSettingsUI(); updateThemeJson();
@@ -1157,6 +1216,7 @@ export function createThemeController(ctx) {
   settingsRoot.querySelector('[data-act="toolbarAllOff"]').addEventListener("click", () => {
     TOOLBAR_KEYS.forEach(key => { theme[key] = false; });
     theme.showSeedControls = false;
+    theme.seedFortuneEnabled = false;
     theme.showDayNightBtn = false;
     theme.layoutPreset = "custom";
     saveTheme(theme); applyToolbarSettings(); refreshToolbarSettingsUI(); updateThemeJson();

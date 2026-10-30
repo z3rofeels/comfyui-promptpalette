@@ -1,3 +1,4 @@
+import { escapeHtml } from "../prompt_palette_shared.js";
 import { BUILTIN_UI_THEMES, loadUiThemes, loadActiveUiThemeName } from "./preferences.js";
 
 // Keep invalid intermediate typing out of the serialized seed and resolver.
@@ -73,7 +74,6 @@ function normalizeLibraryEntryPath(raw, { preserveName = false } = {}) {
 function isRecipeCategory(cat) {
   return canonicalRecipeCategory(cat).split("/")[0] === "RECIPES";
 }
-function escapeHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
 function highlightMatch(text, filter) {
   if (!filter) return escapeHtml(text);

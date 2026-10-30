@@ -28,7 +28,8 @@ function liveTextElement(widget) {
 }
 function writable(node, widget) {
   return typeof widget.value === "string" && !widget.disabled && !widget.readOnly && !widget.options?.readonly && !widget.options?.readOnly
-    && !node.inputs?.some(input => input.name === widget.name && input.link != null)
+    && !node.inputs?.some((input, index) => input.name === widget.name
+      && (typeof node.isInputConnected === "function" ? node.isInputConnected(index) : input.link != null))
     && !widget.inputEl?.readOnly && !widget.inputEl?.disabled;
 }
 function nativeTarget(node, widget) {

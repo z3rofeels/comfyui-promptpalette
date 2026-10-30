@@ -62,7 +62,11 @@ export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPal
       node.resizable = true;
       let built = null;
       try {
-        await editorStylesReady;
+        try {
+          await editorStylesReady;
+        } catch (styleError) {
+          console.warn("Prompt Palette: editor styles warning (proceeding):", styleError);
+        }
         if (!nodeIsActive(node)) return;
         built = buildWildcardWidget(node, hiddenWidget);
         const { root: container, refreshFromHidden, refreshVisuals, reassertHiddenWidgets, reapplyTheme, cleanup } = built;
