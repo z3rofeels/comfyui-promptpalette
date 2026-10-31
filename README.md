@@ -45,7 +45,10 @@ In **Active in Prompt**, adjust **Model** and **CLIP** strengths, mute an entry,
 
 For integrated loading, connect MODEL and CLIP into Palette and route its patched outputs downstream. Choose **External** when another loader reads the tags. See the [LoRA guide](LORA_GUIDE.md) for wiring, filenames, and syntax examples.
 
-<!-- Add screenshots / demo: LoraPal gallery, visible preview controls, local metadata, Active in Prompt. -->
+<img width="800" height="872" alt="LoraPalV1" src="https://github.com/user-attachments/assets/984b8aec-4b8b-4e98-b7bf-e3e857f1cb85" />
+
+<img width="589" height="698" alt="Screenshot 2026-10-30 at 3 30 23 PM" src="https://github.com/user-attachments/assets/1bfe5f44-5d7c-4dfc-a440-2bd67cdbf969" />
+
 
 ### LoRA Audition Lab
 
@@ -67,7 +70,12 @@ Enable **Adjustable Recipe Workspace** in **Settings → Power tools** to build 
 - Choose which titles, counts, mode badges, channel indicators, Include switches, and quick buttons appear under **Field headers**. **Workspace bar** controls the name and Add, Save, Variation Lab, Layouts, and Unlink shortcuts. **Layout and help** contains resize handles, snapping, and explanatory notes.
 - Hidden shortcuts remain accessible through **Field settings** or **Workspace settings**. **Reset Fields UI** restores the visibility and grid preferences while keeping your prompt content.
 
+<img width="677" height="831" alt="Screenshot 2026-10-30 at 11 47 37 AM" src="https://github.com/user-attachments/assets/f8254fba-6f32-4c40-9907-83d6d2842a1c" />
+
 Choose **No accent** for a quieter field card. Collapsed fields show syntax-colored previews.
+
+
+<img width="534" height="639" alt="Screenshot 2026-10-30 at 12 19 44 PM" src="https://github.com/user-attachments/assets/dee09011-dfa9-41e0-bae6-ef5b8042f06d" />
 
 
 
@@ -79,6 +87,7 @@ Adjust card size, aspect ratio, image fit, spacing, captions, and visible filter
 
 The themed **Library settings** window can also be moved and resized. Use **Follow library** to keep it nearby, or **Reset window** to restore its position and size.
 
+<img width="800" height="834" alt="Library Settings" src="https://github.com/user-attachments/assets/eb5ddbe4-44b7-43d5-bc43-28bd634df438" />
 
 
 ### Quick prompt slots A–D
@@ -87,6 +96,7 @@ Use **A–D** on the toolbar to switch between four prompt drafts in the same no
 
 Click a letter to switch. **Alt/Option+click** copies the current prompt into that slot and switches to it. Show or hide the control in **Settings → Layout → Toolbar modules → Quick slots A–D**.
 
+<img width="411" height="155" alt="Screenshot 2026-10-30 at 4 28 47 PM" src="https://github.com/user-attachments/assets/bacf7593-9d0a-49d0-8fe0-f6edb9b315fd" />
 
 
 ### Seed Lab and the compact seed bar
@@ -96,6 +106,9 @@ Enable **Settings → Layout → Toolbar modules → Seed controls** to type, co
 Open **Seed Lab** for recent seeds, pinned favorites, presets, **Seed Fortune**, and the **Wheel of Fortune**. Choose a candidate and apply it when you want to use it. The separate **Seed Fortunes & Wheel** toggle controls those optional extras.
 
 Palette's seed controls prompt resolution; your sampler's seed controls image noise. Fortune descriptions are creative suggestions, not predictions of image quality.
+
+<img width="800" height="1063" alt="Screen Recording 2026-10-30 at 5 07 56 PM" src="https://github.com/user-attachments/assets/888a346e-ff96-4cc8-af37-9fb9f140b16c" />
+
 
 
 
@@ -120,6 +133,7 @@ Focus the main prompt editor and press **Ctrl/Cmd+F** for Find. Use **Ctrl+H** o
 
 Match case or whole words, step through results, and replace one occurrence or all matches. Select text first and enable **In selection** to limit changes to that passage. Replacements support undo; **Esc** closes the bar.
 
+<img width="748" height="201" alt="Screenshot 2026-10-30 at 5 02 48 PM" src="https://github.com/user-attachments/assets/4a37bf45-5914-468e-9354-8aa227490a3f" />
 
 
 ### Anima mode in Weight Controller
