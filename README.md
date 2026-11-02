@@ -13,6 +13,13 @@
 
 </p>
 
+
+<img width="986" height="605" alt="Screen Recording 2026-11-01 at 7 43 28 PM" src="https://github.com/user-attachments/assets/9cad56ae-cb69-4c00-bb3d-1ae8abaad252" />
+
+
+
+
+
 > [!TIP]
 > **Start with Prompt Palette.** The Combinatorial and Weight Controller nodes are specialized companions—not requirements. Add them only when your workflow needs batch expansion or dedicated prompt-weight routing.
 
