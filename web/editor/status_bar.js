@@ -1,4 +1,5 @@
-import { svgIcon } from "../prompt_palette_shared.js";
+import { svgIcon, onPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
+import { loadTheme, saveTheme } from "./preferences.js";
 
 export function wildcardStatusText(knownCount, missingCount) {
   return [knownCount ? `${knownCount} wildcard${knownCount === 1 ? "" : "s"}` : "", missingCount ? `${missingCount} missing` : ""].filter(Boolean).join(" · ");
@@ -16,17 +17,76 @@ export function statusBarMarkup({ doctor = false } = {}) {
   </div>`;
 }
 
+export function statusBarSettingsMarkup() {
+  return `<label class="wg-toggle-card" data-el="statusBarSettings"><div><strong>Bottom status bar</strong><small>Auto hide gives the space back to the editor. Hover the bottom edge or Tab to Prompt status to inspect counts and colors. Warnings stay visible.</small></div>
+    <select data-statusbar-mode aria-label="Bottom status bar"><option value="auto">Auto hide</option><option value="always">Always visible</option><option value="warnings">Warnings only</option></select></label>`;
+}
+
 // Status presentation owns neither prompt state nor node geometry. Measure an
 // invisible copy, so testing label widths never changes the live row's height,
 // focus, selection, or observer target. The row (not the collapsed legend) is
 // the resize target, which makes growth restore the labels too.
-export function createStatusBar(root) {
+export function createStatusBar(root, { node } = {}) {
   const row = root.querySelector(".wg-statusbar");
   const legend = row.querySelector('[data-el="legend"]');
   const hint = row.querySelector('[data-el="hintRight"]');
+  // This zero-height anchor keeps the overlay beside its editor, including in
+  // Combinatorial where generation controls follow the status row. The existing
+  // geometry measurement sees zero reserved footer space in auto mode.
+  const dock = document.createElement("div"); dock.className = "wg-status-dock";
+  row.before(dock); dock.append(row);
+  const controls = [...root.querySelectorAll("[data-statusbar-mode]")];
+  let mode = "auto";
   let frame = 0, disposed = false, items = [], signature = "";
   const raf = globalThis.requestAnimationFrame || (fn => setTimeout(fn, 0));
   const cancel = globalThis.cancelAnimationFrame || clearTimeout;
+
+  let resizeTimer = null;
+  let lastW = 0, lastH = 0;
+  function markResizing() {
+    if (disposed) return;
+    if (!root.classList.contains("wg-node-resizing")) root.classList.add("wg-node-resizing");
+    if (dock.dataset.resizing !== "true") dock.dataset.resizing = "true";
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(clearResizing, 180);
+  }
+  function clearResizing() {
+    if (disposed) return;
+    if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; }
+    root.classList.remove("wg-node-resizing");
+    delete dock.dataset.resizing;
+  }
+  const rootResize = typeof ResizeObserver === "function" ? new ResizeObserver(entries => {
+    for (const entry of entries) {
+      const cr = entry.contentRect;
+      if (lastW !== 0 && lastH !== 0 && (Math.abs(cr.width - lastW) > 0.5 || Math.abs(cr.height - lastH) > 0.5)) {
+        markResizing();
+      }
+      lastW = cr.width;
+      lastH = cr.height;
+    }
+  }) : null;
+  rootResize?.observe(root);
+
+  let unwrapNodeResize = null;
+  if (node && typeof node.onResize === "function") {
+    const origOnResize = node.onResize;
+    const wrappedOnResize = function (...args) {
+      markResizing();
+      return origOnResize.apply(this, args);
+    };
+    node.onResize = wrappedOnResize;
+    unwrapNodeResize = () => { if (node.onResize === wrappedOnResize) node.onResize = origOnResize; };
+  }
+
+  const onPointerEnd = () => {
+    if (dock.dataset.resizing === "true") {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(clearResizing, 60);
+    }
+  };
+  window.addEventListener("pointerup", onPointerEnd, { passive: true });
+  window.addEventListener("pointercancel", onPointerEnd, { passive: true });
 
   function fit() {
     frame = 0;
@@ -37,8 +97,15 @@ export function createStatusBar(root) {
     const hasMetrics = Array.from(row.querySelectorAll(".wg-status-metrics .wg-hint")).some(el => el.textContent.trim().length > 0);
     const isEmpty = !hasLegend && !hasDoctor && !hasMetrics;
     if (row.dataset.empty !== String(isEmpty)) row.dataset.empty = String(isEmpty);
-    if (isEmpty || row.clientWidth <= 0) return;
     const missing = hint.textContent.match(/([\d,]+) missing/);
+    const attention = !!(missing && Number(missing[1].replace(/,/g, "")) > 0) ||
+      !!row.querySelector(".wg-token-warn:not(:empty), .wg-token-danger:not(:empty)") ||
+      !!(hasDoctor && ["warning", "error"].includes(doctorChip.dataset.status)) ||
+      doctorChip?.getAttribute("aria-expanded") === "true";
+    row.dataset.attention = String(attention);
+    dock.dataset.attention = String(attention);
+    row.tabIndex = mode === "auto" && !isEmpty ? 0 : -1;
+    if (isEmpty || row.clientWidth <= 0) return;
     const short = missing && Number(missing[1].replace(/,/g, "")) ? `${missing[1]} missing` : hint.textContent;
     if (hint.dataset.shortLabel !== short) hint.dataset.shortLabel = short;
     if (hint.getAttribute("aria-label") !== hint.textContent) hint.setAttribute("aria-label", hint.textContent);
@@ -80,15 +147,30 @@ export function createStatusBar(root) {
     } finally { probe.remove(); }
   }
   function refresh() { if (!disposed && !frame) frame = raf(fit); }
+  function syncPresentation() {
+    if (disposed) return;
+    const value = loadTheme().statusBarMode;
+    mode = ["auto", "always", "warnings"].includes(value) ? value : "auto";
+    row.dataset.presentation = mode; dock.dataset.presentation = mode;
+    row.setAttribute("aria-label", mode === "auto" ? "Prompt status · focus to reveal counts and wildcard colors" : "Prompt status");
+    for (const control of controls) control.value = mode;
+    refresh();
+  }
+  function changeMode(event) {
+    saveTheme({ ...loadTheme(), statusBarMode: event.target.value });
+    syncPresentation();
+  }
+  for (const control of controls) control.addEventListener("change", changeMode);
+  const unsubscribeAppearance = onPromptPaletteAppearanceChanged(syncPresentation);
   const resize = typeof ResizeObserver === "function" ? new ResizeObserver(refresh) : null;
   resize?.observe(row);
   const mutations = typeof MutationObserver === "function" ? new MutationObserver(refresh) : null;
-  mutations?.observe(row, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "class"] });
+  mutations?.observe(row, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "class", "data-status", "aria-expanded"] });
   const appearance = typeof MutationObserver === "function" ? new MutationObserver(refresh) : null;
   appearance?.observe(root, { attributes: true, attributeFilter: ["style", "class"] });
   const fonts = document.fonts;
   fonts?.addEventListener?.("loadingdone", refresh);
-  refresh();
+  syncPresentation();
   return {
     refresh,
     renderLegend(next) {
@@ -111,8 +193,17 @@ export function createStatusBar(root) {
     },
     cleanup() {
       disposed = true; if (frame) cancel(frame); frame = 0;
-      resize?.disconnect(); mutations?.disconnect(); appearance?.disconnect();
+      resize?.disconnect(); rootResize?.disconnect(); mutations?.disconnect(); appearance?.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
+      window.removeEventListener("pointerup", onPointerEnd);
+      window.removeEventListener("pointercancel", onPointerEnd);
+      unwrapNodeResize?.();
+      root.classList.remove("wg-node-resizing");
+      delete dock.dataset.resizing;
+      unsubscribeAppearance();
+      for (const control of controls) control.removeEventListener("change", changeMode);
       fonts?.removeEventListener?.("loadingdone", refresh);
+      dock.replaceWith(row);
     },
   };
 }

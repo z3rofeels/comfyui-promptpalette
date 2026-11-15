@@ -37,7 +37,9 @@ export class SidebarDisplayControls {
       listen(pill, "click", () => commit({ aspect: key }));
       this.ratios.append(pill); this.ratioButtons.set(key, pill);
     }
-    listen(this.layout, "change", () => commit({ layouts: { [getKey()]: this.layout.value } }));
+    listen(this.layout, "change", () => {
+      commit({ layouts: { [getKey()]: this.layout.value } });
+    });
     listen(this.size, "input", () => commit({ scale: Number(this.size.value) / 100 }));
     listen(this.size, "dblclick", () => commit({ scale: .9 }));
     listen(this.size, "pointerdown", onDismiss);
@@ -68,7 +70,8 @@ export class SidebarDisplayControls {
     } else if (this.element.parentElement !== this.settings) this.settings.append(this.element);
     const ratioHost = ratiosInToolbar ? this.element : this.settings;
     if (this.ratios.parentElement !== ratioHost) ratioHost.append(this.ratios);
-    this.ratios.hidden = !visible || this.layout.value !== "gallery" || !state.chrome.images;
+    const showRatios = this.layout.value === "gallery";
+    this.ratios.hidden = !visible || !showRatios || !state.chrome.images;
     this.element.hidden = !visible;
     this.settings.hidden = !visible || (displayInToolbar && (ratiosInToolbar || this.ratios.hidden));
     for (const [key, pill] of this.ratioButtons) pill.setAttribute("aria-pressed", String(key === state.aspect));

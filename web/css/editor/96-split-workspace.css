@@ -16,9 +16,9 @@
 .wg-root .pp-split-rail .wg-button[data-tone="danger"] { margin-left: 0; }
 
 /* ── workspace body ───────────────────────────────────────────────────── */
-.wg-root .pp-recipe-workspace.is-split { display: flex; flex-direction: column; flex: 1 1 0; position: relative; min-height: 0; min-width: 0; overflow: hidden; padding: 0 4px 4px; gap: 0; }
+.wg-root .pp-recipe-workspace.is-split { display: flex; flex-direction: column; flex: 1 1 0; position: relative; min-height: 0; min-width: 0; overflow: hidden; padding: 0; gap: 0; }
 .wg-root .pp-recipe-workspace.is-split[hidden] { display: none !important; }
-.wg-root .pp-split-fields { display: flex; flex-direction: column; gap: 4px; flex: 1 1 0; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent; }
+.wg-root .pp-split-fields { display: flex; flex-direction: column; gap: 4px; flex: 1 1 0; min-height: 0; min-width: 0; padding-bottom: 6px; scroll-padding-bottom: 6px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent; }
 .wg-root .pp-split-fields > .pp-recipe-static { flex: 0 0 auto; max-height: 4.5em; overflow: auto; padding: 2px 8px; background: transparent; }
 
 /* ── field card ───────────────────────────────────────────────────────── */
@@ -93,9 +93,39 @@
 .wg-root .pp-split-fields .pp-recipe-state { padding: 1px 5px; border-radius: 9px; font-size: 9.5px; font-weight: 650; color: var(--pp-field-tone); background: color-mix(in srgb, var(--pp-field-tone) 12%, transparent); }
 .wg-root .pp-split-fields .pp-field-char-count { opacity: 0; font-size: 9.5px; font-variant-numeric: tabular-nums; color: var(--wg-text-faint); padding: 0 2px; transition: opacity 90ms ease; }
 .wg-root .pp-split-fields .pp-recipe-field:focus-within .pp-field-char-count { opacity: 1; }
-.wg-root .pp-split-fields .pp-field-head-actions { display: inline-flex; align-items: center; gap: 1px; }
-.wg-root .pp-split-fields .pp-field-action { opacity: 0; transition: opacity 90ms ease; }
-.wg-root .pp-split-fields .pp-recipe-field-gear { opacity: .45; }
+.wg-root .pp-split-fields .pp-field-head-actions { display: inline-flex; align-items: center; gap: 4px; margin-inline-end: 2px; }
+.wg-root .pp-split-fields .pp-field-action { opacity: 0; transition: opacity 120ms ease; }
+.wg-root .pp-split-fields .pp-field-import-btn {
+  opacity: .85;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 18px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 650;
+  color: var(--wg-accent);
+  border-color: color-mix(in srgb, var(--wg-accent) 45%, var(--wg-border));
+  background: color-mix(in srgb, var(--wg-accent) 10%, var(--wg-surface));
+}
+.wg-root .pp-split-fields .pp-field-import-btn:hover:not(:disabled) {
+  opacity: 1;
+  border-color: var(--wg-accent);
+  background: color-mix(in srgb, var(--wg-accent) 20%, var(--wg-surface));
+}
+.wg-root .pp-split-fields .pp-field-import-btn[hidden] { display: none; }
+.wg-root .pp-split-fields .pp-recipe-field-gear {
+  opacity: .55;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 4px;
+}
+.wg-root .pp-split-fields .pp-recipe-field-gear:hover { opacity: 1; color: var(--wg-accent); }
 .wg-root .pp-split-fields .pp-recipe-field:is(:hover, :focus-within) .pp-field-action,
 .wg-root .pp-split-fields .pp-field-action:focus-visible,
 .wg-root .pp-split-fields .pp-field-action[aria-pressed="true"] { opacity: 1; }
@@ -110,7 +140,7 @@
 .wg-root .pp-split-fields .pp-recipe-field[data-height-mode="auto"] .pp-recipe-editor [data-pp-editor-surface="single"],
 .wg-root .pp-split-fields .pp-recipe-field[data-height-mode="auto"] .pp-recipe-editor .wg-highlight { position: relative; inset: auto; height: auto; min-height: 34px; max-height: 280px; }
 .wg-root .pp-split-fields .pp-recipe-editor:focus-within { box-shadow: inset 2px 0 var(--pp-field-bar); }
-.wg-root .pp-split-fields .pp-recipe-editor .wg-editor-layer { padding: 6px 10px; line-height: 1.48; caret-color: var(--pp-field-accent, var(--wg-accent)); }
+.wg-root .pp-split-fields .pp-recipe-editor .wg-editor-layer { padding: 6px 8px; line-height: 1.48; caret-color: var(--pp-field-caret, var(--wg-accent)); }
 .wg-root .pp-split-grip { flex: none; height: 5px; cursor: ns-resize; background: linear-gradient(to bottom, transparent 2px, color-mix(in srgb, var(--wg-border) 75%, transparent) 2px, color-mix(in srgb, var(--wg-border) 75%, transparent) 3px, transparent 3px); opacity: .55; touch-action: none; }
 .wg-root .pp-split-grip:is(:hover, :focus-visible),
 .wg-root .pp-recipe-field.is-resizing .pp-split-grip { opacity: 1; background: linear-gradient(to bottom, transparent 1px, var(--pp-field-bar) 1px, var(--pp-field-bar) 3px, transparent 3px); outline: none; }
@@ -124,7 +154,7 @@
 }
 
 /* ── settings surface ─────────────────────────────────────────────────── */
-.wg-root .pp-split-settings { position: absolute; inset: 0 5px 5px; z-index: 20; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--wg-border); border-radius: var(--wg-corner-radius, 6px); background: var(--wg-panel-bg); }
+.wg-root .pp-split-settings { position: relative; flex: 0 1 58%; z-index: 20; display: flex; flex-direction: column; min-width: 0; min-height: 0; margin-top: 4px; overflow: hidden; border: 1px solid var(--wg-border); border-radius: var(--wg-corner-radius, 6px); background: var(--wg-panel-bg); }
 .wg-root .pp-split-settings[hidden] { display: none !important; }
 .wg-root .pp-split-settings-head { flex: none; display: flex; align-items: center; gap: 6px; padding: 3px 4px 0 6px; border-bottom: 1px solid var(--wg-border); }
 .wg-root .pp-split-tabbar { display: flex; flex: 1; min-width: 0; gap: 2px; overflow-x: auto; scrollbar-width: none; }
@@ -133,22 +163,30 @@
 .wg-root .pp-split-tab[aria-selected="true"] { color: var(--wg-text); border-bottom-color: var(--wg-accent); }
 .wg-root .pp-split-tab:focus-visible, .wg-root .pp-accent-swatch:focus-visible, .wg-root .pp-split-grip:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: -2px; }
 .wg-root .pp-split-close { flex: none; min-height: 24px; padding: 0 8px; }
-.wg-root .pp-split-settings-body { flex: 1 1 0; min-height: 0; overflow: auto; padding: 8px 10px 12px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent; }
+.wg-root .pp-split-settings-body { flex: 1 1 0; min-height: 0; overflow: auto; padding: 6px 8px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent; }
 .wg-root .pp-split-pane[hidden] { display: none !important; }
-.wg-root .pp-split-group { margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--wg-border); }
+.wg-root .pp-split-group { margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--wg-border); }
+.wg-root .pp-split-group:last-child { margin-bottom:0; padding-bottom:0; border-bottom:0; }
 .wg-root .pp-split-group-title { display: block; margin-bottom: 6px; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--wg-text-faint); }
 .wg-root .pp-split-field-options { margin: 0 0 6px; border: 1px solid var(--wg-border); border-radius: 5px; background: var(--pp-workspace-row); }
 .wg-root .pp-split-field-options[open] { border-color: var(--wg-border-strong); }
-.wg-root .pp-split-options-head { display: flex; align-items: center; gap: 8px; padding: 6px 9px; cursor: pointer; font-size: 11px; font-weight: 650; color: var(--wg-text); }
+.wg-root .pp-split-options-head { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; font-size: 11px; font-weight: 650; color: var(--wg-text); }
 .wg-root .pp-split-options-head::marker { color: var(--wg-text-faint); }
 .wg-root .pp-split-options-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wg-root .pp-split-options-body { padding: 2px 9px 9px; }
-.wg-root .pp-split-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; min-width: 0; }
-.wg-root .pp-split-caption { flex: 0 0 76px; font-size: 11px; color: var(--wg-text-dim); }
-.wg-root .pp-split-row select, .wg-root .pp-split-title-input { flex: 1; min-width: 0; max-width: none; }
-.wg-root .pp-split-title-input { box-sizing: border-box; min-height: 28px; padding: 4px 7px; border: 1px solid var(--wg-border-strong); border-radius: var(--wg-corner-radius, 6px); background: var(--wg-surface); color: var(--wg-text); font: inherit; font-size: 11px; }
+.wg-root .pp-split-options-body { padding: 2px 8px 7px; color: var(--wg-text-dim); }
+.wg-root .pp-split-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; min-width: 0; }
+.wg-root .pp-split-caption { flex: 0 0 76px; font-size: 11px; line-height: 1.2; color: var(--wg-text-dim); }
+.wg-root .pp-split-row select, .wg-root .pp-split-title-input { flex: 1; min-width: 0; max-width: none; min-height: 24px; padding: 2px 6px; }
+.wg-root .pp-split-title-input { box-sizing: border-box; border: 1px solid var(--wg-border-strong); border-radius: var(--wg-corner-radius, 6px); background: var(--wg-surface); color: var(--wg-text); font: inherit; font-size: 11px; }
 .wg-root .pp-split-title-input:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 1px; }
-.wg-root .pp-split-field-actions { gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.wg-root .pp-split-row-group { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.wg-root .pp-split-row-group select { flex: 1 1 130px; min-width: 0; }
+.wg-root .pp-split-check-label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: calc(11px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim); transition: color 110ms ease; }
+.wg-root .pp-split-check-label:hover { color: var(--wg-text); }
+.wg-root .pp-split-options-body .pp-field-variation-hint { margin: 4px 2px; line-height: 1.4; }
+.wg-root .pp-split-options-body .pp-field-source-controls { margin: 3px 0 5px; }
+.wg-root .pp-split-field-actions { gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.wg-root .pp-split-field-actions .wg-button { min-height: 24px; padding: 3px 7px; font-size: calc(10.5px * var(--wg-ui-font-scale, 1)); }
 .wg-root .pp-split-global-actions { gap: 5px; flex-wrap: wrap; }
 
 /* ── accent picker ────────────────────────────────────────────────────── */
@@ -172,7 +210,7 @@
 .wg-root .pp-workspace-layout-picker .pp-iteration-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .wg-root .pp-layout-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; width: 100%; }
 .wg-root .pp-layout-card { display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 10px; border: 1px solid var(--wg-border); border-radius: min(var(--wg-corner-radius, 8px), 8px); background: linear-gradient(140deg, color-mix(in srgb, var(--wg-accent) 6%, var(--wg-panel-bg)), var(--wg-surface)); color: var(--wg-text); text-align: left; cursor: pointer; }
-.wg-root .pp-layout-card:is(:hover, [aria-pressed="true"]) { border-color: var(--wg-accent); box-shadow: 0 0 10px color-mix(in srgb, var(--wg-accent) 10%, transparent); }
+.wg-root .pp-layout-card:is(:hover, [aria-pressed="true"]) { border-color: var(--wg-accent); }
 .wg-root .pp-layout-card:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 2px; }
 .wg-root .pp-layout-card strong { font-size: 12px; }
 .wg-root .pp-layout-card small { color: var(--wg-text-dim); font-size: 10px; line-height: 1.45; }
@@ -189,14 +227,11 @@
   grid-template-rows: var(--pp-field-rows, none);
   grid-auto-rows: minmax(min-content, 1fr);
   align-content: stretch; align-items: stretch; gap: 4px;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable; overflow-anchor: none; padding-bottom: 6px;
 }
-.wg-root .pp-recipe-workspace[data-field-columns="2"] .pp-split-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.wg-root .pp-recipe-workspace[data-field-columns="3"] .pp-split-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.wg-root .pp-recipe-workspace[data-field-columns="auto"] .pp-split-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
 .wg-root .pp-split-fields > .pp-recipe-static { grid-column: 1 / -1; min-width: 0; margin: 0; }
 .wg-root .pp-split-fields > .pp-recipe-field { min-height: var(--pp-field-min-height, 96px); }
-.wg-root .pp-split-fields > .pp-recipe-field:is([data-sized="true"], [data-height-mode="auto"]) { min-height: min-content; }
+.wg-root .pp-split-fields > .pp-recipe-field:is([data-sized="true"], [data-height-mode="auto"]) { min-height: min-content; align-self: start; }
 .wg-root .pp-split-fields > .pp-recipe-field.is-collapsed { min-height: 0; align-self: start; }
 .wg-root .pp-split-fields .pp-recipe-field-head { min-height: 28px; box-sizing: border-box; flex-wrap: wrap; }
 .wg-root .pp-split-fields .pp-recipe-field-label { display: inline-flex; align-items: center; gap: 4px; }
@@ -204,6 +239,15 @@
 .wg-root .pp-split-fields .pp-field-collapse-icon, .wg-root .pp-split-fields .pp-field-head-actions { flex-shrink: 0; }
 .wg-root .pp-split-fields .pp-field-action:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: -2px; }
 .wg-root .pp-split-fields .pp-field-char-count { transition: none; }
+.wg-root .pp-split-fields > .pp-recipe-field.is-active-field { border-top-color: color-mix(in srgb, var(--pp-field-bar) 55%, var(--wg-border-strong)); }
+.wg-root .pp-split-fields.is-resizing { user-select: none; }
+.wg-root .pp-field-navigator { flex: 0 1 145px; min-width: 64px; max-width: 180px; min-height: 22px; padding: 1px 4px; border: 1px solid var(--wg-border); border-radius: 4px; background: var(--wg-surface); color: var(--wg-text-dim); font: inherit; font-size: calc(10.5px * var(--wg-ui-font-scale, 1)); }
+.wg-root .pp-field-navigator:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: -2px; }
+.wg-root .pp-split-rail .pp-field-navigator[hidden] { display: none !important; }
+@container pp-fields (min-width: 780px) {
+  .wg-root .pp-recipe-workspace[data-settings-open="true"] .pp-split-fields { width: calc(58% - 4px); }
+  .wg-root .pp-recipe-workspace[data-settings-open="true"] .pp-split-settings { position: absolute; inset: 0 0 0 auto; width: 42%; box-sizing: border-box; margin-top: 0; }
+}
 /* Explicitly hidden controls must not be brought back by flex/grid display rules. */
 .wg-root .pp-split-rail [hidden], .wg-root .pp-recipe-workspace [hidden] { display: none !important; }
 .wg-root .pp-recipe-workspace[data-show-field-labels="false"] .pp-field-title,
@@ -215,9 +259,22 @@
 .wg-root .pp-recipe-workspace[data-show-field-height="false"] .pp-field-height-btn,
 .wg-root .pp-recipe-workspace[data-show-field-resize="false"] .pp-split-grip,
 .wg-root .pp-recipe-workspace[data-show-field-help="false"] :is(.pp-field-variation-hint, .pp-workspace-guide, .pp-field-choices .pp-refine-note) { display: none; }
-@container pp-fields (max-width: 735px) {
-  .wg-root .pp-recipe-workspace[data-field-columns="3"] .pp-split-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@container pp-fields (max-width: 495px) {
-  .wg-root .pp-recipe-workspace:is([data-field-columns="2"], [data-field-columns="3"]) .pp-split-fields { grid-template-columns: minmax(0, 1fr); }
-}
+
+/* ── polish: consistent header control states & scale-aware type ─────── */
+.wg-root .pp-split-fields .pp-recipe-field-head .wg-button { font-size: calc(10.5px * var(--wg-ui-font-scale, 1)); border-radius: 4px; transition: background 110ms ease, color 110ms ease; }
+.wg-root .pp-split-fields .pp-recipe-field-head .wg-button:hover { background: color-mix(in srgb, var(--wg-text) 8%, transparent); color: var(--wg-text); }
+.wg-root .pp-split-fields .pp-recipe-field-head .wg-button:focus-visible,
+.wg-root .pp-split-seg .wg-button:focus-visible,
+.wg-root .pp-split-rail .wg-button:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: -2px; }
+.wg-root .pp-split-fields .pp-recipe-field-head input.pp-field-switch:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 1px; }
+.wg-root .pp-split-seg .wg-button:not([aria-pressed="true"]):hover { color: var(--wg-text); }
+.wg-root .pp-split-fields .pp-recipe-summary { font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .pp-split-caption, .wg-root .pp-layout-starter-values { font-size: calc(11px * var(--wg-ui-font-scale, 1)); }
+.wg-root .pp-split-group-title, .wg-root .pp-layout-card small { font-size: calc(10px * var(--wg-ui-font-scale, 1)); }
+@media (prefers-reduced-motion: reduce) { .wg-root .pp-split-fields .pp-recipe-field-head .wg-button { transition: none; } }
+
+/* ── accent color targets ─────────────────────────────────────────────── */
+/* A title takes its field's accent only when the accent is set to color titles; the value is
+   nudged for contrast against the active theme. Automatic / No accent keep the theme title color. */
+.wg-root .pp-split-fields > .pp-recipe-field[data-title-accent="true"] .pp-recipe-field-head .pp-field-title { color: var(--pp-field-title-color, var(--wg-text)); }
+.wg-root .pp-split-field-options select:disabled { opacity: .55; cursor: not-allowed; }

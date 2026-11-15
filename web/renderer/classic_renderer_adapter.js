@@ -1,19 +1,21 @@
 import {
   RendererAdapter, IO_SLOT_HEIGHT, IO_RAIL_GAP, HIDDEN_SOCKET_LABEL,
-  nodeActive, socketDisplayLabel, managedSocketGroups,
+  nodeActive, socketDisplayLabel, socketConnected, managedSocketGroups, presentSocket, presentationApplied, compactSocketLayout,
   ensureSchemaSocket, rememberSocketState, restoreSocketState, frame, cancelFrame,
 } from "./base_renderer_adapter.js";
 
 export class ClassicRendererAdapter extends RendererAdapter {
-  constructor(node, { labelsShown = () => false, onLayout = null } = {}) {
+  constructor(node, { onLayout = null, labelsShown = () => false, isNodes2 = () => false } = {}) {
     super(node);
-    this.labelsShown = labelsShown;
     this.onLayout = onLayout;
+    this.labelsShown = labelsShown;
+    this.isNodes2 = isNodes2;
     this.inputDefs = [];
     this.outputDefs = [];
     this.layoutFrame = 0;
     this.signature = "";
     this.inLayout = false;
+    this.lastSlots = [];
   }
 
   install(inputDefs = [], outputDefs = []) {
@@ -46,84 +48,77 @@ export class ClassicRendererAdapter extends RendererAdapter {
     if (!nodeActive(node) || this.inLayout) return false;
     this.inLayout = true;
     try {
-    const width = Math.max(180, Number(node.size?.[0]) || 180);
-    const slotHeight = Number(globalThis.LiteGraph?.NODE_SLOT_HEIGHT) || IO_SLOT_HEIGHT;
-    const startY = Number(node.constructor?.slot_start_y ?? node.slot_start_y ?? 0) || 0;
-    const showLabels = !!this.labelsShown();
-    const inputGroups = managedSocketGroups(node.inputs, this.inputDefs, "input");
-    const outputGroups = managedSocketGroups(node.outputs, this.outputDefs, "output");
-    const visibleInputs = inputGroups.visible;
-    const visibleOutputs = outputGroups.visible;
-    const hiddenInputs = inputGroups.hidden;
-    const hiddenOutputs = outputGroups.hidden;
-    const signature = JSON.stringify([
-      width, startY, showLabels,
-      visibleInputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
-      visibleOutputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
-      hiddenInputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
-      hiddenOutputs.map((slot) => [slot?.name, slot?.label, slot?.localized_name]),
-    ]);
-    if (signature === this.signature) { this.onLayout?.(false); return false; }
-    this.signature = signature;
+      const width = Math.max(180, Number(node.size?.[0]) || 180);
+      const slotHeight = Number(globalThis.LiteGraph?.NODE_SLOT_HEIGHT) || IO_SLOT_HEIGHT;
+      const startY = Number(node.constructor?.slot_start_y ?? node.slot_start_y ?? 0) || 0;
+      const inputGroups = managedSocketGroups(node.inputs, this.inputDefs, "input", node);
+      const outputGroups = managedSocketGroups(node.outputs, this.outputDefs, "output", node);
+      const visibleInputs = inputGroups.visible;
+      const visibleOutputs = outputGroups.visible;
+      const hiddenInputs = inputGroups.hidden;
+      const hiddenOutputs = outputGroups.hidden;
+      const slots = [...visibleInputs, ...visibleOutputs, ...hiddenInputs, ...hiddenOutputs];
+      const expanded = !!this.labelsShown();
+      // Vue owns its label text; compact CSS removes its label boxes completely.
+      const showLabels = this.isNodes2() || expanded;
+      const compact = compactSocketLayout(width, visibleInputs.length, visibleOutputs.length, slotHeight);
+      const applied = slots.every((slot) => presentationApplied(slot));
+      const signature = JSON.stringify([width, startY, slotHeight, expanded, showLabels,
+        [visibleInputs, visibleOutputs, hiddenInputs, hiddenOutputs].map((group, i) => {
+          const defs = i % 2 ? this.outputDefs : this.inputDefs;
+          return group.map(slot => {
+            const original = rememberSocketState(slot);
+            return [slot.name, slot.type, socketDisplayLabel(slot, defs), [original.label, original.localized_name, original.pos, original.color_on, original.color_off], socketConnected(i % 2 ? "output" : "input", slot, node)];
+          });
+        }),
+      ]);
+      if (applied && signature === this.signature && slots.length === this.lastSlots.length
+        && slots.every((slot, index) => slot === this.lastSlots[index])) return false;
+      this.signature = signature;
+      this.lastSlots = slots;
 
-    for (const slot of [...visibleInputs, ...visibleOutputs, ...hiddenInputs, ...hiddenOutputs]) rememberSocketState(slot);
+      const placeVisible = (slots, output, defs) => {
+        slots.forEach((slot, index) => {
+          const label = socketDisplayLabel(slot, defs);
+          const original = slot.__ppSocketRailState;
+          const hideLabel = !showLabels;
+          presentSocket(slot, {
+            color_on: original.color_on, color_off: original.color_off,
+            // Classic has no portable label-visibility hook; empty text falls back
+            // to name. Keep the sentinel confined to presentation and out of saves.
+            label: hideLabel ? HIDDEN_SOCKET_LABEL : original.label ?? label,
+            localized_name: hideLabel ? HIDDEN_SOCKET_LABEL : original.localized_name,
+            pos: expanded ? [output ? width : 0, startY + (index + 0.7) * slotHeight]
+              : (output ? compact.outputs : compact.inputs)[index],
+          });
+        });
+      };
+      const hideSlots = (slots, output) => {
+        slots.forEach((slot, index) => {
+          const margin = slotHeight * 2;
+          presentSocket(slot, { label: HIDDEN_SOCKET_LABEL, localized_name: HIDDEN_SOCKET_LABEL,
+            color_on: "rgba(0,0,0,0)", color_off: "rgba(0,0,0,0)",
+            pos: [output ? width + margin : -margin, -slotHeight - index] });
+        });
+      };
 
-    const placeCompact = (slots, output, defs) => {
-      const available = Math.max(36, width * 0.46 - 18);
-      const spacing = slots.length <= 1 ? 0 : Math.min(18, available / (slots.length - 1));
-      slots.forEach((slot, index) => {
-        slot.ppHidden = false;
-        slot.color_on = undefined;
-        slot.color_off = undefined;
-        slot.label = HIDDEN_SOCKET_LABEL;
-        slot.localized_name = HIDDEN_SOCKET_LABEL;
-        slot.pos = [output ? width - 12 - index * spacing : 12 + index * spacing, -1];
-        slot.__ppSocketRailTitle = socketDisplayLabel(slot, defs);
-      });
-    };
-    const placeLabeled = (slots, output, defs) => {
-      slots.forEach((slot, index) => {
-        const label = socketDisplayLabel(slot, defs);
-        slot.ppHidden = false;
-        slot.color_on = undefined;
-        slot.color_off = undefined;
-        slot.label = label;
-        slot.localized_name = label;
-        slot.pos = [output ? width : 0, startY + (index + 0.7) * slotHeight];
-        slot.__ppSocketRailTitle = label;
-      });
-    };
-    const hideSlots = (slots, output) => {
-      slots.forEach((slot, index) => {
-        slot.ppHidden = true;
-        slot.label = HIDDEN_SOCKET_LABEL;
-        slot.localized_name = HIDDEN_SOCKET_LABEL;
-        slot.color_on = "rgba(0,0,0,0)";
-        slot.color_off = "rgba(0,0,0,0)";
-        const margin = slotHeight * 2;
-        slot.pos = [output ? width + margin : -margin, -slotHeight - index];
-      });
-    };
+      placeVisible(visibleInputs, false, this.inputDefs);
+      placeVisible(visibleOutputs, true, this.outputDefs);
+      hideSlots(hiddenInputs, false);
+      hideSlots(hiddenOutputs, true);
 
-    if (showLabels) {
-      placeLabeled(visibleInputs, false, this.inputDefs);
-      placeLabeled(visibleOutputs, true, this.outputDefs);
-    } else {
-      placeCompact(visibleInputs, false, this.inputDefs);
-      placeCompact(visibleOutputs, true, this.outputDefs);
-    }
-    hideSlots(hiddenInputs, false);
-    hideSlots(hiddenOutputs, true);
-
-    if (!("_wgOriginalWidgetsStartY" in node)) node._wgOriginalWidgetsStartY = node.widgets_start_y;
-    const originalStart = Number(node._wgOriginalWidgetsStartY);
-    const baseStart = Number.isFinite(originalStart) ? originalStart : startY;
-    const labeledRows = showLabels ? Math.max(visibleInputs.length, visibleOutputs.length) : 0;
-    node.widgets_start_y = labeledRows ? Math.max(baseStart, startY + labeledRows * slotHeight + IO_RAIL_GAP) : baseStart;
-    node.graph?.setDirtyCanvas?.(true, true);
-    node.setDirtyCanvas?.(true, true);
-    this.onLayout?.(true);
-    return true;
+      if (!("_wgOriginalWidgetsStartY" in node)) node._wgOriginalWidgetsStartY = node.widgets_start_y;
+      const originalStart = Number(node._wgOriginalWidgetsStartY);
+      const baseStart = Number.isFinite(originalStart) ? originalStart : startY;
+      const labeledRows = expanded ? Math.max(visibleInputs.length, visibleOutputs.length) : 0;
+      const widgetsStart = expanded
+        ? labeledRows ? Math.max(baseStart, startY + labeledRows * slotHeight + IO_RAIL_GAP) : baseStart
+        : Math.max(baseStart, compact.height);
+      if (node.widgets_start_y !== widgetsStart) node.widgets_start_y = widgetsStart;
+      if (node.setDirtyCanvas) node.setDirtyCanvas(true, true);
+      else node.graph?.setDirtyCanvas?.(true, true);
+      this.onLayout?.(true);
+      return true;
     } finally {
       this.inLayout = false;
     }
@@ -133,6 +128,7 @@ export class ClassicRendererAdapter extends RendererAdapter {
     cancelFrame(this.layoutFrame);
     this.layoutFrame = 0;
     this.signature = "";
+    this.lastSlots = [];
     this.inLayout = false;
     for (const slot of [...(this.node?.inputs || []), ...(this.node?.outputs || [])]) restoreSocketState(slot);
     if (this.node && "_wgOriginalWidgetsStartY" in this.node) {

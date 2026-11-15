@@ -21,14 +21,31 @@ export const FIELD_EDITOR_TOGGLES = [
 ];
 export const FIELD_EDITOR_DEFAULTS = Object.freeze({
   ...Object.fromEntries(FIELD_EDITOR_TOGGLES.map(([key, , , , value]) => [key, value])),
-  fieldEditorColumns: '1', fieldEditorMinHeight: 96,
+  fieldEditorColumns: '1', fieldEditorMinHeight: 96, fieldColorTarget: 'both',
 });
 export function normalizeFieldEditorPreferences(value = {}) {
   return {
     ...Object.fromEntries(FIELD_EDITOR_TOGGLES.map(([key, , , , fallback]) => [key, typeof value[key] === 'boolean' ? value[key] : fallback])),
     fieldEditorColumns: ['1', '2', '3', 'auto'].includes(String(value.fieldEditorColumns)) ? String(value.fieldEditorColumns) : '1',
     fieldEditorMinHeight: [80, 96, 128, 160].includes(Number(value.fieldEditorMinHeight)) ? Number(value.fieldEditorMinHeight) : 96,
+    fieldColorTarget: normalizeFieldColorTarget(value.fieldColorTarget),
   };
+}
+
+// A field's accent can color its card, its title, or both. The workspace default lives in the
+// Fields editor preferences; a field may override it with `accentTarget`. Only an explicit hex
+// accent colors a title: Automatic and No accent keep the theme's own title color.
+export const FIELD_COLOR_TARGETS = Object.freeze(['both', 'field', 'title']);
+export function normalizeFieldColorTarget(value, fallback = 'both') {
+  return FIELD_COLOR_TARGETS.includes(value) ? value : fallback;
+}
+export function fieldAccentPlan(field = {}, workspaceTarget = 'both') {
+  const raw = String(field?.accent || '').toLowerCase();
+  const hex = /^#[0-9a-f]{6}$/.test(raw) ? raw : '';
+  const target = normalizeFieldColorTarget(field?.accentTarget, normalizeFieldColorTarget(workspaceTarget));
+  const colorsCard = !!hex && target !== 'title';
+  // chrome: 'none' (No accent), 'custom' (accent bar/border) or 'auto' (state/theme tone).
+  return { hex, target, chrome: raw === 'none' ? 'none' : colorsCard ? 'custom' : 'auto', title: !!hex && target !== 'field' };
 }
 export function fieldEditorSettingsMarkup() {
   const groups = ['Layout and help', 'Field headers', 'Workspace bar'];
@@ -36,6 +53,7 @@ export function fieldEditorSettingsMarkup() {
     <div class="wg-toggle-grid">
       <label class="wg-toggle-card"><div><strong>Grid columns</strong><small>Equal columns that fit the node. Narrow nodes automatically use fewer columns.</small></div><select data-field-preference="fieldEditorColumns" aria-label="Fields grid columns"><option value="1">1 column</option><option value="2">Up to 2 columns</option><option value="3">Up to 3 columns</option><option value="auto">Auto-fit columns</option></select></label>
       <label class="wg-toggle-card"><div><strong>Minimum field height</strong><small>Grid cells share the available height evenly. Larger collections scroll when needed.</small></div><select data-field-preference="fieldEditorMinHeight" aria-label="Minimum field height"><option value="80">Compact · 80px</option><option value="96">Balanced · 96px</option><option value="128">Roomy · 128px</option><option value="160">Large · 160px</option></select></label>
+      <label class="wg-toggle-card"><div><strong>Accent color applies to</strong><small>Choose whether a field's accent colors its card, its title, or both. Each field can override this in Field settings. Editor text and syntax colors never change.</small></div><select data-field-preference="fieldColorTarget" aria-label="Accent color applies to"><option value="both">Field and title</option><option value="field">Field only</option><option value="title">Title only</option></select></label>
     </div>${groups.map(group => `<details class="wg-help-item"${group === 'Field headers' ? ' open' : ''}><summary>${group}</summary><div class="wg-toggle-grid">${FIELD_EDITOR_TOGGLES.filter(([, , , category]) => category === group).map(([key, label, description]) => `<label class="wg-toggle-card"><div><strong>${label}</strong><small>${description}</small></div><input type="checkbox" data-field-preference="${key}"></label>`).join('')}</div></details>`).join('')}<div class="wg-button-row"><button type="button" class="wg-button" data-act="resetFieldEditorUi">Reset Fields UI</button></div>`;
 }
 
@@ -50,4 +68,15 @@ export function fieldGridRows(items, columns) {
     else { row.push(item); if (row.length === columns) flush(); }
   }
   flush(); return rows.join(' ');
+}
+
+export function fieldEditorHeight(value, snap = true) {
+  const height = Number(value);
+  if (!Number.isFinite(height)) return null;
+  return Math.max(48, Math.min(2400, snap ? Math.round(height / 8) * 8 : Math.round(height)));
+}
+
+export function fieldGridColumns(preference, width) {
+  const fit = Math.max(1, Math.floor((Math.max(0, Number(width) || 0) + 4) / 244));
+  return Math.min(preference === 'auto' ? fit : Math.max(1, Number(preference) || 1), fit);
 }

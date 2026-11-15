@@ -32,3 +32,50 @@
 }
 
 .wg-root .wg-settings-body.pp-refine-active > :not(.pp-refine-panel) { display: none !important; }
+.pp-refinement-session {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--wg-accent, #d49a52) 45%, var(--wg-border, #3a4048));
+  border-radius: var(--wg-corner-radius, 6px);
+  background: color-mix(in srgb, var(--wg-accent, #d49a52) 6%, var(--wg-panel-bg, #1c1f23));
+}
+.pp-refinement-session[hidden] { display:none !important; }
+.wg-root .pp-refinement-session > .pp-refine-note { flex:1 0 100%; margin: 0 0 2px 0; overflow-wrap:anywhere; font-size:calc(10px * var(--wg-ui-font-scale,1)); line-height: 1.4; color: var(--wg-text-dim); }
+.wg-root .pp-refinement-session > button {
+  min-width: 0; min-height: 23px; padding: 3px 8px; border-radius: 5px;
+  white-space: nowrap; font-size: calc(10.5px * var(--wg-ui-font-scale,1)); font-weight: 550;
+  border: 1px solid var(--wg-border-strong, #3a4048);
+  background: var(--wg-surface, #121417);
+  color: var(--wg-text-dim, #b8b0a4);
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+.wg-root .pp-refinement-session > button:hover:not(:disabled) {
+  color: var(--wg-text, #f1eee8);
+  border-color: color-mix(in srgb, var(--wg-accent, #d49a52) 60%, var(--wg-border));
+  background: color-mix(in srgb, var(--wg-accent, #d49a52) 10%, var(--wg-surface));
+}
+.wg-root .pp-refinement-session > button.pp-refine-commit {
+  margin-left: auto;
+  background: var(--wg-accent, #d49a52);
+  color: var(--wg-accent-text, #17191c);
+  border-color: var(--wg-accent, #d49a52);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.22);
+}
+.wg-root .pp-refinement-session > button.pp-refine-commit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--wg-accent, #d49a52) 85%, white);
+  border-color: color-mix(in srgb, var(--wg-accent, #d49a52) 85%, white);
+  color: var(--wg-accent-text, #17191c);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.wg-root .pp-refinement-session > button.pp-refine-cancel:hover:not(:disabled) {
+  color: var(--wg-danger, #d86f70);
+  border-color: color-mix(in srgb, var(--wg-danger, #d86f70) 55%, var(--wg-border));
+  background: color-mix(in srgb, var(--wg-danger, #d86f70) 12%, var(--wg-surface));
+}
+.wg-root .pp-refinement-session button:focus-visible { outline: 2px solid var(--wg-accent, #d49a52); outline-offset: -2px; }
+.wg-root .pp-refinement-session button:disabled { cursor: default; opacity: .45; }

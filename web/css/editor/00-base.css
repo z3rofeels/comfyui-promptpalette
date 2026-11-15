@@ -176,7 +176,7 @@
 .wg-drawer.open { width: 220px; }
 
 .wg-drawer.left.resizing { transition: none; }
-.wg-drawer-inner { width: 220px; height: 100%; display: flex; flex-direction: column; padding: 8px; min-height: 0; }
+.wg-drawer-inner { box-sizing: border-box; width: 220px; height: 100%; display: flex; flex-direction: column; padding: 8px; min-height: 0; }
 
 .wg-drawer.left .wg-drawer-inner { width: 100%; }
 .wg-drawer-inner h4 { margin: 2px 0 6px; font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-dim, #b8b0a4); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
@@ -192,7 +192,7 @@
 .wg-section-label { font-size: calc(9px * var(--wg-ui-font-scale, 1)); text-transform: uppercase; letter-spacing: 0.05em; color: var(--wg-text-faint, #8f887e); padding: 6px 4px 3px; }
 .wg-section-label-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .wg-clear-recent { flex: none; background: transparent; border: none; color: var(--wg-text-faint, #8f887e); font-size: max(9px, calc(8.5px * var(--wg-ui-font-scale, 1))); text-transform: none; letter-spacing: 0; padding: 1px 5px; border-radius: 4px; cursor: pointer; transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease; }
-.wg-clear-recent:hover { color: var(--wg-danger, #d86f70); background: color-mix(in srgb, var(--wg-danger, #d86f70) 14%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--wg-danger, #d86f70) 35%, transparent); }
+.wg-clear-recent:hover { color: var(--wg-danger, #d86f70); background: color-mix(in srgb, var(--wg-danger, #d86f70) 14%, transparent); }
 .wg-clear-recent:active { transform: scale(0.94); }
 
 .wg-folder { font-size: calc(9px * var(--wg-ui-font-scale, 1)); text-transform: uppercase; letter-spacing: 0.04em; color: var(--wg-text-faint, #8f887e); padding: 6px 4px 2px; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; border-radius: 4px; transition: color 120ms ease, background 120ms ease, box-shadow 120ms ease; }
@@ -377,7 +377,24 @@
 .wg-credit-link svg { flex: none; opacity: 0.7; transition: opacity 120ms ease; }
 .wg-credit-link:hover svg { opacity: 1; }
 
-.wg-stash-save { width: 100%; margin-bottom: 10px; font-size: 11px; font-weight: 600; padding: 8px; border-radius: 7px; cursor: pointer; background: var(--wg-accent, #d49a52); border: 1px solid var(--wg-accent, #d49a52); color: var(--wg-accent-text, #17191c); box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: transform 120ms ease, box-shadow 120ms ease; }
+.wg-stash-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  background: var(--wg-accent, #d49a52);
+  border: 1px solid var(--wg-accent, #d49a52);
+  color: var(--wg-accent-text, #17191c);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
 .wg-stash-save:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.24); }
 .wg-stash-save:active { transform: translateY(0) scale(0.97); box-shadow: inset 0 1px 3px rgba(0,0,0,0.35); }
 .wg-stash-empty { font-size: 10px; color: var(--wg-text-faint, #8f887e); font-style: italic; padding: 14px 4px; text-align: center; line-height: 1.5; }
@@ -388,6 +405,7 @@
 .wg-stash-item-btns { display: flex; gap: 4px; flex: none; }
 .wg-stash-item-btns button { font-size: 9px; padding: 3px 7px; border-radius: 5px; cursor: pointer; background: transparent; border: 1px solid var(--wg-border-strong, #3a4048); color: var(--wg-text-dim, #b8b0a4); transition: border-color 120ms ease, color 120ms ease, background 120ms ease; }
 .wg-stash-item-btns button:hover { border-color: var(--wg-accent, #d49a52); color: var(--wg-text, #fff); }
+.wg-stash-item-btns button:active { transform: translateY(1px); }
 .wg-stash-item-btns button.danger:hover { border-color: var(--wg-danger, #d86f70); color: var(--wg-danger, #d86f70); background: color-mix(in srgb, var(--wg-danger, #d86f70) 14%, transparent); }
 
 .wg-srow { margin-bottom: 10px; }
@@ -598,6 +616,7 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
   visibility: visible;
   transition: grid-template-rows 160ms ease, visibility 160ms;
   z-index: 6;
+  max-height: min(62%, 240px);
 }
 .wg-root .wg-editor-find-bar[hidden] {
   display: grid !important;
@@ -605,7 +624,7 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
   visibility: hidden;
   pointer-events: none;
 }
-.wg-editor-find-clip { min-height: 0; overflow: hidden; }
+.wg-editor-find-clip { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scroll-padding-top: 30px; }
 .wg-editor-find-content {
   display: flex;
   flex-direction: column;
@@ -626,8 +645,22 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
   min-width: 0;
 }
 .wg-editor-replace-row {
-  padding-left: 22px;
+  padding-left: 0;
 }
+.wg-editor-find-content > .wg-editor-find-row { position: sticky; top: 0; z-index: 1; background: var(--wg-panel-bg); }
+.wg-editor-find-content .wg-editor-find-input { flex-basis: 60px; min-width: 42px; }
+.wg-editor-find-options, .wg-editor-find-preview { min-width: 0; color: var(--wg-text-dim); font-size: 10px; }
+.wg-editor-find-content [hidden] { display: none !important; }
+.wg-editor-find-content summary { cursor: pointer; padding: 1px 0; overflow-wrap: anywhere; }
+.wg-editor-find-content summary:focus-visible { outline: 2px solid var(--wg-accent); outline-offset: -2px; }
+.wg-editor-find-options[open] > .wg-editor-find-row { margin-top: 4px; }
+.wg-editor-find-scope-note { margin: 0; color: var(--wg-danger); font-size: 10px; line-height: 1.4; }
+.wg-editor-replace-sample { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 5px; margin: 4px 0; }
+.wg-editor-replace-sample > div { min-width: 0; }
+.wg-editor-replace-sample pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 76px; overflow: auto; margin: 1px 0; padding: 4px; border: 1px solid var(--wg-border); border-radius: 4px; background: var(--wg-surface); color: var(--wg-text); font: inherit; line-height: 1.4; }
+.wg-editor-replace-sample mark { background: color-mix(in srgb, var(--wg-danger) 18%, var(--wg-surface)); color: var(--wg-text); text-decoration: line-through; padding: 1px 4px; border-radius: 3px; }
+.wg-editor-replace-sample > div:last-child mark { background: color-mix(in srgb, var(--wg-success) 18%, var(--wg-surface)); text-decoration: none; padding: 1px 4px; border-radius: 3px; }
+.wg-editor-find-preview small { font-size: 10px; color: var(--wg-text-faint); }
 .wg-editor-find-expand,
 .wg-editor-find-nav,
 .wg-editor-find-close,
@@ -648,7 +681,7 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
   align-items: center;
   justify-content: center;
   flex: none;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 .wg-editor-find-expand {
   width: 18px;
@@ -663,6 +696,13 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
 .wg-editor-replace-btn:hover:not(:disabled) {
   color: var(--wg-text, #f1eee8);
   border-color: color-mix(in srgb, var(--wg-accent, #d49a52) 60%, var(--wg-border-strong, #3a4048));
+}
+.wg-editor-find-expand:active,
+.wg-editor-find-nav:active:not(:disabled),
+.wg-editor-find-close:active,
+.wg-editor-find-toggle:active,
+.wg-editor-replace-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .wg-editor-find-toggle.active {
   color: var(--wg-accent, #d49a52);
@@ -694,7 +734,11 @@ input[type=range].wg-range { width: 100%; accent-color: var(--wg-accent, #d49a52
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d49a52) 32%, transparent);
 }
 .wg-editor-find-count {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 9.5px;
   color: var(--wg-text-faint, #8f887e);
   white-space: nowrap;

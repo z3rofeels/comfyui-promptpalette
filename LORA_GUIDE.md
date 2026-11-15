@@ -2,15 +2,25 @@
 
 ## Quick start
 
-1. Open **LoraPal** from the modular toolbar. Its visibility toggle remains in the existing toolbar settings.
+1. Open **Prompt Palette → LoRAs** in ComfyUI’s sidebar, or **LoraPal** from the modular toolbar. The toolbar’s visibility toggle remains in the existing toolbar settings.
 2. Click **+ Add** on a card or list row. Each addition keeps the LoRAs already in your prompt. Clicking a card selects it for strength/variation setup and shows its local information.
 3. In **Active in Prompt**, edit Model and CLIP separately, use **Mute** for a zero-strength comparison, or **×** to remove a standalone LoRA. Unmute restores the two previous strengths during the same editor session, including closing/reopening the sidecar; that memory resets when the editor or workflow is recreated.
 4. To replace one LoRA, click its **Swap** button, choose the replacement card, then click **Replace LoRA**. Other entries stay in place. The sidecar also supports explicit prompt selections via **Use cursor**.
 5. Select a catalog entry or use **Info** to see local metadata. Click trigger chips to stage words, then use **Insert / Replace** to commit. Trigger words are optional and never silently inserted by Add or Swap.
 
+### ComfyUI sidebar
+
+The **LoRAs** tab sits beside **Library / Explore / Syntax / Tools**. It mounts the same LoraPal picker and uses ComfyUI’s registered LoRA folders, including extra model paths. Favorites, per-file colors, local metadata and custom thumbnails are shared with the sidecar; no model files are copied or moved. Use the folder filter, search, favorites or active-only filter to organize browsing, and sort by name, path or favorites first.
+
+The sidebar’s existing layout selector offers **Gallery, List, Masonry and Filmstrip / detail**, with the shared item-size slider, aspect ratios, row filling, preview visibility and framing. At compact widths these controls move into **Sidebar settings**, just as they do in the other collections. The LoRA collection has its own saved layout. All matching files remain reachable in the virtual collection, including catalogs larger than 160 entries.
+
+Choose **Insert into** below the tab. Browsing, favorites and color changes work without a target. **Use cursor / selection** captures the chosen prompt’s current cursor or LoRA tag; the active deck offers individual **Swap**, **Mute**, Model/CLIP strengths and removal. A prompt changed outside its normal input events must be recaptured before writing. Selecting another target rebinds the same tools to that target.
+
+Use **Trial variation modes & sweeps** for custom strengths, an Off baseline, deterministic picks, cycles, random trials and Combinatorial alternatives. These author the existing LoRA expressions; generation and batching still run through the destination Palette node and its downstream outputs. Ordinary ComfyUI text fields support text insertion only and need a compatible external loader to apply LoRAs.
+
 ### Local artwork and metadata
 
-Use **Set image / Change image** in the info area or right-click a catalog entry. PNG, JPEG and WebP are accepted up to 8 MB and 40 megapixels. Custom images are saved per ComfyUI user, outside the model folder; the original artwork and model are preserved. **Use folder preview** removes only LoraPal’s custom image. In **LoRA settings**, choose **Fill thumbnail** or **Show whole image**.
+Use **Set image / Change image** in the info area or right-click a catalog entry. PNG, JPEG and WebP are accepted up to 8 MB and 40 megapixels. Custom images are saved per ComfyUI user, outside the model folder; the original artwork and model are preserved. **Use folder preview** removes only LoraPal’s custom image. In **LoRA settings**, choose **Fill frame (crop edges)** or **Fit whole preview (no crop)**. **Video previews** offers silent playback on hover/focus or **Still frames only**. When several local previews exist, the info area’s **Local preview** chooser lets you view each image or clip.
 
 Without a custom image, LoraPal displays local PNG, JPEG, WebP, GIF, AVIF and BMP images, or MP4, WebM and M4V video previews beside the LoRA. Examples: `example.preview.mp4`, `example.safetensors.preview.jpg`, `example.png`, `example.thumb.webp`, `example.preview.1.mp4` and `example_1.jpg`. Filename matching ignores letter case. Matching metadata sidecars may also point to a differently named local media file in the same folder; online URLs are never fetched. Existing folder previews have no 8 MB upload limit.
 
@@ -20,7 +30,7 @@ Available information is merged from matching `.civitai.info`, `.json`, `.metada
 
 A folder containing exactly one LoRA can also use **`metadata.json`**, **`preview.jpeg`**, **`preview.mp4`**, or another local image/video filename. In shared folders, use model-named sidecars and previews (for example `example.metadata.json` and `example.jpeg`) so artwork is not assigned to the wrong model. The selected LoRA shows which metadata and preview files were found.
 
-The size slider adjusts preview height continuously from **80–240px** and reflows gallery columns to fill the available width. List thumbnails scale too. Double-click the slider to restore 125px. The slider uses LoraPal’s own styles and saves its setting.
+The size slider adjusts preview height continuously from **80–240px** and keeps card widths at the selected size while reflowing columns to fit the available width. List thumbnails scale too. Double-click the slider to restore 125px. The slider uses LoraPal’s own styles and saves its setting.
 
 Custom thumbnails are fetched with the active ComfyUI user identity. Folder media streams directly. Preview loading can continue even if metadata lookup fails; failures are shown instead of silently leaving empty cards. If a video codec is unsupported by the browser, LoraPal tries a still-frame fallback using an already installed FFmpeg or imageio-ffmpeg binary. It never downloads a decoder. Without a compatible decoder, add a JPEG preview or custom image.
 
@@ -46,7 +56,9 @@ Open the **LoraPal** toolbar button, **Insert syntax → Browse LoRAs**, or the 
 
 Selecting several files builds a stack or alternatives. Apply inserts at the saved cursor or replaces the selected tag/text. After inserting, the target collapses to the end of the insertion so the next insertion is additive. To replace an existing tag explicitly, use its **Swap** button or choose a tag with **Use cursor**; your current LoRA choices and strengths are retained. In the **Active in Prompt** deck, choose any tag to inspect or edit it explicitly.
 
-Right-click a prompt tag to adjust MODEL or CLIP by 0.05, switch an existing LoRA choice between seeded/next/previous/random modes, or prepare a strength sweep for Combinatorial. A single tag’s quick sweep uses 0.4 / 0.7 / 1, preserving its separate CLIP strength; existing pure-LoRA alternatives retain their authored choices. Mixed prompt rules are never replaced wholesale. Right-click a collection card to insert/swap, cycle/randomize/test strengths, or choose/reset its color.
+The shorthand `<lora:name>` uses Model and CLIP strength 1, matching `<lora:name:1>`. Right-click either form for local info and trigger words, edit/swap, mute/enable, or adjust both strengths together. You can also adjust MODEL or CLIP by 0.05, switch an existing LoRA choice between seeded/next/previous/random modes, or prepare a strength sweep for Combinatorial. A single tag’s quick sweep uses 0.4 / 0.7 / 1, preserving its separate CLIP strength; existing pure-LoRA alternatives retain their authored choices. Mixed prompt rules are never replaced wholesale. Right-click a collection card to insert/swap, cycle/randomize/test strengths, or choose/reset its color.
+
+Sweep values must be comma-separated finite numbers between −100 and 100; empty entries are rejected. Staged triggers are deduplicated case-insensitively against the remaining prompt with word boundaries.
 
 Both strength fields are always editable. **Link strengths** makes Model changes follow through to CLIP; typing into CLIP automatically unlinks it. Check Link strengths to reconnect them.
 
@@ -107,3 +119,24 @@ The picker percent-encodes syntax delimiters in filenames such as double undersc
 Keep using stock LoRA loaders upstream if you prefer: feed their patched outputs into Palette and type no additional tags. Use **External** if a specialized loader consumes resolved tag text. Custom LoRA stack socket formats, per-block weights, schedules/hooks, model-specific loaders and unsupported extra-network tag dialects belong to their owning nodes. Palette does not reinterpret or impersonate those formats. Select Strip only when you explicitly want recognized tags removed.
 
 The existing Prompt Inspector reports resolved tag strengths and file availability without loading weights. Execution metadata records requested/effective strengths, source channel, execution mode and statuses such as loaded, disabled, missing, ambiguous, external, stripped or text_only. `loaded` / `loras_applied` means the native loader returned successfully, not a measured visual effect or confirmation that every key matched. `encoded_prompt` and `encoded_negative_prompt` distinguish the clean encoder text from external-loader tag text.
+
+### Saved sets and browsing layouts
+
+Open **Saved LoRA sets**, name your combination, and choose **Save active deck**.
+Each set keeps the LoRA order and individual Model/CLIP strengths, including zero
+strengths. Sets are stored in this browser's Palette preferences and shared across
+LoraPal panels. **Add set** appends the saved combination; **Replace deck** replaces
+standalone LoRA tags while keeping prompt prose. Missing local files and LoRAs inside
+choices/rules block replacement instead of silently changing the prompt's logic.
+**Update from deck** saves new strengths to an existing set. Deletion has an immediate
+**Undo delete** action.
+
+The LoraPal window offers **Gallery**, **Masonry**, **Filmstrip**, and **List** views.
+The sidebar uses its existing shared layout settings. Masonry follows preview aspect
+ratios; Filmstrip offers a large preview and keyboard navigation. Browsing does not
+insert a LoRA: use **+ Add**, or select cards and open the **LoRA Audition Lab** to tune
+strengths, triggers, or trials. The lab can be collapsed when you only want to browse.
+
+The active deck labels **Model** (image model influence) and **CLIP** (text encoder
+influence). Zero turns that channel off; one uses the full trained strength. Results
+and useful ranges depend on the LoRA and model, and some LoRAs affect only one channel.

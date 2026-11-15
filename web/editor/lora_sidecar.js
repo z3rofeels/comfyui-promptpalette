@@ -1,13 +1,54 @@
 import { createLoraPicker } from "./lora_picker.js";
+import { compileWorkspace } from "./recipe_workspace_model.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary, svgIcon } from "../prompt_palette_shared.js";
 import { scheduleDomWidgetRemeasure } from "../prompt_palette_compat.js";
+import { observePanelAnchor } from "./performance_runtime.js";
 
 const make = (tag, cls = "", text = "") => { const el = document.createElement(tag); el.className = cls; el.textContent = text; return el; };
 let sequence = 0;
 
 const SIDECAR_GAP = 8;
 const SIDECAR_MARGIN = 8;
+
+export function resolveLoraTarget(node, mainEditor, activeSurface = null, range = null) {
+  const surface = activeSurface?.isConnected ? activeSurface : (node?._ppRecipeWorkspace?.editingSurface?.() || mainEditor);
+  const editor = mainEditor?.isConnected ? mainEditor : surface;
+  if (!editor?.isConnected) return null;
+  let effectiveRange = range;
+  let readOnly = Boolean(editor.readOnly || editor.disabled || editor.getAttribute("aria-readonly") === "true" || editor.contentEditable === "false");
+  if (surface && surface !== editor && node?._ppRecipeWorkspace?.isActive?.()) {
+    const fieldId = surface.closest?.("[data-field-id]")?.dataset.fieldId;
+    const ws = node._ppRecipeWorkspace.snapshot?.();
+    const wsField = fieldId && ws?.recipe?.fields?.find(f => f.id === fieldId);
+    if (ws?.recipe && (!wsField || (wsField.channel || "positive") === "positive")) {
+      const span = fieldId ? compileWorkspace(ws.recipe).spans?.[fieldId] : null;
+      const localStart = range?.start ?? surface.selectionStart ?? 0;
+      const localEnd = range?.end ?? surface.selectionEnd ?? localStart;
+      effectiveRange = span
+        ? { start: span.start + localStart, end: span.start + localEnd }
+        : { start: editor.value.length, end: editor.value.length };
+      if (wsField && (surface.readOnly || surface.disabled || surface.getAttribute("aria-readonly") === "true")) {
+        readOnly = true;
+      }
+    } else {
+      effectiveRange = { start: editor.value.length, end: editor.value.length };
+    }
+  } else if (surface) {
+    readOnly = readOnly || Boolean(surface.readOnly || surface.disabled || surface.getAttribute("aria-readonly") === "true" || surface.contentEditable === "false");
+  }
+  const start = effectiveRange?.start ?? editor.selectionStart ?? editor.value.length;
+  const end = effectiveRange?.end ?? editor.selectionEnd ?? start;
+  return {
+    editor,
+    surface: surface || editor,
+    source: editor.value,
+    start,
+    end,
+    direction: editor.selectionDirection,
+    readOnly,
+  };
+}
 
 export function installLoraSidecar({ root, node = null, editor, beforeOpen = () => {}, inlineHost = null }) {
   if (root.__ppLoraSidecar) return root.__ppLoraSidecar;
@@ -38,7 +79,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   sidecar.setAttribute("aria-modal", "false");
 
   if (!isInline) {
-    sidecar.addEventListener("pointerdown", (e) => e.stopPropagation());
+    sidecar.addEventListener("pointerdown", (e) => { node?._ppCommandTarget?.activate?.(); e.stopPropagation(); });
     sidecar.addEventListener("mousedown", (e) => e.stopPropagation());
     sidecar.addEventListener("click", (e) => e.stopPropagation());
     sidecar.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
@@ -52,8 +93,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   dragHandle.setAttribute("aria-label", "Move LoraPal; use arrow keys. Double-click to toggle Follow Node.");
   dragHandle.title = "Drag to move · Arrow keys move · Double-click to toggle Follow Node";
 
-  dragHandle.innerHTML = `<span class="pp-lora-brandmark" aria-hidden="true">${svgIcon("layers", 14)}</span><span class="pp-lora-title-wrap"><strong>LoraPal</strong><small class="pp-lora-target-name"></small></span>`;
-  const targetSub = dragHandle.querySelector(".pp-lora-target-name");
+  dragHandle.innerHTML = `<span class="pp-lora-brandmark" aria-hidden="true">${svgIcon("layers", 14)}</span><span class="pp-lora-title-wrap"><strong>LoraPal</strong></span>`;
 
   const ctrls = make("div", "pp-lora-window-ctrls");
   const useCursor = make("button", "wg-button pp-lora-win-btn");
@@ -128,7 +168,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   trigger?.setAttribute("aria-controls", sidecar.id);
 
   let picker = null, activeEditor = editor, lastEditor = editor, disposed = false;
-  let gesture = null, sidecarFrame = 0, sidecarPlacement = "", themeObserver = null;
+  let gesture = null, stopPlacement = null, sidecarPlacement = "", themeObserver = null;
 
   const setStatus = (text, error = false) => {
     status.textContent = text;
@@ -244,15 +284,6 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       height: `${Math.round(height)}px`,
     });
     followBtn.setAttribute("aria-pressed", String(!floatingPosition));
-  }
-
-  function trackSidecar() {
-    sidecarFrame = 0;
-    if (isInline || sidecar.hidden) return;
-    if (!document.hidden && !gesture) placeSidecar();
-    if (!sidecar.hidden && typeof requestAnimationFrame === "function") {
-      sidecarFrame = requestAnimationFrame(trackSidecar);
-    }
   }
 
   function toggleFollow() {
@@ -468,8 +499,9 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   }
 
   function close({ restoreFocus = false } = {}) {
+    finishGesture();
     observer.disconnect();
-    if (sidecarFrame) { cancelAnimationFrame(sidecarFrame); sidecarFrame = 0; }
+    stopPlacement?.(); stopPlacement = null;
     picker?.cleanup();
     picker = null;
     body.replaceChildren();
@@ -480,31 +512,39 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
     trigger?.classList.remove("active");
     trigger?.setAttribute("aria-expanded", "false");
     themeObserver?.disconnect();
-    if (restoreFocus && activeEditor?.isConnected) activeEditor.focus({ preventScroll: true });
+    if (restoreFocus) {
+      const focusTarget = (node?._ppRecipeWorkspace?.isActive?.() && node._ppRecipeWorkspace.editingSurface?.()) || activeEditor;
+      if (focusTarget?.isConnected) focusTarget.focus({ preventScroll: true });
+    }
     if (node) scheduleDomWidgetRemeasure(node);
   }
 
   function open(target = lastEditor || editor, { range = null, focus = true, variation = null } = {}) {
-    if (disposed || !target?.isConnected) return false;
-    const readOnly = target.readOnly || target.disabled || target.getAttribute("aria-readonly") === "true";
+    if (disposed) return false;
+    const resolved = resolveLoraTarget(node, editor, target, range);
+    if (!resolved) return false;
+    const { editor: effectiveTarget, surface, readOnly } = resolved;
     const draft = picker?.draft?.();
     beforeOpen();
+    node?._ppCommandTarget?.activate?.();
     observer.observe(document.body, { childList: true, subtree: true });
     picker?.cleanup();
     body.replaceChildren();
-    activeEditor = lastEditor = target;
+    lastEditor = surface;
+    activeEditor = effectiveTarget;
 
-    const context = target.__ppPromptTools || {};
+    const context = effectiveTarget.__ppPromptTools || {};
     const snapshot = {
-      source: target.value,
-      start: range?.start ?? target.selectionStart,
-      end: range?.end ?? target.selectionEnd,
-      direction: target.selectionDirection,
+      source: resolved.source,
+      start: resolved.start,
+      end: resolved.end,
+      direction: resolved.direction,
     };
     let projection = context.project?.(snapshot.source) ?? snapshot.source;
 
     const guard = () => {
-      if (!target.isConnected || target.value !== snapshot.source || (context.project?.(snapshot.source) ?? snapshot.source) !== projection) {
+      if (readOnly) throw new Error("This editor is read-only.");
+      if (!effectiveTarget.isConnected || effectiveTarget.value !== snapshot.source || (context.project?.(snapshot.source) ?? snapshot.source) !== projection) {
         const text = "Editor changed · choose Use cursor to retarget active selection.";
         setStatus(text, true);
         throw new Error(text);
@@ -525,22 +565,19 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       themeObserver.observe(el, { attributes: true, attributeFilter: ["style", "class", "data-wg-tone", "data-wg-finish"] });
     }
 
-    // Update target name indicator
-    const targetField = context.label || (target.dataset?.field ? `Field: ${target.dataset.field}` : "Prompt text");
-    targetSub.textContent = `· ${targetField}`;
-
     // Always start docked/pinned to main node on open
     floatingPosition = null;
     writeEditorPreference("loraSidecarPositionV1", null);
     sidecarPlacement = "";
     placeSidecar();
-    trackSidecar();
+    stopPlacement?.();
+    stopPlacement = isInline ? null : observePanelAnchor(root, placeSidecar);
 
     setStatus(readOnly ? "Browse & audition freely · choose an editable field and Use cursor to insert." : "Browse, audition & stack LoRAs. Use cursor to retarget.");
 
     picker = createLoraPicker({
       host: body,
-      editor: target,
+      editor: effectiveTarget,
       context,
       snapshot,
       guard,
@@ -600,7 +637,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       if (disposed) return;
       close();
       disposed = true;
-      if (sidecarFrame) cancelAnimationFrame(sidecarFrame);
+      stopPlacement?.(); stopPlacement = null;
       observer.disconnect();
       themeObserver?.disconnect();
       if (!isInline) {

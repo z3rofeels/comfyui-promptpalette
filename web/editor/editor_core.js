@@ -4,6 +4,7 @@ import { createRecipeWorkspaceController } from "./recipe_workspace_controller.j
 import { setToolbarLabel, installToolbarLayout } from "./toolbar.js";
 import { positiveAntonymsEnabled } from "./positive_antonyms.js";
 import { attachImageImport } from "./image_import.js";
+import { installHistoryRefinement } from "./history_restore.js";
 import { editCompiledPrompt } from "./recipe_text_edit.js";
 import { WORKSPACE_KEY } from "./recipe_workspace_model.js";
 import { readEditorPreference, getPowerToolPreferences, getWorkspacePreferences, setWorkspacePreference, replacePowerToolPreferences } from "../prompt_palette_state.js";
@@ -13,7 +14,7 @@ import { API } from "../prompt_palette_api.js";
 import { createPromptUsageStore, createPromptHistoryStore, closestPromptEntries } from "../prompt_quickness.js";
 import { installPromptPaletteKeyboardBoundary } from "../prompt_palette_shared.js";
 import {
-  hideNativeWidget, installPromptStateGuard, nodeIsActive, bindPromptQueueSync, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
+  hideNativeWidget, installPromptStateGuard, nodeIsActive, bindPromptQueueSync, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers,
   ioEnabled, syncIoSocket, migrateIoState, canonicalizeOutputs, setupIoRail, installSocketRailLayout,
 } from "../prompt_palette_compat.js";
 import { dialogConfirm, isDialogOpen, cleanupDialogOverlays } from "./dialogs.js";
@@ -71,6 +72,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   const previewCache = new Map();
   let lastExecutionMetadata = node.properties?.prompt_palette_last_result || null;
   let starterAutocompleteRows = [];
+  let disposed = false;
 
   let recipeSelectMode = false;
   let recipeSelection = new Set();
@@ -104,9 +106,10 @@ function buildWildcardWidget(node, hiddenWidget) {
   const originalTextarea = el("textarea");
   const editorSurface = upgradeEditorSurface(originalTextarea);
   const textarea = editorSurface.element;
+  textarea.value = promptState.restore();
   const highlight = el("highlight");
   const syntaxHighlighter = createSyntaxHighlighter(textarea, highlight);
-  const statusBar = createStatusBar(root);
+  const statusBar = createStatusBar(root, { node });
   const pickerDrawer = root.querySelector('[data-drawer="picker"]');
   const libraryTabs = Array.from(root.querySelectorAll("[data-library-tab]"));
   const libraryPanels = Array.from(root.querySelectorAll("[data-library-panel]"));
@@ -319,22 +322,28 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   const ioRail = setupIoRail(node, root, IO_INPUT_DEFS, IO_OUTPUT_DEFS);
 
-  scheduleNodeTimer(node, () => {
+  node._wgBaseInputDefs = IO_INPUT_DEFS;
+  node._wgBaseOutputDefs = IO_OUTPUT_DEFS;
 
-    canonicalizeOutputs(node, IO_OUTPUT_DEFS);
-    migrateIoState(node, "input", IO_INPUT_DEFS);
-    migrateIoState(node, "output", IO_OUTPUT_DEFS);
-    IO_INPUT_DEFS.forEach(def => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
-    IO_OUTPUT_DEFS.forEach(def => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+  scheduleNodeTimer(node, () => {
+    const inputDefs = node._wgInputDefs || IO_INPUT_DEFS;
+    const outputDefs = node._wgOutputDefs || IO_OUTPUT_DEFS;
+    canonicalizeOutputs(node, outputDefs);
+    migrateIoState(node, "input", inputDefs);
+    migrateIoState(node, "output", outputDefs);
+    inputDefs.forEach(def => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+    outputDefs.forEach(def => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
     ioRail.render();
   }, 0);
 
   node._wgRefreshIoToggles = function () {
-    canonicalizeOutputs(node, IO_OUTPUT_DEFS);
-    migrateIoState(node, "input", IO_INPUT_DEFS);
-    migrateIoState(node, "output", IO_OUTPUT_DEFS);
-    IO_INPUT_DEFS.forEach(def => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
-    IO_OUTPUT_DEFS.forEach(def => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    const inputDefs = node._wgInputDefs || IO_INPUT_DEFS;
+    const outputDefs = node._wgOutputDefs || IO_OUTPUT_DEFS;
+    canonicalizeOutputs(node, outputDefs);
+    migrateIoState(node, "input", inputDefs);
+    migrateIoState(node, "output", outputDefs);
+    inputDefs.forEach(def => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+    outputDefs.forEach(def => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
     ioRail.render();
   };
 
@@ -394,7 +403,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   function highlightText(text, parsedOverride = null) {
-    const parsed = parsedOverride || profiler.measure("editor.parse", () => syntaxCache.parse(text));
+    const parsed = parsedOverride?.source === text ? parsedOverride : profiler.measure("editor.parse", () => syntaxCache.parse(text));
     lastParsedPrompt = parsed;
     const result = profiler.measure("editor.highlight", () => renderPromptSyntax(parsed, {
       isKnown,
@@ -410,9 +419,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     return result;
   }
 
-  function syncHiddenWidget() {
-    if (promptState.current() !== textarea.value || promptState.isEstablished()) {
-      promptState.commit(textarea.value);
+  function syncHiddenWidget(sourceText = textarea.value, { deferNotify = false, dispatchSync = true } = {}) {
+    const changed = promptState.current() !== sourceText;
+    if (changed || !promptState.isEstablished()) {
+      promptState.commit(sourceText, deferNotify ? { deferNotify: true } : undefined);
+    }
+    if (changed && dispatchSync) {
+      textarea.dispatchEvent(new CustomEvent("pp-workspace-sync"));
     }
   }
 
@@ -441,10 +454,10 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   function flushUndoBurst() { return undoManager.flush(); }
 
-  function historyValue() {
+  function historyValue(sourceText = textarea.value) {
     const workspace = node.properties?.[WORKSPACE_KEY];
     // Navigation cannot create a text edit or clear Redo after restoring one.
-    return JSON.stringify({ text: textarea.value, negative: node.widgets?.find(w => w.name === "negative_text")?.value || "", workspace: workspace ? { ...workspace, view: "workspace" } : null });
+    return JSON.stringify({ text: sourceText, negative: node.widgets?.find(w => w.name === "negative_text")?.value || "", workspace: workspace ? { ...workspace, view: "workspace" } : null });
   }
   function restoreHistory(value) {
     const active = document.activeElement;
@@ -463,11 +476,12 @@ function buildWildcardWidget(node, hiddenWidget) {
     textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
     if (saved.workspace?.view === "workspace" && fieldId) recipeWorkspace?.focusField(fieldId);
     else if (!saved.workspace || editingMain || saved.workspace.view === "editor") textarea.focus({ preventScroll: true });
-    render();
+    render({ recordHistory: false });
+    undoManager.rebase(historyValue());
   }
 
-  function noteValueChange() {
-    const changed = undoManager.note(historyValue());
+  function noteValueChange(sourceText = textarea.value) {
+    const changed = undoManager.note(historyValue(sourceText));
     if (!changed) return;
     lastTokenStats = null;
     lastTokenStatsSource = "";
@@ -525,10 +539,12 @@ function buildWildcardWidget(node, hiddenWidget) {
   }
 
   function scheduleHistorySnapshot(reason = "Edited prompt") {
+    if (node._ppHistoryRefinement?.isRefining()) return;
     if (theme.promptHistoryEnabled === false) return;
     cancelNodeTimer(node, historySnapshotTimer);
     historySnapshotTimer = scheduleNodeTimer(node, () => {
       historySnapshotTimer = null;
+      if (node._ppHistoryRefinement?.isRefining()) return;
       addHistorySnapshot({ reason });
     }, HISTORY_IDLE_MS);
   }
@@ -612,7 +628,6 @@ function buildWildcardWidget(node, hiddenWidget) {
     const source = textarea.value;
     if (!workerClient.shouldUseForPrompt(source)) {
       workerParseVersion += 1;
-      performanceRuntime.cancelTimer("worker-editor-parse");
       return renderVisualsFromParsed(null, source);
     }
     const requestVersion = ++workerParseVersion;
@@ -620,16 +635,14 @@ function buildWildcardWidget(node, hiddenWidget) {
     const charText = `${source.length.toLocaleString()} char${source.length === 1 ? "" : "s"}`;
     if (charCount?.textContent !== charText) charCount.textContent = charText;
     updateUndoRedoButtons();
-    performanceRuntime.debounce("worker-editor-parse", 24, () => {
-      workerClient.parse(source).then((parsed) => {
-        if (requestVersion !== workerParseVersion || textarea.value !== source || !performanceRuntime.visualActive()) return;
-        profiler.count("workerParses");
-        renderVisualsFromParsed(parsed, source);
-      }).catch(() => {
-        if (requestVersion !== workerParseVersion || textarea.value !== source || !performanceRuntime.visualActive()) return;
-        renderVisualsFromParsed(null, source);
-      });
-    }, { visual: true });
+    workerClient.parse(source).then((parsed) => {
+      if (requestVersion !== workerParseVersion || textarea.value !== source || !performanceRuntime.visualActive()) return;
+      profiler.count("workerParses");
+      renderVisualsFromParsed(parsed, source);
+    }).catch(() => {
+      if (requestVersion !== workerParseVersion || textarea.value !== source || !performanceRuntime.visualActive()) return;
+      renderVisualsFromParsed(null, source);
+    });
   }
 
   function scheduleDoctorCheck() {
@@ -667,16 +680,17 @@ function buildWildcardWidget(node, hiddenWidget) {
   node._ppInvalidateRuntime = (channel, payload = null) => reactiveRuntime.invalidate(channel, payload);
 
   let refinementController = null;
-  function render({ asyncVisual = true, refreshPreview = true, refreshDoctor = true } = {}) {
+  function render({ asyncVisual = true, refreshPreview = true, refreshDoctor = true, recordHistory = true, deferNotify = false, dispatchSync = true } = {}) {
     recipeWorkspace?.reconcile();
     recipeWorkspace?.contextChanged();
+    const sourceText = textarea.value;
     refinementController?.sourceChanged();
     findReplaceController?.refreshSource?.();
-    noteValueChange();
-    syncHiddenWidget();
-    reactiveRuntime.invalidate("prompt", { source: textarea.value, asyncVisual });
-    if (refreshDoctor) reactiveRuntime.invalidate("doctor", { source: textarea.value });
-    if (refreshPreview && resolvedView.classList.contains("on")) reactiveRuntime.invalidate("preview", { source: textarea.value });
+    if (recordHistory) noteValueChange(sourceText);
+    syncHiddenWidget(sourceText, { deferNotify, dispatchSync });
+    reactiveRuntime.invalidate("prompt", { source: sourceText, asyncVisual });
+    if (refreshDoctor) reactiveRuntime.invalidate("doctor", { source: sourceText });
+    if (refreshPreview && resolvedView.classList.contains("on")) reactiveRuntime.invalidate("preview", { source: sourceText });
   }
 
   function renderThemeOnly() { reactiveRuntime.invalidate("theme", { reason: "theme" }); recipeWorkspace?.refresh(); }
@@ -771,7 +785,8 @@ function buildWildcardWidget(node, hiddenWidget) {
     const seed = seedWidget ? seedWidget.value : 0;
     const mode = modeWidget ? modeWidget.value : "entire text as one";
     const positiveAntonyms = positiveAntonymsEnabled(node);
-    const workspaceRuntime = node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "";
+    const workspaceWidget = node.widgets?.find(w => w.name === "workspace_runtime");
+    const workspaceRuntime = workspaceWidget?.serializeValue?.() || "";
     const requestController = performanceRuntime.beginRequest("preview");
     const stillCurrent = () => requestId === resolvedRequestId
       && nodeIsActive(node)
@@ -780,7 +795,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       && (seedWidget ? seedWidget.value : 0) === seed
       && (modeWidget ? modeWidget.value : "entire text as one") === mode
       && positiveAntonymsEnabled(node) === positiveAntonyms
-      && (node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "") === workspaceRuntime;
+      && (workspaceWidget?.serializeValue?.() || "") === workspaceRuntime;
 
     const saved = matchingExecutionMetadata();
     if (saved) {
@@ -828,13 +843,17 @@ function buildWildcardWidget(node, hiddenWidget) {
     if (resolvedView.classList.contains("on")) scheduleResolvedPreview();
   };
 
-  textarea.addEventListener("input", () => {
+  const handleEditorInput = () => profiler.measure("editor.input", () => {
     profiler.count("editorInputs");
-    render({ asyncVisual: true, refreshPreview: true, refreshDoctor: true });
+    render({ asyncVisual: true, refreshPreview: true, refreshDoctor: true, deferNotify: true, dispatchSync: false });
     scheduleHistorySnapshot();
   });
+  const handleEditorFlush = () => promptState.flush?.();
+  textarea.addEventListener("input", handleEditorInput);
+  textarea.addEventListener("blur", handleEditorFlush);
+  textarea.addEventListener("change", handleEditorFlush);
   const repaintEditorHighlights = () => {
-    scheduleNodeFrame(node, () => {
+    performanceRuntime.scheduleFrame("highlight-repaint", () => {
       if (!nodeIsActive(node) || !textarea.isConnected) return;
       renderVisualsFromParsed(lastParsedPrompt, textarea.value);
     });
@@ -954,7 +973,6 @@ function buildWildcardWidget(node, hiddenWidget) {
     getLibrary: () => libraryCache, refreshLibrary,
   });
   node._ppRecipeWorkspace = recipeWorkspace;
-
   function syncWorkspaceSettingsUI() {
     syncWorkspaceSettingsSurface(root, settingsPopup, workspacePrefs, previewModeSelect);
   }
@@ -1122,6 +1140,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     getWorkspace: () => recipeWorkspace?.snapshot?.() || null,
     setWorkspace: (ws) => recipeWorkspace?.restore?.(ws, { commit: true }),
     onSlotSwitched: (slotKey, _slot, { duplicated }) => {
+      findReplaceController?.closeFind({ restoreFocus: false });
       undoManager.note(historyValue());
       undoManager.flush();
       render();
@@ -1133,6 +1152,19 @@ function buildWildcardWidget(node, hiddenWidget) {
     },
   });
   node._ppPromptSlots = promptSlotsController;
+
+  // Install after Slots so teardown can unwind configure hooks in reverse order.
+  const cleanupHistoryRefinement = installHistoryRefinement({ node, root, textarea, getState: historyValue,
+    history: undoManager, restoreState: restoreHistory,
+    openVariations: () => powerToolsController.openVariations(),
+    onFinish: cancelled => { if (!disposed) scheduleHistorySnapshot(cancelled ? "Edited prompt" : "Refined prompt"); },
+    beginEdit: () => { undoManager.note(historyValue()); undoManager.flush(); },
+    endEdit: () => { noteValueChange(); undoManager.flush(); }, render, syncControls: syncSeedControlsFromWidgets,
+    onFocus: () => {
+      closeAllPowerPopups(); closeSettings(); closeStash(); closePickerDrawer(); closeEditDrawer();
+      editorReal.classList.remove("hidden"); resolvedView.classList.remove("on"); btnResolve.classList.remove("on");
+      setToolbarLabel(btnResolve, "Preview result");
+    } });
 
   const cleanupEditorContext = attachEditorContextMenu(textarea, {
     render, beforeOpen: () => { hideTip(); closeInjectMenu(); },
@@ -1213,7 +1245,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     if (ctxMenuOpen) closeCtxMenu();
     else if (injectState && injectState.textarea === textarea) closeInjectMenu();
     else if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
-    else if (node._wgIoRailOpen) ioRail.close();
+    else if (node._wgIoRailOpen) ioRail.close({ force: true });
     else if (powerPopupEntries.some((popup) => popup.classList.contains("open"))) {
       const popup = powerPopupEntries.find((item) => item.classList.contains("open"));
       trigger = root.querySelector(`[aria-controls="${popup.id}"]`); closeAllPowerPopups();
@@ -1258,6 +1290,8 @@ function buildWildcardWidget(node, hiddenWidget) {
 
   const commandTarget = registerPromptPaletteCommandTarget(node, {
     ...sidebarEditingHandlers({
+      node,
+      mainEditor: textarea,
       getEditor: () => recipeWorkspace?.editingSurface() || textarea,
       useLibraryEntry: path => libraryController.insertWildcard(path),
       openLibraryItem: path => { openPickerDrawer("personal"); searchInput.value = path; renderPickerList(path); },
@@ -1291,7 +1325,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   node._wgInstallSocketRailWhenReady = () => {
     if (!node._wgInstallSocketRailWhenReady) return;
     delete node._wgInstallSocketRailWhenReady;
-    installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, frame);
+    installSocketRailLayout(node, node._wgInputDefs || IO_INPUT_DEFS, node._wgOutputDefs || IO_OUTPUT_DEFS, frame);
   };
 
   const cleanupQueueSync = bindPromptQueueSync(node, () => {
@@ -1310,6 +1344,13 @@ function buildWildcardWidget(node, hiddenWidget) {
     reassertHiddenWidgets,
     reapplyTheme: () => themeController?.applyUiTheme?.(),
     cleanup: () => {
+      if (disposed) return;
+      cleanupHistoryRefinement();
+      disposed = true; workerParseVersion++;
+      findReplaceController?.cleanup();
+      delete node._ppFindReplace;
+      promptSlotsController?.cleanup();
+      delete node._ppPromptSlots;
       cleanupQueueSync();
       seedController?.dispose();
       cleanupSeedInput();
@@ -1353,6 +1394,12 @@ function buildWildcardWidget(node, hiddenWidget) {
       cleanupSettingsKeyboardBoundary();
       settingsPopup.remove();
       delete node._wgInstallSocketRailWhenReady;
+      delete node._wgRefreshIoToggles;
+      delete node.updateWildcardSidePanels;
+      promptState.flush?.();
+      textarea.removeEventListener("input", handleEditorInput);
+      textarea.removeEventListener("blur", handleEditorFlush);
+      textarea.removeEventListener("change", handleEditorFlush);
       delete node._ppInvalidateRuntime;
       reactiveRuntime.cleanup();
       workerClient.cleanup();

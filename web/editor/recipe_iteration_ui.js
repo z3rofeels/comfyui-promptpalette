@@ -95,7 +95,7 @@ export function appendIterationUI({ section, state, button: makeButton, selectCo
   row("Compare", from, to, button("Compare workspaces", () => showDiff(resolveChoice(from.value), resolveChoice(to.value), "Workspace comparison")));
   const paths = getLibrary().map(item => typeof item === "string" ? item : item.path).filter(path => /^RECIPES\/_presets\//i.test(path));
   const presets = selectControl("Field preset", [["", "Choose field preset"], ...BUILTIN_PRESETS.map(p => [`builtin:${p.id}`, p.name]), ...paths.map(path => [`saved:${path}`, path.split("/").at(-1).replace(/[_-]/g, " ")])], "", () => {});
-  const language = selectControl("Starter prompt language", [["natural", "Natural language · Krea2 / Qwen / MOSS"], ["tags", "Tags · Illustrious and Booru"], ["anima", "Anima · tags / scene prose"]], state.presetLanguage || "natural", next => { getState().presetLanguage = next; persist(); refreshCards(); });
+  const language = selectControl("Starter prompt language", [["natural", "Natural language · FLUX / SD3 / Krea"], ["tags", "Tags · Illustrious / Pony / Booru"], ["anima", "Anima · tags / scene prose"]], state.presetLanguage || "natural", next => { getState().presetLanguage = next; persist(); refreshCards(); });
   const starterLabel = document.createElement("label"), starterValues = document.createElement("input"); starterValues.type = "checkbox"; starterValues.checked = state.includePresetValues !== false;
   starterValues.addEventListener("change", () => { getState().includePresetValues = starterValues.checked; persist(); });
   starterLabel.className = "pp-layout-starter-values"; starterLabel.append(starterValues, document.createTextNode("Include starter choices"));
@@ -110,8 +110,17 @@ export function appendIterationUI({ section, state, button: makeButton, selectCo
       card.setAttribute("aria-pressed", String(presets.value === `builtin:${preset.id}`));
       const title = document.createElement("strong"); title.textContent = preset.name;
       const preview = document.createElement("span"); preview.className = "pp-layout-fields";
-      for (const f of preset.recipe.fields) { const chip = document.createElement("span"); chip.textContent = f.label; preview.append(chip); }
-      const note = document.createElement("small"); note.textContent = preset.id === 'moss-layout' ? 'Experimental · centered pixel boxes · literal JSON' : preset.id.startsWith('moss-') ? 'MOSS format · optional negative field · local only' : preset.id === "anima" ? "Scene prose + separate character tag fields" : preset.id === "negative" ? "Separate positive and negative fields" : "Editable starter choices · cycle on generation";
+      for (const f of preset.recipe.fields) {
+        const chip = document.createElement("span");
+        chip.textContent = f.label;
+        if (f.accent && f.accent !== 'none') {
+          chip.style.borderColor = `color-mix(in srgb, ${f.accent} 45%, var(--wg-border))`;
+          chip.style.color = f.accent;
+        }
+        preview.append(chip);
+      }
+      const note = document.createElement("small");
+      note.textContent = preset.note || (preset.id === 'moss-layout' ? 'Experimental · centered pixel boxes · literal JSON' : preset.id.startsWith('moss-') ? 'MOSS format · optional negative field · local only' : preset.id === "anima" ? "Scene prose + separate character tag fields" : preset.id === "negative" ? "Separate positive and negative fields" : "Editable starter choices · cycle on generation");
       card.append(title, preview, note); card.addEventListener("click", () => { presets.value = `builtin:${preset.id}`; presets.dispatchEvent(new Event("change")); refreshCards(); });
       gallery.append(card);
     }
@@ -150,7 +159,7 @@ export function appendIterationUI({ section, state, button: makeButton, selectCo
       text.textContent = `${change.type === "added" ? "" : `− ${change.before}\n`}${change.type === "removed" ? "" : `+ ${change.after}`}`;
       card.append(label, text);
       if (change.metadata.length) { const meta = document.createElement("div"); meta.textContent = change.metadata.map(m => {
-        const names = { label: "Label", titleHidden: "Title hidden", accent: "Accent color", enabled: "Included", channel: "Prompt channel", separator: "Separator", experimentState: "Variation mode", variationMode: "Generation method", dependsOn: "Follow sources", fieldType: "Field type", default: "Default value", variationTemplate: "Reusable choices" };
+        const names = { label: "Label", titleHidden: "Title hidden", accent: "Accent color", accentTarget: "Accent applies to", enabled: "Included", channel: "Prompt channel", separator: "Separator", experimentState: "Variation mode", variationMode: "Generation method", dependsOn: "Follow sources", fieldType: "Field type", default: "Default value", variationTemplate: "Reusable choices", hasInput: "Input socket", inputPlacement: "Input placement", hasOutput: "Output socket" };
         const display = (value, recipe) => m.key === "dependsOn" ? (value || []).map(id => recipe.fields.find(f => f.id === id)?.label || id).join(", ") || "None" : m.key === "experimentState" ? value || "Default" : JSON.stringify(value) ?? "default";
         return `${names[m.key] || m.key}: ${display(m.before, before)} → ${display(m.after, after)}`;
       }).join("\n"); card.appendChild(meta); }

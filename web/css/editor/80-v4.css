@@ -28,10 +28,9 @@
 .wg-preview-status {
   position: absolute; right: 12px; top: 10px; z-index: 5; pointer-events: none;
   min-height: 24px; padding: 4px 9px; border-radius: 999px; box-sizing: border-box;
-  background: color-mix(in srgb, var(--wg-panel, #1a1a1a) 88%, transparent);
+  background: var(--wg-panel-bg, #1a1a1a);
   border: 1px solid var(--wg-border, rgba(255,255,255,.14));
-  color: var(--wg-text-muted, currentColor); font-size: 11px; line-height: 15px;
-  backdrop-filter: blur(5px);
+  color: var(--wg-text-dim, currentColor); font-size: 11px; line-height: 15px;
 }
 .wg-preview-status[data-kind="error"] { color: var(--wg-danger, #d67572); }
 .wg-thumb-img { aspect-ratio: 1 / 1; object-fit: cover; }

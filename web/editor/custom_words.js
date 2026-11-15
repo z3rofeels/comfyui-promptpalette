@@ -167,9 +167,18 @@ async function loadCustomWords() {
         // object-key overwrite semantics of the source implementation closely.
         const seen = new Set();
         return words.filter((word) => {
-          const key = `${word.text.toLocaleLowerCase()}\u0000${word.value}`;
+          const text = String(word.text || "").trim();
+          const value = String(word.value || "").trim();
+          const lowerText = text.toLocaleLowerCase();
+          const key = `${lowerText}\u0000${value}`;
           if (seen.has(key)) return false;
           seen.add(key);
+          word.text = text;
+          word.value = value;
+          word._lowerText = lowerText;
+          word._lowerValue = value.toLocaleLowerCase();
+          word._matchedAlias = text !== value ? text : "";
+          word._lowerAlias = word._matchedAlias ? lowerText : "";
           return true;
         });
       });
@@ -178,61 +187,84 @@ async function loadCustomWords() {
   return customWordsPromise;
 }
 
-function filterCustomWords(words, term, limit = 20) {
+function compareCustomCandidate(a, b) {
+  const aExact = a.exact ? 0 : 1, bExact = b.exact ? 0 : 1;
+  if (aExact !== bExact) return aExact - bExact;
+  const aBucket = a.prefix ? 0 : a.pos ? 2 : 1, bBucket = b.prefix ? 0 : b.pos ? 2 : 1;
+  if (aBucket !== bBucket) return aBucket - bBucket;
+  const aPrio = -(a.priority || 0), bPrio = -(b.priority || 0);
+  if (aPrio !== bPrio) return aPrio < bPrio ? -1 : 1;
+  if (a.labelLength !== b.labelLength) return a.labelLength - b.labelLength;
+  const aHasAlias = a.matchedAlias ? 1 : 0, bHasAlias = b.matchedAlias ? 1 : 0;
+  if (aHasAlias !== bHasAlias) return aHasAlias - bHasAlias;
+  if (a._lowerAlias < b._lowerAlias) return -1;
+  if (a._lowerAlias > b._lowerAlias) return 1;
+  return 0;
+}
+
+function filterCustomWords(words, term, limit = 20, { category = "" } = {}) {
   const q = String(term || "").toLocaleLowerCase();
   if (!q) return [];
   const tokens = q.split(/[_\s]+/).filter(Boolean);
+  const singleToken = tokens.length === 1 ? tokens[0] : "";
   const grouped = new Map();
 
   // A custom word may be indexed under several aliases, but the autocomplete table
   // should contain one canonical row. Keep whichever matching definition gives the
   // strongest result; aliases remain searchable without becoming duplicate rows.
-  for (const word of words) {
-    const label = String(word?.text || "").trim();
-    const value = String(word?.value || "").trim();
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i];
+    if (category && word?.category !== category) continue;
+    const label = word?._lowerText !== undefined ? word.text : String(word?.text || "").trim();
+    const value = word?._lowerValue !== undefined ? word.value : String(word?.value || "").trim();
     if (!label || !value) continue;
-    const lowerLabel = label.toLocaleLowerCase();
-    const lowerValue = value.toLocaleLowerCase();
-    const labelMatches = tokens.every((token) => lowerLabel.includes(token));
-    const valueMatches = tokens.every((token) => lowerValue.includes(token));
-    if (!labelMatches && !valueMatches) continue;
+    const lowerLabel = word._lowerText !== undefined ? word._lowerText : label.toLocaleLowerCase();
+    const lowerValue = word._lowerValue !== undefined ? word._lowerValue : value.toLocaleLowerCase();
+    if (singleToken) {
+      if (!lowerLabel.includes(singleToken) && !lowerValue.includes(singleToken)) continue;
+    } else {
+      let labelMatches = true;
+      for (let t = 0; t < tokens.length; t += 1) {
+        if (!lowerLabel.includes(tokens[t])) { labelMatches = false; break; }
+      }
+      if (!labelMatches) {
+        let valueMatches = true;
+        for (let t = 0; t < tokens.length; t += 1) {
+          if (!lowerValue.includes(tokens[t])) { valueMatches = false; break; }
+        }
+        if (!valueMatches) continue;
+      }
+    }
 
     const exact = lowerLabel === q || lowerValue === q;
     let pos = lowerLabel.indexOf(q);
     if (pos === -1) pos = lowerValue.indexOf(q);
-    if (pos === -1) pos = Math.max(1, lowerLabel.indexOf(tokens[0]));
-    const prefix = lowerLabel.startsWith(q) || lowerValue.startsWith(q) || tokens.some((token) => lowerLabel.startsWith(token));
+    if (pos === -1) {
+      let firstTokenPos = lowerLabel.indexOf(tokens[0]);
+      pos = firstTokenPos > 1 ? firstTokenPos : 1;
+    }
+    let prefix = lowerLabel.startsWith(q) || lowerValue.startsWith(q);
+    if (!prefix) {
+      for (let t = 0; t < tokens.length; t += 1) {
+        if (lowerLabel.startsWith(tokens[t])) { prefix = true; break; }
+      }
+    }
+    const matchedAlias = word._matchedAlias !== undefined ? word._matchedAlias : (label !== value ? label : "");
+    const lowerAlias = word._lowerAlias !== undefined ? word._lowerAlias : matchedAlias.toLocaleLowerCase();
     const definition = {
       value,
       category: word.category || "",
       priority: Number(word.priority) || 0,
       count: Number(word.count) || 0,
-      matchedAlias: label !== value ? label : "",
+      matchedAlias,
+      _lowerAlias: lowerAlias,
       exact,
       prefix,
       pos,
       labelLength: label.length,
     };
-    const key = lowerValue;
-    const old = grouped.get(key);
-    const rank = (candidate) => [
-      candidate.exact ? 0 : 1,
-      candidate.prefix ? 0 : candidate.pos ? 2 : 1,
-      -(candidate.priority || 0),
-      candidate.labelLength,
-      candidate.matchedAlias ? 1 : 0,
-      candidate.matchedAlias.toLocaleLowerCase(),
-    ];
-    const compare = (a, b) => {
-      const ar = rank(a);
-      const br = rank(b);
-      for (let i = 0; i < ar.length; i += 1) {
-        if (ar[i] < br[i]) return -1;
-        if (ar[i] > br[i]) return 1;
-      }
-      return 0;
-    };
-    if (!old || compare(definition, old) < 0) grouped.set(key, definition);
+    const old = grouped.get(lowerValue);
+    if (!old || compareCustomCandidate(definition, old) < 0) grouped.set(lowerValue, definition);
   }
 
   const matches = Array.from(grouped.values());

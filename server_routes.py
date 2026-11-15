@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .workspace_generation import WorkspaceGeneration, read_runtime
+from .upstream_input_eval import evaluate_upstream_text
 
 import asyncio
 import hashlib
@@ -21,7 +22,7 @@ from .clip_tokenizer import count_clip_tokens
 from .prompt_exploration import capture_selection
 from .prompt_diagnostics import inspect_resolved_prompt
 from .positive_antonyms import apply_positive_antonyms
-from .wildcard_index import get_index
+from .wildcard_index import get_index, peek_index
 from .wildcard_resolver import WildcardResolver
 from .booru_database import active_db_path, normalize_lookup, normalize_tag
 from . import style_indexes
@@ -509,8 +510,11 @@ def _read_text_file(path: str, limit: int = MAX_TEXT_CHARS) -> str:
 
 async def _get_fresh_index(force_check=False):
     # First access creates/scans the index; do not block ComfyUI's event loop.
-    index = await asyncio.to_thread(get_index)
-    await index.ensure_fresh_async(force_check=force_check)
+    index = peek_index()
+    if index is None:
+        index = await asyncio.to_thread(get_index)
+    if force_check or index.needs_fresh_check():
+        await index.ensure_fresh_async(force_check=force_check)
     return index
 
 
@@ -1298,22 +1302,40 @@ async def resolve_prompt(request):
             raise ValueError("invalid resolve flag")
         if not isinstance(mode, str) or mode not in {"entire text as one", "line by line"}:
             raise ValueError("invalid processing mode")
+        workspace_runtime_raw = data.get("workspace_runtime")
+        workspace_payload = read_runtime(workspace_runtime_raw) if workspace_runtime_raw else None
+        if workspace_runtime_raw and workspace_payload is None:
+            raise ValueError("Open a Fields workspace first.")
     except ValueError as exc:
         return _error(str(exc))
 
-    try:
-        index = await _get_fresh_index() if should_resolve else None
-    except Exception:
-        logger.exception("Could not load wildcard index for prompt resolution")
-        return _error("couldn't load wildcard library", 500)
+    index = None
+    if should_resolve:
+        index = peek_index()
+        if index is None:
+            try:
+                index = await asyncio.to_thread(get_index)
+            except Exception:
+                logger.exception("Could not load wildcard index for prompt resolution")
+                return _error("couldn't load wildcard library", 500)
 
     def resolve_and_count():
-        resolver = WildcardResolver(index.preview_view(), initial_variables=vars_in) if index is not None else None
-        resolved = text if not should_resolve else (
-            "\n".join(resolver.resolve_lines(text, seed=seed))
-            if mode == "line by line"
-            else resolver.resolve(text, seed=seed)
-        )
+        resolver = None
+        if index is not None:
+            index._ensure_fresh()
+            view = index.preview_view()
+            if workspace_payload is not None and workspace_payload["positive"] == text:
+                workspace_rt = WorkspaceGeneration(view, workspace_payload, preview=True)
+                resolved, _ = workspace_rt.resolve(workspace_payload["positive"], seed, mode)
+            else:
+                resolver = WildcardResolver(view, initial_variables=vars_in)
+                resolved = (
+                    "\n".join(resolver.resolve_lines(text, seed=seed))
+                    if mode == "line by line"
+                    else resolver.resolve(text, seed=seed)
+                )
+        else:
+            resolved = text
         resolved = apply_positive_antonyms(resolved, positive_antonyms)
         response: dict[str, Any] = {"resolved": resolved}
         if resolver is not None:
@@ -1519,6 +1541,25 @@ async def resolve_workspace(request):
     except Exception:
         logger.exception("Workspace preview failed")
         return _error("workspace preview failed", 500)
+
+
+@routes.post("/prompt_palette/eval_input")
+async def eval_upstream_input(request):
+    require_same_origin(request)
+    try:
+        data = await _read_json_object(request, limit=None)
+        prompt_graph = data.get("prompt")
+        target_node = data.get("target_node")
+        if target_node is None or str(target_node) == "":
+            raise ValueError("Missing upstream target node.")
+        output_index = _bounded_int(data.get("output_index", 0), "output_index", minimum=0, maximum=128)
+        text = await evaluate_upstream_text(prompt_graph, str(target_node), output_index)
+        return web.json_response({"text": text})
+    except ValueError as exc:
+        return _error(str(exc))
+    except Exception as exc:
+        logger.exception("Upstream input evaluation failed")
+        return _error(f"Could not evaluate connected input: {exc}", 500)
 
 
 @routes.post("/prompt_palette/count_combinatorial")

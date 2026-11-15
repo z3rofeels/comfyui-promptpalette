@@ -1,7 +1,7 @@
 import { LORA_RE } from "./lora_tags.js";
 import { createLibraryLookup } from "./library_lookup.js";
 import { jsonObjectRanges, maskJsonObjects } from "./json_literals.js";
-const SIMPLE_TOKEN_RE = /(<lora:(?![^>]*__)[^:<>\r\n{}|$]+:[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?::[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)?>|__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if|switch|case|default|\/switch)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
+const SIMPLE_TOKEN_RE = /(<lora:(?![^>]*__)[^:<>\r\n{}|$]+(?::[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?::[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)?)?>|__[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?__|\$\{[^{}]*\}|\[(?:if|elif|else|\/if|switch|case|default|\/switch)(?:\s+[^\]]+)?\]|\d+::|\d+(?:-\d+)?\$\$[^$]*\$\$|\d+#|[{}|])/gi;
 const CACHE_LIMIT = 768;
 
 function normalize(value) { return String(value ?? "").replace(/\r\n?/g, "\n"); }
@@ -33,7 +33,10 @@ function parseLine(raw) {
     const token = match[0];
     const wildcardMatch = token.match(/^__([+\-*%~@]?)([A-Za-z0-9_\-/*]+)(?:\(([^()]*)\))?__$/);
     let segment;
-    if (/^<lora:/i.test(token)) segment = { type: "lora", text: token, start: match.index, end: match.index + token.length };
+    if (/^<lora:/i.test(token)) {
+      const loraMatch = token.match(/^<lora:([^:<>\r\n]+)/i);
+      segment = { type: "lora", name: loraMatch ? loraMatch[1].trim() : "", text: token, start: match.index, end: match.index + token.length };
+    }
     else if (wildcardMatch) {
       segment = {
         type: "wildcard", text: token, mode: wildcardMatch[1] || "", name: wildcardMatch[2] || "",
@@ -193,11 +196,13 @@ export class UnifiedWildcardEngine {
   }
   autocompleteContext(sourceText, caret, options = {}) {
     const source = normalize(sourceText);
-    if (this.parse(source).literalRanges.some(range => range.start <= caret && caret < range.end)) return null;
-    const before = source.slice(0, Math.max(0, Number(caret) || 0));
-    const lora = before.match(/<lora:([^:<>\r\n{}|$]*)$/i);
-    if (lora) return options.loraAutocomplete === true ? { kind: "lora", query: lora[1], modifier: "", start: lora.index, end: before.length } : null;
-    const wildcard = before.match(/__([+\-*%~@]?)([A-Za-z0-9_\-/]*)$/);
+    const cursor = Math.max(0, Number(caret) || 0);
+    if (this.parse(source).literalRanges.some(range => range.start <= cursor && cursor < range.end)) return null;
+    const lineStart = source.lastIndexOf("\n", cursor - 1) + 1;
+    const lineBefore = source.slice(lineStart, cursor);
+    const lora = lineBefore.match(/<lora:([^:<>\r\n{}|$]*)$/i);
+    if (lora) return options.loraAutocomplete === true ? { kind: "lora", query: lora[1], modifier: "", start: lineStart + lora.index, end: cursor } : null;
+    const wildcard = lineBefore.match(/__([+\-*%~@]?)([A-Za-z0-9_\-/]*)$/);
     if (wildcard) {
       // A query that already contains "__" is a closed wildcard followed by
       // additional text. If the caret is immediately after the closing "__",
@@ -205,30 +210,30 @@ export class UnifiedWildcardEngine {
       // parser can treat the closed wildcard as a boundary for the new word.
       const containsClosedBoundary = (wildcard[2] || "").includes("__");
       if (containsClosedBoundary) {
-        if (before.endsWith("__")) return null;
+        if (lineBefore.endsWith("__")) return null;
       } else {
-        const start = wildcard.index;
-        const priorPairs = (before.slice(0, start).match(/__/g) || []).length;
+        const start = lineStart + wildcard.index;
+        const priorPairs = (source.slice(0, start).match(/__/g) || []).length;
         if (priorPairs % 2 === 0) {
-          return { kind: "wildcard", query: wildcard[2] || "", modifier: wildcard[1] || "", start, end: before.length };
+          return { kind: "wildcard", query: wildcard[2] || "", modifier: wildcard[1] || "", start, end: cursor };
         }
       }
     }
     // "{" (optionally with a mode marker, or "${" for variables) that was just typed: offer the
     // inline-syntax templates. Only the bare opener matches; once anything else follows it the
     // fragment disappears and the menu closes by itself.
-    const opener = before.match(/(?:^|[^${])(\$?\{[+\-*%]?)$/);
+    const opener = lineBefore.match(/(?:^|[^${])(\$?\{[+\-*%]?)$/);
     if (opener) {
       const typed = opener[1];
-      return { kind: "syntax", query: typed, modifier: "", start: before.length - typed.length, end: before.length };
+      return { kind: "syntax", query: typed, modifier: "", start: cursor - typed.length, end: cursor };
     }
-    if (/\$\{[^}]*$/.test(before)) return null;
+    if (/\$\{[^}]*$/.test(lineBefore)) return null;
     const minChars = Math.max(1, Math.min(12, Math.round(Number(options?.booruMinChars) || 2)));
     // Explicit Anima artist queries may contain spaces. Wildcard @ selection
     // above remains authoritative; emails and escaped @ are not artist queries.
-    const artist = before.match(/(?:^|[\s,])(@(?:[\p{L}\p{N}_+():'\/\\.\-][\p{L}\p{N}_+():'\/\\. \-]*)?)$/u);
+    const artist = lineBefore.match(/(?:^|[\s,])(@(?:[\p{L}\p{N}_+():'\/\\.\-][\p{L}\p{N}_+():'\/\\. \-]*)?)$/u);
     if (artist) {
-      return { kind: "booru", query: artist[1], modifier: "", start: before.length - artist[1].length, end: before.length };
+      return { kind: "booru", query: artist[1].replace(/\\([()])/g, "$1"), modifier: "", start: cursor - artist[1].length, end: cursor };
     }
 
     // A Library card inserts a complete `__name__` token. When the user keeps
@@ -237,20 +242,22 @@ export class UnifiedWildcardEngine {
     // prefixed word and autocomplete cannot start a new query. Treat a closed
     // wildcard token as a hard autocomplete boundary, just like whitespace or
     // a comma, while leaving the wildcard token itself non-completable.
-    const afterClosedWildcard = before.match(
-      /__(?:[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?)__([A-Za-z0-9_+():'\/\-]*)$/
+    const afterClosedWildcard = lineBefore.match(
+      /__(?:[+\-*%~@]?[A-Za-z0-9_\-/*]+(?:\([^()]*\))?)__([A-Za-z0-9_+():'\/\\\-]*)$/
     );
     if (afterClosedWildcard && afterClosedWildcard[1]) {
-      const query = afterClosedWildcard[1];
+      const query = afterClosedWildcard[1].replace(/\\([()])/g, "$1");
       if (query.length < minChars || query.startsWith("__")) return null;
-      const start = before.length - query.length;
-      return { kind: "booru", query, modifier: "", start, end: before.length };
+      const start = cursor - afterClosedWildcard[1].length;
+      return { kind: "booru", query, modifier: "", start, end: cursor };
     }
 
-    const tag = before.match(/(?:^|[\s,])([A-Za-z0-9_+():'\/\-]*)$/);
+    const tag = lineBefore.match(/(?:^|[\s,])([\[(]*[A-Za-z0-9_+():'\/\\\-]*)$/);
     if (!tag || !tag[1] || tag[1].length < minChars) return null;
-    const start = before.length - tag[1].length;
-    return { kind: "booru", query: tag[1], modifier: "", start, end: before.length };
+    const raw = tag[1].replace(/^[\[(]+/, "");
+    if (raw.length < minChars) return null;
+    const start = cursor - raw.length;
+    return { kind: "booru", query: raw.replace(/\\([()])/g, "$1"), modifier: "", start, end: cursor };
   }
   stats() { return { cachedLines: this.lineCache.size, lastChars: this.lastSource?.length || 0 }; }
 }

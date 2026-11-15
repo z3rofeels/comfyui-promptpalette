@@ -27,28 +27,80 @@ def preview_type(path):
     return 'video' if path and Path(path).suffix.lower() in VIDEO_TYPES else 'image'
 
 
-def _entries(parent):
+# A trailing counter such as "_2", ".1" or " (3)", optionally preceded by a preview label.
+_NUMBER_TAIL = re.compile(r'(?:[._-]\d+| \(\d+\))$')
+_LABEL_TAIL = re.compile(r'[._-](?:preview|thumb|thumbnail)$', re.I)
+
+
+class _Directory:
+    """One directory listing plus everything the lookups derive from it.
+
+    Preview and sidecar discovery runs once per LoRA. Counting model files and scanning every
+    entry for numbered previews inside each lookup made a flat folder of N models cost
+    O(N x files); the listing is immutable, so derive that once per listing instead.
+    """
+    __slots__ = ('entries', 'ordered', 'single_model', '_numbered', '_irregular')
+
+    def __init__(self, entries):
+        self.entries = entries
+        self.ordered = sorted(entries.values(), key=lambda p: p.name.casefold())
+        self.single_model = sum(p.suffix.lower() in _MODEL_EXTS for p in entries.values()) == 1
+        self._numbered = None
+        self._irregular = ()
+
+    def _build_numbered(self):
+        index, irregular = {}, []
+        for position, candidate in enumerate(self.ordered):
+            stem = candidate.stem
+            if not stem.isascii():
+                # Regex case-folding rules differ for non-ASCII text: always test these exactly.
+                irregular.append(position)
+                continue
+            tail = _NUMBER_TAIL.search(stem)
+            if not tail:
+                continue
+            base = stem[:tail.start()]
+            index.setdefault(base.lower(), []).append(position)
+            label = _LABEL_TAIL.search(base)
+            if label:
+                index.setdefault(base[:label.start()].lower(), []).append(position)
+        self._numbered, self._irregular = index, tuple(irregular)
+
+    def numbered_candidates(self, stems):
+        """Entries that could be numbered previews of these stems, in name order.
+
+        A superset of the matches: the caller still applies the exact pattern. Names the index
+        cannot judge safely (non-ASCII on either side) are always included.
+        """
+        if any(not stem.isascii() for stem in stems):
+            return self.ordered
+        if self._numbered is None:
+            self._build_numbered()
+        positions = set(self._irregular)
+        for stem in stems:
+            positions.update(self._numbered.get(stem, ()))
+        return [self.ordered[position] for position in sorted(positions)]
+
+
+def _directory(parent):
     stamp, now = parent.stat().st_mtime_ns, monotonic()
     cached = _DIRECTORIES.get(parent)
     if cached and cached[0] == stamp and now - cached[1] < 2:
         return cached[2]
-    entries = {p.name.casefold(): p for p in sorted(parent.iterdir(), key=lambda p: p.name)}
+    directory = _Directory({p.name.casefold(): p for p in sorted(parent.iterdir(), key=lambda p: p.name)})
     if len(_DIRECTORIES) >= 128:
         _DIRECTORIES.pop(next(iter(_DIRECTORIES)))
-    _DIRECTORIES[parent] = (stamp, now, entries)
-    return entries
-
-
-def _single_model(entries):
-    return sum(p.suffix.lower() in _MODEL_EXTS for p in entries.values()) == 1
+    _DIRECTORIES[parent] = (stamp, now, directory)
+    return directory
 
 
 def metadata_files(full_path):
     full = Path(full_path).resolve()
     try:
-        entries = _entries(full.parent)
+        directory = _directory(full.parent)
     except OSError:
         return []
+    entries = directory.entries
     candidates = []
     for suffix in ('.civitai.info', '.json', '.metadata.json', '.info.json', '.user.info', '.rgthree-info.json', '.info'):
         for stem in (full.stem.casefold(), full.name.casefold()):
@@ -56,7 +108,7 @@ def metadata_files(full_path):
             if candidate and candidate not in candidates:
                 candidates.append(candidate)
     # A generic file belongs to a model only in an unambiguous model folder.
-    if _single_model(entries):
+    if directory.single_model:
         for name in ('metadata.json', 'civitai.info', 'model.json', 'info.json'):
             candidate = entries.get(name)
             if candidate and candidate not in candidates:
@@ -88,9 +140,10 @@ def find_previews(full_path, max_bytes=None):
     full = Path(full_path).resolve()
     parent = full.parent
     try:
-        entries = _entries(parent)
+        directory = _directory(parent)
     except OSError:
         return []
+    entries = directory.entries
     found, seen = [], set()
 
     def add(path):
@@ -114,7 +167,7 @@ def find_previews(full_path, max_bytes=None):
                 add(entries.get(stem + label + ext))
     numbered = re.compile(r'^(?:' + '|'.join(re.escape(s) for s in stems)
                           + r')(?:[._-](?:preview|thumb|thumbnail))?(?:[._-]\d+| \(\d+\))$', re.I)
-    for candidate in sorted(entries.values(), key=lambda p: p.name.casefold()):
+    for candidate in directory.numbered_candidates(stems):
         if numbered.fullmatch(candidate.stem):
             add(candidate)
 
@@ -149,11 +202,11 @@ def find_previews(full_path, max_bytes=None):
                         add(entries.get(candidate.name.casefold(), candidate))
                 except (OSError, ValueError):
                     continue
-    if _single_model(entries):
+    if directory.single_model:
         for label in ('preview', 'thumbnail', 'thumb', 'cover', 'image', 'video'):
             for ext in MEDIA_TYPES:
                 add(entries.get(label + ext))
-        for candidate in sorted(entries.values(), key=lambda p: p.name.casefold()):
+        for candidate in directory.ordered:
             add(candidate)
     return found
 

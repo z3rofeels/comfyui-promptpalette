@@ -1,6 +1,7 @@
 import { api } from "../../scripts/api.js";
+import { readPortLayouts, savePortLayout, matchingPortLayout } from "./editor/port_layouts.js";
 import { getPromptPaletteRenderer, cleanupPromptPaletteRenderer } from "./renderer/prompt_palette_renderer.js";
-import { ensureSchemaSocket as rendererEnsureSchemaSocket } from "./renderer/base_renderer_adapter.js";
+import { ensureSchemaSocket as rendererEnsureSchemaSocket, socketConnected as rendererSocketConnected } from "./renderer/base_renderer_adapter.js";
 const IO_SLOT_HEIGHT = 20;
 const HIDDEN_SOCKET_LABEL = "\u200B";
 
@@ -435,8 +436,8 @@ function preparePromptBackingWidgets(node) {
   installNegativePromptState(node);
   const combinatorial = (node.comfyClass || node.type) === "PromptPaletteCombinatorial";
   const names = combinatorial
-    ? new Set(["text", "mode", "count", "seed", "seed_mode", "max_prompts", "prepared_batch", "positive_antonyms", "lora_mode"])
-    : new Set(["text", "seed", "processing_mode", "prepared_batch", "positive_antonyms", "lora_mode"]);
+    ? new Set(["text", "mode", "count", "seed", "seed_mode", "max_prompts", "prepared_batch", "workspace_runtime", "positive_antonyms", "lora_mode"])
+    : new Set(["text", "seed", "processing_mode", "prepared_batch", "workspace_runtime", "positive_antonyms", "lora_mode"]);
   const socketWidgets = new Set(["mode", "count", "seed", "seed_mode", "max_prompts"]);
   for (const widget of node.widgets || []) {
     if (!names.has(widget.name) && !widget.__ppRecipeNegative && !/control.*generate/i.test(widget.name || "")) continue;
@@ -588,6 +589,21 @@ function installPromptStateGuard(node, hiddenWidget) {
   node.properties ||= {};
   let established = false;
   let current = "";
+  let pendingNotify = false;
+  let pendingDirty = false;
+  let notifyFrame = 0;
+
+  const flushNotification = () => {
+    notifyFrame = 0;
+    const doNotify = pendingNotify;
+    const doDirty = pendingDirty;
+    pendingNotify = false;
+    pendingDirty = false;
+    if (doNotify && typeof hiddenWidget.callback === "function") {
+      hiddenWidget.callback(current, node.graph?.canvas, node);
+    }
+    if (doDirty) node.graph?.setDirtyCanvas?.(true, true);
+  };
 
   const savedState = () => {
     const state = node.properties?.[PROMPT_STATE_KEY];
@@ -607,15 +623,29 @@ function installPromptStateGuard(node, hiddenWidget) {
     return widgetText || "";
   };
 
-  const write = (value, { notify = false, dirty = false, establish = true } = {}) => {
+  const write = (value, { notify = false, dirty = false, establish = true, deferNotify = false } = {}) => {
     if (typeof value !== "string") return current;
+    const valueChanged = value !== current;
+    const establishChanged = !!establish && !established;
     current = value;
     if (establish) established = true;
-    if (established) {
+    if (established && (valueChanged || establishChanged || hiddenWidget.value !== value)) {
       node.properties[PROMPT_STATE_KEY] = { version: PROMPT_STATE_VERSION, source_text: value };
       node.properties.wg_text = value;
+      hiddenWidget.value = value;
     }
-    hiddenWidget.value = value;
+    if (!notify && !dirty) return current;
+    if (deferNotify) {
+      if (notify) pendingNotify = true;
+      if (dirty) pendingDirty = true;
+      if (!notifyFrame) {
+        notifyFrame = nodeIsActive(node) ? scheduleNodeFrame(node, flushNotification) : 0;
+        if (!notifyFrame) flushNotification();
+      }
+      return current;
+    }
+    pendingNotify = false;
+    pendingDirty = false;
     if (notify && typeof hiddenWidget.callback === "function") {
       hiddenWidget.callback(value, node.graph?.canvas, node);
     }
@@ -689,6 +719,7 @@ function installPromptStateGuard(node, hiddenWidget) {
       const result = onSerialize ? onSerialize.apply(this, arguments) : undefined;
       const guard = this._ppPromptStateGuard;
       if (!guard) return result;
+      guard.flush?.();
       const value = guard.commit(guard.current(), { notify: false, dirty: false });
       data.properties ||= {};
       data.properties[PROMPT_STATE_KEY] = { version: PROMPT_STATE_VERSION, source_text: value };
@@ -709,6 +740,7 @@ function installPromptStateGuard(node, hiddenWidget) {
     restore,
     loadSerialized,
     commit: (value, options = {}) => write(value, { notify: true, dirty: true, ...options, establish: true }),
+    flush: () => { if (pendingNotify || pendingDirty) flushNotification(); },
     acceptRendererValue,
   };
   node._ppPromptStateGuard = guard;
@@ -737,15 +769,14 @@ function installPromptMetadataCapture(node) {
 
 function ioState(node) {
   node.properties ||= {};
-  const state = node.properties.wg_io || (node.properties.wg_io = { inputs: {}, outputs: {}, labels: false });
+  const state = node.properties.wg_io || (node.properties.wg_io = { inputs: {}, outputs: {} });
   state.inputs = state.inputs && typeof state.inputs === "object" ? state.inputs : {};
   state.outputs = state.outputs && typeof state.outputs === "object" ? state.outputs : {};
-  // Migrate earlier experimental label flags into one renderer-neutral persisted switch.
-  if (state.labels === undefined) {
-    state.labels = !!(state.showLabels || state.showInputLabels || state.showOutputLabels);
-  } else {
-    state.labels = !!state.labels;
-  }
+  // Keep the existing workflow preference, including pre-manager workflows.
+  if (typeof state.labels !== "boolean") state.labels = typeof state.showLabels === "boolean"
+    ? state.showLabels : state.showInputLabels === true || state.showOutputLabels === true;
+  state.pinned = state.pinned !== false;
+  state.managerOpen = state.managerOpen === true;
   delete state.showLabels;
   delete state.showInputLabels;
   delete state.showOutputLabels;
@@ -758,16 +789,12 @@ function ioEnabled(node, kind, def) {
 }
 
 function ioLabelsShown(node) {
-  return !!(node && ioState(node).labels);
+  return ioState(node).labels || ioState(node).managerOpen;
 }
 
 
-function ioSocketIndex(list, name) {
-  return (list || []).findIndex((slot) => slot?.name === name);
-}
-
-function socketConnected(kind, slot) {
-  return kind === "input" ? slot?.link != null : Number(slot?.links?.length) > 0;
+function socketConnected(kind, slot, node) {
+  return rendererSocketConnected(kind, slot, node);
 }
 
 function ensureSchemaSocket(node, kind, def) {
@@ -781,33 +808,6 @@ function installSocketRailLayout(node, inputDefs, outputDefs, domRoot) {
   const renderer = getPromptPaletteRenderer(node, { labelsShown: () => ioLabelsShown(node) });
   renderer.install(node._wgInputDefs, node._wgOutputDefs, domRoot);
 
-  if (!node._wgSocketSerializeHook) {
-    node._wgSocketSerializeHook = true;
-    const onSerialize = node.onSerialize;
-    node.onSerialize = function (data) {
-      const result = onSerialize ? onSerialize.apply(this, arguments) : undefined;
-      const restoreField = (serialized, original, key) => {
-        if (!serialized) return;
-        const value = original?.[key];
-        if (value === undefined || value === HIDDEN_SOCKET_LABEL) delete serialized[key];
-        else serialized[key] = Array.isArray(value) ? [...value] : value;
-      };
-      const restoreSlots = (serializedSlots, liveSlots) => {
-        (serializedSlots || []).forEach((serialized, index) => {
-          if (!serialized) return;
-          delete serialized.ppHidden;
-          delete serialized.__ppSocketRailTitle;
-          delete serialized.__ppSocketRailState;
-          const original = liveSlots?.[index]?.__ppSocketRailState;
-          for (const key of ["label", "localized_name", "pos", "color_on", "color_off"]) restoreField(serialized, original, key);
-        });
-      };
-      restoreSlots(data?.inputs, this.inputs);
-      restoreSlots(data?.outputs, this.outputs);
-      return result;
-    };
-  }
-
   if (!node._wgSocketConnectionHook) {
     node._wgSocketConnectionHook = true;
     const onConnectionsChange = node.onConnectionsChange;
@@ -815,12 +815,14 @@ function installSocketRailLayout(node, inputDefs, outputDefs, domRoot) {
       const result = onConnectionsChange ? onConnectionsChange.apply(this, arguments) : undefined;
       if (!this._wgSocketConnectionQueued) {
         this._wgSocketConnectionQueued = true;
+        const activeRenderer = this._ppRendererAdapter;
         queueMicrotask(() => {
           this._wgSocketConnectionQueued = false;
-          if (!nodeIsActive(this)) return;
+          if (!nodeIsActive(this) || !activeRenderer || this._ppRendererAdapter !== activeRenderer) return;
           this._wgRefreshIoToggles?.();
+          this._ppRecipeWorkspace?.contextChanged?.();
           if (typeof this._ppInvalidateRuntime === "function") this._ppInvalidateRuntime("socket", { reason: "connection" });
-          else getPromptPaletteRenderer(this, { labelsShown: () => ioLabelsShown(this) }).requestLayout();
+          else activeRenderer.requestLayout();
         });
       }
       return result;
@@ -841,25 +843,21 @@ function queueSocketRailLayout(node) {
 
 function canonicalizeOutputs(node, defs) {
   if (!node) return;
-  for (const def of defs || []) {
-    const slot = ensureSchemaSocket(node, "output", def);
-    if (!slot) continue;
-    slot.name = def.key;
-    slot.type ||= def.type;
-    // Keep the schema-facing label authoritative for Nodes 2. The classic
-    // renderer may temporarily use its compact zero-width label, but the Vue
-    // slot component needs a real name/label to render its output text.
-    slot.label = def.label || def.key;
-    slot.localized_name = def.label || def.key;
-    if (Number.isInteger(def.slotIndex)) slot.slot_index = def.slotIndex;
-  }
+  // Output identities and custom labels belong to the host schema/workflow.
   queueSocketRailLayout(node);
 }
 
 function syncIoSocket(node, kind, def, enabled) {
   const slot = ensureSchemaSocket(node, kind, def);
   if (!slot) return;
-  slot.ppHidden = !(enabled || socketConnected(kind, slot));
+  const connected = socketConnected(kind, slot, node);
+  if (connected) {
+    const state = ioState(node);
+    (kind === "input" ? state.inputs : state.outputs)[def.key] = true;
+  }
+  // A port used by this workflow remains available after disconnecting. Only
+  // an explicit visibility change or preset hides an unused port.
+  slot.ppHidden = !(enabled || connected);
   if (typeof node._ppInvalidateRuntime === "function") node._ppInvalidateRuntime("socket", { kind, key: def.key, visible: !slot.ppHidden });
   else queueSocketRailLayout(node);
 }
@@ -878,95 +876,210 @@ function setupIoRail(node, root, inputDefs, outputDefs) {
   const header = root.querySelector(".wg-toolbar, .pp-header, .ppwc-settings-row");
   if (!toggle || !header) return { render() {}, close() {}, cleanup() {} };
 
-  node._wgIoRailOpen = false;
+  node._wgIoRailOpen = ioState(node).managerOpen;
   const rail = document.createElement("div");
   rail.className = "wg-io-rail";
-  rail.setAttribute("aria-label", "Manage visible inputs and outputs");
+  rail.setAttribute("aria-label", "Ports manager");
   header.insertAdjacentElement("afterend", rail);
 
   const isConnected = (kind, def) => {
-    const list = kind === "input" ? node.inputs : node.outputs;
-    return socketConnected(kind, list?.[ioSocketIndex(list, def.key)]);
+    return socketConnected(kind, ensureSchemaSocket(node, kind, def), node);
   };
 
-  const chip = (kind, def) => {
-    const enabled = ioEnabled(node, kind, def);
-    const connected = isConnected(kind, def);
-    const visible = enabled || connected;
-    const stateText = connected
-      ? (enabled ? "connected and visible" : "connected; hides after disconnect")
-      : (enabled ? "visible" : "hidden");
-    return `<button type="button" class="wg-io-chip${visible ? " on" : ""}${connected ? " linked" : ""}" data-io-kind="${kind}" data-io-key="${escapeHtml(def.key)}" aria-pressed="${enabled}" title="${escapeHtml(def.label)} (${escapeHtml(def.type)}): ${stateText}"><i></i><span>${escapeHtml(def.label)}</span>${connected ? '<b aria-hidden="true">•</b>' : ""}</button>`;
-  };
-
-  function render() {
-    const allDefs = [
-      ...inputDefs.map((def) => ["input", def]),
-      ...outputDefs.map((def) => ["output", def]),
-    ];
-    const visibleCount = allDefs.filter(([kind, def]) => ioEnabled(node, kind, def) || isConnected(kind, def)).length;
-    const totalCount = allDefs.length;
-    const open = !!node._wgIoRailOpen;
-    rail.classList.toggle("open", open);
-    rail.hidden = !open;
-    rail.toggleAttribute("inert", !open);
-    toggle.classList.toggle("active", open);
-    toggle.setAttribute("aria-expanded", String(open));
-    toggle.setAttribute("aria-label", open
-      ? "Close I/O manager"
-      : "Manage inputs, outputs, and socket labels");
-    toggle.title = open
-      ? `Close I/O manager (${visibleCount} of ${totalCount} visible)`
-      : `Manage I/O and socket labels (${visibleCount} of ${totalCount} visible)`;
-    const count = toggle.querySelector("[data-io-count]");
-    if (count) count.textContent = `${visibleCount}/${totalCount}`;
-
-    rail.innerHTML = `
-      <div class="wg-io-rail-head">
-        <div><strong>Inputs &amp; outputs</strong><span>Socket visibility and labels are independent and saved with the workflow.</span></div>
-        <span class="wg-io-visible-count">${visibleCount} of ${totalCount} visible</span>
+  let allDefs = [...inputDefs.map(def => ["input", def]), ...outputDefs.map(def => ["output", def])];
+  const chipMarkup = (kind, def) => `<button type="button" class="wg-io-chip" data-io-kind="${kind}" data-io-key="${escapeHtml(def.key)}"><i></i><span>${escapeHtml(def.label)}</span><b aria-label="Connected" hidden>●</b></button>`;
+  // Build controls once. Search typing, IME composition, focus and horizontal
+  // scrolling survive connection events; rendering only updates existing chips.
+  rail.setAttribute("role", "region");
+  rail.innerHTML = `
+    <div class="wg-io-rail-head">
+      <div><strong>Ports</strong></div>
+      <input type="search" class="wg-port-search" data-io-search aria-label="Search ports" placeholder="Find name or type…" maxlength="160" title="Filter these choices by name, type or description. Native ports and wires are unchanged.">
+      <div class="wg-io-head-actions"><button type="button" class="wg-io-pin" data-io-pin title="Keep this manager open while using other Palette tools"></button><button type="button" class="wg-io-pin" data-io-close aria-label="Close Ports manager" title="Close Ports manager">×</button></div>
+    </div>
+    <div class="wg-io-rail-content">
+      <div class="wg-io-rail-group" data-io-group="input"><span class="wg-io-rail-label">IN</span><div class="wg-io-chip-strip">${inputDefs.map(def => chipMarkup("input", def)).join("")}</div></div>
+      <div class="wg-io-rail-group" data-io-group="output"><span class="wg-io-rail-label">OUT</span><div class="wg-io-chip-strip">${outputDefs.map(def => chipMarkup("output", def)).join("")}</div></div>
+      <small class="wg-port-results" data-io-results role="status"></small>
+      <div class="wg-io-rail-actions" aria-label="Socket visibility presets">
+        <button type="button" data-io-bulk="on" title="Show every socket">Show all</button>
+        <button type="button" data-io-bulk="defaults" title="Restore the recommended socket set">Recommended</button>
+        <button type="button" data-io-bulk="off" title="Hide every unconnected socket">Hide unused</button>
       </div>
-      <div class="wg-io-rail-content">
-        <div class="wg-io-rail-group"><span class="wg-io-rail-label">IN</span><div class="wg-io-chip-strip">${inputDefs.map((def) => chip("input", def)).join("")}</div></div>
-        <div class="wg-io-rail-group"><span class="wg-io-rail-label">OUT</span><div class="wg-io-chip-strip">${outputDefs.map((def) => chip("output", def)).join("")}</div></div>
-        <div class="wg-io-rail-actions" aria-label="Socket visibility presets">
-          <button type="button" data-io-bulk="on" title="Show every socket">Show all</button>
-          <button type="button" data-io-bulk="defaults" title="Restore the recommended socket set">Recommended</button>
-          <button type="button" data-io-bulk="off" title="Hide every unconnected socket">Hide unused</button>
-          <button type="button" data-io-labels aria-pressed="${ioLabelsShown(node)}" title="Show or hide socket names without changing socket visibility">${ioLabelsShown(node) ? "Hide labels" : "Show labels"}</button>
+      <details class="wg-port-layouts"><summary data-io-layout-summary>Saved port layouts</summary>
+        <div class="wg-port-layout-body">
+          <div class="wg-port-layout-row"><select data-io-layout-select aria-label="Saved port layout"><option value="">New layout…</option></select><button type="button" data-io-layout-apply>Apply</button><button type="button" data-io-layout-delete>Delete</button></div>
+          <div class="wg-port-layout-row"><input type="text" data-io-layout-name aria-label="Port layout name" placeholder="Name this layout…" maxlength="120"><button type="button" data-io-layout-save title="Save the current available ports, including connected ports. Selecting a saved layout updates it.">Save current ports</button></div>
+          <small data-io-layout-info></small>
         </div>
-      </div>`;
+      </details>
+      <div class="wg-port-feedback"><span data-io-message role="status"></span><button type="button" data-io-layout-undo hidden>Undo delete</button></div>
+    </div>`;
+  const search = rail.querySelector("[data-io-search]"), results = rail.querySelector("[data-io-results]");
+  const pinButton = rail.querySelector("[data-io-pin]");
+  const layoutSelect = rail.querySelector("[data-io-layout-select]"), layoutName = rail.querySelector("[data-io-layout-name]");
+  const layoutInfo = rail.querySelector("[data-io-layout-info]"), layoutSummary = rail.querySelector("[data-io-layout-summary]");
+  const message = rail.querySelector("[data-io-message]"), undoButton = rail.querySelector("[data-io-layout-undo]");
+  let chips = [...rail.querySelectorAll("[data-io-kind][data-io-key]")];
+  const signatureText = def => `${def.key} ${def.label} ${def.type} ${def.desc || ""}`.normalize("NFKC").toLowerCase();
+  let searchIndex = allDefs.map(([, def]) => signatureText(def));
+  function syncDefinitions() {
+    inputDefs = node._wgInputDefs || inputDefs;
+    outputDefs = node._wgOutputDefs || outputDefs;
+    allDefs = [...inputDefs.map(def => ["input", def]), ...outputDefs.map(def => ["output", def])];
+    const existing = new Map(chips.map(chip => [`${chip.dataset.ioKind}:${chip.dataset.ioKey}`, chip]));
+    chips = allDefs.map(([kind, def]) => {
+      const key = `${kind}:${def.key}`;
+      let chip = existing.get(key); existing.delete(key);
+      if (!chip) {
+        const template = document.createElement('template'); template.innerHTML = chipMarkup(kind, def);
+        chip = template.content.firstElementChild;
+      }
+      const label = chip.querySelector('span');
+      if (label.textContent !== def.label) label.textContent = def.label;
+      return chip;
+    });
+    for (const chip of existing.values()) chip.remove();
+    for (const kind of ['input', 'output']) {
+      const strip = rail.querySelector(`[data-io-group="${kind}"] .wg-io-chip-strip`);
+      chips.filter(chip => chip.dataset.ioKind === kind).forEach((chip, index) => {
+        if (strip.children[index] !== chip) strip.insertBefore(chip, strip.children[index] || null);
+      });
+    }
+    searchIndex = allDefs.map(([, def]) => signatureText(def));
   }
-
-  function applyBulk(mode) {
+  let profilesSignature = "", deletedLayout = null;
+  const text = (element, value) => { if (element.textContent !== value) element.textContent = value; };
+  const currentSelection = () => ({
+    inputs: inputDefs.filter(def => ioEnabled(node, "input", def) || isConnected("input", def)).map(def => def.key),
+    outputs: outputDefs.filter(def => ioEnabled(node, "output", def) || isConnected("output", def)).map(def => def.key),
+  });
+  const announce = (value, error = false) => {
+    text(message, value); message.dataset.error = String(error); undoButton.hidden = !deletedLayout;
+    // Keep explicit action feedback inside this scroll region, including when
+    // the node is zoomed. Never pan or resize the surrounding graph.
+    if (!rail.hidden) {
+      const bounds = rail.getBoundingClientRect(), bottom = message.getBoundingClientRect().bottom;
+      const scale = bounds.height / rail.offsetHeight || 1;
+      if (bottom > bounds.bottom) rail.scrollTop += (bottom - bounds.bottom) / scale + 4;
+    }
+  };
+  function renderLayouts() {
+    const layouts = readPortLayouts(ioState(node).portLayouts), signature = JSON.stringify(layouts);
+    if (signature !== profilesSignature) {
+      const selected = layoutSelect.value;
+      layoutSelect.replaceChildren();
+      const create = document.createElement("option"); create.value = ""; create.textContent = "New layout…"; layoutSelect.append(create);
+      for (const layout of layouts) { const option = document.createElement("option"); option.value = layout.id; option.textContent = layout.name; layoutSelect.append(option); }
+      layoutSelect.value = layouts.some(layout => layout.id === selected) ? selected : "";
+      profilesSignature = signature;
+    }
+    const selected = layouts.find(layout => layout.id === layoutSelect.value);
+    rail.querySelector("[data-io-layout-apply]").disabled = !selected;
+    rail.querySelector("[data-io-layout-delete]").disabled = !selected;
+    text(layoutSummary, `Saved port layouts${layouts.length ? ` · ${layouts.length}` : ""}`);
+    text(layoutInfo, selected
+      ? `${selected.inputs.length} inputs · ${selected.outputs.length} outputs · ${matchingPortLayout(selected, currentSelection()) ? "matches current ports" : "differs from current ports"}`
+      : "Save a named set of available ports with this workflow node. Applying keeps every live connection.");
+  }
+  function render() {
+    syncDefinitions();
+    const terms = search.value.normalize("NFKC").toLowerCase().trim().split(/\s+/).filter(Boolean);
+    let visibleCount = 0, matched = 0;
+    const matchCounts = { input: 0, output: 0 };
+    allDefs.forEach(([kind, def], index) => {
+      const enabled = ioEnabled(node, kind, def), connected = isConnected(kind, def), available = enabled || connected;
+      if (available) visibleCount++;
+      const button = chips[index], matches = terms.every(term => searchIndex[index].includes(term));
+      if (matches) { matched++; matchCounts[kind]++; }
+      button.hidden = !matches;
+      button.classList.toggle("on", available); button.classList.toggle("linked", connected);
+      button.setAttribute("aria-pressed", String(available)); button.setAttribute("aria-disabled", String(connected));
+      button.querySelector("b").hidden = !connected;
+      const stateText = connected ? "connected; disconnect the wire before hiding this port" : enabled ? "visible" : "hidden";
+      button.title = `${def.label} (${def.type}): ${stateText}. ${def.desc || ""}`;
+    });
+    for (const kind of ["input", "output"]) rail.querySelector(`[data-io-group="${kind}"]`).hidden = !matchCounts[kind];
+    results.hidden = !terms.length;
+    text(results, !terms.length ? "" : matched ? `${matched} matching choices · native ports unchanged` : "No matching ports. Clear the search to see all choices.");
+    const open = ioState(node).managerOpen;
+    node._wgIoRailOpen = open;
+    rail.classList.toggle("open", open); rail.hidden = !open; rail.toggleAttribute("inert", !open);
+    toggle.classList.toggle("active", open); toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", open ? "Close Ports manager" : "Open Ports manager");
+    toggle.title = `${open ? "Compact sockets / close Ports" : "Expand socket labels / Ports"} (${visibleCount} of ${allDefs.length} available)`;
+    const count = toggle.querySelector("[data-io-count]"); if (count) text(count, `${visibleCount}/${allDefs.length}`);
+    pinButton.setAttribute("aria-pressed", String(ioState(node).pinned)); text(pinButton, ioState(node).pinned ? "Pinned" : "Pin open");
+    renderLayouts();
+  }
+  function applyVisibility(inputs, outputs) {
     const state = ioState(node);
-    inputDefs.forEach((def) => { state.inputs[def.key] = mode === "on" ? true : mode === "defaults" ? !!def.default : false; });
-    outputDefs.forEach((def) => { state.outputs[def.key] = mode === "on" ? true : mode === "defaults" ? !!def.default : false; });
-    inputDefs.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
-    outputDefs.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
-    node._wgRefreshIoToggles?.();
-    render();
+    inputDefs.forEach(def => { state.inputs[def.key] = isConnected("input", def) || inputs.has(def.key); });
+    outputDefs.forEach(def => { state.outputs[def.key] = isConnected("output", def) || outputs.has(def.key); });
+    inputDefs.forEach(def => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+    outputDefs.forEach(def => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    node._wgRefreshIoToggles?.(); render();
   }
+  function applyBulk(mode) {
+    const selected = defs => new Set(defs.filter(def => mode === "on" || mode === "defaults" && !!def.default).map(def => def.key));
+    applyVisibility(selected(inputDefs), selected(outputDefs));
+  }
+  function handleLayout(action) {
+    try {
+      const state = ioState(node), layouts = readPortLayouts(state.portLayouts);
+      const selected = layouts.find(layout => layout.id === layoutSelect.value);
+      if (action === "save") {
+        const saved = savePortLayout(layouts, { id: selected?.id || "", name: layoutName.value, ...currentSelection() });
+        state.portLayouts = saved.items; deletedLayout = null; renderLayouts();
+        layoutSelect.value = saved.layout.id; layoutName.value = saved.layout.name; renderLayouts();
+        announce(`Saved “${saved.layout.name}” from the current available ports.`);
+      } else if (action === "apply" && selected) {
+        const inputs = new Set(selected.inputs), outputs = new Set(selected.outputs);
+        const protectedCount = allDefs.filter(([kind, def]) => isConnected(kind, def) && !(kind === "input" ? inputs : outputs).has(def.key)).length;
+        const missing = selected.inputs.filter(key => !inputDefs.some(def => def.key === key)).length + selected.outputs.filter(key => !outputDefs.some(def => def.key === key)).length;
+        applyVisibility(inputs, outputs);
+        announce(`Applied “${selected.name}”.${protectedCount ? ` Kept ${protectedCount} connected ports available.` : ""}${missing ? ` Skipped ${missing} saved ports unavailable on this node.` : ""}`);
+      } else if (action === "delete" && selected) {
+        state.portLayouts = layouts.filter(layout => layout.id !== selected.id); deletedLayout = selected;
+        layoutSelect.value = ""; layoutName.value = ""; renderLayouts(); announce(`Deleted “${selected.name}”.`);
+      } else if (action === "undo" && deletedLayout) {
+        const saved = savePortLayout(layouts, deletedLayout); state.portLayouts = saved.items; deletedLayout = null; renderLayouts();
+        layoutSelect.value = saved.layout.id; layoutName.value = saved.layout.name; renderLayouts(); announce(`Restored “${saved.layout.name}”.`);
+      }
+    } catch (error) { announce(error.message || String(error), true); }
+  }
+  const searchChanged = () => render();
+  const layoutChanged = () => { const selected = readPortLayouts(ioState(node).portLayouts).find(layout => layout.id === layoutSelect.value); layoutName.value = selected?.name || ""; renderLayouts(); };
+  const layoutNameKeydown = event => {
+    if (event.key !== "Enter" || event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.keyCode === 229) return;
+    event.preventDefault(); event.stopPropagation(); handleLayout("save");
+  };
+  search.addEventListener("input", searchChanged); layoutSelect.addEventListener("change", layoutChanged);
+  layoutName.addEventListener("keydown", layoutNameKeydown);
 
   function setOpen(open) {
     const next = !!open;
-    if (next === !!node._wgIoRailOpen) return;
-    if (next) node._wgBeforeIoRailOpen?.();
+    if (next === ioState(node).managerOpen) return;
+    if (next && !ioState(node).pinned) node._wgBeforeIoRailOpen?.();
     node._wgIoRailOpen = next;
+    ioState(node).managerOpen = next;
+    ioState(node).labels = next;
     render();
     queueSocketRailLayout(node);
     node._wgIoRailVisibilityChanged?.(next);
     scheduleDomWidgetRemeasure(node);
   }
 
-  toggle.addEventListener("click", () => setOpen(!node._wgIoRailOpen));
-  rail.addEventListener("click", (event) => {
-    const labelsButton = event.target.closest?.("[data-io-labels]");
-    if (labelsButton) {
-      ioState(node).labels = !ioLabelsShown(node);
+  const toggleManager = () => setOpen(!node._wgIoRailOpen);
+  toggle.addEventListener("click", toggleManager);
+  const handleClick = (event) => {
+    if (event.target.closest?.("[data-io-close]")) { setOpen(false); toggle.focus({ preventScroll: true }); return; }
+    const layoutAction = ["save", "apply", "delete", "undo"].find(action => event.target.closest?.(`[data-io-layout-${action}]`));
+    if (layoutAction) { handleLayout(layoutAction); return; }
+    const pin = event.target.closest?.("[data-io-pin]");
+    if (pin) {
+      ioState(node).pinned = !ioState(node).pinned;
       render();
-      node._wgRefreshIoToggles?.();
-      queueSocketRailLayout(node);
       return;
     }
     const bulkButton = event.target.closest?.("[data-io-bulk]");
@@ -977,20 +1090,35 @@ function setupIoRail(node, root, inputDefs, outputDefs) {
     const defs = kind === "input" ? inputDefs : outputDefs;
     const def = defs.find((candidate) => candidate.key === button.dataset.ioKey);
     if (!def) return;
+    if (isConnected(kind, def)) return;
     const bucket = kind === "input" ? ioState(node).inputs : ioState(node).outputs;
     bucket[def.key] = !ioEnabled(node, kind, def);
     syncIoSocket(node, kind, def, bucket[def.key]);
     node._wgRefreshIoToggles?.();
     render();
-  });
+  };
+  rail.addEventListener("click", handleClick);
+  const handleEscape = event => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    event.preventDefault(); event.stopPropagation();
+    if (event.target === search && search.value) { search.value = ""; render(); return; }
+    setOpen(false); toggle.focus({ preventScroll: true });
+  };
+  rail.addEventListener("keydown", handleEscape);
 
   node._wgRenderIoRail = render;
   render();
   return {
     render,
-    close() { setOpen(false); },
+    // Automatic panel changes respect pinning. Explicit toggle/Escape can close.
+    close({ force = false } = {}) { if (force || !ioState(node).pinned) setOpen(false); },
     cleanup() {
       node._wgIoRailOpen = false;
+      toggle.removeEventListener("click", toggleManager);
+      rail.removeEventListener("click", handleClick);
+      rail.removeEventListener("keydown", handleEscape);
+      search.removeEventListener("input", searchChanged); layoutSelect.removeEventListener("change", layoutChanged);
+      layoutName.removeEventListener("keydown", layoutNameKeydown);
       if (node._wgRenderIoRail === render) delete node._wgRenderIoRail;
       rail.remove();
       queueSocketRailLayout(node);

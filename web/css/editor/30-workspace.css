@@ -1,4 +1,47 @@
 /* One I/O control and non-obscuring workspace panels. */
+.wg-slot-details {
+  flex: 0 0 auto;
+  min-height: 0;
+  min-width: 0;
+  max-height: min(42%, 240px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scroll-padding-top: 36px;
+  padding: 4px 8px 7px;
+  border-bottom: 1px solid var(--wg-border);
+  background: var(--wg-panel-bg);
+  color: var(--wg-text-dim);
+  font-size: calc(11px * var(--wg-ui-font-scale, 1));
+  line-height: 1.4;
+}
+.wg-slot-details[hidden], .wg-slot-details [hidden] { display: none !important; }
+.wg-slot-details-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 0 5px; background: var(--wg-panel-bg); }
+.wg-slot-details-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--wg-text); }
+.wg-slot-details :is(button, input) { box-sizing: border-box; min-width: 0; border: 1px solid var(--wg-border); border-radius: 5px; padding: 3px 7px; background: var(--wg-surface); color: var(--wg-text); font: inherit; }
+.wg-slot-details button { cursor: pointer; min-height: 24px; }
+.wg-slot-details [data-slot-close] { width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.wg-slot-details button:hover { border-color: var(--wg-accent); }
+.wg-slot-details button:disabled { opacity: .5; cursor: default; }
+.wg-slot-details :is(button, input, summary):focus-visible { outline: 2px solid var(--wg-accent); outline-offset: -2px; }
+.wg-slot-name-row, .wg-slot-details-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 5px; }
+.wg-slot-name-row label { flex: 1 1 130px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.wg-slot-name-row input { width: 100%; flex: 1; min-height: 24px; }
+.wg-slot-details [data-slot-summary] { font-size: calc(10px * var(--wg-ui-font-scale, 1)); color: var(--wg-text-faint); margin-bottom: 3px; }
+.wg-slot-details details { margin: 3px 0 5px; }
+.wg-slot-details summary { cursor: pointer; }
+.wg-slot-details pre { margin: 2px 0 4px; padding: 4px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 88px; overflow: auto; background: var(--wg-surface); border-radius: 4px; color: var(--wg-text); font: inherit; user-select: text; }
+.wg-slot-details [data-slot-preview] > span, .wg-slot-copy-preview span { display: block; color: var(--wg-text-faint); }
+.wg-slot-copy-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 6px; margin-bottom: 5px; }
+.wg-slot-copy-preview > div { min-width: 0; }
+.wg-slot-details [data-slot-review] { border-top: 1px solid var(--wg-border); }
+.wg-slot-details [data-slot-review-note] { margin: 5px 0; }
+.wg-slot-details [data-slot-confirm] { border-color: var(--wg-accent); color: var(--wg-accent); }
+.wg-slot-details [data-slot-feedback] { color: var(--wg-accent); }
+.wg-slot-details [data-slot-feedback]:empty { display: none; }
+/* A pinned Ports manager and slot details share the space above the editor. */
+:is(.wg-node, .pp-node):has(> .wg-slot-details:not([hidden])):has(> .wg-io-rail:not([hidden])) > .wg-slot-details { max-height: min(34%, 180px); }
+:is(.wg-node, .pp-node):has(> .wg-slot-details:not([hidden])) > .wg-io-rail { max-height: min(28%, 140px); }
 .wg-node { container-type: inline-size; }
 .wg-action-btn {
   width: auto;
@@ -19,8 +62,17 @@
   border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent);
 }
 .wg-io-rail {
+  position:relative;
   display: block;
+  flex:0 0 auto;
+  min-width:0;
+  max-height:min(58%,260px);
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
   padding: 0;
+  border-bottom: 1px solid var(--wg-border, #2a2e34);
   background: var(--wg-panel-bg, #1c1f23);
 }
 .wg-io-rail-head {
@@ -28,7 +80,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 7px 9px 6px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--wg-border, #2a2e34);
 }
 .wg-io-rail-head > div { display: grid; gap: 1px; min-width: 0; }
@@ -45,13 +97,40 @@
 }
 .wg-io-rail-content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 7px;
-  padding: 5px 7px 7px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px 7px;
+  padding: 6px 8px;
 }
 .wg-io-rail-content .wg-io-rail-group + .wg-io-rail-group { grid-column: 1; }
-.wg-io-rail-content .wg-io-rail-actions { grid-column: 2; grid-row: 1 / span 2; }
+.wg-io-rail-content .wg-io-rail-actions { grid-column: 1; grid-row:auto; display:flex; gap:4px; flex-wrap:wrap; }
 .wg-io-rail-actions button { min-width: 72px; min-height: 24px; font-size: 9px; white-space: nowrap; }
+.wg-io-rail .wg-io-rail-group { display:flex; gap:6px; align-items:flex-start; min-width:0; }
+.wg-io-rail .wg-io-chip-strip { flex:1 1 0; min-width:0; flex-wrap:wrap; overflow-x:visible; gap:4px; }
+.wg-io-rail .wg-io-rail-label { flex:0 0 26px; line-height:24px; font-size:9px; color:var(--wg-text-faint); }
+.wg-io-rail[hidden] { display:none !important; }
+.wg-io-rail .wg-io-pin { flex:none; min-height:24px; padding:2px 6px; border:1px solid var(--wg-border); border-radius:5px; background:var(--wg-surface); color:var(--wg-text-dim); font:inherit; font-size:10px; cursor:pointer; }
+.wg-io-rail .wg-io-pin[aria-pressed="true"] { color:var(--wg-accent); border-color:var(--wg-accent); }
+.wg-io-rail-head > .wg-io-head-actions { display:flex; flex:none; gap:4px; align-items:center; }
+.wg-io-rail .wg-io-chip[aria-disabled="true"] { cursor:default; }
+.wg-io-rail :is(button):focus-visible { outline:2px solid var(--wg-accent); outline-offset:-2px; }
+.wg-io-rail [hidden] { display:none !important; }
+.wg-io-rail-head { position:sticky; top:0; z-index:1; flex-wrap:wrap; gap:6px; background:var(--wg-panel-bg); }
+.wg-io-rail .wg-port-search { flex:1 1 110px; min-width:0; width:110px; max-width:100%; height:24px; padding:3px 6px; border:1px solid var(--wg-border); border-radius:5px; background:var(--wg-surface); color:var(--wg-text); font:inherit; font-size:10px; }
+.wg-io-rail :is(input,select,summary):focus-visible { outline:2px solid var(--wg-accent); outline-offset:-2px; }
+.wg-io-rail .wg-port-results { color:var(--wg-text-faint); font-size:10px; line-height:1.4; }
+.wg-io-rail .wg-port-layouts { min-width:0; border-top:1px solid var(--wg-border); padding-top:2px; }
+.wg-port-layouts > summary { cursor:pointer; color:var(--wg-text-dim); font-size:10px; line-height:22px; }
+.wg-port-layouts > summary:hover { color:var(--wg-accent); }
+.wg-port-layout-body { display:grid; gap:5px; padding:2px 0; }
+.wg-port-layout-row { display:flex; align-items:center; flex-wrap:wrap; gap:4px; min-width:0; }
+.wg-port-layout-body :is(input,select) { flex:1 1 100px; min-width:0; max-width:100%; padding:3px 6px; min-height:24px; border:1px solid var(--wg-border); border-radius:5px; background:var(--wg-surface); color:var(--wg-text); font:inherit; font-size:10px; }
+.wg-port-layout-body button,.wg-port-feedback button { flex:none; min-height:24px; padding:2px 6px; border:1px solid var(--wg-border); border-radius:5px; background:var(--wg-surface); color:var(--wg-text-dim); font:inherit; font-size:10px; cursor:pointer; }
+.wg-port-layout-body button:disabled { opacity:.45; cursor:default; }
+.wg-port-layout-body small { color:var(--wg-text-faint); font-size:10px; line-height:1.4; }
+.wg-port-feedback { display:flex; align-items:center; flex-wrap:wrap; gap:6px; min-width:0; }
+.wg-port-feedback:has([data-io-message]:empty) { display:none; }
+.wg-port-feedback [data-io-message] { flex:1 1 100px; color:var(--wg-text-dim); font-size:10px; line-height:1.4; overflow-wrap:anywhere; }
+.wg-port-feedback [data-error="true"] { color:var(--wg-danger); }
 
 /* Node-local utility drawers (Stash/Doctor/etc.) remain part of the node workspace.
    The suite Settings drawer is portal-mounted and intentionally excluded by this ancestry. */
@@ -409,9 +488,3 @@
 }
 
 
-/* Socket labels are independent from visibility and persist with the workflow. */
-.wg-io-rail-actions [data-io-labels][aria-pressed="true"] {
-  color: var(--wg-accent-text, #17191c);
-  border-color: var(--wg-accent, #d49a52);
-  background: var(--wg-accent, #d49a52);
-}

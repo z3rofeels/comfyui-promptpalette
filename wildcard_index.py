@@ -263,34 +263,62 @@ def _copy_entry(entry: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
-def _is_within_root(root_dir: str, path: str) -> bool:
-    root = os.path.realpath(root_dir)
+def _is_within_real_root(real_root: str, path: str) -> bool:
     target = os.path.realpath(path)
     try:
-        return os.path.commonpath([root, target]) == root
+        return os.path.commonpath([real_root, target]) == real_root
     except ValueError:
         return False
 
 
+def _is_within_root(root_dir: str, path: str) -> bool:
+    return _is_within_real_root(os.path.realpath(root_dir), path)
+
+
 def _source_signature(root_dir: str) -> tuple[tuple[str, int, int], ...]:
+    real_root = os.path.realpath(root_dir)
     signature: list[tuple[str, int, int]] = []
-    for dirpath, dirnames, filenames in os.walk(root_dir):
-        dirnames[:] = sorted(
-            (name for name in dirnames if name not in {".git", "__pycache__"}),
-            key=str.casefold,
-        )
-        for filename in sorted(filenames, key=str.casefold):
-            if not filename.lower().endswith(_SOURCE_EXTENSIONS):
-                continue
-            abs_path = os.path.join(dirpath, filename)
-            if not _is_within_root(root_dir, abs_path):
-                continue
+
+    def walk_dir(cur_dir: str, rel_dir: str) -> None:
+        try:
+            with os.scandir(cur_dir) as it:
+                entries = list(it)
+        except OSError:
+            return
+        files: list[os.DirEntry[str]] = []
+        dirs: list[os.DirEntry[str]] = []
+        for entry in entries:
+            name = entry.name
             try:
-                stat = os.stat(abs_path)
+                if entry.is_dir(follow_symlinks=True):
+                    if name not in {".git", "__pycache__"}:
+                        dirs.append(entry)
+                elif name.lower().endswith(_SOURCE_EXTENSIONS):
+                    files.append(entry)
             except OSError:
                 continue
-            rel_path = os.path.relpath(abs_path, root_dir).replace(os.sep, "/")
+        files.sort(key=lambda e: e.name.casefold())
+        dirs.sort(key=lambda e: e.name.casefold())
+        for entry in files:
+            try:
+                is_link = entry.is_symlink()
+                if is_link and not _is_within_real_root(real_root, entry.path):
+                    continue
+                stat = entry.stat(follow_symlinks=is_link)
+            except OSError:
+                continue
+            rel_path = f"{rel_dir}/{entry.name}" if rel_dir else entry.name
             signature.append((rel_path, stat.st_mtime_ns, stat.st_size))
+        for entry in dirs:
+            try:
+                if entry.is_symlink() and not _is_within_real_root(real_root, entry.path):
+                    continue
+            except OSError:
+                continue
+            sub_rel = f"{rel_dir}/{entry.name}" if rel_dir else entry.name
+            walk_dir(entry.path, sub_rel)
+
+    walk_dir(root_dir, "")
     return tuple(signature)
 
 
@@ -448,10 +476,14 @@ class WildcardIndex:
             self._combo_counters[key] = index + 1
         return index
 
+    def needs_fresh_check(self) -> bool:
+        with self._registry_lock:
+            return self._last_source_check <= 0.0 or (time.monotonic() - self._last_source_check) >= self._source_check_interval
+
     def _ensure_fresh(self, force_check: bool = False) -> None:
         now = time.monotonic()
         with self._registry_lock:
-            due = force_check or (now - self._last_source_check) >= self._source_check_interval
+            due = force_check or self._last_source_check <= 0.0 or (now - self._last_source_check) >= self._source_check_interval
             root_dir = self.root_dir
         if not due:
             return
@@ -896,6 +928,10 @@ def _unsafe_root_reason(abs_path: str) -> str:
 
 _shared_index: WildcardIndex | None = None
 _shared_index_lock = threading.Lock()
+
+
+def peek_index() -> WildcardIndex | None:
+    return _shared_index
 
 
 def get_index() -> WildcardIndex:

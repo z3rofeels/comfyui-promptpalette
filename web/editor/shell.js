@@ -1,7 +1,7 @@
 import { libraryDisplayMarkup, libraryFilterBarMarkup, libraryScrollbarMarkup } from "./library_display.js";
 import { libraryEditShell } from "./library_edit_shell.js";
 import { svgIcon } from "../prompt_palette_shared.js";
-import { statusBarMarkup } from "./status_bar.js";
+import { statusBarMarkup, statusBarSettingsMarkup } from "./status_bar.js";
 import { toolbarDesignerMarkup } from "./toolbar.js";
 import { promptSlotsMarkup } from "./prompt_slots.js";
 import { editorFindReplaceMarkup } from "./editor_find_replace.js";
@@ -23,7 +23,8 @@ export function createEditorShell() {
       </div>
       <div class="wg-toolbar-center">
         <button class="wg-pill wg-pill-resolve" data-act="resolve" data-el="btnResolve" title="Preview the wildcard-resolved result" aria-label="Preview resolved prompt" aria-pressed="false">${svgIcon("bolt")}<span class="wg-toolbar-label">Preview result</span></button>
-        <button class="wg-pill wg-power-pill" data-act="variations" data-el="btnVariations" title="Variation Lab — compare deterministic wildcard resolutions" aria-label="Open Variation Lab" hidden>${svgIcon("branch")}<span class="wg-toolbar-label">Variations</span></button>
+        <button class="wg-pill wg-power-pill" data-act="variations" data-el="btnVariations" title="Variation Lab — preview choices, compare versions and apply a result" aria-label="Open Variation Lab" hidden>${svgIcon("branch")}<span class="wg-toolbar-label">Variation Lab</span></button>
+        <button type="button" class="wg-pill" data-act="refine" title="Refine the active draft, then Commit or Cancel" aria-label="Refine active draft">${svgIcon("edit")}<span class="wg-toolbar-label">Refine</span></button>
         <button type="button" class="wg-icon-btn" data-act="positiveAntonyms" data-el="btnPositiveAntonyms" title="Positive Antonyms · generated positive output only" aria-label="Toggle Positive Antonyms for this node" aria-pressed="false" hidden>${svgIcon("doctor")}</button>
       </div>
       <div class="wg-toolbar-group right" aria-label="Prompt Palette utilities">
@@ -32,36 +33,44 @@ export function createEditorShell() {
         <button class="wg-icon-btn" data-act="redo" data-el="btnRedo" title="Redo prompt edit (Ctrl+Shift+Z)" aria-label="Redo prompt edit">${svgIcon("redo")}</button>
         <button class="wg-icon-btn" data-act="copy" data-el="btnCopy" title="Copy current prompt" aria-label="Copy prompt">${svgIcon("copy")}</button>
         <button class="wg-icon-btn" data-act="clear" data-el="btnClear" title="Clear prompt after confirmation" aria-label="Clear prompt">${svgIcon("trash")}</button>
-        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Manage inputs, outputs, and socket labels" aria-label="Manage inputs, outputs, and socket labels">${svgIcon("io", 13)}<span data-io-count></span></button>
+        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Open Ports manager" aria-label="Open Ports manager">${svgIcon("io", 13)}<span data-io-count></span></button>
         <button class="wg-icon-btn" data-el="dayNightBtn" data-act="dayNightToggle" title="Switch day/night theme" aria-label="Switch day or night theme">${svgIcon("moon")}</button>
         <button class="wg-icon-btn" data-el="zenBtn" data-act="zenToggle" title="Toggle Zen mode" aria-label="Toggle Zen mode">${svgIcon("zen")}</button>
+        <button type="button" class="wg-pill wg-seed-toolbar-btn" data-act="seedPanel" data-el="btnSeedPanel" title="Seed — value, run behavior, Seed Lab &amp; Wheel of Fortune (Shift+Click: Wheel)" aria-label="Open seed controls" aria-haspopup="dialog" aria-expanded="false" hidden>${svgIcon("wheel")}<span class="wg-toolbar-label wg-seed-toolbar-label"><span class="wg-seed-toolbar-value" data-el="seedToolbarValue">0</span><small class="wg-seed-toolbar-mode" data-el="seedToolbarMode"></small></span></button>
         <button class="wg-icon-btn wg-settings-anchor" data-el="settingsBtn" data-act="settings" title="Prompt Palette settings" aria-label="Open Prompt Palette settings" aria-expanded="false">${svgIcon("settings")}</button>
       </div>
     </div>
-      <div class="wg-toolbar-extra wg-seed-controls" data-el="seedbar" role="toolbar" aria-label="Seed and generation controls">
-        <div class="wg-seed-stepper-group" title="Seed controls — roll, nudge or enter seed">
-          <button type="button" class="wg-icon-btn wg-seed-spin-btn" data-act="seedRandomizeNow" title="Spin / Roll a new random seed (Shift+Click: Wheel of Fortune)" aria-label="Randomize seed">${svgIcon("dice", 13)}</button>
-          <button type="button" class="wg-seed-step-btn" data-act="seedDecrement" title="Decrement seed by 1 (Shift+Click: -10)" aria-label="Decrement seed">${svgIcon("minus", 11)}</button>
-          <input type="number" class="wg-seed-input" data-el="seedInput" min="0" step="1" title="Prompt seed — click to type, roll or step" aria-label="Prompt seed">
-          <button type="button" class="wg-seed-step-btn" data-act="seedIncrement" title="Increment seed by 1 (Shift+Click: +10)" aria-label="Increment seed">${svgIcon("plus", 11)}</button>
+      <!-- Seed panel: opened from the toolbar Seed module and portaled beside it, so it never
+           takes a row of node height. Existing data-el/data-act bindings are unchanged. -->
+      <div class="wg-seed-controls wg-seed-panel" data-el="seedbar" role="dialog" aria-label="Seed and generation controls" hidden inert>
+        <div class="wg-seed-panel-row">
+          <div class="wg-seed-stepper-group" title="Seed controls — roll, nudge or enter seed">
+            <button type="button" class="wg-icon-btn wg-seed-spin-btn" data-act="seedRandomizeNow" title="Spin / Roll a new random seed (Shift+Click: Wheel of Fortune)" aria-label="Randomize seed">${svgIcon("dice", 13)}</button>
+            <button type="button" class="wg-seed-step-btn" data-act="seedDecrement" title="Decrement seed by 1 (Shift+Click: -10)" aria-label="Decrement seed">${svgIcon("minus", 11)}</button>
+            <input type="number" class="wg-seed-input" data-el="seedInput" min="0" step="1" title="Prompt seed — click to type, roll or step" aria-label="Prompt seed">
+            <button type="button" class="wg-seed-step-btn" data-act="seedIncrement" title="Increment seed by 1 (Shift+Click: +10)" aria-label="Increment seed">${svgIcon("plus", 11)}</button>
+          </div>
+          <button type="button" class="wg-icon-btn wg-seed-action-btn" data-act="seedCopy" title="Copy seed to clipboard" aria-label="Copy seed">${svgIcon("copy", 12)}</button>
         </div>
 
-        <select class="wg-seed-mode" data-el="seedModeSelect" title="What happens to the seed after each run"></select>
-        <select class="wg-seed-mode" data-el="processingModeSelect" title="How multi-line prompts are resolved">
-          <option value="entire text as one">Entire text as one</option>
-          <option value="line by line">Line by line</option>
-        </select>
+        <div class="wg-seed-panel-row wg-seed-panel-selects">
+          <label class="wg-seed-panel-field"><span>After run</span><select class="wg-seed-mode" data-el="seedModeSelect" title="What happens to the seed after each run"></select></label>
+          <label class="wg-seed-panel-field"><span>Lines</span><select class="wg-seed-mode" data-el="processingModeSelect" title="How multi-line prompts are resolved">
+            <option value="entire text as one">Entire text as one</option>
+            <option value="line by line">Line by line</option>
+          </select></label>
+        </div>
 
-        <button type="button" class="wg-seed-fortune-chip" data-el="seedFortuneBadge" title="Seed Fortune &amp; Meaning — click to open Seed Lab &amp; Wheel of Fortune" aria-label="Seed Fortune">
-          <span class="wg-seed-fortune-spark">${svgIcon("sparkles", 11)}</span>
-          <span class="wg-seed-fortune-name" data-el="seedFortuneName">Serendipity</span>
-          <span class="wg-seed-fortune-rating" data-el="seedFortuneRating">98%</span>
-        </button>
-
-        <div class="wg-seed-actions-group">
-          <button type="button" class="wg-icon-btn wg-seed-action-btn" data-act="seedCopy" title="Copy seed to clipboard" aria-label="Copy seed">${svgIcon("copy", 12)}</button>
-          <button type="button" class="wg-icon-btn wg-seed-action-btn wg-seed-wheel-btn" data-act="seedOpenWheel" title="Open Wheel of Fortune Seed Hunt" aria-label="Wheel of Fortune">${svgIcon("wheel", 13)}</button>
-          <button type="button" class="wg-icon-btn wg-seed-action-btn" data-act="seedMenuToggle" data-el="seedMenuBtn" title="Seed Lab, history, and presets" aria-label="Seed options">${svgIcon("dots", 13)}</button>
+        <div class="wg-seed-panel-row">
+          <button type="button" class="wg-seed-fortune-chip" data-el="seedFortuneBadge" title="Seed Fortune &amp; Meaning — click to open Seed Lab &amp; Wheel of Fortune" aria-label="Seed Fortune">
+            <span class="wg-seed-fortune-spark">${svgIcon("sparkles", 11)}</span>
+            <span class="wg-seed-fortune-name" data-el="seedFortuneName">Serendipity</span>
+            <span class="wg-seed-fortune-rating" data-el="seedFortuneRating">98%</span>
+          </button>
+          <div class="wg-seed-actions-group">
+            <button type="button" class="wg-icon-btn wg-seed-action-btn wg-seed-wheel-btn" data-act="seedOpenWheel" title="Open Wheel of Fortune Seed Hunt" aria-label="Wheel of Fortune">${svgIcon("wheel", 13)}</button>
+            <button type="button" class="wg-icon-btn wg-seed-action-btn" data-act="seedMenuToggle" data-el="seedMenuBtn" title="Seed Lab, history, and presets" aria-label="Seed options">${svgIcon("dots", 13)}</button>
+          </div>
         </div>
 
         <div class="wg-seed-hub-popover" data-el="seedHubPopover" role="dialog" aria-label="Seed Lab and Wheel of Fortune" hidden inert>
@@ -170,7 +179,7 @@ export function createEditorShell() {
         <div class="wg-settings-body">
           <div class="wg-panel-title"><div><h3>Resolve before you queue</h3><p>Preview alternatives from the same prompt across seeds.</p></div></div>
           <div class="wg-field-row"><label class="wg-field"><span>Versions</span><select data-el="variationCount" class="wg-theme-select"><option>4</option><option>8</option><option>12</option><option>16</option></select></label><button class="wg-button primary" data-act="variationRefresh">Resolve</button></div>
-          <div class="wg-status" data-el="variationStatus"></div>
+          <div class="wg-status" data-el="variationStatus" role="status" aria-live="polite" aria-atomic="true"></div>
           <div class="wg-variation-results" data-el="variationResults" hidden>
             <span data-el="variationSummary" role="status"></span>
             <label><input type="checkbox" data-el="variationUnique"> Unique results only</label>
@@ -300,6 +309,7 @@ export function createEditorShell() {
 
             <section role="tabpanel" class="wg-settings-panel" data-settings-panel="layout">
               ${toolbarDesignerMarkup()}
+              ${statusBarSettingsMarkup()}
               <div class="wg-section-divider"></div>
               <div class="wg-panel-title"><div><h3>Workspace level</h3><p>Optional presets only. They change existing toggles; every setting remains individually editable.</p></div><span class="wg-badge">Presets</span></div>
               <div class="wg-preset-grid wg-workspace-level-grid" role="group" aria-label="Prompt Palette workspace level">
@@ -330,7 +340,7 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Image prompt import</strong><small>Show the toolbar shortcut. Import stays available in the editor menu and by image drop.</small></div><input type="checkbox" data-el="toggleImportImageBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Recipes</strong><small>Build combinatorial sets.</small></div><input type="checkbox" data-el="toggleRecipesBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Prompt stash</strong><small>Local drafts.</small></div><input type="checkbox" data-el="toggleStashBtn"></label>
-                <label class="wg-toggle-card"><div><strong>Quick slots A–D</strong><small>Workflow-persistent A/B/C/D prompt slots for rapid switching and testing.</small></div><input type="checkbox" data-el="toggleSlotsBtn"></label>
+                <label class="wg-toggle-card"><div><strong>Quick slots A–D</strong><small>Four prompt drafts saved with your workflow. Click the active letter or right-click any slot for names and previews. Copying over a saved draft requires review.</small></div><input type="checkbox" data-el="toggleSlotsBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Refresh</strong><small>Rescan My Library files.</small></div><input type="checkbox" data-el="toggleRefreshBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Undo</strong><small>Prompt history.</small></div><input type="checkbox" data-el="toggleUndoBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Redo</strong><small>Prompt history.</small></div><input type="checkbox" data-el="toggleRedoBtn"></label>
@@ -338,8 +348,8 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Preview update mode</strong><small>Manual never resolves while typing. After pause matches the familiar behavior. Live updates quickly.</small></div><select data-el="previewModeSelect" aria-label="Preview update mode"><option value="manual">Manual</option><option value="afterPause">After pause</option><option value="live">Live</option></select></label>
                 <label class="wg-toggle-card"><div><strong>Copy</strong><small>Copy prompt text.</small></div><input type="checkbox" data-el="toggleCopyBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Clear</strong><small>Clear the editor.</small></div><input type="checkbox" data-el="toggleClearBtn"></label>
-                <label class="wg-toggle-card"><div><strong>Seed controls</strong><small>Seed, mode, line handling.</small></div><input type="checkbox" data-el="toggleSeedControls"></label>
-                <label class="wg-toggle-card"><div><strong>Seed Fortunes &amp; Wheel</strong><small>Archetype omens and seed hunting game on the seed bar.</small></div><input type="checkbox" data-el="toggleSeedFortune"></label>
+                <label class="wg-toggle-card"><div><strong>Seed controls</strong><small>Toolbar Seed button: seed, mode, line handling.</small></div><input type="checkbox" data-el="toggleSeedControls"></label>
+                <label class="wg-toggle-card"><div><strong>Seed Fortunes &amp; Wheel</strong><small>Archetype omens and seed hunting game in the Seed panel.</small></div><input type="checkbox" data-el="toggleSeedFortune"></label>
               </div>
               ${fieldEditorSettingsMarkup()}
             </section>
@@ -354,7 +364,7 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Booru autocomplete</strong><small>Suggest database tags while typing ordinary prompt words. Wildcard name autocomplete is unaffected.</small></div><input type="checkbox" data-el="toggleBooruAutocomplete"></label>
                 <label class="wg-toggle-card"><div><strong>Booru trigger</strong><small>Auto opens while typing, or only when you press Ctrl+Space.</small></div><select data-el="booruAutocompleteMode" aria-label="Booru autocomplete trigger"><option value="off">Off</option><option value="auto">Auto</option><option value="onDemand">On demand (Ctrl+Space)</option></select></label>
                 <label class="wg-toggle-card"><div><strong>Minimum characters</strong><small>Counts the search term. Filter with artist:, character:, series:, general: or meta: before the term.</small></div><input type="number" data-el="booruAutocompleteMinChars" min="1" max="12" step="1" inputmode="numeric"></label>
-                <label class="wg-toggle-card"><div><strong>Booru sources</strong><small>Choose which local sources feed the same autocomplete menu.</small></div><span class="wg-inline-checks"><label><input type="checkbox" data-el="booruSourceDatabase"> Database</label><label><input type="checkbox" data-el="booruSourceCustomWords"> Custom words</label></span></label>
+                <div class="wg-toggle-card"><div><strong>Booru sources</strong><small>Choose which local sources feed the same autocomplete menu.</small></div><span class="wg-inline-checks"><label><input type="checkbox" data-el="booruSourceDatabase"> Database</label><label><input type="checkbox" data-el="booruSourceCustomWords"> Custom words</label></span></div>
                 <label class="wg-toggle-card"><div><strong>Color tags in prompt</strong><small>Keep booru and custom-word tags in their category color after you insert them, so the whole prompt stays easy to scan. Wildcard colors are unaffected.</small></div><input type="checkbox" data-el="toggleBooruPromptColors"></label>
                 <label class="wg-toggle-card"><div><strong>Anima Artist Formatting (@)</strong><small>Insert database artists as @Artist Name with spaces. Custom words and other categories stay as stored.</small></div><input type="checkbox" data-el="toggleAnimaArtistFormatting"></label>
               </div>

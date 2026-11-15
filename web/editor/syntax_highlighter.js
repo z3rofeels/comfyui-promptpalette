@@ -1,4 +1,4 @@
-import { createDomRangeForOffsets } from "./editor_surface.js";
+import { createDomRangeResolver } from "./editor_surface.js";
 
 function supportsNativeHighlights(editor) {
   return !!(editor?.dataset?.ppEditorSurface === "single" && globalThis.CSS?.highlights && globalThis.Highlight);
@@ -72,13 +72,13 @@ export function createSyntaxHighlighter(editor, fallbackLayer) {
   function clearRegistry() {
     for (const name of registered) CSS.highlights.delete(name);
     registered.clear();
-    styleElement.textContent = "";
+    if (styleElement.textContent) styleElement.textContent = "";
   }
 
   function render(decorations = [], sourceText = editor.value) {
     try {
-      clearRegistry();
-      if (!sourceText || !decorations.length) return true;
+      if (!sourceText || !decorations.length) { clearRegistry(); return true; }
+      const rangeForOffsets = createDomRangeResolver(editor);
       const groups = new Map();
       for (const decoration of decorations) {
         const start = Number(decoration.start);
@@ -92,21 +92,26 @@ export function createSyntaxHighlighter(editor, fallbackLayer) {
         groups.get(groupKey).ranges.push({ start, end });
       }
       const rules = [];
+      const nextRegistered = new Set();
       let order = 0;
       for (const [, { style, priority, ranges }] of groups) {
         const name = `${prefix}-${hashStyle(style)}-${order++}`;
         const domRanges = [];
         for (const item of ranges) {
-          try { domRanges.push(createDomRangeForOffsets(editor, item.start, item.end)); } catch { /* one bad range must not drop the editor */ }
+          try { domRanges.push(rangeForOffsets(item.start, item.end)); } catch { /* one bad range must not drop the editor */ }
         }
         if (!domRanges.length) continue;
         const highlight = new Highlight(...domRanges);
         if ("priority" in highlight) highlight.priority = priority;
         CSS.highlights.set(name, highlight);
         registered.add(name);
+        nextRegistered.add(name);
         rules.push(`[data-pp-editor-id="${prefix}"]::highlight(${name}){${style}}`);
       }
-      styleElement.textContent = rules.join("\n");
+      for (const name of registered) if (!nextRegistered.has(name)) { CSS.highlights.delete(name); registered.delete(name); }
+      const css = rules.join("\n");
+      if (styleElement.textContent !== css) styleElement.textContent = css;
+      if (fallbackLayer) fallbackLayer.style.display = "none";
       return true;
     } catch (error) {
       console.warn("Prompt Palette: native syntax highlighting fell back to the compatibility overlay", error);

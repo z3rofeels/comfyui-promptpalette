@@ -1,5 +1,6 @@
 import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary, svgIcon } from "../prompt_palette_shared.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
+import { observePanelAnchor } from "./performance_runtime.js";
 
 const LIBRARY_VIEWS = { list: "List", grid: "Gallery", tiles: "Tiles", contact: "Contact sheet", masonry: "Masonry", filmstrip: "Filmstrip / detail" };
 
@@ -1000,7 +1001,7 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
   const panelHome = customizePanel ? document.createComment("Library settings home") : null;
   if (customizePanel) customizePanel.before(panelHome);
   let sidecar = null;
-  let sidecarFrame = 0;
+  let stopPlacement = null;
   let sidecarPlacement = "";
   let floatingPosition = null;
   let gesture = null;
@@ -1138,13 +1139,6 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     sidecar.querySelector("[data-lib-sidecar-follow]").setAttribute("aria-pressed", String(!floatingPosition));
   }
 
-  function trackSidecar() {
-    sidecarFrame = 0;
-    if (!sidecar || sidecar.hidden) return;
-    if (!document.hidden) placeSidecar();
-    if (sidecar && !sidecar.hidden && typeof requestAnimationFrame === "function") sidecarFrame = requestAnimationFrame(trackSidecar);
-  }
-
   function showSidecar() {
     const host = ensureSidecar();
     syncSidecarTheme();
@@ -1161,7 +1155,8 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     sidecarPlacement = "";
     placeSidecar();
     host.querySelector("[data-lib-sidecar-drag]").focus({ preventScroll: true });
-    if (!sidecarFrame && sidecar && !sidecar.hidden && typeof requestAnimationFrame === "function") sidecarFrame = requestAnimationFrame(trackSidecar);
+    stopPlacement?.();
+    stopPlacement = observePanelAnchor(drawer, placeSidecar, { content: customizePanel });
   }
 
   function hideSidecar() {
@@ -1171,8 +1166,7 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     customizePanel.classList.add("hidden");
     if (panelHome?.parentNode && customizePanel.parentNode !== panelHome.parentNode) panelHome.after(customizePanel);
     if (sidecar) sidecar.hidden = true;
-    if (sidecarFrame && typeof cancelAnimationFrame === "function") cancelAnimationFrame(sidecarFrame);
-    sidecarFrame = 0;
+    stopPlacement?.(); stopPlacement = null;
   }
 
   function setCustomizeOpen(nextOpen) {
@@ -1446,9 +1440,12 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     refreshScrollbars();
     syncToolbar();
     if (next === availableMax) return;
+    const previousSize = Math.min(state.size, availableMax);
     availableMax = next;
     apply(false, false);
-    scheduleRender();
+    // A wider slider range alone does not change any card. Retain decoded
+    // thumbnails and virtual anchors until the effective card size changes.
+    if (Math.min(state.size, availableMax) !== previousSize) scheduleRender();
   };
 
   listen(drawer, "pp-library-resized", handleResizeSync);

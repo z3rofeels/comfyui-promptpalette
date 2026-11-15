@@ -163,7 +163,10 @@ export function createLibraryController(ctx) {
   }
 
   function insertWildcard(path) {
-    const editor = node._ppActiveRecipeEditor?.isConnected ? node._ppActiveRecipeEditor : textarea;
+    const editor = node._ppRecipeWorkspace?.editingSurface() || textarea;
+    if (editor.readOnly || editor.disabled || editor.getAttribute("aria-readonly") === "true") {
+      notify("info", "Prompt is read-only", "Choose an editable prompt field before inserting."); return;
+    }
     if (node._ppInsertAdjustableRecipe?.(path, {
       fallback: wildcardInsertionText(path, editor.value.slice(editor.selectionEnd)),
     })) return;
@@ -887,12 +890,29 @@ export function createLibraryController(ctx) {
         pickerList.appendChild(empty);
       }
     });
-    pickerList.scrollTop = Math.min(prevScrollTop, Math.max(0, pickerList.scrollHeight - pickerList.clientHeight));
-    virtualManager.refresh();
-    const quickFilterCounts = { all: state.libraryCache.length };
-    for (const key of ["pinned", "thumbs", "recipes"]) {
-      quickFilterCounts[key] = sortLibraryItems(state.libraryCache, { quickFilter: key }, pinned, state.thumbMap).length;
+    if (prevScrollTop > 0) {
+      pickerList.scrollTop = Math.min(prevScrollTop, Math.max(0, pickerList.scrollHeight - pickerList.clientHeight));
+    } else if (pickerList.scrollTop !== 0) {
+      pickerList.scrollTop = 0;
     }
+    virtualManager.refresh();
+    let pinnedCount = 0;
+    let thumbsCount = 0;
+    let recipesCount = 0;
+    const thumbs = state.thumbMap;
+    for (const entry of state.libraryCache) {
+      const p = entry?.path || "";
+      if (pinned.has(p)) pinnedCount += 1;
+      if (thumbs && thumbs[p]) thumbsCount += 1;
+      const low = p.toLowerCase();
+      if (low.startsWith("recipes/") || String(entry?.category || "").toLowerCase().startsWith("recipes")) recipesCount += 1;
+    }
+    const quickFilterCounts = {
+      all: state.libraryCache.length,
+      pinned: pinnedCount,
+      thumbs: thumbsCount,
+      recipes: recipesCount,
+    };
     pickerDrawer.__ppLibraryDisplayBinding?.afterListRender?.({ counts: quickFilterCounts });
     profiler?.count("libraryRenders");
     profiler?.gauge("visibleLibraryItems", renderedLibraryItems);
@@ -1006,6 +1026,7 @@ export function createLibraryController(ctx) {
   });
 
   let libraryRequestVersion = 0;
+  let thumbnailRequestVersion = 0;
   let libraryDisposed = false;
   async function refreshLibrary(data = null) {
     const requestVersion = ++libraryRequestVersion;
@@ -1013,6 +1034,7 @@ export function createLibraryController(ctx) {
     previewCache.clear();
     const nextLibrary = Array.isArray(data?.items) ? data.items : await API.list();
     if (libraryDisposed || requestVersion !== libraryRequestVersion || !nodeIsActive(node)) return false;
+    const thumbnailVersion = ++thumbnailRequestVersion;
     let nextThumbMap = state.thumbMap;
     try {
       nextThumbMap = await API.categories();
@@ -1022,16 +1044,17 @@ export function createLibraryController(ctx) {
     if (libraryDisposed || requestVersion !== libraryRequestVersion || !nodeIsActive(node)) return false;
     state.libraryCache = nextLibrary;
     state.knownSet = new Set(nextLibrary.map((item) => item.path));
-    state.thumbMap = nextThumbMap;
+    if (thumbnailVersion === thumbnailRequestVersion) state.thumbMap = nextThumbMap;
     renderLibrary?.();
     renderPickerList(searchInput.value);
     return true;
   }
 
   async function refreshThumbMap() {
+    const requestVersion = ++thumbnailRequestVersion;
     try {
       const nextThumbMap = await API.categories();
-      if (!nodeIsActive(node)) return false;
+      if (libraryDisposed || requestVersion !== thumbnailRequestVersion || !nodeIsActive(node)) return false;
       state.thumbMap = nextThumbMap;
       renderPickerList(searchInput.value);
       return true;
@@ -1287,7 +1310,7 @@ export function createLibraryController(ctx) {
   // The customize panel is portaled outside the drawer while open; retain the
   // authoritative view control instead of querying only the old DOM ancestry.
   const collectionViewSelect = pickerDrawer.querySelector("[data-library-view]");
-  libraryFeatures = mountLibraryFeatures({ host: pickerDrawer.querySelector('[data-library-panel="personal"]'), settingsHost: pickerDrawer.querySelector("[data-library-customize-panel]") || pickerDrawer, node, getItems: () => state.libraryCache, getPinned: () => pinned, getThumbnails: () => state.thumbMap, onFilter: () => renderPickerList(searchInput.value), onView: view => { if(collectionViewSelect){collectionViewSelect.value=view==="gallery"?"grid":view;collectionViewSelect.dispatchEvent(new Event("change",{bubbles:true}));} }, onOpenEntry: (path, options) => openEditForItem(path, options), announce: message => notify(message), content: [pickerList], restore: ({text,channel="positive"}) => reviewHistoryRestore(historyTargetEditor(node,textarea,channel),text,applyHistoryText,channel) });
+  libraryFeatures = mountLibraryFeatures({ host: pickerDrawer.querySelector('[data-library-panel="personal"]'), settingsHost: pickerDrawer.querySelector("[data-library-customize-panel]") || pickerDrawer, node, getItems: () => state.libraryCache, getPinned: () => pinned, getThumbnails: () => state.thumbMap, onFilter: () => renderPickerList(searchInput.value), onView: view => { if(collectionViewSelect){collectionViewSelect.value=view==="gallery"?"grid":view;collectionViewSelect.dispatchEvent(new Event("change",{bubbles:true}));} }, onOpenEntry: (path, options) => openEditForItem(path, options), announce: (message, error) => notify(error ? "error" : "info", "Prompt Library", message), content: [pickerList], restore: ({text,channel="positive"}) => reviewHistoryRestore(historyTargetEditor(node,textarea,channel),text,applyHistoryText,channel) });
 
   return {
     getAcMatches, commitAcItem, bindEditorHover, selectionSaved, insertWildcard,

@@ -151,7 +151,6 @@
 .wg-ac-item:hover::before {
   opacity: .6;
   transform: translateY(-50%) scaleY(.8);
-  box-shadow: 0 0 5px color-mix(in srgb, var(--pp-ac-bar, var(--wg-accent, #d49a52)) 45%, transparent);
 }
 /* Indicator light: solid core with a two-stage glow so it reads on day and night panels. */
 .wg-ac-item.active::before {

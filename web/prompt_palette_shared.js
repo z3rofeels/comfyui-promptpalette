@@ -142,6 +142,7 @@ export function svgIcon(name, size = 14) {
     select: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M9 12h6"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 9"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     pin: '<path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3Z"/>',
     path: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     jump: '<path d="M7 17 17 7M8 7h9v9"/>',
@@ -297,18 +298,25 @@ export function applyPromptPaletteThemeScope(target, colors = {}, typography = {
   }
   // Native selects and scrollbars must follow the node palette even when
   // ComfyUI itself uses the opposite appearance. Do not theme the host page.
-  const background = colors["panel-bg"] || colors.bg || declaration.getPropertyValue("--wg-panel-bg");
-  target.dataset.wgTone = panelToneFor(target, background);
-  declaration.setProperty("color-scheme", target.dataset.wgTone);
+  const background = colors?.["panel-bg"] || colors?.bg;
+  if (background || !target.dataset.wgTone) {
+    const resolvedBg = background || declaration.getPropertyValue("--wg-panel-bg");
+    target.dataset.wgTone = panelToneFor(target, resolvedBg);
+    declaration.setProperty("color-scheme", target.dataset.wgTone);
+  }
 }
+
+let legacyGlobalThemeCleared = false;
 
 /** Remove variables written by Prompt Palette versions that themed :root globally. */
 export function clearLegacyPromptPaletteGlobalTheme() {
+  if (legacyGlobalThemeCleared) return;
   const style = globalThis.document?.documentElement?.style;
   if (!style) return;
   for (const key of [...PROMPT_PALETTE_THEME_KEYS, ...PROMPT_PALETTE_TYPOGRAPHY_KEYS, ...PROMPT_PALETTE_EFFECT_KEYS]) {
     style.removeProperty(`--wg-${key}`);
   }
+  legacyGlobalThemeCleared = true;
 }
 
 /** Copy the currently resolved Prompt Palette variables to a body-mounted Prompt Palette popup. */

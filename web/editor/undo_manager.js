@@ -35,6 +35,28 @@ export class EditorUndoManager {
     this._changed();
   }
 
+  // Restoring a checkpoint can normalize display state (for example focusing a
+  // field closes its settings). Adopt that restored value without recording an
+  // edit or clearing Redo; subsequent input still gets its own undo step.
+  rebase(value) { this.lastValue = String(value ?? ""); }
+
+  // Refinement uses this same history locally, then becomes one ordinary edit.
+  beginTransaction(value = this.lastValue) {
+    if (this.transaction) throw new Error("Commit or cancel the current refinement first.");
+    this.note(value); this.flush();
+    this.transaction = { undo: [...this.undoStack], redo: [...this.redoStack], value: this.lastValue };
+    this.reset(value);
+  }
+
+  endTransaction(value, { cancel = false } = {}) {
+    const saved = this.transaction;
+    if (!saved) return;
+    this._cancelTimer(); this.transaction = null; this.burstStart = null; this.holds = 0;
+    this.undoStack = saved.undo; this.redoStack = saved.redo; this.lastValue = saved.value;
+    if (!cancel) { this.note(value); this.flush(); }
+    this._changed();
+  }
+
   // Keeps several notes (an IME composition) together as one step until release().
   hold() { this.holds += 1; }
   release() {

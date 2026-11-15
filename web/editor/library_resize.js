@@ -7,6 +7,7 @@ export function bindLibraryResize({ drawer, handle, load, save, defaultWidth = 3
   let useBalancedDefault = saved == null;
   let preferred = clamp(saved ?? defaultWidth);
   let drag = null;
+  let lastGeometry = "";
   const removers = [];
   const listen = (target, type, fn, options) => {
     target?.addEventListener(type, fn, options);
@@ -34,7 +35,9 @@ export function bindLibraryResize({ drawer, handle, load, save, defaultWidth = 3
     handle?.setAttribute('aria-valuenow', String(visible));
     handle?.setAttribute('aria-valuetext', `${visible} pixels`);
     handle?.setAttribute('aria-disabled', String(max <= min));
-    if (typeof CustomEvent === 'function') {
+    const geometry = `${visible}:${max}:${min}`;
+    if (geometry !== lastGeometry && typeof CustomEvent === 'function') {
+      lastGeometry = geometry;
       try { drawer.dispatchEvent(new CustomEvent('pp-library-resized', { detail: { width: visible, max, min, preferred } })); } catch {}
     }
     if (persist) save?.(preferred);
@@ -57,6 +60,12 @@ export function bindLibraryResize({ drawer, handle, load, save, defaultWidth = 3
     if (!drag || event.pointerId !== drag.pointerId) return;
     finish(); event.preventDefault(); event.stopPropagation();
   }
+  function cancel(event) {
+    if (!drag || (event.type !== 'blur' && event.pointerId !== drag.pointerId)) return;
+    const previous = drag.previous;
+    finish({ persist: false });
+    preferred = previous.preferred; useBalancedDefault = previous.balanced; apply();
+  }
   listen(handle, 'mousedown', event => event.stopPropagation());
   listen(handle, 'dragstart', event => { event.preventDefault(); event.stopPropagation(); });
   listen(handle, 'pointerdown', event => {
@@ -69,19 +78,20 @@ export function bindLibraryResize({ drawer, handle, load, save, defaultWidth = 3
     // Transient listeners also cover hosts that do not support pointer capture.
     owner.addEventListener('pointermove', move, true);
     owner.addEventListener('pointerup', up, true);
-    owner.addEventListener('pointercancel', up, true);
+    owner.addEventListener('pointercancel', cancel, true);
     drag = { pointerId: event.pointerId, x: event.clientX, width: drawer.offsetWidth || Number(drawer.dataset.width) || Math.min(preferred, bounds().max), scale,
+      previous: { preferred, balanced: useBalancedDefault },
       stopFallback() {
         owner.removeEventListener('pointermove', move, true);
         owner.removeEventListener('pointerup', up, true);
-        owner.removeEventListener('pointercancel', up, true);
+        owner.removeEventListener('pointercancel', cancel, true);
       } };
     drawer.classList.add('resizing');
     try { handle.setPointerCapture(event.pointerId); } catch {}
     event.preventDefault(); event.stopPropagation();
   });
   listen(handle, 'lostpointercapture', () => finish());
-  listen(drawer.ownerDocument?.defaultView, 'blur', () => finish());
+  listen(drawer.ownerDocument?.defaultView, 'blur', cancel);
   listen(handle, 'dblclick', event => {
     useBalancedDefault = true; apply(undefined, { persist: true }); event.preventDefault(); event.stopPropagation();
   });

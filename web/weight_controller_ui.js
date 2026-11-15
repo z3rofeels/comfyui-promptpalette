@@ -114,7 +114,7 @@ function setupSettingsUI(node) {
         <div><strong>Weight Controller</strong></div>
       </div>
       <div class="ppwc-row-actions">
-        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Manage inputs, outputs, and socket labels" aria-label="Manage inputs, outputs, and socket labels">${svgIcon("io", 13)}<span class="wg-io-button-label">I/O</span><span data-io-count></span></button>
+        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Open Ports manager" aria-label="Open Ports manager">${svgIcon("io", 13)}<span class="wg-io-button-label">Ports</span><span data-io-count></span></button>
         <button type="button" class="wg-icon-btn" data-act="openSettings" title="Weight Controller settings" aria-label="Weight Controller settings" aria-expanded="false">${svgIcon("settings")}</button>
       </div>
     </div>
@@ -436,6 +436,7 @@ app.registerExtension({
         node._ppwcRemoved = true;
         cleanupSocketRailLayout(node);
         delete node._wgIoRailVisibilityChanged;
+        delete node._wgRefreshIoToggles;
         delete node._ppwcReapplyTheme;
         delete node._ppwcSyncControls;
         if (advancedWidget.callback === callback) advancedWidget.callback = origCallback;

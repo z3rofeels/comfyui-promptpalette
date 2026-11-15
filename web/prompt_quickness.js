@@ -1,4 +1,4 @@
-import { readQuicknessPreference, writeQuicknessPreference, readEditorPreference } from "./prompt_palette_state.js";
+import { readQuicknessPreference, writeQuicknessPreference, readEditorPreference, getPromptPaletteSectionSnapshot } from "./prompt_palette_state.js";
 
 function readJson(key, fallback) {
   const value = readQuicknessPreference(key, fallback);
@@ -40,7 +40,13 @@ export function createPromptUsageStore() {
     return { kind, value, category };
   };
 
+  let hasLoaded = false;
+  let lastSectionRef = null;
   const refresh = () => {
+    const currentSection = getPromptPaletteSectionSnapshot("quickness");
+    if (hasLoaded && currentSection === lastSectionRef) return;
+    lastSectionRef = currentSection;
+    hasLoaded = true;
     const nextLibraryRecent = readJson("library-recent", []);
     const nextAutocompleteRecent = readJson("autocomplete-recent", []);
     const nextStarterRecent = readJson("starter-recent", []);
@@ -64,6 +70,8 @@ export function createPromptUsageStore() {
     writeJson("usage", usage);
     writeJson("starter-favorites", [...starterFavorites]);
     writeJson("autocomplete-favorites", autocompleteFavorites.slice(0, 200));
+    lastSectionRef = getPromptPaletteSectionSnapshot("quickness");
+    hasLoaded = true;
   };
 
   return {
@@ -462,7 +470,7 @@ export const PROMPT_PALETTE_HELP = [
     id: "io",
     title: "Show or hide sockets",
     keywords: "io inputs outputs labels compact rail socket",
-    body: "Open I/O to show socket names and choose what is visible. Close it to return to the compact top rail. Connected sockets stay visible so links are never lost.",
+    body: "Open Ports to show socket names and choose what is visible. Close it to reclaim the socket rows and return to the compact top-edge dot rail. Hover a dot for its name, type, and connection status. Drag links and use native socket menus in either mode; used ports remain available after disconnecting.",
   },
   {
     id: "slots-abcd",

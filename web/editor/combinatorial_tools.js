@@ -10,6 +10,7 @@ import { loadTheme, saveTheme } from "./preferences.js";
 import { notify } from "./notifications.js";
 import { createLibraryEntryEditor } from "./library_entry_editor.js";
 import { positiveAntonymsEnabled } from "./positive_antonyms.js";
+import { fieldEditorSettingsMarkup } from "./field_editor_preferences.js";
 
 // Reuse the Editor's actual tool markup and controllers. Generation controls and
 // batch execution remain owned by the Combinatorial node.
@@ -57,10 +58,11 @@ export function mountCombinatorialTools(root, settingsPopup) {
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleImportImageBtn").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleRecipesBtn").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleSlotsBtn").closest(".wg-toggle-card"));
-  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleLayoutsShortcut").closest(".wg-toggle-card"));
-  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleWorkspaceSnapGrid").closest(".wg-toggle-card"));
+  // Fields settings replaced the legacy layout/snap toggles in the shared shell.
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').insertAdjacentHTML("beforeend", fieldEditorSettingsMarkup());
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleAnimaArtistFormatting").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toolbarDesigner"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("statusBarSettings"));
 }
 
 export function createCombinatorialTools(ctx) {
@@ -138,7 +140,6 @@ export function createCombinatorialTools(ctx) {
   }
   action("resolve", () => {
     if (el("resolvedView").classList.contains("on")) { showEditor(); return; }
-    node._ppRecipeWorkspace?.showEditor();
     el("editorReal").classList.add("hidden"); el("resolvedView").classList.add("on");
     el("btnResolve").classList.add("on"); setToolbarLabel(el("btnResolve"), "Back to editor");
     el("btnResolve").setAttribute("aria-pressed", "true"); return refreshResolvedView();
@@ -150,7 +151,7 @@ export function createCombinatorialTools(ctx) {
   action("recipesShortcut", () => { searchInput.value = "RECIPES"; openPickerDrawer(); renderPickerList(searchInput.value); });
   action("buildRecipe", () => tools.promptSaveRecipe([...new Set(ctx.getSourcePaths())]));
   action("closeEditDrawer", closeEditDrawer);
-  listen(root, "keydown", event => { if (event.key === "Escape") { tools.closeAllPowerPopups(); closeEditDrawer(); showEditor(); } });
+  listen(root, "keydown", event => { if (event.key === "Escape") { tools.closeAllPowerPopups(); closeEditDrawer(); if (el("resolvedView").classList.contains("on")) showEditor(); } });
   const unsubscribe = API.onLibraryChanged(() => { state.lastTokenStats = null; tools.updateDoctorStatus(); if (el("resolvedView").classList.contains("on")) refreshResolvedView(); });
   tools.syncPowerToolSettingsUI(); tools.applyPowerToolSettings();
   return { ...tools, showEditor, refresh() {

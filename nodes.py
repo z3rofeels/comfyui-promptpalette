@@ -69,6 +69,67 @@ def _prompt_uses_runtime_sequence(*values):
     return False
 
 
+class ByPassTypeTuple(tuple):
+    """Dynamic output types for field sockets beyond standard outputs."""
+
+    def __iter__(self):
+        for item in super().__iter__():
+            yield item
+        while True:
+            yield "STRING"
+
+    def __getitem__(self, index):
+        if isinstance(index, int) and index >= len(self):
+            return "STRING"
+        return super().__getitem__(index)
+
+
+class ByPassListTuple(tuple):
+    """Dynamic output list flag for field sockets on combinatorial nodes."""
+
+    def __iter__(self):
+        for item in super().__iter__():
+            yield item
+        while True:
+            yield True
+
+    def __getitem__(self, index):
+        if isinstance(index, int) and index >= len(self):
+            return True
+        return super().__getitem__(index)
+
+
+class ByPassFalseTuple(tuple):
+    """Dynamic output list flag for field sockets on single-prompt nodes."""
+
+    def __iter__(self):
+        for item in super().__iter__():
+            yield item
+        while True:
+            yield False
+
+    def __getitem__(self, index):
+        if isinstance(index, int) and index >= len(self):
+            return False
+        return super().__getitem__(index)
+
+
+class FlexibleOptionalInputType(dict):
+    """Accepts any dynamic field_in_* input without rejecting defined optional inputs."""
+
+    def __init__(self, default_type="STRING", data=None):
+        super().__init__(data or {})
+        self.default_type = default_type
+
+    def __getitem__(self, key):
+        if dict.__contains__(self, key):
+            return super().__getitem__(key)
+        return (self.default_type, {})
+
+    def __contains__(self, key):
+        return True
+
+
 class PromptPaletteV3Node(io.ComfyNode):
     """Base for Prompt Palette V3 nodes with isolated ComfyUI schema caches.
 
@@ -109,6 +170,30 @@ class PromptPaletteV3Node(io.ComfyNode):
                 # unlocked clone, so there is nothing left to reset.
                 return
 
+    @classmethod
+    def GET_SCHEMA(cls):
+        schema = super().GET_SCHEMA()
+        if cls._RETURN_TYPES is not None and not isinstance(cls._RETURN_TYPES, ByPassTypeTuple):
+            cls._RETURN_TYPES = ByPassTypeTuple(cls._RETURN_TYPES)
+        if cls._RETURN_NAMES is not None and not isinstance(cls._RETURN_NAMES, ByPassTypeTuple):
+            cls._RETURN_NAMES = ByPassTypeTuple(cls._RETURN_NAMES)
+        if cls._OUTPUT_IS_LIST is not None:
+            if cls.__name__ == "PromptPaletteCombinatorial":
+                if not isinstance(cls._OUTPUT_IS_LIST, ByPassListTuple):
+                    cls._OUTPUT_IS_LIST = ByPassListTuple(cls._OUTPUT_IS_LIST)
+            else:
+                if not isinstance(cls._OUTPUT_IS_LIST, ByPassFalseTuple):
+                    cls._OUTPUT_IS_LIST = ByPassFalseTuple(cls._OUTPUT_IS_LIST)
+        cls._ACCEPT_ALL_INPUTS = True
+        return schema
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        res = super().INPUT_TYPES()
+        if isinstance(res, dict) and "optional" in res and not isinstance(res["optional"], FlexibleOptionalInputType):
+            res["optional"] = FlexibleOptionalInputType("STRING", res["optional"])
+        return res
+
 class PromptPaletteEditor(PromptPaletteV3Node):
 
     @classmethod
@@ -118,6 +203,7 @@ class PromptPaletteEditor(PromptPaletteV3Node):
             node_id="PromptPaletteEditor",
             display_name="Prompt Palette",
             category="PromptPalette",
+            accept_all_inputs=True,
             description=(
                 "Prompt Palette (by z3rofeels): a wildcard-aware prompt box that "
                 "doubles as an active CLIP encoder. Resolves __wildcard__ syntax "
@@ -352,7 +438,7 @@ class PromptPaletteEditor(PromptPaletteV3Node):
                 clip=None, model=None,
                 prompt_prefix="", prompt_suffix="", enhancer_override="",
                 external_seed=None, negative_text="",
-                negative_prefix="", negative_suffix="", positive_antonyms=False, workspace_runtime="", vars_in="", lora_mode="auto"):
+                negative_prefix="", negative_suffix="", positive_antonyms=False, workspace_runtime="", vars_in="", lora_mode="auto", **kwargs):
         lora_mode = _coerce_choice(lora_mode, set(lora_support.MODES), "auto")
         processing_mode = _coerce_choice(
             processing_mode, {"entire text as one", "line by line"}, "entire text as one"
@@ -368,19 +454,37 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         resolver = WildcardResolver(get_index(), initial_variables=vars_in)
         seed = _coerce_uint64(seed)
         effective_seed = seed if external_seed is None else _coerce_uint64(external_seed, seed)
+
+        field_inputs = {}
+        for k, v in kwargs.items():
+            if k.startswith("field_in_"):
+                field_inputs[k[len("field_in_"):]] = _coerce_text(v)
+            elif k.startswith("field_input_"):
+                field_inputs[k[len("field_input_"):]] = _coerce_text(v)
+
+        output_fields = []
+        if workspace_runtime:
+            try:
+                wr_data = json.loads(workspace_runtime) if isinstance(workspace_runtime, str) else workspace_runtime
+                if isinstance(wr_data, dict):
+                    output_fields = wr_data.get("output_fields") or [f["id"] for f in wr_data.get("fields", []) if f.get("hasOutput")]
+            except Exception:
+                output_fields = []
+
         relationship_config = runtime_config(workspace_runtime)
         relationship_meta = None
         if relationship_config:
-            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text))
-            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text), effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
+            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)))
+            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)), effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
             selected_indexes, relationship_meta = prepare_relationships(relationship_config, resolver.index, effective_seed, limit=5001, fixed=relationship_fixed)
             resolver.index = selected_indexes[0]
             relationship_meta = {**relationship_meta, "selected": {k: v["id"] for k, v in resolver.index.selected.items()}}
         runtime = WorkspaceGeneration(
             resolver.index,
-            active_runtime(workspace_runtime, text),
+            active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)),
             getattr(getattr(cls, "hidden", None), "unique_id", ""),
             initial_variables=vars_in,
+            field_inputs=field_inputs,
         )
         source_prompt = compose_source_prompt([prompt_prefix, text, prompt_suffix], processing_mode)
         source_negative_prompt = compose_source_prompt(
@@ -389,7 +493,7 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         body_branch_selections = []
 
         def resolve_block(t, seed_offset=0, track_branches=False):
-            if not t:
+            if not t and not (runtime.payload and seed_offset in (0, 1000)):
                 return ""
             channel = "negative" if seed_offset == 1000 else "positive" if seed_offset == 0 else None
             if channel and runtime.payload:
@@ -491,11 +595,13 @@ class PromptPaletteEditor(PromptPaletteV3Node):
             ensure_participation(relationship_config, set(used_names) | set(relationship_fixed))
             metadata["relationships"] = relationship_meta
         published = publish_prompt_metadata(cls, metadata)
+        field_outputs = [str(runtime.values.get(fid, "")) for fid in output_fields]
         return io.NodeOutput(
             out_model, out_clip, conditioning, negative_conditioning,
             resolved, resolved_negative, effective_seed, wildcards_used,
             text, len(used_names), used_enhancer, clip_token_count, compact_json(published),
             variables_json,
+            *field_outputs,
             ui={"prompt_palette": published},
         )
 
@@ -507,6 +613,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             node_id="PromptPaletteCombinatorial",
             display_name="Prompt Palette (Combinatorial)",
             category="PromptPalette",
+            accept_all_inputs=True,
             description=(
                 "Prompt Palette (by z3rofeels) - Combinatorial: batch-generates "
                 "many prompts from one wildcard-aware text block in a single "
@@ -828,7 +935,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
     def execute(cls, text, mode, count, seed, seed_mode, max_prompts, clip=None, model=None,
                 prompt_prefix="", prompt_suffix="", enhancer_override="",
                 external_seed=None, negative_text="",
-                negative_prefix="", negative_suffix="", prepared_batch="", positive_antonyms=False, workspace_runtime="", vars_in="", lora_mode="auto"):
+                negative_prefix="", negative_suffix="", prepared_batch="", positive_antonyms=False, workspace_runtime="", vars_in="", lora_mode="auto", **kwargs):
         lora_mode = _coerce_choice(lora_mode, set(lora_support.MODES), "auto")
         mode = _coerce_choice(mode, {"random", "combinatorial"}, "random")
         seed_mode = _coerce_choice(seed_mode, {"sequential", "fixed", "random"}, "sequential")
@@ -848,43 +955,68 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         count = max(1, min(count, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
         max_prompts = max(0, min(max_prompts, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
         resolver = WildcardResolver(get_index(), initial_variables=vars_in)
+
+        field_inputs = {
+            k[len("field_in_"):]: str(v)
+            for k, v in kwargs.items()
+            if k.startswith("field_in_") and v is not None
+        }
+
+        output_fields = []
+        if workspace_runtime:
+            try:
+                wr_data = json.loads(workspace_runtime) if isinstance(workspace_runtime, str) else workspace_runtime
+                if isinstance(wr_data, dict):
+                    output_fields = wr_data.get("output_fields") or [f["id"] for f in wr_data.get("fields", []) if f.get("hasOutput")]
+            except Exception:
+                output_fields = []
+
         relationship_config = runtime_config(workspace_runtime)
         relationship_meta = None
         relationship_indexes = []
         relationship_workspace_negatives = []
         if relationship_config:
-            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text), bool(prepared_batch))
-            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text) if mode == "random" else None, effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
+            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)), bool(prepared_batch))
+            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)) if mode == "random" else None, effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
             relationship_indexes, relationship_meta = prepare_relationships(relationship_config, resolver.index, effective_seed, limit=5001, fixed=relationship_fixed)
             resolver.index = relationship_indexes[0]
 
         runtime = WorkspaceGeneration(
             resolver.index,
-            active_runtime(workspace_runtime, text) if mode == "random" and not prepared_batch else None,
+            active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)) if not prepared_batch and (mode == "random" or field_inputs or output_fields) else None,
             getattr(getattr(cls, "hidden", None), "unique_id", ""),
             initial_variables=vars_in,
+            field_inputs=field_inputs,
         )
+        if mode == "combinatorial":
+            # Exact expansion follows written syntax, rather than advancing
+            # iterative Lock/Vary/Follow policies on either prompt channel.
+            for field in runtime.fields:
+                field['state'] = None
         prepared = read_prepared_batch(_coerce_text(prepared_batch), text, negative_text)
         body_branch_selections = []
         first_variables = None
+        field_values_per_item = []
         if prepared:
             cap = max_prompts or WildcardResolver.MAX_COMBINATORIAL_PROMPTS
             if len(prepared["prompts"]) > cap:
                 raise ValueError("Prepared variations exceed max_prompts; increase the cap or clear the prepared batch.")
             prompts = list(prepared["prompts"])
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, len(prompts))
+            field_values_per_item = [dict(runtime.values) for _ in prompts]
         elif mode == "combinatorial":
+            expansion_text = runtime.combinatorial_source(text)
             if relationship_config:
                 prompts, aligned_indexes = [], []
                 cap = max_prompts or resolver.MAX_COMBINATORIAL_PROMPTS
                 for selected_index in relationship_indexes:
                     resolver.index = selected_index
-                    generated = resolver.generate_combinatorial(text, seed=effective_seed, max_prompts=cap - len(prompts))
+                    generated = resolver.generate_combinatorial(expansion_text, seed=effective_seed, max_prompts=cap - len(prompts))
                     prompts.extend(generated); aligned_indexes.extend([selected_index] * len(generated))
                     if len(prompts) >= cap: break
                 relationship_indexes = aligned_indexes
             else:
-                prompts = resolver.generate_combinatorial(text, seed=effective_seed, max_prompts=max_prompts or None)
+                prompts = resolver.generate_combinatorial(expansion_text, seed=effective_seed, max_prompts=max_prompts or None)
             body_branch_selections = list(resolver.branch_selections)
             first_variables = resolver.export_variables()
             if resolver.last_generation_truncated:
@@ -896,12 +1028,18 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             if not prompts:
                 prompts = [""]
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, len(prompts))
+            if runtime.payload and text == runtime.original_sources['positive']:
+                rows = [runtime.read_combinatorial(prompt) for prompt in prompts]
+                prompts = [row[0] for row in rows]
+                field_values_per_item = [row[1] for row in rows]
+            else:
+                field_values_per_item = [{} for _ in prompts]
         else:
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, count)
             prompts = []
             for idx_seed, s in enumerate(seeds_out):
                 if relationship_config:
-                    relationship_fixed = field_constraints(relationship_config, resolver.index.original, active_runtime(workspace_runtime, text), s, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
+                    relationship_fixed = field_constraints(relationship_config, resolver.index.original, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)), s, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
                     selected, _ = prepare_relationships(relationship_config, resolver.index.original, s, limit=5001, fixed=relationship_fixed)
                     runtime.index = selected[0]
                     resolver.index = selected[0]
@@ -911,11 +1049,13 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     runtime.branch_selections = []
                     generated, used = runtime.resolve(text, s)
                     resolver.used_names.extend(used); prompts.append(generated)
+                    field_values_per_item.append(dict(runtime.values))
                     if idx_seed == 0:
                         body_branch_selections = list(runtime.branch_selections)
                         first_variables = dict(runtime.variables)
                 else:
                     prompts.append(resolver.resolve(text, seed=s))
+                    field_values_per_item.append({})
                     if idx_seed == 0:
                         body_branch_selections = list(resolver.branch_selections)
                         first_variables = resolver.export_variables()
@@ -927,11 +1067,12 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     negative, used = runtime.resolve(negative_text, (s + 1000) & UINT64_MAX, channel="negative")
                     resolver.used_names.extend(used)
                     relationship_workspace_negatives.append(negative)
+                    field_values_per_item[-1].update({f['id']: runtime.values.get(f['id'], '') for f in runtime.fields if f['channel'] == 'negative'})
 
         # Prefix / suffix / enhancer are applied per generated prompt. With none of them
         # connected this block changes nothing, so existing workflows behave as before.
         def resolve_extra(block, prompt_seed, offset):
-            if not block:
+            if not block and not (offset == 1000 and runtime.payload):
                 return ""
             if offset == 1000 and runtime.payload:
                 value, used = runtime.resolve(block, (prompt_seed + offset) & UINT64_MAX, channel="negative")
@@ -970,6 +1111,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     negative,
                     resolve_extra(negative_suffix, prompt_seed, 1002),
                 ) if value))
+                field_values_per_item[row].update({f['id']: runtime.values.get(f['id'], '') for f in runtime.fields if f['channel'] == 'negative'} if not relationship_workspace_negatives else {})
             ensure_participation(relationship_config, set(resolver.used_names) | set(relationship_fixed))
         else:
             negative_before = resolve_extra(negative_prefix, effective_seed, 1001)
@@ -979,6 +1121,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 negatives = [resolve_extra(negative_text, effective_seed, 1000)] * len(prompts)
             negative_after = resolve_extra(negative_suffix, effective_seed, 1002)
             negatives = [" ".join(part for part in (negative_before, item, negative_after) if part) for item in negatives]
+            for item_vals in field_values_per_item:
+                item_vals.update({f['id']: runtime.values.get(f['id'], '') for f in runtime.fields if f['channel'] == 'negative'})
 
         used_names = sorted(set(resolver.used_names) | set(prepared.get("wildcards", []) if prepared else []))
         wildcards_used = json.dumps(used_names)
@@ -1085,6 +1229,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             "max_prompts": max_prompts,
             "wildcards_used": used_names,
             "truncated": bool(resolver.last_generation_truncated),
+            "output_fields": output_fields,
             "prompts": prompt_metadata,
         }
         if relationship_config:
@@ -1097,6 +1242,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         ui_metadata["prompts"] = prompt_metadata[:ui_limit]
         ui_metadata["ui_prompts_count"] = len(ui_metadata["prompts"])
         ui_metadata["ui_prompts_truncated"] = n > ui_limit
+        field_output_lists = [
+            [str(item_vals.get(fid, "")) for item_vals in field_values_per_item]
+            for fid in output_fields
+        ]
         return io.NodeOutput(
             # 0-6: list outputs, unchanged.
             out_models, out_clips, conditioning, out_prompts, seeds_out, [wildcards_used] * n,
@@ -1111,6 +1260,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             negatives, negative_conditionings,
             # 23: resolved variables JSON output.
             variables_json,
+            *field_output_lists,
             ui={"prompt_palette": ui_metadata},
         )
 

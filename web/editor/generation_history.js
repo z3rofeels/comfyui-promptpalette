@@ -4,17 +4,23 @@ import { api } from "../../../scripts/api.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
 import { API } from "../prompt_palette_api.js";
+import { createHistoryComparison } from "./history_comparison.js";
+import { historyRefinementSources, reviewHistoryRefinement } from "./history_restore.js";
 
 const BASE = "/zf-prompt-palette/api/v1/generations";
 const subscribers = new Set();
 let captureTimer = 0, listening = false;
-async function request(path = "", method = "GET", body) {
-  const response = await api.fetchApi(BASE + path, { method, ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) });
+export async function requestGenerationHistory(path = "", method = "GET", body, signal) {
+  const response = await api.fetchApi(BASE + path, { method, ...(signal ? { signal } : {}), ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) });
   const text = await response.text(); let data;
   try { data = text ? JSON.parse(text) : {}; } catch { data = null; }
-  if (!response.ok) throw new Error(data?.error || data?.message || text || `History request failed (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(data?.error || data?.message || text || `History request failed (${response.status})`);
+    error.status = response.status; throw error;
+  }
   return data;
 }
+const request = requestGenerationHistory;
 function completed() {
   clearTimeout(captureTimer);
   captureTimer = setTimeout(async () => {
@@ -22,19 +28,24 @@ function completed() {
     try { await request("/sync", "POST", {}); for (const fn of subscribers) fn(); } catch { /* Each mounted view reports recovery errors on refresh. */ }
   }, 1200);
 }
-function subscribe(fn) {
+export function subscribeGenerationHistory(fn) {
   subscribers.add(fn);
   if (!listening) { for (const type of ["executed", "execution_success"]) api.addEventListener(type, completed); listening = true; }
   return () => { subscribers.delete(fn); if (!subscribers.size) { for (const type of ["executed", "execution_success"]) api.removeEventListener(type, completed); clearTimeout(captureTimer); captureTimer = 0; listening = false; } };
 }
+const subscribe = subscribeGenerationHistory;
 function el(tag, cls = "", text = "") { const node = document.createElement(tag); node.className = cls; node.textContent = text; return node; }
-function imageUrl(image) { return api.apiURL(`/view?${new URLSearchParams(image)}`); }
-function button(text, action) { const node = el("button", "", text); node.type = "button"; node.addEventListener("click", action); return node; }
+export function generationImageUrl(image) {
+  const path = `/view?${new URLSearchParams(image)}`;
+  return typeof api.apiURL === "function" ? api.apiURL(path) : path;
+}
+const imageUrl = generationImageUrl;
+function button(text, action) { const node = el("button", "pp-history-btn", text); node.type = "button"; node.addEventListener("click", action); return node; }
 function label(text, control) { const node = el("label"); node.append(control, document.createTextNode(` ${text}`)); return node; }
 function checkbox() { const node = el("input"); node.type = "checkbox"; return node; }
 function select(values, name) { const node = el("select"); node.setAttribute("aria-label", name); for (const [value, text] of values) { const option = el("option", "", text); option.value = value; node.append(option); } return node; }
 
-export function createGenerationHistory(host, { restore, onBack } = {}) {
+export function createGenerationHistory(host, { restore, getNode, onBack } = {}) {
   const root = el("section", "pp-generation-history"); host.append(root);
 
   if (onBack) {
@@ -50,7 +61,7 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
   const enabled = checkbox(), sensitive = checkbox();
   const maximum = el("input"); maximum.type = "number"; maximum.min = "100"; maximum.max = "10000"; maximum.step = "100"; maximum.setAttribute("aria-label", "Maximum indexed generations");
   const settings = el("details"), summary = el("summary", "", "Generation history settings"); settings.append(summary);
-  settings.append(label("Record Prompt Palette generations", enabled), label("Store authored prompt text (may contain sensitive information)", sensitive), label("Maximum indexed entries", maximum));
+  settings.append(label("Record Prompt Palette generations", enabled), label("Store authored prompt text and Fields state (may contain sensitive information)", sensitive), label("Maximum indexed entries", maximum));
   const note = el("p", "pp-history-note", "Images stay in ComfyUI output/temp. Run-associated entries do not prove a particular resolved prompt or seed. Verified labels identify saved Prompt Palette output with an unambiguous conditioning path. Downstream prompt changes and the sampler noise seed are not inferred."); settings.append(note); root.append(settings);
   const query = el("input"); query.type = "search"; query.placeholder = "Search prompt, filename, tag or run…"; query.setAttribute("aria-label", "Search generation history");
   const favorite = checkbox(), missing = checkbox();
@@ -60,7 +71,11 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
   const savedDisplay = readEditorPreference("generationHistoryDisplayV1", {}) || {};
   if (["grid", "masonry", "list", "filmstrip"].includes(savedDisplay.mode)) mode.value = savedDisplay.mode;
   if (Number.isFinite(savedDisplay.size)) size.value = Math.max(64, Math.min(320, savedDisplay.size));
-  const refreshButton = button("Refresh", () => refresh());
+  const workflowHelp = el("details", "pp-history-workflow-help"); workflowHelp.open = savedDisplay.workflowHelp === true;
+  workflowHelp.append(el("summary", "", "Refine, compare & keep"), el("p", "pp-history-note", "Refine reviews recorded prompt data before opening it in your active draft. Commit keeps edits; Cancel restores them. After generating, add results to Compare and Keep a reference for this node. Promote copies reviewed data into the editor or an A–D draft. Keep does not replace a draft or mark a Library favorite."));
+  workflowHelp.addEventListener("toggle", () => { if (workflowHelp.isConnected) writeEditorPreference("generationHistoryDisplayV1", { ...readEditorPreference("generationHistoryDisplayV1", {}), workflowHelp: workflowHelp.open }); });
+  root.append(workflowHelp);
+  const refreshButton = button("Refresh", () => { refreshCompared(); refresh(); });
   let importing = false, importCancelled = false;
   const importButton = button("Import existing ComfyUI history", async () => {
     if (importing) { importCancelled = true; return; }
@@ -74,27 +89,183 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
   const list = el("div", "pp-history-list wg-library-display-scope"); list.tabIndex = 0; list.dataset.cardStretch = "true"; root.append(list);
   const more = button("Load more", () => refresh(true)); more.hidden = true; root.append(more);
   const detail = el("section", "pp-history-detail"); detail.hidden = true; root.append(detail);
-  const comparison = el("section", "pp-history-compare"); comparison.hidden = true; root.append(comparison);
+  const comparison = el("section", "pp-history-compare"); comparison.hidden = true; list.before(comparison);
   const manager = new VirtualCollectionManager(list);
   let prefs = null, rows = [], cursor = null, sequence = 0, disposed = false, active = true, debounce = 0, unsubscribe = null;
+  let collection = null, listPending = null, comparisonPending = null;
+  let comparisonSequence = 0, comparisonActionSequence = 0, detailSequence = 0;
+  let refineReview = null, refineSequence = 0;
+  let historyTarget = getNode?.();
+  const comparisonView = createHistoryComparison(comparison, { imageUrl, getNode, onChange: () => { comparisonActionSequence++; syncCompareButtons(); }, onDetails: showDetail,
+    onKeeperChange: () => API.publishMetadataChange?.({ namespace: "generations", action: "keeper" }),
+    onKeep: record => keepResult(record, false), onRefine: record => reviewResult(record), onPromote: record => reviewResult(record, true) });
   const unsubMetadata = API.onMetadataChange?.(detail => {
+    if (disposed) return;
     if (["generations", "settings", "all"].includes(detail.namespace)) {
+      if (detail.namespace === "settings" && detail.prefs && typeof detail.prefs === "object") {
+        prefs = detail.prefs;
+        enabled.checked = !!prefs.enabled;
+        sensitive.checked = !!prefs.capture_prompts;
+        if (prefs.max_entries != null) maximum.value = prefs.max_entries;
+        syncCapture();
+      }
+      if (detail.namespace === "generations" && detail.action === "keeper") { if (active) refreshCompared(); return; }
+      if (detail.namespace === "generations" && detail.action === "delete") comparisonView.forget(detail.id);
+      if (!active) return;
+      refreshCompared();
       refresh();
     }
   });
-  const compared = new Map();
-  function report(error) { if (!disposed) status.textContent = error.message || String(error); }
-  function paintCompare() {
-    comparison.replaceChildren(); comparison.hidden = !compared.size;
-    if (!compared.size) return;
-    comparison.append(el("strong", "", `Compare ${compared.size}/4`), button("Clear comparison", () => { compared.clear(); paintCompare(); }));
-    for (const record of compared.values()) { const figure = el("figure"); if (!record.missing) { const img = el("img"); img.src = imageUrl(record.image); img.alt = record.image.filename; img.loading = "lazy"; figure.append(img); } figure.append(el("figcaption", "", `${record.image.filename} · ${record.provenance} · Palette seed ${record.effective_seed ?? "Unknown"}`)); comparison.append(figure); }
+  function report(error) { if (!disposed && error?.name !== "AbortError") status.textContent = error.message || String(error); }
+  function syncHistoryTarget() {
+    const target = getNode?.();
+    if (historyTarget !== target) {
+      historyTarget = target; refineSequence++; comparisonActionSequence++; detailSequence++;
+      refineReview?.close(); refineReview = null; detail.hidden = true;
+    }
+    return comparisonView.syncTarget();
+  }
+  async function reviewResult(record, promote = false) {
+      const version = ++refineSequence;
+      refineReview?.close(); refineReview = null;
+      try {
+        const target = getNode?.(), adapter = target?._ppHistoryRefinement;
+        const baseline = adapter?.state();
+        const fresh = await request(`/${encodeURIComponent(record.id)}`);
+        if (disposed || !active || version !== refineSequence) return;
+        if (getNode?.() !== target || adapter !== target?._ppHistoryRefinement || adapter?.state() !== baseline) throw new Error("The target editor changed. Choose Refine again.");
+        const review = reviewHistoryRefinement(target, fresh, { promote, getTarget: getNode, validateRecord: async () => {
+          const current = await request(`/${encodeURIComponent(fresh.id)}`);
+          if (disposed || !active || version !== refineSequence || current.revision !== fresh.revision) throw new Error("The generation changed or this history view closed. Review Refine again.");
+        } });
+        refineReview = review;
+        const applied = await review.done;
+        if (refineReview === review) refineReview = null;
+        if (applied && !disposed) status.textContent = promote ? "Selected prompt data promoted to the reviewed destination. Other drafts are preserved." : "Refinement opened in the reviewed editor. Use Commit or Cancel there; other drafts are preserved.";
+      } catch (error) { if (error.status === 404) comparisonView.forget(record.id); report(error); }
+  }
+  function refineButton(record, compact = false, promote = false) {
+    const control = button(promote ? "Promote…" : "Refine…", () => reviewResult(record, promote));
+    control.className = `pp-history-btn${compact ? " pp-btn-sm" : ""}`;
+    const usable = item => !promote || item.workspace || typeof item.positive === "string" || typeof item.negative === "string";
+    // Most cards already have recoverable text. Validate and clone recorded
+    // Fields only when they are needed to decide availability, or on review.
+    const recoverable = historyRefinementSources(record, { includeFields: false }).some(usable) || historyRefinementSources(record).some(usable);
+    control.disabled = !getNode || !recoverable;
+    control.dataset.historyRefine = promote ? "promote" : "refine";
+    control.dataset.recoverable = String(recoverable);
+    describeRefineControl(control);
+    return control;
+  }
+  function describeRefineControl(control) {
+    const adapter = getNode?.()?._ppHistoryRefinement;
+    const reason = !adapter?.alive() ? "Choose an open Prompt Palette or Combinatorial editor first."
+      : adapter.isRefining() ? "Commit or Cancel the current refinement before recovering another generation."
+      : control.dataset.recoverable !== "true" ? "No recoverable prompt data. Open Details to inspect recorded context; enable authored prompt capture for future runs."
+      : "";
+    control.disabled = !!reason;
+    control.title = reason || (control.dataset.historyRefine === "promote"
+      ? "Review prompt data to copy into the editor or a saved A–D draft"
+      : "Review prompt data, then edit it with Commit / Cancel in the active draft");
+    control.setAttribute("aria-description", control.title);
+  }
+  function syncCompareButtons() {
+    for (const control of root.querySelectorAll("[data-history-refine]")) describeRefineControl(control);
+    // Called by the comparison only after it is mounted.
+    for (const control of root.querySelectorAll("[data-history-compare]")) {
+      const selected = comparisonView.has(control.dataset.historyCompare);
+      const keeper = comparisonView.keeper() === control.dataset.historyCompare;
+      control.hidden = keeper;
+      control.textContent = keeper ? "Keeper" : selected ? control.dataset.compareCompact === "true" ? "✓ Comp" : "✓ Compared" : "Compare";
+      control.title = keeper ? "Pinned comparison reference" : selected ? "Remove from comparison" : "Add to comparison";
+      control.setAttribute("aria-pressed", String(selected));
+      control.setAttribute("aria-label", `${selected ? "Remove from comparison" : "Compare"}: ${control.dataset.historyFilename}`);
+      control.closest(".pp-history-card")?.classList.toggle("pp-history-selected", selected);
+    }
+    for (const control of root.querySelectorAll("[data-history-keeper]")) {
+      const keeper = comparisonView.keeper() === control.dataset.historyKeeper;
+      control.textContent = keeper ? "✓ Keeper" : "Keep";
+      control.title = keeper ? "Unpin this Keeper; its image and history stay saved" : "Pin as this node’s comparison reference; the editor stays unchanged";
+      control.setAttribute("aria-label", `${keeper ? "Unpin Keeper" : "Keep as comparison reference"}: ${control.dataset.historyFilename}`);
+      control.setAttribute("aria-pressed", String(keeper));
+    }
+  }
+  const refinementChanged = event => { if (!disposed && event.detail?.node === getNode?.()) syncCompareButtons(); };
+  window.addEventListener("pp-refinement-changed", refinementChanged);
+  function keeperButton(record) {
+    const control = button(comparisonView.keeper() === record.id ? "✓ Keeper" : "Keep", () => keepResult(record));
+    control.dataset.historyKeeper = record.id;
+    control.dataset.historyFilename = record.image.filename;
+    control.title = "Pin as this node’s comparison reference; the editor stays unchanged";
+    control.setAttribute("aria-label", `Keeper reference: ${record.image.filename}`);
+    control.setAttribute("aria-pressed", String(comparisonView.keeper() === record.id));
+    return control;
+  }
+  async function keepResult(record, toggle = true) {
+      syncHistoryTarget();
+      const target = getNode?.();
+      if (!target?._ppHistoryRefinement?.alive()) { report(new Error("Choose an open Prompt Palette or Combinatorial editor first.")); return; }
+      const version = ++comparisonActionSequence;
+      try {
+        const fresh = await request(`/${encodeURIComponent(record.id)}`);
+        if (disposed || !active || getNode?.() !== target || version !== comparisonActionSequence) return;
+        if (syncHistoryTarget()) return;
+        comparisonView.setKeeper(toggle && comparisonView.keeper() === record.id ? null : fresh);
+        comparison.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+      } catch (error) { if (error.status === 404) comparisonView.forget(record.id); report(error); }
+  }
+  function compareButton(record, compact = false) {
+    const selected = comparisonView.has(record.id);
+    const control = button(selected ? compact ? "✓ Comp" : "✓ Compared" : "Compare", async () => {
+      syncHistoryTarget();
+      const target = getNode?.(), version = ++comparisonActionSequence;
+      try {
+        const fresh = await request(`/${encodeURIComponent(record.id)}`);
+        if (disposed || !active || getNode?.() !== target || version !== comparisonActionSequence) return;
+        if (syncHistoryTarget()) return;
+        comparisonView.toggle(fresh);
+        comparison.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+      } catch (error) { if (error.status === 404) comparisonView.forget(record.id); report(error); }
+    });
+    control.dataset.historyCompare = record.id;
+    control.dataset.historyFilename = record.image.filename;
+    control.hidden = comparisonView.keeper() === record.id;
+    control.dataset.compareCompact = String(compact);
+    control.title = selected ? "Remove from comparison" : "Add to comparison";
+    control.setAttribute("aria-label", `Compare ${record.image.filename}`);
+    control.setAttribute("aria-pressed", String(selected));
+    return control;
+  }
+  async function refreshCompared() {
+    if (disposed || !active) return;
+    syncHistoryTarget();
+    const version = ++comparisonSequence;
+    const target = getNode?.();
+    comparisonPending?.abort();
+    const controller = comparisonPending = new AbortController();
+    const results = await Promise.all(comparisonView.ids().map(async id => {
+      try { return { id, record: await request(`/${encodeURIComponent(id)}`, "GET", undefined, controller.signal) }; }
+      catch (error) { return { id, error }; }
+    }));
+    if (comparisonPending === controller) comparisonPending = null;
+    if (disposed || !active || controller.signal.aborted || getNode?.() !== target || version !== comparisonSequence) return;
+    const updated = [];
+    for (const result of results) {
+      if (result.record) updated.push(result.record);
+      else if (result.error.status === 404) { comparisonView.forget(result.id); status.textContent = "A comparison selection was removed from history; its reference was cleared."; }
+      else report(result.error);
+    }
+    comparisonView.update(updated);
   }
   async function annotate(record, patch) {
-    try { const saved = await request(`/${encodeURIComponent(record.id)}`, "PATCH", { ...patch, revision: record.revision }); Object.assign(record, saved); API.publishMetadataChange?.({ namespace: "generations", action: "annotate", id: record.id }); paint(); return true; }
+    try { const saved = await request(`/${encodeURIComponent(record.id)}`, "PATCH", { ...patch, revision: record.revision }); Object.assign(record, saved); comparisonView.update([record]); API.publishMetadataChange?.({ namespace: "generations", action: "annotate", id: record.id }); paint(); return true; }
     catch (error) { report(error); return false; }
   }
   async function showDetail(record) {
+    const version = ++detailSequence, target = getNode?.();
+    try { record = await request(`/${encodeURIComponent(record.id)}`); }
+    catch (error) { if (error.status === 404) comparisonView.forget(record.id); report(error); return; }
+    if (disposed || !active || getNode?.() !== target || version !== detailSequence) return;
     detail.replaceChildren(); detail.hidden = false;
 
     // Header bar
@@ -111,15 +282,9 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
     const topActions = el("div", "pp-history-detail-actions");
     const favBtn = button(record.favorite ? "★ Favorited" : "☆ Favorite", () => annotate(record, { favorite: !record.favorite }));
     favBtn.className = "pp-history-btn" + (record.favorite ? " pp-btn-fav-active" : "");
-    const compBtn = button(compared.has(record.id) ? "✓ Compared" : "Compare", () => {
-      if (compared.has(record.id)) compared.delete(record.id);
-      else if (compared.size < 4) compared.set(record.id, record);
-      else { status.textContent = "Compare up to four images."; return; }
-      paintCompare();
-      showDetail(record);
-    });
+    const compBtn = compareButton(record);
     compBtn.className = "pp-history-btn";
-    topActions.append(favBtn, compBtn);
+    topActions.append(refineButton(record), refineButton(record, false, true), keeperButton(record), favBtn, compBtn);
     if (!record.missing) {
       const openLink = el("a", "pp-history-btn", "Open full image ↗");
       openLink.href = imageUrl(record.image);
@@ -168,7 +333,7 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
     addMetaRow("Run ID", record.prompt_id ? (record.prompt_id.slice(0, 12) + "…") : null, record.prompt_id);
     addMetaRow("Output", `Node #${record.output_node_id} (Image ${record.output_index + 1})`);
     if (record.effective_seed != null) {
-      addMetaRow("Palette seed", record.effective_seed, String(record.effective_seed));
+      addMetaRow("Palette seed", record.effective_seed_text ?? record.effective_seed, record.effective_seed_text ?? String(record.effective_seed));
     }
     if (record.workflow_hash) {
       addMetaRow("Workflow", record.workflow_hash.slice(0, 12) + "…", record.workflow_hash);
@@ -208,7 +373,7 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
       verifiedCard.append(posBlock);
 
       // Negative prompt block if present
-      if (record.resolved_negative) {
+      if (typeof record.resolved_negative === "string") {
         const negBlock = el("div", "pp-history-prompt-block");
         const negHead = el("div", "pp-history-prompt-header");
         negHead.append(el("span", "pp-history-prompt-label", "Negative prompt"));
@@ -271,7 +436,7 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
         }
         cHead.append(cTitleGroup);
         if (ctx.seed != null) {
-          cHead.append(el("span", "pp-history-seed-badge", `Palette seed: ${ctx.seed}`));
+          cHead.append(el("span", "pp-history-seed-badge", `Palette seed: ${ctx.seed_text ?? ctx.seed}`));
         }
         ctxCard.append(cHead);
 
@@ -288,10 +453,10 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
         }
 
         // Resolved prompt for this node if present
-        if (ctx.resolved_prompt) {
+        if (typeof ctx.resolved_prompt === "string") {
           const resBlock = el("div", "pp-history-prompt-block");
           const rHead = el("div", "pp-history-prompt-header");
-          rHead.append(el("span", "pp-history-prompt-label", "Resolved prompt"));
+          rHead.append(el("span", "pp-history-prompt-label", "Resolved positive node context"));
           const rActions = el("div", "pp-history-btn-group");
           const copyResBtn = button("📋 Copy resolved", async () => {
             try { await navigator.clipboard.writeText(ctx.resolved_prompt); status.textContent = "Copied resolved prompt."; } catch (e) { report(e); }
@@ -300,7 +465,7 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
           rActions.append(copyResBtn);
           if (restore) {
             const restResBtn = button("↺ Restore resolved…", async () => {
-              try { await restore({ text: ctx.resolved_prompt, channel: ctx.channel_role === "negative" ? "negative" : "positive", record, context: ctx, requiresConfirmation: true }); } catch (e) { report(e); }
+              try { await restore({ text: ctx.resolved_prompt, channel: "positive", record, context: ctx, requiresConfirmation: true }); } catch (e) { report(e); }
             });
             restResBtn.className = "pp-history-btn pp-btn-sm";
             rActions.append(restResBtn);
@@ -312,10 +477,10 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
 
         // Authored prompts
         for (const [key, channel] of [["authored_positive", "positive"], ["authored_negative", "negative"]]) {
-          if (typeof ctx[key] !== "string" || !ctx[key]) continue;
+          if (typeof ctx[key] !== "string") continue;
           const pBlock = el("div", "pp-history-prompt-block");
           const pHead = el("div", "pp-history-prompt-header");
-          const labelText = (channel === "negative" || ctx.channel_role === "negative") ? "Authored negative prompt" : "Authored prompt";
+          const labelText = `Authored ${channel} prompt`;
           pHead.append(el("span", "pp-history-prompt-label", labelText));
           const pActions = el("div", "pp-history-btn-group");
           const copyAuthBtn = button(`📋 Copy authored`, async () => {
@@ -392,8 +557,7 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
         await request(`/${encodeURIComponent(record.id)}`, "DELETE", { revision: record.revision });
         detail.hidden = true;
         API.publishMetadataChange?.({ namespace: "generations", action: "delete", id: record.id });
-        compared.delete(record.id);
-        paintCompare();
+        comparisonView.forget(record.id);
         await refresh();
       } catch (error) { report(error); }
     });
@@ -403,11 +567,13 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
 
     layout.append(rightCol);
     detail.append(layout);
+    syncCompareButtons();
     detail.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }
 
   function card(record) {
     const node = el("article", "wg-thumb-item pp-history-card");
+    node.classList.toggle("pp-history-selected", comparisonView.has(record.id));
     const media = el("div", "wg-thumb-media");
     if (!record.missing) {
       const img = el("img", "wg-thumb-img");
@@ -422,7 +588,8 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
     }
 
     // Determine seed if present at record level or in any context
-    const seed = record.effective_seed != null ? record.effective_seed : (record.contexts?.find(c => c.seed != null)?.seed);
+    const context = record.contexts?.find(c => c.seed != null);
+    const seed = record.effective_seed_text ?? record.effective_seed ?? context?.seed_text ?? context?.seed;
     const badgeText = record.provenance === "verified" ? "✓ Verified" : "Run context";
     const dateStr = record.completed_at ? new Date(record.completed_at).toLocaleDateString() : "Date unknown";
 
@@ -437,14 +604,10 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
     detailsBtn.className = "pp-history-btn pp-btn-sm";
     const favBtn = button(record.favorite ? "★" : "☆", () => annotate(record, { favorite: !record.favorite }));
     favBtn.className = "pp-history-btn pp-btn-sm" + (record.favorite ? " pp-btn-fav-active" : "");
-    const compBtn = button(compared.has(record.id) ? "✓ Comp" : "Compare", () => {
-      if (compared.has(record.id)) compared.delete(record.id);
-      else if (compared.size < 4) compared.set(record.id, record);
-      else { status.textContent = "Compare up to four images."; return; }
-      paintCompare();
-    });
+    const compBtn = compareButton(record, true);
     compBtn.className = "pp-history-btn pp-btn-sm";
-    actions.append(detailsBtn, favBtn, compBtn);
+    const keepBtn = keeperButton(record); keepBtn.classList.add("pp-btn-sm");
+    actions.append(detailsBtn, refineButton(record, true), favBtn, compBtn, keepBtn);
 
     if (!record.missing) {
       const link = el("a", "pp-history-btn pp-btn-sm", "Open ↗");
@@ -456,35 +619,78 @@ export function createGenerationHistory(host, { restore, onBack } = {}) {
     node.append(actions);
     return node;
   }
-  function paint() {
+  function emptyHistoryMessage() {
+    if (query.value.trim() || favorite.checked || missing.checked || date.value !== "0") return "No matches. Clear the search or relax the filters to see more generations.";
+    return prefs?.enabled ? "No indexed images yet. Queue a Prompt Palette generation or import existing ComfyUI history."
+      : "No indexed images yet. Enable recording in Generation history settings, or import existing ComfyUI history.";
+  }
+  function paint(geometryOnly = false) {
+    if (disposed || !active) return;
     list.dataset.historyView = mode.value;
     list.style.setProperty("--wg-personal-thumb-min", `${Number(size.value)}px`);
-    manager.clear(); list.replaceChildren();
-    if (!rows.length) { list.append(el("p", "pp-history-note", "No indexed generations match these filters.")); return; }
-    manager.mount(list, { items: rows, mode: mode.value, minCardWidth: Number(size.value), estimateRowHeight: 100, estimateCardHeight: Number(size.value) + 100, renderItem: card });
+    if (!rows.length) { manager.clear(); collection = null; const empty = el("p", "pp-history-note", emptyHistoryMessage()); empty.setAttribute("role", "status"); list.replaceChildren(empty); return; }
+    const layout = { mode: mode.value, minCardWidth: Number(size.value), estimateRowHeight: 100, estimateCardHeight: Number(size.value) + 100 };
+    if (!collection) {
+      list.replaceChildren();
+      collection = manager.mount(list, { ...layout, items: rows, renderItem: card });
+    } else {
+      collection.updateLayout(layout);
+      if (!geometryOnly) collection.setItems(rows);
+    }
   }
   async function refresh(append = false) {
     if (disposed || !active) return;
+    if (syncHistoryTarget()) refreshCompared();
     const version = ++sequence;
+    listPending?.abort();
+    const controller = listPending = new AbortController();
     try {
       const params = new URLSearchParams({ q: query.value, favorite: favorite.checked, missing: missing.checked, since: date.value === "0" ? "0" : String(Date.now() - Number(date.value) * 86400000) });
       if (append && cursor) params.set("cursor", cursor);
-      const page = await request(`?${params}`); if (disposed || version !== sequence) return;
-      rows = append ? [...rows, ...page.items] : page.items; cursor = page.next_cursor; more.hidden = !cursor;
-      status.textContent = `${rows.length} indexed images shown${cursor ? " · more available" : ""}`; paint();
-    } catch (error) { report(error); }
+      const page = await request(`?${params}`, "GET", undefined, controller.signal); if (disposed || !active || controller.signal.aborted || version !== sequence) return;
+      rows = append ? [...rows, ...page.items] : page.items; cursor = page.next_cursor; more.hidden = !cursor; comparisonView.update(page.items);
+      status.textContent = rows.length ? `${rows.length} indexed images shown${cursor ? " · more available" : ""}` : ""; paint(); syncCompareButtons();
+    } catch (error) { if (active && version === sequence) report(error); }
+    finally { if (listPending === controller) listPending = null; }
   }
   async function saveSettings() {
     if (!prefs) return;
-    try { prefs = await request("/settings", "PUT", { enabled: enabled.checked, capture_prompts: sensitive.checked, max_entries: Number(maximum.value), revision: prefs.revision || 0 }); syncCapture(); if (prefs.enabled) { await request("/sync", "POST", {}); await refresh(); } }
+    try { prefs = await request("/settings", "PUT", { enabled: enabled.checked, capture_prompts: sensitive.checked, max_entries: Number(maximum.value), revision: prefs.revision || 0 }); syncCapture(); API.publishMetadataChange?.({ namespace: "settings", action: "generation-history", prefs }); if (prefs.enabled) { await request("/sync", "POST", {}); await refresh(); } }
     catch (error) { report(error); enabled.checked = !!prefs.enabled; sensitive.checked = !!prefs.capture_prompts; }
   }
-  function syncCapture() { unsubscribe?.(); unsubscribe = null; if (prefs?.enabled && !disposed) unsubscribe = subscribe(() => refresh()); }
+  function syncCapture() { unsubscribe?.(); unsubscribe = null; if (prefs?.enabled && !disposed) unsubscribe = subscribe(() => { refreshCompared(); refresh(); }); }
   for (const control of [enabled, sensitive, maximum]) control.addEventListener("change", saveSettings);
   query.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => refresh(), 125); });
   for (const control of [favorite, missing, date]) control.addEventListener("change", () => refresh());
-  const displayChanged = () => { writeEditorPreference("generationHistoryDisplayV1", { mode: mode.value, size: Number(size.value) }); paint(); };
+  const displayChanged = () => { writeEditorPreference("generationHistoryDisplayV1", { ...readEditorPreference("generationHistoryDisplayV1", {}), mode: mode.value, size: Number(size.value) }); paint(true); };
   mode.addEventListener("change", displayChanged); size.addEventListener("input", displayChanged);
-  (async () => { try { prefs = await request("/settings"); if (disposed) return; enabled.checked = prefs.enabled; sensitive.checked = prefs.capture_prompts; maximum.value = prefs.max_entries; enabled.disabled = prefs.capture_available === false; if (enabled.disabled) note.textContent += " Capture is unavailable in multi-user mode because ComfyUI does not expose authenticated run ownership."; syncCapture(); if (prefs.enabled && active) await request("/sync", "POST", {}); await refresh(); } catch (error) { report(error); } })();
-  return { refresh, setActive(value) { active = !!value; syncCapture(); if (active) { if (prefs?.enabled) request("/sync", "POST", {}).then(() => refresh()).catch(report); else refresh(); } }, cleanup() { disposed = true; sequence++; importCancelled = true; unsubscribe?.(); clearTimeout(debounce); unsubMetadata?.(); manager.cleanup(); root.remove(); } };
+  (async () => { try { prefs = await request("/settings"); if (disposed) return; enabled.checked = prefs.enabled; sensitive.checked = prefs.capture_prompts; maximum.value = prefs.max_entries; enabled.disabled = prefs.capture_available === false; if (enabled.disabled) note.textContent += " Capture is unavailable in multi-user mode because ComfyUI does not expose authenticated run ownership."; syncCapture(); if (prefs.enabled && active) await request("/sync", "POST", {}); if (active) refreshCompared(); await refresh(); } catch (error) { report(error); } })();
+  function cancelViewRequests() {
+    sequence++; comparisonSequence++;
+    listPending?.abort(); listPending = null;
+    comparisonPending?.abort(); comparisonPending = null;
+    clearTimeout(debounce);
+  }
+  return {
+    refresh,
+    refreshTarget() { if (disposed) return; if (syncHistoryTarget() && active) refreshCompared(); syncCompareButtons(); },
+    setActive(value) {
+      if (disposed || active === !!value) return;
+      active = !!value;
+      if (!active) {
+        cancelViewRequests(); refineSequence++; comparisonActionSequence++; detailSequence++;
+        refineReview?.close(); refineReview = null;
+      } else {
+        refreshCompared();
+        if (prefs?.enabled) request("/sync", "POST", {}).then(() => refresh()).catch(report);
+        else refresh();
+      }
+    },
+    cleanup() {
+      disposed = true; cancelViewRequests(); comparisonActionSequence++; detailSequence++; refineSequence++;
+      refineReview?.close(); refineReview = null; importCancelled = true; unsubscribe?.();
+      window.removeEventListener("pp-refinement-changed", refinementChanged);
+      unsubMetadata?.(); comparisonView.cleanup(); manager.cleanup(); root.remove();
+    },
+  };
 }

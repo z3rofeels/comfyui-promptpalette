@@ -24,7 +24,7 @@
 > **Start with Prompt Palette.** The Combinatorial and Weight Controller nodes are specialized companions—not requirements. Add them only when your workflow needs batch expansion or dedicated prompt-weight routing.
 
 <p align="center">
-  <a href="#recent-updates”>Recent updates</a> ·
+  <a href="#recent-updates">Recent updates</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#choose-your-node">Choose a node</a> ·
   <a href="#prompt-palette">Prompt Palette</a> ·
@@ -36,7 +36,43 @@
 </p>
 
 ---
-### Recent updates — 2.0.8
+<a id="recent-updates"></a>
+## Recent updates — 2.0.9
+
+### Keep & Evolve: Recent Generations, Inspector & Refinement
+
+- **Recent Generations in the sidebar:** Browse past outputs inside **Library → Recent Generations**, or open the dedicated **Generations** tab via **Tab ↗** (or **Sidebar settings → Recent Generations tab**). Switch between **Gallery**, **Masonry**, **Filmstrip / detail**, and **List** from the shared sidebar toolbar, search prompts/models/seeds, filter by ★ favorites or timeframe (**24h / 7d / 30d**), and pull in existing outputs with **Import ComfyUI history**.
+- **Generation Inspector:** Click any card to view the image (click through to full size), switch positive and negative prompts between **Resolved** and **Authored**, copy LoRAs color-matched to LoraPal or wildcards used, click **Generation Parameters** tiles to copy settings, and open **Workflow & Nodes** to filter (**All / Prompting / Sampling / Models**), check nodes, and copy either a selected portion, the complete workflow, API prompt, or one node. Navigate cards with `Arrow` keys, `Home`, or `End`, and press `Esc` to close.
+- **Keep & Evolve & A/B wipe comparison:** Pin any generation as a node's **Keeper** reference (**Keep** / **Unpin Keeper**; stored on that node without touching your active text). Queue up to **4** generations into **Compare · N/4**, compare side-by-side in **Gallery** or with an interactive **A/B wipe** divider (`Arrow` keys + **Center**), review **Prompt differences** with independent Reference/Candidate text sources, check **Run details**, or **Export JSON** (downloads file references, selected prompt text, notes, and tags without bundling original images).
+- **Promote… & Refine (Commit / Cancel):** Use **Promote…** to review and copy recorded prompts or full authored **Fields** into the current editor or any **A–D** draft with an overwrite check before replacing saved work. Use **Refine…**—or the toolbar's **Refine** button—to iterate directly in-node while **A–D** switching is paused so other drafts stay untouched; **Commit** keeps your edits and **Cancel** restores your prior prompt, Fields workspace, LoRA mode, and prepared batch.
+
+### LoraPal upgrades: Sidebar tab, Masonry & Filmstrip, Model Info flyout & Saved sets
+
+- **LoRAs sidebar tab:** Open **LoRAs** in ComfyUI's main sidebar to browse, favorite, color, organize **Saved LoRA sets**, and audition your local collection beside any graph. **Insert into** tracks the active Prompt Palette node automatically (or lets you pin one), and **Use cursor / selection** targets your current field or selection.
+- **Masonry & Filmstrip views:** **Masonry** and **Filmstrip** join **Gallery** and **List** in both the popout sidecar and sidebar.
+- **Pop-out Model Info flyout:** Click any LoRA card or **ⓘ** to open a dedicated flyout beside the browser without covering your grid (`Esc` closes the flyout first). Step through multiple local preview images and videos with the **Preview** selector, check base model/version pills, author byline, file size, local counts, optional `View on Civitai ↗` link, scrollable description, and tags. Set or reset that LoRA's **Color** and custom artwork directly in the flyout, apply **Suggested** strength, copy all triggers at once with **Copy triggers**, click individual trigger chips, or add straight to your prompt.
+- **Active deck, docking & Saved LoRA sets:** Newly added LoRAs initialize at base strength **1.0** instead of inheriting the prior entry's strength, with quick **1.0** reset buttons on deck items and inside **LoRA Audition Lab**. Standalone LoRA tags automatically dock neatly into a `# --- LoRAs ---` block at the bottom of your prompt while inline choices and rules stay in place. Save reusable stacks in **Saved LoRA sets** (**Add set**, **Replace deck**, **Update from deck**, **Delete** + **Undo delete**), collapse **Active in Prompt** or catalog panels for space, and drag any left, right, bottom, or corner edge of the popout window (**Follow node** / **Reset**). Shorthand `<lora:name>` is also supported at weight `1.0`.
+
+### Connect individual Fields, custom accents & faster navigation
+
+- **Per-field IN and OUT sockets:** In **Field settings**, turn on **Input text → Socket** (`In: <Field>`, with **Insert before text** or **Insert after text** placement; empty fields accept incoming text directly) and **Output text → Socket (STRING)** (`Out: <Field>`, exposing just that field's resolved text for regional conditioning or per-part routing—and emitting a matching list of strings on **Combinatorial**). Field headers show **IN**, **OUT**, or **IN·OUT** badges.
+- **Pre-run Import & Disconnect:** When a field input wire is connected, click **Import** right in the field header or settings to load current upstream text into the field (**Replace**, **Replace & disconnect wire**, **Append**, or **Prepend**), or click **Disconnect** in Field settings.
+- **Field & title accents + Jump to field:** Under **Settings → Toolbar & layout → Fields editor → Accent color applies to**, pick **Field and title**, **Field only**, or **Title only** (or override per field with **Color on** and **No accent**). Use **Jump to field** in the workspace bar to jump straight to any field—including collapsed ones—without losing selection or scroll position. Starter **Layouts** now cover **FLUX · Natural language**, **Realistic photo**, **Video & Motion (Wan / Hunyuan)**, **Anime image**, **Portrait**, **Character sheet**, **Scene**, **Product render**, **Anima Structure**, and **Negative prompt set**.
+
+### Named quick drafts A–D & Find & Replace previews
+
+- **Named A–D drafts & reviewed copy:** Click the **active letter** or right-click any **A–D** button (`Shift+F10` / `ArrowDown` when focused) to give a draft a custom **Name**, inspect its **Prompt preview** (positive, negative, and field count), or **Copy X into Y…** (or **Alt/Option+click**). Copying into a draft with existing content opens a side-by-side preview before you choose **Replace and switch**. Shortcuts: `Alt/Option+1–4` switches drafts; add `Shift` to copy into a slot.
+- **Find & Replace improvements:** Expand **Preview replacements** to inspect up to three before/after snippets and the total match count before changing text, toggle **Options** (**Aa** case, **Word**, and range-safe **In selection**), and keep `Ctrl/Cmd+Enter` triggering ComfyUI's run shortcut normally.
+
+### Compact Ports rail, floating Seed pill & Auto-hiding status bar
+
+- **Ports & Saved port layouts:** **I/O** is now **Ports**. When closed, port labels collapse into compact colored top-edge dots (inputs on the left, outputs on the right—hover any dot to see its name, type, and connection status). Inside **Ports**, filter with **Find name or type…**, switch **Show all / Recommended / Hide unused** (connected ports always stay visible), toggle **Pin open**, and save up to **16 Saved port layouts** per node (including custom field sockets).
+- **Compact toolbar Seed pill:** Enabling **Settings → Toolbar & layout → Toolbar modules → Seed controls** now adds a compact **Seed** button right on the toolbar showing your live seed and run-behavior tag—click it to open the floating Seed panel instead of dedicating an extra row in the node. **Shift+Click** the **Seed** button to open **Wheel of Fortune** directly.
+- **Auto-hiding bottom status bar:** **Bottom status bar** under **Settings → Toolbar & layout** now defaults to **Auto hide**, freeing up vertical editor space until you hover the bottom edge or Tab to **Prompt status**. Missing wildcards and warnings remain visible automatically, or choose **Always visible** / **Warnings only**.
+
+---
+
+## Recent updates — 2.0.8
 
 ### LoraPal: your local LoRA collection
 
@@ -461,7 +497,9 @@ Give a field alternatives with **Set choices**—one option per line—or **Inse
 
 For example, let **Lighting** follow **Pose**: when the resolved pose changes, lighting can change too. Follow responds to changes; it does not match the meanings or line numbers of two lists.
 
-Open **Layouts** for a starter suited to your task. Choose natural language for Krea 2/Qwen-style prompts, tags for Illustrious/Booru, or Anima scene prose and character tags. **Include starter choices** adds example content; turn it off for empty fields. Save your own **field presets** with structure only or with default values. Use **Snapshots & variants** to save checkpoints, keep alternate versions, and compare field differences.
+Open **Layouts** for a starter suited to your task, including **FLUX · Natural language**, **Realistic photo**, **Video & Motion (Wan / Hunyuan)**, **Anime image**, **Portrait**, **Character sheet**, **Scene**, **Product render**, **Anima Structure**, and **Negative prompt set**. **Include starter choices** adds example content; turn it off for empty fields. Save your own **field presets** with structure only or with default values, use **Jump to field** in the workspace bar to move quickly (even to collapsed fields), and use **Snapshots & variants** to save checkpoints, keep alternate versions, and compare field differences.
+
+Each field can also carry its own graph wires: open **Field settings** to toggle **Input text → Socket** (`In: <Field>`, inserted before or after widget text, with pre-run **Import** and **Disconnect** controls) or **Output text → Socket (STRING)** (`Out: <Field>`, for regional conditioning or per-part routing while leaving the full compiled prompt intact). Customize field and title accent colors under **Settings → Toolbar & layout → Fields editor → Accent color applies to** (**Field and title**, **Field only**, or **Title only**), or per field with **Color on** and **No accent**.
 
 In **Variation Lab**, compare previews, hide duplicates, and check **Keep** on results you want to reuse. Apply a preview to the targeted fields while keeping their choices available, or send kept full versions to Combinatorial for batch generation.
 
@@ -469,7 +507,7 @@ Choose **One field at a time** to find out what one lighting, camera, style, or 
 
 **Send to Combinatorial** creates an exact batch in preview order and starts its seed mode at **Fixed**. Connect **Seed list** to your sampler's seed input and keep its other settings unchanged to compare with the same noise seed. When negatives differ, connect **Negative conditioning list** (with CLIP connected), or **Negative prompt list** to your text encoder. Those outputs appear automatically for a batch with varying negatives. Single-value negative outputs return the first trial. Keep selects the trials to send; without a shortlist, all visible trials are sent. The sampler and model still determine the images.
 
-Customize the Editor toolbar under **Settings → Workspace → Toolbar layout**; Combinatorial has the same controls under **Settings → Generation**. Use the **60–180%** size slider or a size preset, choose a visibility mode, then use **Arrange buttons** to drag buttons or move them with arrows. **Reset order** restores the default arrangement. In retractable modes, **Tools** opens the toolbar and **Keep open** holds it open. **Hidden** keeps shortcuts out of the way while Settings stays accessible.
+Customize the Editor toolbar under **Settings → Toolbar & layout → Toolbar layout**; Combinatorial has the same controls under **Settings → Generation**. Use the **60–180%** size slider or a size preset, choose a visibility mode, adjust **Bottom status bar** (**Auto hide**, **Always visible**, or **Warnings only**), then use **Arrange buttons** to drag buttons or move them with arrows. **Reset order** restores the default arrangement. Enable **Toolbar modules → Seed controls** for a compact toolbar **Seed** pill (opening the floating Seed panel, or **Shift+Click** for **Wheel of Fortune**) and **Quick slots A–D** for named drafts and reviewed copy, or click **Refine** on the toolbar for in-node **Commit / Cancel** iteration while other drafts stay safe. In retractable modes, **Tools** opens the toolbar and **Keep open** holds it open. **Hidden** keeps shortcuts out of the way while Settings stays accessible.
 
 ### Recover a prompt from an image
 
@@ -496,18 +534,20 @@ If an image has no negative-prompt metadata, your existing negative stays intact
 </table>
 
 <a id="main-sidebar"></a>
-### Main sidebar & style explorer
+### Main sidebar, Generations & Explore
 
-Open **Prompt Palette** in ComfyUI's main sidebar. Choose **Insert into** before adding text; browsing and library editing work without a target node.
+Open **Prompt Palette** in ComfyUI's main sidebar. **Insert into** tracks the active Prompt Palette node automatically while you edit, or lets you pick a specific target node; browsing and library editing work without a target node.
 
 | Tab | What you can do |
 |---|---|
-| **Library** | Search folders, pinned entries, and recents; preview entries, insert wildcards, or edit with the pencil. |
-| **Styles** | Explore styles, classic artists, Anima artists, Booru tags, custom words, favorites, and your previews. |
+| **Library** | Search folders, pinned entries, recents, and **Recent Generations**; preview entries, insert wildcards, or edit with the pencil. |
+| **Generations** *(optional)* | Dedicated run-history tab (**Tab ↗** or **Sidebar settings → Recent Generations tab**) with **Gallery, List, Masonry, and Filmstrip / detail**, search/date filters, **Import ComfyUI history**, and the **Generation Inspector**. |
+| **LoRAs** | Browse your local LoRA collection in **Gallery / Masonry / Filmstrip / List**, open the pop-out **Model info** flyout, manage **Saved LoRA sets**, audition strengths, and insert via **Insert into** or **Use cursor / selection**. |
+| **Explore** | Browse styles, classic artists, Anima artists, Booru tags, custom words, favorites, and your previews. |
 | **Syntax** | Browse explained examples, adjust a template, preview it, and insert it at your target cursor. |
 | **Tools** | Open prompting tools supported by the selected node. |
 
-In **Styles**, use the available filters to narrow a collection. Clear filters to find artists without matching labels. Check **Prompt language** and **Will insert**: Anima uses `@artist`, Booru/Pony/Illustrious use literal tags, and natural-language mode uses readable descriptions. Quality prefixes are optional and are not added automatically.
+In **Explore**, use the available filters to narrow a collection. Clear filters to find artists without matching labels. Check **Prompt language** and **Will insert**: Anima uses `@artist`, Booru/Pony/Illustrious use literal tags, and natural-language mode uses readable descriptions. Quality prefixes are optional and are not added automatically.
 
 Cards can use your own local preview images. Compare up to **four** styles with a shared subject, copy their prompts, and attach your own generated samples. Bundled artwork is a visual reference, not a promise of a checkpoint's output. [Image credits and sources](STYLE_IMAGE_CREDITS.md) are included.
 
@@ -550,7 +590,7 @@ Prompt Palette can also expose its actions through ComfyUI's command palette whe
 
 ### Optional encoder and workflow sockets
 
-Nothing is required. Enable only the sockets your graph needs.
+Nothing is required. Open **Ports** on the node to show, search, filter (**Show all / Recommended / Hide unused**), pin open, or hide sockets. When **Ports** is closed, enabled ports collapse into compact colored dots along the top edge (hover a dot for its name, type, and connection status). You can also store up to **16 Saved port layouts** per node.
 
 **Optional inputs**
 
@@ -560,6 +600,7 @@ Nothing is required. Enable only the sockets your graph needs.
 - `enhancer_override` — replaces the resolved positive prompt when a connected enhancer returns text.
 - `external_seed` — takes seed control from another node.
 - `negative_text`, `negative_prefix`, `negative_suffix` — build and resolve the negative side in the same node.
+- `In: <Field>` — optional per-field text inputs enabled in **Field settings** (`Input text → Socket`).
 
 **Optional outputs**
 
@@ -572,8 +613,9 @@ Nothing is required. Enable only the sockets your graph needs.
 - Enhancer-used flag
 - Real CLIP-L token count
 - Prompt Palette metadata JSON
+- `Out: <Field>` — optional per-field resolved `STRING` outputs enabled in **Field settings** (`Output text → Socket (STRING)`).
 
-Socket visibility and socket-label visibility are separate controls, so a socket can stay connected while its displayed label is hidden when you want a cleaner graph.
+Socket visibility and **Ports** manager state stay separate, and connected sockets remain visible even when filtering unused ports out of the graph.
 
 > [!NOTE]
 > LoRA tags are applied only when both MODEL and CLIP are connected. With only CLIP connected, the tags are removed before encoding instead of being encoded as text. Tags are scanned **after** wildcard resolution, so a wildcard entry may contain `<lora:name:weight>`.
@@ -649,9 +691,9 @@ A group carrying an explicit sampler marker such as `+`, `-`, `*`, `~`, `@`, or 
 
 ### Outputs and fan-out
 
-The node has two kinds of outputs. Open the **I/O** button on the node to show or hide any of them.
+The node has two kinds of outputs. Open the **Ports** button on the node to search, filter, apply **Saved port layouts**, or show and hide any of them.
 
-**List outputs** hold one entry per generated prompt: `Model list`, `CLIP list`, `Conditioning list`, `Prompt list`, `Seed list`, `Wildcards used`, `Prompt metadata (JSON) list`, `Negative prompt list`, and `Negative conditioning list`. Positive and negative lists use the same order. Ordinary batches repeat their shared negative; prepared batches can carry different negatives.
+**List outputs** hold one entry per generated prompt: `Model list`, `CLIP list`, `Conditioning list`, `Prompt list`, `Seed list`, `Wildcards used`, `Prompt metadata (JSON) list`, `Negative prompt list`, and `Negative conditioning list`. Positive and negative lists use the same order. Ordinary batches repeat their shared negative; prepared batches can carry different negatives. When individual Fields enable **Output text → Socket (STRING)**, matching per-field `STRING` list outputs appear in **Ports** as well.
 
 **Single-value outputs** are not lists, so whatever they feed runs once per queue, not once per prompt:
 
@@ -704,6 +746,7 @@ a portrait of a (red fox:1.35), dusk lighting, (blurry:-0.8)
 | **SDXL / CLIP (Standard)** | Keeps `(phrase:weight)` annotations intact | Standard ComfyUI CLIP tokenization; connect CLIP for direct conditioning |
 | **Krea 2 / ZIT (Qwen)** | Returns clean de-bracketed prose | Send clean text to the Qwen-family encoder; use `negpip_compatible` for a downstream attention/negative-weight patcher that parses explicit weights |
 | **LTX 2.3 / T5 (LLM)** | Returns clean de-bracketed prose | LLM/T5/Gemma-style text encoders that should receive natural language without literal weight brackets |
+| **Anima 1.0 (High-Scale Qwen)** | Keeps explicit weights up to `3.5` without boosting | Anima / high-scale Qwen setups that support explicit `(phrase:weight)` syntax directly while leaving `@Artist Name` and JSON literals intact |
 
 ### Outputs
 
@@ -823,7 +866,7 @@ Type a tag after a space or comma to search the bundled offline Danbooru tags an
 
 ### Anima artist search
 
-Type **`@`** followed by a name to search the separate bundled **Anima artist snapshot**. Selecting an artist inserts **`@artist name`**. Use the sidebar's **Styles → Anima** collection to discover names without already knowing what to type.
+Type **`@`** followed by a name to search the separate bundled **Anima artist snapshot**. Selecting an artist inserts **`@artist name`**. Use the sidebar's **Explore → Anima** collection to discover names without already knowing what to type.
 
 The **Anima artist formatting** setting can also format recognized artist suggestions for Anima. Other Booru tags and custom words remain literal prompt text, and only library entries are inserted as `__wildcards__`. Artist results depend on the checkpoint; the local name collection does not certify model support.
 
@@ -831,7 +874,7 @@ The **Anima artist formatting** setting can also format recognized artist sugges
 
 ### Autocomplete settings
 
-Open **Settings → Autocomplete**:
+Open **Settings → Editor & suggestions**:
 
 | Setting | What it does |
 |---|---|
@@ -892,11 +935,16 @@ To create a wildcard list from a prompt, select comma- or newline-separated tags
 |---|---|
 | `Ctrl/Cmd + Z` | Undo |
 | `Ctrl/Cmd + Shift + Z` or `Ctrl/Cmd + Y` | Redo |
+| `Ctrl/Cmd + F` in main prompt | Open Find in the current prompt |
+| `Ctrl + H` or `Cmd + Option + F` in main prompt | Open Replace with match preview |
+| `Alt/Option + 1–4` (`+ Shift` to copy) | Switch to (or copy current draft into) quick draft **A–D** |
+| `Shift + Click` on toolbar **Seed** pill | Open **Wheel of Fortune** directly |
 | `Ctrl+Space` in On-demand mode | Open Booru autocomplete for the current bare word |
 | `Ctrl/Cmd + S` in the Edit drawer | Save the current wildcard file |
 | `Ctrl/Cmd + F` in a library editor | Find text within the current entry |
 | `Ctrl+Space` in a library editor | Open available suggestions at the cursor |
-| `Esc` | Close the active drawer, menu, or popup |
+| `Arrow keys` / `Home` / `End` in **Generation Inspector** | Step between generation cards or **A/B wipe** divider |
+| `Esc` | Close the active flyout, inspector, drawer, menu, or popup |
 | `Ctrl/Cmd + Enter` | Pass the run shortcut through to ComfyUI |
 | Right-click prompt text | Open Prompt Palette actions |
 | `Alt/Option` + right-click prompt text | Open native spelling and editing tools |

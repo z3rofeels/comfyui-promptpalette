@@ -10,7 +10,7 @@ const PREF_SHOW_SHORTCUT = 'showRecentGenerationsShortcut';
 // and all metadata controls live in the existing library settings/menu area.
 export function mountLibraryFeatures({ host, settingsHost = host, node = null, getNode = () => node,
   getItems, getPinned, getThumbnails, onFilter, onView, onOpenEntry, announce = () => {}, restore,
-  content = [] } = {}) {
+  content = [], includeHistory = true } = {}) {
   if (!host) {
     return {
       filter: items => items,
@@ -40,84 +40,95 @@ export function mountLibraryFeatures({ host, settingsHost = host, node = null, g
     applyRelationshipConfig(target, config); announce('Relationship rules applied to the selected node.');
   } });
 
-  // Optional shortcut toggle button in the library panel
-  let showShortcut = readEditorPreference(PREF_SHOW_SHORTCUT, false) === true;
-  const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'pp-library-history-toggle'; toggle.textContent = 'Recent generations'; toggle.setAttribute('aria-expanded','false');
-  toggle.style.display = showShortcut ? '' : 'none';
+  let toggle = null, historyHost = null, history = null, histSettingsSection = null;
+  let toggleHistory = null, shortcutCheckbox = null, onShortcutChange = null, openHistBtn = null, onOpenClick = null;
 
-  const historyHost = document.createElement('section'); historyHost.className = 'pp-library-history-host'; historyHost.hidden = true;
-  host.prepend(toggle); host.append(historyHost);
-
-  const priorHidden = new Map();
-  const toggleHistory = () => {
-    historyOpen = !historyOpen;
-    toggle.setAttribute('aria-expanded', String(historyOpen));
-    toggle.textContent = historyOpen ? '← Back to library' : 'Recent generations';
-    historyHost.hidden = !historyOpen;
-    for (const element of content.filter(Boolean)) {
-      if (historyOpen) { priorHidden.set(element, element.hidden); element.hidden = true; }
-      else { element.hidden = priorHidden.get(element) || false; priorHidden.delete(element); }
-    }
-    history.setActive?.(historyOpen);
-    if (historyOpen) history.refresh?.();
-  };
-
-  const history = createGenerationHistory(historyHost, {
-    restore,
-    onBack: () => { if (historyOpen) toggleHistory(); }
-  });
-  history.setActive?.(false);
-  const setActive = active => { history.setActive?.(Boolean(active && historyOpen)); };
-
-  toggle.addEventListener('click', toggleHistory);
-
-  // Recent generations settings entry in library settings/customize panel
-  const histSettingsSection = document.createElement('div');
-  histSettingsSection.className = 'wg-lib-cust-section pp-library-history-cust-section';
-  histSettingsSection.innerHTML = `
-    <div class="wg-lib-cust-head">
-      <span class="wg-lib-cust-title">Recent Generations</span>
-    </div>
-    <div class="pp-lib-history-settings-row">
-      <button type="button" class="pp-lib-history-open-btn">Browse recent generations →</button>
-      <label class="pp-lib-history-pref-label">
-        <input type="checkbox" class="pp-lib-history-shortcut-checkbox" ${showShortcut ? 'checked' : ''}>
-        <span>Show "Recent generations" button in library</span>
-      </label>
-    </div>
-  `;
-  targetSettingsHost.append(histSettingsSection);
-
-  const shortcutCheckbox = histSettingsSection.querySelector('.pp-lib-history-shortcut-checkbox');
-  const onShortcutChange = () => {
-    showShortcut = shortcutCheckbox.checked;
-    writeEditorPreference(PREF_SHOW_SHORTCUT, showShortcut);
+  if (includeHistory) {
+    // Optional shortcut toggle button in the library panel
+    let showShortcut = readEditorPreference(PREF_SHOW_SHORTCUT, false) === true;
+    toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'pp-library-history-toggle'; toggle.textContent = 'Recent generations'; toggle.setAttribute('aria-expanded','false');
     toggle.style.display = showShortcut ? '' : 'none';
-  };
-  shortcutCheckbox.addEventListener('change', onShortcutChange);
 
-  const openHistBtn = histSettingsSection.querySelector('.pp-lib-history-open-btn');
-  const onOpenClick = () => {
-    if (!historyOpen) toggleHistory();
-  };
-  openHistBtn.addEventListener('click', onOpenClick);
+    historyHost = document.createElement('section'); historyHost.className = 'pp-library-history-host'; historyHost.hidden = true;
+    host.prepend(toggle); host.append(historyHost);
+
+    const priorHidden = new Map();
+    toggleHistory = () => {
+      historyOpen = !historyOpen;
+      toggle.setAttribute('aria-expanded', String(historyOpen));
+      toggle.textContent = historyOpen ? '← Back to library' : 'Recent generations';
+      historyHost.hidden = !historyOpen;
+      for (const element of content.filter(Boolean)) {
+        if (historyOpen) { priorHidden.set(element, element.hidden); element.hidden = true; }
+        else { element.hidden = priorHidden.get(element) || false; priorHidden.delete(element); }
+      }
+      history.setActive?.(historyOpen);
+    };
+
+    history = createGenerationHistory(historyHost, {
+      restore, getNode,
+      onBack: () => { if (historyOpen) toggleHistory(); }
+    });
+    history.setActive?.(false);
+
+    toggle.addEventListener('click', toggleHistory);
+
+    // Recent generations settings entry in library settings/customize panel
+    histSettingsSection = document.createElement('div');
+    histSettingsSection.className = 'wg-lib-cust-section pp-library-history-cust-section';
+    histSettingsSection.innerHTML = `
+      <div class="wg-lib-cust-head">
+        <span class="wg-lib-cust-title">Recent Generations</span>
+      </div>
+      <div class="pp-lib-history-settings-row">
+        <button type="button" class="pp-lib-history-open-btn">Browse recent generations →</button>
+        <label class="pp-lib-history-pref-label">
+          <input type="checkbox" class="pp-lib-history-shortcut-checkbox" ${showShortcut ? 'checked' : ''}>
+          <span>Show "Recent generations" button in library</span>
+        </label>
+      </div>
+    `;
+    targetSettingsHost.append(histSettingsSection);
+
+    shortcutCheckbox = histSettingsSection.querySelector('.pp-lib-history-shortcut-checkbox');
+    onShortcutChange = () => {
+      showShortcut = shortcutCheckbox.checked;
+      writeEditorPreference(PREF_SHOW_SHORTCUT, showShortcut);
+      toggle.style.display = showShortcut ? '' : 'none';
+    };
+    shortcutCheckbox.addEventListener('change', onShortcutChange);
+
+    openHistBtn = histSettingsSection.querySelector('.pp-lib-history-open-btn');
+    onOpenClick = () => {
+      if (!historyOpen) toggleHistory();
+    };
+    openHistBtn.addEventListener('click', onOpenClick);
+  }
+  const setActive = active => { history?.setActive?.(Boolean(active && historyOpen)); };
 
   return {
     filter: items => smart.filter(items),
-    refresh() { if (!disposed) { smart.refresh?.(); relations.refresh?.(); } },
+    refresh() {
+      if (disposed) return;
+      history?.refreshTarget?.();
+      return Promise.allSettled([smart.refresh?.(), relations.refresh?.()]).then(results => {
+        if (disposed) return;
+        for (const result of results) if (result.status === 'rejected') announce(result.reason?.message || String(result.reason), true);
+      });
+    },
     setActive,
     cleanup() {
       disposed = true;
-      toggle.removeEventListener('click', toggleHistory);
-      shortcutCheckbox.removeEventListener('change', onShortcutChange);
-      openHistBtn.removeEventListener('click', onOpenClick);
+      toggle?.removeEventListener('click', toggleHistory);
+      shortcutCheckbox?.removeEventListener('change', onShortcutChange);
+      openHistBtn?.removeEventListener('click', onOpenClick);
       smart.cleanup?.();
       relations.cleanup?.();
-      history.cleanup?.();
+      history?.cleanup?.();
       menu.remove();
-      histSettingsSection.remove();
-      toggle.remove();
-      historyHost.remove();
+      histSettingsSection?.remove();
+      toggle?.remove();
+      historyHost?.remove();
     }
   };
 }

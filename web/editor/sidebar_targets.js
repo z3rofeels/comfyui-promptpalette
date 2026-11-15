@@ -1,21 +1,29 @@
 import { getSharedWildcardEngine } from "../engine/wildcard_engine.js";
 // One editing boundary for Palette editors and native ComfyUI text widgets.
 import { listPromptPaletteCommandTargets } from "../prompt_palette_command_bus.js";
+import { resolveLoraTarget } from "./lora_sidecar.js";
 
-export function sidebarEditingHandlers({ getEditor, useLibraryEntry, openLibraryItem }) {
+export function sidebarEditingHandlers({ node = null, mainEditor = null, getEditor, useLibraryEntry, openLibraryItem }) {
   return {
     sidebarEditor: getEditor,
+    sidebarLoraTarget: () => resolveLoraTarget(node, mainEditor || getEditor(), getEditor()),
     sidebarUseLibraryEntry: useLibraryEntry,
     sidebarOpenLibraryItem: openLibraryItem,
-    sidebarInsert(selection, text, editRange) {
-      const editor = getEditor();
+    sidebarInsert(selection, text, editRange, { focus = true } = {}) {
+      const editor = (mainEditor && selection?.editor === mainEditor) ? mainEditor : getEditor();
       if (editor !== selection.editor || editor.value !== selection.source || !editor.isConnected) throw new Error("The target prompt changed. Capture the selection again before inserting.");
       if (editor.readOnly || editor.disabled || editor.getAttribute("aria-readonly") === "true" || editor.contentEditable === "false") throw new Error("Choose an editable prompt field.");
       const next = selection.source.slice(0, selection.start) + text + selection.source.slice(selection.end);
       const start = selection.start + (editRange?.[0] ?? text.length), end = selection.start + (editRange?.[1] ?? text.length);
-      editor.focus({ preventScroll: true });
+      const focusTarget = editor === mainEditor && node?._ppRecipeWorkspace?.isActive?.()
+        ? (node._ppRecipeWorkspace.editingSurface?.() || editor)
+        : editor;
+      if (focus && focusTarget === editor) editor.focus({ preventScroll: true });
       editor.__ppPromptTools.apply(next, start, end);
-      editor.focus({ preventScroll: true }); editor.setSelectionRange(start, end);
+      if (focus && focusTarget === editor) {
+        editor.focus({ preventScroll: true });
+        editor.setSelectionRange(start, end);
+      }
       return true;
     },
   };

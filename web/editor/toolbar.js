@@ -27,6 +27,7 @@ export function applyToolbarVisibility(root, theme) {
     const toggle = root.querySelector(`[data-el="${toggleName}"]`);
     if (toggle) toggle.checked = theme[key] !== false;
   }
+  if (theme.showSlotsBtn === false) root.dispatchEvent(new Event("pp-prompt-slots-hide"));
 }
 
 export function setToolbarLabel(button, text) {
@@ -38,6 +39,7 @@ export function setToolbarLabel(button, text) {
 // Stable action IDs, independent of translated captions, visibility and node type.
 const MODULES = [
   ["resolve", "Preview", "run"], ["variations", "Variations", "run"],
+  ["refine", "Refine", "edit"],
   ["positiveAntonyms", "Positive Antonyms", "run"],
   ["promptSlots", "Slots A–D", "edit"],
   ["undo", "Undo", "edit"], ["redo", "Redo", "edit"], ["copy", "Copy", "edit"],
@@ -46,6 +48,8 @@ const MODULES = [
   ["refresh", "Rescan library", "view"], ["ioRailToggle", "Inputs / outputs", "view"],
   ["dayNightToggle", "Day / night", "view"], ["zenToggle", "Zen", "view"],
   ["clear", "Clear", "danger"],
+  // Editor-only Seed module (wheel + live seed); it opens the seed panel instead of a fixed row.
+  ["seedPanel", "Seed", "seed"],
 ];
 export const DEFAULT_TOOLBAR_ORDER = Object.freeze(MODULES.map(([key]) => key));
 
@@ -159,6 +163,7 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
   function setExpanded(value) {
     if (preferences.toolbarMode === "always") value = true;
     if (preferences.toolbarMode === "hidden") value = false;
+    const revealing = value && !expanded;
     expanded = value;
     const isAuto = preferences.toolbarMode === "auto";
     toolbar.hidden = isAuto ? false : !value;
@@ -179,7 +184,9 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
     if (settings && targetParent && settings.parentElement !== targetParent) {
       targetParent.appendChild(settings);
     }
-    schedule();
+    // Measure a newly revealed bar before it is first painted; a deferred pass would show one
+    // frame of the previous compact/overflow state and then hop the track sideways.
+    if (revealing) flush(); else schedule();
   }
   function queueHide() {
     cancelHide();
@@ -267,7 +274,9 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
       const ink = nudgeHexForContrast(palette.getPropertyValue(source).trim(), background, 7);
       if (root.style.getPropertyValue(property) !== ink) root.style.setProperty(property, ink);
     }
-    if (!toolbar.clientWidth) { renderOrder(); return; }
+    // A retracted bar has no rendered track to measure. Keep its last compact/overflow state
+    // instead of resetting it to "no buttons", which would be stale when it is revealed again.
+    if (!toolbar.clientWidth || !track.getClientRects().length) { renderOrder(); return; }
     toolbar.dataset.compact = String(preferences.toolbarSize === "small");
     const buttons = visibleButtons();
     const style = getComputedStyle(track);
@@ -287,8 +296,9 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
       const css = getComputedStyle(button);
       return width + parseFloat(css.width) + (parseFloat(css.marginLeft) || 0) + (parseFloat(css.marginRight) || 0);
     }, Math.max(0, buttons.length - 1) * (parseFloat(style.columnGap) || 0));
-    toolbar.dataset.compact = String(preferences.toolbarSize === "small" || measure() > available + 0.5);
-    const overflow = measure() > available + 1;
+    const measuredWidth = measure();
+    toolbar.dataset.compact = String(preferences.toolbarSize === "small" || measuredWidth > available + 0.5);
+    const overflow = measuredWidth > available + 1;
     toolbar.dataset.overflow = String(overflow);
     for (const button of [previous, next]) if (button.hidden === overflow) {
       const focused = button === document.activeElement;
@@ -301,10 +311,15 @@ export function installToolbarLayout(root, { loadTheme, saveTheme, settingsRoot 
     previous.disabled = track.scrollLeft <= 1;
     next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
     if (track.scrollWidth <= track.clientWidth) track.scrollLeft = 0;
-    renderOrder();
+    if (orderList && !orderList.closest("[hidden]")) renderOrder();
   }
   function schedule() {
     if (!disposed && frame === null) frame = requestAnimationFrame(update);
+  }
+  function flush() {
+    if (disposed) return;
+    if (frame !== null) { cancelAnimationFrame(frame); frame = null; }
+    update();
   }
   const resize = new ResizeObserver(schedule);
   resize.observe(track);

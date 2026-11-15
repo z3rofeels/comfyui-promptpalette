@@ -1,5 +1,6 @@
-import { textColorForLora } from "./lora_colors.js";
+import { textColorForLora, customColorForLora } from "./lora_colors.js";
 import { readEditorPreference } from "../prompt_palette_state.js";
+import { loadTheme } from "./preferences.js";
 import { escapeHtml } from "./text_utils.js";
 import { UnifiedWildcardEngine } from "../engine/wildcard_engine.js";
 import { maskJsonObjects } from "../engine/json_literals.js";
@@ -297,10 +298,13 @@ export function renderPromptSyntax(parsed, {
   const names = parsed.names || [];
   const categoriesInUse = Array.from(new Set(names.map(categoryOf)));
   const categoryHueMap = buildCategoryColorMap(categoriesInUse);
+  // All editor surfaces use the Library category color for a wildcard. Resolve
+  // that color once per projection, not once per token (contrast checks are costly).
+  const categoryColors = new Map();
   const knownByName = new Map(names.map((name) => [name, !!isKnown(name)]));
   const ranges = [];
   const decorations = [];
-  const loraTheme = readEditorPreference("theme", {}), highlightLoras = loraTheme?.highlightLoras === true;
+  const loraTheme = loadTheme(), highlightLoras = loraTheme?.highlightLoras !== false;
   const htmlLines = [];
   const branchSpans = Array.isArray(branchSelections) && branchSelections.length
     ? computeBranchInspectionSpans(parsed, branchSelections)
@@ -318,7 +322,9 @@ export function renderPromptSyntax(parsed, {
       if (segment.type === "wildcard") {
         const known = knownByName.get(segment.name) === true;
         if (known) {
-          const color = colorForToken(segment.name, categoryHueMap);
+          const category = categoryOf(segment.name);
+          if (!categoryColors.has(category)) categoryColors.set(category, colorForToken(segment.name, categoryHueMap));
+          const color = categoryColors.get(category);
           parts.push(`<span class="wg-token" style="color:${color}; text-shadow:0 0 0.35px currentColor;">${wrappedText(text)}</span>`);
           decorations.push({ start: line.offset + segment.start, end: line.offset + segment.end, kind: "wildcard", color });
         } else {
@@ -326,7 +332,18 @@ export function renderPromptSyntax(parsed, {
           decorations.push({ start: line.offset + segment.start, end: line.offset + segment.end, kind: "error" });
         }
         ranges.push({ start: line.offset + segment.start, end: line.offset + segment.end, name: segment.name, known, mode: segment.mode || "", args: segment.args || {} });
-      } else if (segment.type === "lora") { parts.push(highlightLoras ? `<span class="wg-tok-lora" style="color:${textColorForLora(text.slice(6).split(":")[0], loraTheme)}">${wrappedText(text)}</span>` : wrappedText(text)); if (highlightLoras) decorations.push({ start: line.offset + segment.start, end: line.offset + segment.end, kind: "lora", color: textColorForLora(text.slice(6).split(":")[0], loraTheme) }); }
+      } else if (segment.type === "lora") {
+        const loraName = segment.name || (text.match(/^<lora:([^:<>\r\n]+)/i)?.[1] || "").trim();
+        const customColor = customColorForLora(loraName, loraTheme);
+        const shouldHighlight = highlightLoras || !!customColor;
+        if (shouldHighlight) {
+          const color = textColorForLora(loraName, loraTheme);
+          parts.push(`<span class="wg-tok-lora" style="color:${color}">${wrappedText(text)}</span>`);
+          decorations.push({ start: line.offset + segment.start, end: line.offset + segment.end, kind: "lora", color });
+        } else {
+          parts.push(wrappedText(text));
+        }
+      }
       else if (segment.type === "conditional") { parts.push(`<span class="wg-tok-conditional">${wrappedText(text)}</span>`); decorations.push({ start: line.offset + segment.start, end: line.offset + segment.end, kind: "conditional" }); }
       else if (segment.type === "weight") { parts.push(`<span class="wg-tok-weight">${wrappedText(text)}</span>`); decorations.push({ start: line.offset + segment.start, end: line.offset + segment.end, kind: "weight" }); }
       else if (segment.type === "modifier") { parts.push(`<span class="wg-tok-mod">${wrappedText(text)}</span>`); decorations.push({ start: line.offset + segment.start, end: line.offset + segment.end, kind: "modifier" }); }

@@ -291,7 +291,7 @@ export function attachEditorContextMenu(editor, {
     }
     if (editable && syntaxAction && syntaxEnabled()) actions.push(action("Insert syntax\u2026", () => syntaxAction(event, snapshot), { icon: "bolt", group: "tools" }));
     if (editable && syntaxEnabled() && canBuildPromptRules(editor)) actions.push(action("Build choices & rules\u2026", () => openPromptTools(editor), { icon: "recipe", group: "tools" }));
-    if (editable && syntaxEnabled() && canBuildPromptRules(editor)) actions.push(action(lora ? "Edit / swap LoRA…" : "Browse LoRAs…", () => openPromptTools(editor, { tab: "loras", range: lora || snapshot }), { icon: "gallery", group: "tools" }));
+    if (editable && syntaxEnabled() && canBuildPromptRules(editor)) actions.push(action(lora ? "Edit / swap LoRA…" : "Browse LoRAs…", () => openPromptTools(editor, { tab: "loras", range: lora || snapshot }), { icon: "gallery", group: lora ? "lora" : "tools" }));
     if (editable && lora && syntaxEnabled() && canBuildPromptRules(editor)) {
       const expression = loraChoiceAt(snapshot.source, lora.start);
       const replace = (range, text) => {
@@ -300,11 +300,14 @@ export function attachEditorContextMenu(editor, {
         if (promptTools.apply) promptTools.apply(next, range.start, end);
         else { editor.value = next; editor.setSelectionRange(range.start, end); editor.dispatchEvent(new Event("input", { bubbles: true })); }
       };
+      actions.push(action("Local previews & trigger words…", () => openPromptTools(editor, { tab: "loras", range: lora }), { group: "lora", icon: "gallery" }));
+      actions.push(action(lora.model === 0 && lora.clip === 0 ? "Enable at strength 1" : "Mute LoRA (both strengths 0)", () => replace(lora, formatLoraTag(lora, lora.model === 0 && lora.clip === 0 ? 1 : 0, lora.model === 0 && lora.clip === 0 ? 1 : 0)), { group: "lora", icon: "bolt" }));
+      for (const delta of [-0.05, 0.05]) actions.push(action(`Both strengths ${delta < 0 ? "−" : "+"}0.05`, () => replace(lora, formatLoraTag(lora, lora.model + delta, lora.clip + delta)), { group: "lora-strength", icon: delta < 0 ? "minus" : "plus" }));
       for (const [channel, label] of [["model", "Model"], ["clip", "CLIP"]]) for (const delta of [-0.05, 0.05]) actions.push(action(`${label} strength ${delta < 0 ? "−" : "+"}0.05`, () => replace(lora, formatLoraTag(lora, lora.model + (channel === "model" ? delta : 0), lora.clip + (channel === "clip" ? delta : 0))), { group: "lora-strength", icon: delta < 0 ? "minus" : "plus" }));
       for (const [mode, label] of [["seeded", "Seeded strength choice"], ["cycle", "Cycle strengths · next each run"], ["previous", "Cycle strengths · previous each run"], ["random", "Random strengths each run"], ["batch", "Test all strengths · Combinatorial"]]) actions.push(action(label, () => replace(expression, loraModeExpression(expression, mode)), { group: "lora-vary", icon: "branch" }));
     }
     actions.push(action("Inspect prompt\u2026", () => openPromptTools(editor, { tab: "inspect" }), { icon: "doctor", group: "tools" }));
-    const groupOrder = lora ? ["lora-strength", "lora-vary", "edit", "selection", "source", "tools"] : ["edit", "selection", "source", "tools"];
+    const groupOrder = lora ? ["lora", "lora-strength", "lora-vary", "edit", "selection", "source", "tools"] : ["edit", "selection", "source", "tools"];
     actions.sort((a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group));
     openCtxMenu(event.clientX, event.clientY, actions);
     ctxMenuEditor = editor;

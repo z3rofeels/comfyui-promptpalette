@@ -215,6 +215,7 @@
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 .wg-theme-select { padding: 6px 8px; font-size: 10px; }
+.wg-status > .wg-theme-select { margin-top: 4px; }
 .wg-search-field { margin: 8px 0; }
 .wg-search-field input { width: 100%; padding: 6px 9px; font-size: 10px; }
 .wg-theme-select:focus,
@@ -474,6 +475,7 @@
 .wg-node.wg-zen .wg-toolbar-group.left,
 .wg-node.wg-zen .wg-pill-resolve,
 .wg-node.wg-zen .wg-toolbar-extra,
+.wg-node.wg-zen [data-el="btnSeedPanel"],
 .wg-node.wg-zen [data-el="dayNightBtn"],
 .wg-node.wg-zen [data-el="btnRefresh"],
 .wg-node.wg-zen [data-el="btnUndo"],
@@ -508,16 +510,15 @@
 
 .wg-inline-note { margin: 6px 0 10px; padding: 7px 9px; border: 1px solid var(--wg-border, #2a2e34); border-radius: 7px; background: color-mix(in srgb, var(--wg-surface, #121417) 84%, transparent); color: var(--wg-text-faint, #8f887e); font-size: 9px; line-height: 1.45; }
 /* Native modal stacking keeps graph shortcuts and focus outside the decision. */
-.wg-choice-backdrop { position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.38); backdrop-filter: blur(3px); }
+.wg-choice-backdrop { position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.5); }
 dialog.wg-choice-backdrop { position: fixed; inset: 0; margin: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; box-sizing: border-box; padding: 16px; border: 0; background: transparent; backdrop-filter: none; color: var(--wg-text); }
 dialog.wg-choice-backdrop[open] { display: grid; place-items: center; }
-.wg-choice-backdrop::backdrop { background: rgba(0,0,0,.38); backdrop-filter: blur(3px); }
+.wg-choice-backdrop::backdrop { background: rgba(0,0,0,.5); }
 .wg-choice-dialog { width: min(420px, 100%); max-height: 100%; box-sizing: border-box; overflow: auto; padding: 18px; border: 1px solid var(--wg-border); border-top: 2px solid var(--wg-accent); border-radius: var(--wg-corner-radius, 10px); background: var(--pp-glass, var(--wg-panel-bg)); -webkit-backdrop-filter: blur(var(--pp-glass-blur, 14px)) saturate(var(--pp-glass-sat, 1.45)); backdrop-filter: blur(var(--pp-glass-blur, 14px)) saturate(var(--pp-glass-sat, 1.45)); color: var(--wg-text); box-shadow: var(--wg-popup-shadow, 0 18px 50px rgba(0,0,0,.3)); font-family: var(--wg-font-family, system-ui); overflow-wrap: anywhere; }
 .wg-choice-dialog > strong { display: block; margin-bottom: 8px; font-size: calc(14px * var(--wg-ui-font-scale, 1)); line-height: 1.35; }
 .wg-choice-dialog > p { margin: 0; color: var(--wg-text-dim); font-size: calc(12px * var(--wg-ui-font-scale, 1)); line-height: 1.5; }
 .wg-choice-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 16px; }
 .wg-choice-actions .wg-button { min-height: 30px; font-size: calc(11px * var(--wg-ui-font-scale, 1)); padding: 5px 10px; }
-@media (prefers-reduced-motion: reduce) { .wg-choice-backdrop::backdrop { backdrop-filter: none; } }
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) { .wg-choice-dialog { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--wg-panel-bg); } }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .wg-choice-dialog { background: var(--wg-panel-bg); } }
 

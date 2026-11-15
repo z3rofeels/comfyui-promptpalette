@@ -9,6 +9,7 @@ export class WildcardWorkerClient {
     this.libraryVersion = 0;
     this.sentLibraryVersion = -1;
     this.librarySync = null;
+    this.libraryRequired = false;
   }
 
   ensure() {
@@ -45,7 +46,8 @@ export class WildcardWorkerClient {
     const id = ++this.seq;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      worker.postMessage({ id, type, payload });
+      try { worker.postMessage({ id, type, payload }); }
+      catch (error) { this.pending.delete(id); reject(error); }
     });
   }
 
@@ -68,7 +70,12 @@ export class WildcardWorkerClient {
   async request(type, payload = {}) {
     const worker = this.ensure();
     if (!worker) throw new Error("Worker unavailable");
-    if (type !== "library") await this._syncLibrary();
+    // Parsing only needs text. Do not clone/index the entire Library before the
+    // first large-prompt highlight; search and validation require that snapshot.
+    if (type === "search" || type === "validate") {
+      this.libraryRequired = true;
+      await this._syncLibrary();
+    }
     return this._post(type, payload);
   }
 
@@ -81,7 +88,7 @@ export class WildcardWorkerClient {
     // If a Worker is already active, keep its snapshot current. Otherwise defer
     // construction until a visible feature (large-library search or huge prompt)
     // actually needs it.
-    if (!this.enabled || !this.worker) return null;
+    if (!this.enabled || !this.worker || !this.libraryRequired) return null;
     try { return await this._syncLibrary(); } catch { return null; }
   }
 
@@ -89,6 +96,7 @@ export class WildcardWorkerClient {
     if (!this.shouldUseForLibrary()) return null;
     if (!this.worker) this.ensure();
     if (!this.worker) return null;
+    this.libraryRequired = true;
     try { return await this._syncLibrary(); } catch { return null; }
   }
 
@@ -106,10 +114,13 @@ export class WildcardWorkerClient {
     };
   }
   cleanup() {
+    this.enabled = false;
     this.worker?.terminate();
     this.worker = null;
     this.librarySync = null;
     for (const record of this.pending.values()) record.reject(new Error("Worker closed"));
     this.pending.clear();
+    this.libraryItems = [];
+    this.librarySize = 0;
   }
 }

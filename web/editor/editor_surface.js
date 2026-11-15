@@ -66,16 +66,50 @@ function textPointAtOffset(root, requestedOffset) {
   return { node: empty, offset: 0 };
 }
 
-export function createDomRangeForOffsets(root, start, end = start) {
+// A render pass creates thousands of ranges against the same DOM. Build the
+// offset mapping once, without retaining it across native edits or compositions.
+export function createDomRangeResolver(root) {
   const textLength = logicalLength(root);
-  const safeStart = clampOffset(start, textLength);
-  const safeEnd = clampOffset(end, textLength);
-  const from = textPointAtOffset(root, Math.min(safeStart, safeEnd));
-  const to = textPointAtOffset(root, Math.max(safeStart, safeEnd));
-  const range = document.createRange();
-  range.setStart(from.node, from.offset);
-  range.setEnd(to.node, to.offset);
-  return range;
+  const points = [];
+  let consumed = 0;
+  const append = node => {
+    points.push({ node, start: consumed, end: consumed + node.data.length });
+    consumed += node.data.length;
+  };
+  if (root.childNodes.length === 1 && root.firstChild.nodeType === 3) append(root.firstChild);
+  else {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) append(node);
+  }
+  if (!points.length) {
+    const empty = document.createTextNode(EDITOR_SENTINEL);
+    root.appendChild(empty);
+    append(empty);
+  }
+  const pointAt = offset => {
+    let low = 0, high = points.length - 1;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (points[mid].end < offset) low = mid + 1;
+      else high = mid;
+    }
+    const point = points[low];
+    return { node: point.node, offset: offset - point.start };
+  };
+  return (start, end = start) => {
+    const safeStart = clampOffset(start, textLength);
+    const safeEnd = clampOffset(end, textLength);
+    const from = pointAt(Math.min(safeStart, safeEnd));
+    const to = pointAt(Math.max(safeStart, safeEnd));
+    const range = document.createRange();
+    range.setStart(from.node, from.offset);
+    range.setEnd(to.node, to.offset);
+    return range;
+  };
+}
+
+export function createDomRangeForOffsets(root, start, end = start) {
+  return createDomRangeResolver(root)(start, end);
 }
 
 function setLiveSelection(root, start, end = start, direction = "forward") {

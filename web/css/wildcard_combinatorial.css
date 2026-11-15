@@ -47,7 +47,7 @@
 .pp-mode-btn:disabled { opacity: .48; cursor: not-allowed; filter: saturate(.5); }
 .pp-row input[type=number]:disabled, .pp-row select:disabled { opacity: .48; cursor: not-allowed; }
 
-.pp-controls { flex: none; display: flex; flex-direction: column; gap: 7px; padding: 8px 2px 2px; margin-top: 6px; border-top: 1px solid var(--wg-border, #2a2e34); }
+.pp-controls { flex: none; display: flex; flex-direction: column; gap: 5px; padding: 4px 4px 0; margin-top: 3px; border-top: 1px solid var(--wg-border, #2a2e34); }
 .pp-row { display: flex; align-items: center; gap: 8px; }
 .pp-row label { flex: none; width: 76px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--wg-text-faint, #8f887e); }
 .pp-row input[type=number], .pp-row select {

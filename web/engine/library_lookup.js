@@ -17,6 +17,13 @@ export function createLibraryLookup(items) {
       const path = entries.has(name) ? name : !name.includes("/") ? leaves.get(name) : null;
       paths = path ? [path] : [];
     }
-    const matches = paths.map(path => entries.get(path)); cache.set(name, matches); return matches;
+    const matches = paths.map(path => entries.get(path));
+    // Exact/leaf lookups are already O(1). Cache only expensive glob scans, and
+    // bound their retention across long sessions with changing wildcard text.
+    if (name.includes("*")) {
+      cache.set(name, matches);
+      if (cache.size > 128) cache.delete(cache.keys().next().value);
+    }
+    return matches;
   };
 }

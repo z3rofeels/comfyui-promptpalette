@@ -13,8 +13,9 @@
   }
 }
 
-.pp-ledit { width: 100%; min-width: 0; padding: 8px; gap: 6px; }
+.pp-ledit { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px; gap: 6px; }
 .pp-ledit .wg-drawer-head { gap: 8px; margin: 0; }
+.wg-drawer > .pp-ledit .wg-drawer-head { margin: -8px -8px 2px; padding: 6px 8px; border-bottom: 1px solid var(--wg-border, #2a2e34); }
 .pp-ledit .wg-drawer-head h4 { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-ledit-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 9px; padding: 0 2px 0 0; overscroll-behavior: contain; }
 

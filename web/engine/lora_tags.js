@@ -1,11 +1,11 @@
 import { maskJsonObjects } from "./json_literals.js";
 
 const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
-export const LORA_RE = new RegExp(`<lora:([^:<>\\r\\n]+):(${NUMBER})(?::(${NUMBER}))?>`, "gi");
+export const LORA_RE = new RegExp(`<lora:([^:<>\\r\\n]+)(?::(${NUMBER})(?::(${NUMBER}))?)?>`, "gi");
 export function loraTags(text) {
   const masked = maskJsonObjects(String(text).split("\n").map(line => /^\s*#/.test(line) ? " ".repeat(line.length) : line).join("\n"));
-  return [...masked.matchAll(LORA_RE)].filter(m => m[1].trim() && Number.isFinite(Number(m[2])) && Number.isFinite(Number(m[3] ?? m[2])))
-    .map(m => ({ start: m.index, end: m.index + m[0].length, name: m[1].trim(), model: Number(m[2]), clip: Number(m[3] ?? m[2]), text: m[0] }));
+  return [...masked.matchAll(LORA_RE)].filter(m => m[1].trim() && Number.isFinite(Number(m[2] ?? 1)) && Number.isFinite(Number(m[3] ?? m[2] ?? 1)))
+    .map(m => ({ start: m.index, end: m.index + m[0].length, name: m[1].trim(), model: Number(m[2] ?? 1), clip: Number(m[3] ?? m[2] ?? 1), text: m[0] }));
 }
 export function loraAt(text, position) { return loraTags(text).find(tag => tag.start <= position && position < tag.end) || null; }
 // Only top-level tags can move without changing a choice, variable, or rule.
@@ -46,6 +46,7 @@ export function buildLoraExpression({ names, model = 1, clip = model, linked = t
     const baseline = tag(loraTagName(names[0]), 0, 0);
     if (!options.includes(baseline)) options.push(baseline);
   }
+  if (options.length > 256) throw new Error("Use at most 256 LoRA/strength alternatives, including Off.");
   if (mode === "stack") return options.join(" ");
   const prefix = { seeded: "", cycle: "+", previous: "-", random: "*", cartesian: "%", batch: "" }[mode];
   if (prefix === undefined) throw new Error("Unknown LoRA variation mode.");
@@ -84,4 +85,110 @@ export function loraModeExpression(expression, mode) {
   const prefix = { seeded: "", cycle: "+", previous: "-", random: "*", cartesian: "%", batch: "" }[mode];
   if (prefix === undefined) throw new Error("Unknown LoRA variation mode.");
   return `{${prefix}${options.join("|")}}`;
+}
+
+// Reject empty entries rather than silently treating a trailing comma as zero.
+export function parseLoraStrengths(text) {
+  if (!text.trim()) return [];
+  return text.split(",").map(part => {
+    const value = Number(part.trim());
+    if (!part.trim() || !Number.isFinite(value) || Math.abs(value) > 100)
+      throw new Error("Separate strengths between −100 and 100 with commas; leave no empty entries.");
+    return value;
+  });
+}
+
+export function missingLoraTriggers(source, triggers) {
+  const plain = maskJsonObjects(source.split("\n").map(line => /^\s*#/.test(line) ? "" : line).join("\n")).replace(LORA_RE, " ").toLocaleLowerCase();
+  const seen = new Set();
+  return triggers.split(/[,;\n]+/).map(s => s.trim()).filter(word => {
+    const key = word.toLocaleLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return !new RegExp(`(?:^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, "u").test(plain);
+  }).join(", ");
+}
+
+export const LORA_DOCK_HEADER = "# --- LoRAs ---";
+export const LORA_DOCK_HEADER_RE = /(?:^|\r?\n)[ \t]*#[ \t]*---[ \t]*LoRAs[ \t]*---[ \t]*(?=\r?\n|$)/i;
+const PURE_LORA_CHOICE_RE = new RegExp(`\\{[+\\-*~@%]?\\s*${LORA_RE.source}(?:\\s*\\|\\s*${LORA_RE.source})+\\s*\\}`, "gi");
+const LORA_DOCK_ITEM_RE = new RegExp(`${PURE_LORA_CHOICE_RE.source}|${LORA_RE.source}`, "gi");
+
+export function isLoraDockSegment(segment, channel = "positive") {
+  return segment?.type === "static" && (segment.channel || "positive") === channel && LORA_DOCK_HEADER_RE.test(segment.text || "");
+}
+
+export function stripStandaloneLoraTags(text) {
+  const source = String(text ?? "");
+  const tags = standaloneLoraTags(source);
+  if (!tags.length) return { clean: source, tags: [] };
+  let clean = source;
+  for (let i = tags.length - 1; i >= 0; i--) {
+    const tag = tags[i];
+    let left = clean.slice(0, tag.start);
+    let right = clean.slice(tag.end);
+    if (/,[ \t]*$/.test(left) && /^[ \t]*,/.test(right)) {
+      right = right.replace(/^[ \t]*,[ \t]*/, "");
+      if (!/[ \t]$/.test(left) && right && !/^[ \t\r\n]/.test(right)) left += " ";
+    } else if (/[ \t]$/.test(left) && /^[ \t]/.test(right)) {
+      right = right.replace(/^[ \t]+/, "");
+    } else if (/[ \t]$/.test(left) && /^[,;.)\]}]/.test(right)) {
+      left = left.replace(/[ \t]+$/, "");
+    } else if ((!left || /\r?\n[ \t]*$/.test(left)) && /^[ \t]+/.test(right)) {
+      right = right.replace(/^[ \t]+/, "");
+    } else if ((!right || /^[ \t]*\r?\n/.test(right)) && /[ \t]+$/.test(left)) {
+      left = left.replace(/[ \t]+$/, "");
+    }
+    clean = left + right;
+  }
+  return {
+    clean,
+    tags: tags.map(t => formatLoraTag(t, t.model, t.clip)),
+  };
+}
+
+export function splitLoraDock(source) {
+  const text = String(source ?? "");
+  const match = LORA_DOCK_HEADER_RE.exec(text);
+  const rawBody = match ? text.slice(0, match.index) : text;
+  const rawSection = match
+    ? text.slice(match.index + match[0].length).replace(new RegExp(LORA_DOCK_HEADER_RE.source, "gi"), " ")
+    : "";
+  const { clean: strippedBody, tags: bodyTags } = stripStandaloneLoraTags(rawBody);
+  const sectionItems = [];
+  if (rawSection) {
+    for (const m of rawSection.matchAll(LORA_DOCK_ITEM_RE)) {
+      const token = m[0].trim();
+      if (token.startsWith("{")) {
+        sectionItems.push(token);
+      } else {
+        const parsed = loraTags(token)[0];
+        if (parsed) sectionItems.push(formatLoraTag(parsed, parsed.model, parsed.clip));
+      }
+    }
+  }
+  const leftover = rawSection ? rawSection.replace(LORA_DOCK_ITEM_RE, " ").trim() : "";
+  let body = strippedBody.replace(/[ \t]+$/gm, "").replace(/(?:\r?\n)+$/, "");
+  if (leftover) body = body ? `${body}\n${leftover}` : leftover;
+  return {
+    body,
+    items: [...bodyTags, ...sectionItems],
+    hasHeader: !!match,
+  };
+}
+
+export function dockLoraText(source, { appendLora = "", appendTriggers = "" } = {}) {
+  const { body, items } = splitLoraDock(source);
+  let nextBody = body.trimEnd();
+  const triggers = String(appendTriggers ?? "").trim();
+  if (triggers) {
+    nextBody = nextBody ? `${nextBody}${/[\s]$/.test(nextBody) ? "" : " "}${triggers}` : triggers;
+  }
+  const nextItems = [...items];
+  const extra = String(appendLora ?? "").trim();
+  if (extra) nextItems.push(extra);
+  if (!nextItems.length) return nextBody.trim();
+  const dockBlock = `${LORA_DOCK_HEADER}\n${nextItems.join(" ")}`;
+  return nextBody ? `${nextBody}\n\n${dockBlock}` : dockBlock;
 }

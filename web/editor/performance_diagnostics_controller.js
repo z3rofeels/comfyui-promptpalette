@@ -61,6 +61,7 @@ export function createPerformanceDiagnosticsController({
     const socketRate = (Number(snapshot.counters?.socketSyncs || 0) / seconds).toFixed(1);
     const heapText = heapBytes ? `${(heapBytes / 1048576).toFixed(1)} MiB JS heap` : "JS heap unavailable";
     return [
+      `Input handler  ${formatMetric(snapshot, "editor.input")}`,
       `Editor frame   ${formatMetric(snapshot, "frame:editor-render")}`,
       `Parse          ${formatMetric(snapshot, "editor.parse")}`,
       `Highlight      ${formatMetric(snapshot, "editor.highlight")}`,

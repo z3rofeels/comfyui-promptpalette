@@ -1,4 +1,5 @@
 // Ordered Adjustable Recipe state. Compiled text is a projection, never a second model.
+import { LORA_DOCK_HEADER, LORA_DOCK_HEADER_RE, isLoraDockSegment, splitLoraDock } from "../engine/lora_tags.js";
 export const WORKSPACE_SCHEMA = "prompt-palette.adjustable-recipe.v2";
 export const WORKSPACE_KEY = "prompt_palette_recipe_workspace_v2";
 // ComfyUI can wrap workflow properties in reactive Proxies when tabs remount.
@@ -22,7 +23,7 @@ export const separators = { comma: ", ", newline: "\n", space: " ", none: "" };
 export function fieldId() { return globalThis.crypto?.randomUUID?.() || `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`; }
 export const EXPERIMENT_STATES = ["lock", "vary", "follow"];
 export const FIELD_ACCENT = /^(?:none|#[0-9a-f]{6})$/i;
-export function newField(label = "Section") { return { id: fieldId(), name: label, label, value: "", default: "", enabled: true, collapsed: false, channel: "positive", fieldType: "text", separator: null, experimentState: null, dependsOn: [] }; }
+export function newField(label = "Section") { return { id: fieldId(), name: label, label, value: "", default: "", enabled: true, collapsed: false, channel: "positive", fieldType: "text", separator: null, experimentState: null, dependsOn: [], hasInput: false, inputPlacement: "before", hasOutput: false }; }
 export function validateWorkspaceRecipe(recipe, { coreOnly = false } = {}) {
   if (recipe?.schema !== WORKSPACE_SCHEMA || !Array.isArray(recipe.fields) || recipe.fields.length > 32 || !Array.isArray(recipe.segments) || recipe.segments.length > 256) throw new Error("Invalid workspace recipe.");
   const ids = new Set();
@@ -37,10 +38,11 @@ export function validateWorkspaceRecipe(recipe, { coreOnly = false } = {}) {
     if (f.variationMode != null && !["cycle", "shuffle", "seed", "syntax"].includes(f.variationMode)) throw new Error("Invalid generation variation method.");
     if (f.fieldType != null && (typeof f.fieldType !== "string" || f.fieldType.length > 80)) throw new Error("Invalid field type.");
     if (f.dependsOn != null && (!Array.isArray(f.dependsOn) || f.dependsOn.length > 32 || f.dependsOn.some(id => typeof id !== "string"))) throw new Error("Invalid Follow dependencies.");
-    const field = { ...f, dependsOn: [...new Set(f.dependsOn || [])], label: String(f.label ?? f.name ?? "Section"), default: f.default ?? f.value, enabled: f.enabled !== false, collapsed: !!f.collapsed, channel: f.channel || "positive", experimentState: f.experimentState ?? null };
+    const field = { ...f, dependsOn: [...new Set(f.dependsOn || [])], label: String(f.label ?? f.name ?? "Section"), default: f.default ?? f.value, enabled: f.enabled !== false, collapsed: !!f.collapsed, channel: f.channel || "positive", experimentState: f.experimentState ?? null, hasInput: f.hasInput === true, inputPlacement: f.inputPlacement === "after" ? "after" : "before", hasOutput: f.hasOutput === true };
     // Cosmetic properties: an invalid value is dropped instead of rejecting the whole recipe.
     if (typeof field.accent !== "string" || !FIELD_ACCENT.test(field.accent)) delete field.accent; else field.accent = field.accent.toLowerCase();
     if (field.titleHidden) field.titleHidden = true; else delete field.titleHidden;
+    if (!["field", "title", "both"].includes(field.accentTarget)) delete field.accentTarget;
     return field;
   });
   for (const f of fields) if (f.dependsOn.some(id => id === f.id || !ids.has(id))) throw new Error("Follow dependencies must reference other existing fields.");
@@ -84,20 +86,39 @@ export function workspaceFromRecipe(recipe) {
   if (offset < recipe.source.length) segments.push({ type: "static", text: recipe.source.slice(offset), boundary: /^[,\s]*$/.test(recipe.source.slice(offset)) });
   return validateWorkspaceRecipe({ ...recipe, schema: WORKSPACE_SCHEMA, fields, segments, separator: ", " });
 }
-function joinBoundary(left, separator, right) {
+export function joinBoundary(left, separator, right) {
   if (!left || !right) return "";
   if (separator === ", ") return /,\s*$/.test(left) || /^\s*,/.test(right) ? " " : ", ";
+  if (separator === ". ") return /\.\s*$/.test(left) || /^\s*\./.test(right) ? " " : ". ";
   if (separator === " " && (/\s$/.test(left) || /^\s/.test(right))) return "";
   if (separator === "\n" && (/\n$/.test(left) || /^\n/.test(right))) return "";
   return separator;
 }
-export function compileWorkspace(recipe, values = {}) {
+export function combineFieldInput(widgetValue = "", incomingValue = "", { placement = "before", separator = ", " } = {}) {
+  const w = String(widgetValue ?? "").trim();
+  const inc = String(incomingValue ?? "").trim();
+  if (!inc) return w;
+  if (!w) return inc;
+  const sep = separator == null ? ", " : separator;
+  if (placement === "after") {
+    return w + joinBoundary(w, sep, inc) + inc;
+  }
+  return inc + joinBoundary(inc, sep, w) + w;
+}
+export function compileWorkspace(recipe, values = {}, { includeEmptySockets = false } = {}) {
   const valid = validateWorkspaceRecipe(recipe), lookup = new Map(valid.fields.map(f => [f.id, f]));
   const spans = {}, outputs = {};
   for (const channel of ["positive", "negative"]) {
     let text = "", pending = "", hasPending = false;
     const channelFields = valid.segments.filter(s => s.type === "field" && lookup.get(s.id).channel === channel).map(s => lookup.get(s.id));
-    const active = f => f && f.enabled && String(Object.hasOwn(values, f.id) ? values[f.id] : Object.hasOwn(values, f.name) ? values[f.name] : f.value).trim();
+    const active = f => {
+      if (!f || !f.enabled) return "";
+      let val = Object.hasOwn(values, f.id) ? values[f.id] : Object.hasOwn(values, f.name) ? values[f.name] : f.value;
+      if (f.hasInput && Object.hasOwn(values, "field_in_" + f.id)) {
+        val = combineFieldInput(val, values["field_in_" + f.id], { placement: f.inputPlacement, separator: f.separator ?? valid.separator });
+      }
+      return String(val).trim();
+    };
     const preservePrefix = active(channelFields[0]), preserveSuffix = active(channelFields.at(-1));
     for (const s of valid.segments) {
       if (s.type === "static") {
@@ -108,8 +129,14 @@ export function compileWorkspace(recipe, values = {}) {
       }
       const f = lookup.get(s.id);
       if (f.channel !== channel || !f.enabled) continue;
-      const value = Object.hasOwn(values, f.id) ? String(values[f.id]) : Object.hasOwn(values, f.name) ? String(values[f.name]) : f.value;
-      if (!value.trim()) continue;
+      let value = Object.hasOwn(values, f.id) ? String(values[f.id]) : Object.hasOwn(values, f.name) ? String(values[f.name]) : f.value;
+      if (f.hasInput && Object.hasOwn(values, "field_in_" + f.id)) {
+        value = combineFieldInput(value, values["field_in_" + f.id], { placement: f.inputPlacement, separator: f.separator ?? valid.separator });
+      }
+      if (!value.trim()) {
+        if (includeEmptySockets && (f.hasInput || f.hasOutput)) spans[f.id] = { start: text.length, end: text.length, channel };
+        continue;
+      }
       const separator = f.separator ?? (hasPending ? valid.overrideBoundaries ? valid.separator : pending : s.join || channel === "negative" ? valid.separator : "");
       text += !text && hasPending && preservePrefix ? pending : joinBoundary(text, separator, value);
       spans[f.id] = { start: text.length, end: text.length + value.length, channel };
@@ -125,8 +152,43 @@ export function compileWorkspace(recipe, values = {}) {
   return { ...outputs, spans };
 }
 export function blankWorkspace(source = "") {
-  const f = newField("Prompt"); f.value = f.default = source;
+  const f = newField("Prompt");
+  if (LORA_DOCK_HEADER_RE.test(source)) {
+    const { body, items } = splitLoraDock(source);
+    f.value = f.default = body;
+    const segments = [{ type: "field", id: f.id, join: true }];
+    if (items.length) {
+      const dockText = `${LORA_DOCK_HEADER}\n${items.join(" ")}`;
+      segments.push({ type: "static", text: body ? `\n\n${dockText}` : dockText, channel: "positive" });
+    }
+    return { schema: WORKSPACE_SCHEMA, name: "Prompt workspace", separator: ", ", negative: "", fields: [f], segments };
+  }
+  f.value = f.default = source;
   return { schema: WORKSPACE_SCHEMA, name: "Prompt workspace", separator: ", ", negative: "", fields: [f], segments: [{ type: "field", id: f.id, join: true }] };
+}
+export function normalizeWorkspaceLoraDock(recipe) {
+  if (!recipe || !Array.isArray(recipe.segments)) return recipe;
+  const dockSegments = [];
+  const otherSegments = [];
+  for (const s of recipe.segments) {
+    if (isLoraDockSegment(s, "positive")) dockSegments.push(s);
+    else otherSegments.push(s);
+  }
+  if (!dockSegments.length) return recipe;
+  const items = [];
+  for (const s of dockSegments) {
+    const split = splitLoraDock(s.text || "");
+    items.push(...split.items);
+  }
+  recipe.segments = otherSegments;
+  if (!items.length) return recipe;
+  const bodyCompiled = compileWorkspace({ ...recipe, segments: otherSegments }).positive;
+  const dockText = `${LORA_DOCK_HEADER}\n${items.join(" ")}`;
+  recipe.segments = [
+    ...otherSegments,
+    { type: "static", text: bodyCompiled ? `\n\n${dockText}` : dockText, channel: "positive" },
+  ];
+  return recipe;
 }
 export function reorderField(recipe, id, direction) {
   const positions = recipe.segments.map((s, i) => s.type === "field" ? i : -1).filter(i => i >= 0);
@@ -134,11 +196,17 @@ export function reorderField(recipe, id, direction) {
   if (index < 0 || other < 0 || other >= positions.length) return;
   const a = positions[index], b = positions[other];
   [recipe.segments[a], recipe.segments[b]] = [recipe.segments[b], recipe.segments[a]];
+  normalizeWorkspaceLoraDock(recipe);
 }
 
 // Checkpoints contain core recipes only: histories never recursively contain histories.
 export const EXPERIMENT_SCHEMA = "prompt-palette.workspace-experiments.v1";
-export function workspaceCore(recipe) { return validateWorkspaceRecipe(cloneWorkspaceData(recipe), { coreOnly: true }); }
+export function workspaceCore(recipe) {
+  // Checkpoints are excluded from this projection. Remove them before copying
+  // so typing/preview projections do not traverse every saved snapshot first.
+  const core = { ...recipe }; delete core.experiments;
+  return validateWorkspaceRecipe(cloneWorkspaceData(core), { coreOnly: true });
+}
 function validateExperiments(input) {
   if (!input || input.schema !== EXPERIMENT_SCHEMA || !Array.isArray(input.snapshots) || input.snapshots.length > 100 || !Array.isArray(input.variants) || input.variants.length > 64) throw new Error("Invalid workspace experiment history.");
   const ids = new Set();

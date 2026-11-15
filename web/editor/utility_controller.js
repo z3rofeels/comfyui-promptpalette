@@ -123,6 +123,7 @@ export function createUtilityController(ctx) {
     if (pickerDrawer.classList.contains("open")) closePickerDrawer();
     if (root.querySelector('[data-drawer="edit"]')?.classList.contains("open")) closeEditDrawer();
     settingsDrawer.open();
+    getThemeController?.()?.syncSettingsUiIfDirty?.();
     activateSettingsTab(settingsPopup.dataset.activeTab || "appearance");
     settingsTabs.find(tab => tab.classList.contains("active"))?.focus({ preventScroll: true });
     updateThemeJson();

@@ -159,10 +159,13 @@ function filmstrip(c, s) {
     button.className = "pp-film-neighbor"; button.title = label(c.items[index]);
     button.setAttribute("aria-label", `Preview ${label(c.items[index])}`);
     button.setAttribute("aria-pressed", String(index === selected));
-    // Reuse the canonical renderer to resolve media without a second provider.
-    const sample = index === selected ? s.nodes.get(index) : itemNode(c, s, index);
-    const source = sample.querySelector("img");
-    if (source) { const img = source.cloneNode(false); img.removeAttribute("id"); img.alt = ""; img.loading = "lazy"; img.addEventListener("error", () => img.remove(), { once: true }); button.append(img); }
+    // Lazy media providers can mount a bounded thumbnail directly into the strip.
+    if (c.renderThumbnail) c.renderThumbnail(c.items[index], button);
+    else {
+      const sample = index === selected ? s.nodes.get(index) : itemNode(c, s, index);
+      const source = sample.querySelector("img");
+      if (source) { const img = source.cloneNode(false); img.removeAttribute("id"); img.alt = ""; img.loading = "lazy"; img.addEventListener("error", () => img.remove(), { once: true }); button.append(img); }
+    }
     const caption = document.createElement("span"); caption.textContent = label(c.items[index]); button.append(caption);
     button.addEventListener("click", e => { e.stopPropagation(); s.select(index); s.strip.focus({ preventScroll: true }); });
     s.strip.append(button);

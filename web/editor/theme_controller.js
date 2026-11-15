@@ -49,15 +49,18 @@ export function createThemeController(ctx) {
       ? sanitizeHexColor(theme.promptTextColor, interfaceTextColor())
       : interfaceTextColor();
   }
-  function applyFontSettings() {
-    clearLegacyPromptPaletteGlobalTheme();
-    const typography = {
+  function currentTypography() {
+    return {
       "font-family": theme.fontFamily?.trim() ? `"${theme.fontFamily.trim()}"` : "",
       "editor-font-size": `${theme.editorFontSize}px`,
       "ui-font-scale": theme.uiFontScale,
       "menu-scale": normalizePromptPaletteMenuScale(theme.menuScale),
       "prompt-text": resolvedPromptTextColor(),
     };
+  }
+  function applyFontSettings() {
+    clearLegacyPromptPaletteGlobalTheme();
+    const typography = currentTypography();
     applyPromptPaletteThemeScope(root, {}, typography);
     if (settingsRoot !== root) applyPromptPaletteThemeScope(settingsRoot, {}, typography);
 
@@ -149,7 +152,6 @@ export function createThemeController(ctx) {
       fontStatus.className = "wg-status";
       const sel = document.createElement("select");
       sel.className = "wg-theme-select";
-      sel.style.marginTop = "4px";
       sel.innerHTML = `<option value="">${families.length} installed fonts found \u2014 pick one\u2026</option>` +
         families.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join("");
       sel.addEventListener("change", () => {
@@ -360,29 +362,30 @@ export function createThemeController(ctx) {
     return sanitizeHexColor(panel, currentUiSurface());
   }
 
-  function currentBooruDefaultPalette() {
-    return relativeLuminance(currentBooruContrastSurface()) > 0.45 ? DEFAULT_BOORU_COLORS_LIGHT : DEFAULT_BOORU_COLORS_DARK;
+  function currentBooruDefaultPalette(surface = currentBooruContrastSurface()) {
+    return relativeLuminance(surface) > 0.45 ? DEFAULT_BOORU_COLORS_LIGHT : DEFAULT_BOORU_COLORS_DARK;
   }
 
-  function resolvedBooruColors() {
-    const defaults = currentBooruDefaultPalette();
+  function resolvedBooruColors(surface = currentBooruContrastSurface()) {
+    const defaults = currentBooruDefaultPalette(surface);
     const saved = theme.booruColors && typeof theme.booruColors === "object" ? theme.booruColors : {};
     const base = theme.booruColorsCustomized ? { ...defaults, ...saved } : { ...defaults };
-    const background = currentBooruContrastSurface();
     return Object.fromEntries(BOORU_CATEGORY_KEYS.map((key) => [
-      key, nudgeHexForContrast(sanitizeHexColor(base[key], defaults[key]), background),
+      key, nudgeHexForContrast(sanitizeHexColor(base[key], defaults[key]), surface),
     ]));
   }
 
   function renderBooruColors() {
     if (!booruColorRoot) return;
-    const colors = resolvedBooruColors();
+    const surface = currentBooruContrastSurface();
+    const colors = resolvedBooruColors(surface);
     booruColorRoot.innerHTML = "";
     BOORU_CATEGORY_KEYS.forEach((key) => {
       const row = document.createElement("div");
       row.className = "wg-category-row";
       const value = colors[key];
-      const adjusted = nudgeHexForContrast(sanitizeHexColor(theme.booruColors?.[key], value), currentBooruContrastSurface()) !== sanitizeHexColor(theme.booruColors?.[key], value);
+      const rawSaved = sanitizeHexColor(theme.booruColors?.[key], value);
+      const adjusted = nudgeHexForContrast(rawSaved, surface) !== rawSaved;
       row.innerHTML = `
         <div class="wg-category-copy"><strong>${escapeHtml(BOORU_CATEGORY_LABELS[key])}</strong><small>${adjusted ? "Adjusted for contrast" : (theme.booruColorsCustomized ? "Custom override" : "Theme default")}</small></div>
         <div class="wg-category-controls">
@@ -411,7 +414,7 @@ export function createThemeController(ctx) {
       hex.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); hex.blur(); } });
       booruColorRoot.appendChild(row);
     });
-    booruColorRoot.dataset.contrast = contrastRatio(colors.general, currentBooruContrastSurface()).toFixed(2);
+    booruColorRoot.dataset.contrast = contrastRatio(colors.general, surface).toFixed(2);
   }
 
   hueRange.addEventListener("input", () => {
@@ -510,8 +513,8 @@ export function createThemeController(ctx) {
       layout: Object.fromEntries(Object.entries(theme).filter(([key]) => key.startsWith("show") || [
         "syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "booruAutocompleteEnabled",
         "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors", "animaArtistFormatting",
-        "autocompletePreviews", "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme", "toolbarMode", "toolbarScale", "toolbarSize", "toolbarOrder",
-        "workspaceSnapGrid", "fieldEditorColumns", "fieldEditorMinHeight",
+        "autocompletePreviews", "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme", "toolbarMode", "toolbarScale", "toolbarSize", "toolbarOrder", "statusBarMode",
+        "workspaceSnapGrid", "fieldEditorColumns", "fieldEditorMinHeight", "fieldColorTarget",
       ].includes(key))),
     };
   }
@@ -673,25 +676,33 @@ export function createThemeController(ctx) {
 
   let customUiThemes = loadUiThemes();
   let activeUiThemeName = loadActiveUiThemeName();
+  let suppressLocalAppearanceSync = false;
+  let settingsUiDirty = false;
+  function isSettingsOpen() { return !settingsPopup || !settingsPopup.hidden; }
 
   function allUiThemes() { return { ...BUILTIN_UI_THEMES, ...customUiThemes }; }
   function isBuiltinUiTheme(name) { return !!BUILTIN_UI_THEMES[name] && !customUiThemes[name]; }
   if (!allUiThemes()[activeUiThemeName]) activeUiThemeName = "Cinder";
 
-  function applyUiTheme() {
+  function applyUiTheme({ skipRender = false } = {}) {
     const t = allUiThemes()[activeUiThemeName] || BUILTIN_UI_THEMES.Cinder;
     const effects = promptPaletteEffectSettings(theme);
+    const typography = currentTypography();
     clearLegacyPromptPaletteGlobalTheme();
-    applyPromptPaletteThemeScope(root, t, {}, effects);
-    if (settingsRoot !== root) applyPromptPaletteThemeScope(settingsRoot, t, {}, effects);
+    applyPromptPaletteThemeScope(root, t, typography, effects);
+    if (settingsRoot !== root) applyPromptPaletteThemeScope(settingsRoot, t, typography, effects);
 
     applyPromptPaletteNodeChrome(node, t);
-    applyFontSettings();
-    refreshFontControlsUI();
-    node.graph?.setDirtyCanvas(true, true);
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
+    if (isSettingsOpen()) refreshFontControlsUI();
+    else settingsUiDirty = true;
     if (typeof updateDayNightIcon === "function") updateDayNightIcon();
-    if (typeof renderCatPins === "function") renderCatPins();
-    if (typeof render === "function") render();
+    if (!skipRender) {
+      if (isSettingsOpen() && typeof renderCatPins === "function") renderCatPins();
+      else if (typeof renderCatPins === "function") settingsUiDirty = true;
+      if (typeof render === "function") render();
+    }
   }
   function setUiThemeStatus(msg, isErr) {
     uiThemeStatus.textContent = msg || "";
@@ -719,6 +730,18 @@ export function createThemeController(ctx) {
     const themes = allUiThemes();
     const packs = [{ id: "all", name: "All themes", tone: "Browse", description: "Every built-in palette.", themes: Object.keys(BUILTIN_UI_THEMES) }, ...THEME_PACKS];
     if (Object.keys(customUiThemes).length) packs.push({ id: "custom", name: "My Themes", tone: "Custom", description: "Your editable palette copies.", themes: Object.keys(customUiThemes) });
+    const allAccent = themes[activeUiThemeName]?.accent || BUILTIN_UI_THEMES.Cinder.accent;
+    const packKey = packs.map((pack) => `${pack.id}:${(pack.themes || []).filter((name) => themes[name]).length}`).join("\0");
+    if (uiThemePackStrip.dataset.packKey === packKey) {
+      for (const button of uiThemePackStrip.querySelectorAll("[data-theme-pack]")) {
+        const active = button.dataset.themePack === activeThemePackId;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+        if (button.dataset.themePack === "all") button.style.setProperty("--pack-accent", allAccent);
+      }
+      return;
+    }
+    uiThemePackStrip.dataset.packKey = packKey;
     uiThemePackStrip.innerHTML = "";
     if (uiThemeCount) uiThemeCount.textContent = `${Object.keys(BUILTIN_UI_THEMES).length} palettes`;
     for (const pack of packs) {
@@ -729,7 +752,7 @@ export function createThemeController(ctx) {
       button.setAttribute("aria-pressed", String(pack.id === activeThemePackId));
       button.title = pack.description;
       const count = (pack.themes || []).filter((name) => themes[name]).length;
-      button.style.setProperty("--pack-accent", pack.id === "all" ? (themes[activeUiThemeName]?.accent || BUILTIN_UI_THEMES.Cinder.accent) : packAccent(pack, themes));
+      button.style.setProperty("--pack-accent", pack.id === "all" ? allAccent : packAccent(pack, themes));
       button.innerHTML = `<span class="wg-theme-pack-dot" aria-hidden="true"></span><span class="wg-theme-pack-copy"><strong>${escapeHtml(pack.name)}</strong><small>${escapeHtml(pack.tone)} · ${count}</small></span>`;
       uiThemePackStrip.appendChild(button);
     }
@@ -740,13 +763,20 @@ export function createThemeController(ctx) {
     if (!allUiThemes()[normalized]) return false;
     if (!preservePack) activeThemePackId = primaryPackForTheme(normalized)?.id || (customUiThemes[normalized] ? "custom" : activeThemePackId);
     if (normalized === activeUiThemeName) {
-      refreshUiThemeUI();
+      if (isSettingsOpen()) refreshUiThemeUI();
+      else settingsUiDirty = true;
       return true;
     }
     activeUiThemeName = normalized;
-    saveActiveUiThemeName(normalized);
+    suppressLocalAppearanceSync = true;
+    try {
+      saveActiveUiThemeName(normalized);
+    } finally {
+      suppressLocalAppearanceSync = false;
+    }
     applyUiTheme();
-    refreshUiThemeUI();
+    if (isSettingsOpen()) refreshUiThemeUI();
+    else settingsUiDirty = true;
     return true;
   }
 
@@ -758,13 +788,28 @@ export function createThemeController(ctx) {
   }
 
   function renderUiThemeGallery() {
-    uiThemeGallery.innerHTML = "";
     const themes = allUiThemes();
     const names = galleryThemeNames();
     if (!names.length) {
+      delete uiThemeGallery.dataset.galleryKey;
       uiThemeGallery.innerHTML = '<div class="wg-empty-state">No palettes in this collection yet.</div>';
       return;
     }
+    const galleryKey = names.map((name) => {
+      if (isBuiltinUiTheme(name)) return name;
+      const c = themes[name] || {};
+      return `${name}:${c.bg}:${c["panel-bg"]}:${c.surface}:${c.border}:${c.accent}:${c.text}`;
+    }).join("\0");
+    if (uiThemeGallery.dataset.galleryKey === galleryKey) {
+      for (const button of uiThemeGallery.querySelectorAll("[data-theme-name]")) {
+        const active = button.dataset.themeName === activeUiThemeName;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      }
+      return;
+    }
+    uiThemeGallery.dataset.galleryKey = galleryKey;
+    uiThemeGallery.innerHTML = "";
     names.forEach((name) => {
       const colors = themes[name];
       const pack = primaryPackForTheme(name);
@@ -817,12 +862,17 @@ export function createThemeController(ctx) {
     if (cornerRadiusRange) cornerRadiusRange.value = String(Math.round(Number(theme.cornerRadius ?? 10)));
     if (cornerRadiusOut) cornerRadiusOut.textContent = `${Math.round(Number(theme.cornerRadius ?? 10))}px`;
   }
+  function applyCornerRadiusEffects() {
+    const effects = promptPaletteEffectSettings(theme);
+    applyPromptPaletteThemeScope(root, {}, {}, effects);
+    if (settingsRoot !== root) applyPromptPaletteThemeScope(settingsRoot, {}, {}, effects);
+  }
   cornerRadiusRange?.addEventListener("input", () => {
     const value = Math.max(4, Math.min(18, parseInt(cornerRadiusRange.value, 10) || 10));
     if (cornerRadiusOut) cornerRadiusOut.textContent = `${value}px`;
     theme.cornerRadius = value;
     saveTheme(theme);
-    applyUiTheme();
+    applyCornerRadiusEffects();
     updateThemeJson();
   });
   function updateUiThemePreview() {
@@ -986,14 +1036,17 @@ export function createThemeController(ctx) {
     }
   }
   function applyToolbarSettings() {
-    toolbarSeedExtra?.classList?.toggle("on", !!theme.showSeedControls);
+    // Seed controls live behind the toolbar Seed module; the panel itself never takes a row.
+    const seedPanelBtn = el("btnSeedPanel");
+    if (seedPanelBtn) seedPanelBtn.hidden = !theme.showSeedControls;
+    if (!theme.showSeedControls) root.dispatchEvent(new Event("pp-seed-panel-close"));
     const fortuneChip = toolbarSeedExtra?.querySelector('[data-el="seedFortuneBadge"]');
     if (fortuneChip) {
-      fortuneChip.style.display = theme.seedFortuneEnabled !== false ? "inline-flex" : "none";
+      fortuneChip.hidden = theme.seedFortuneEnabled === false;
     }
     const wheelBtn = toolbarSeedExtra?.querySelector('[data-act="seedOpenWheel"]');
     if (wheelBtn) {
-      wheelBtn.style.display = theme.seedFortuneEnabled !== false ? "inline-flex" : "none";
+      wheelBtn.hidden = theme.seedFortuneEnabled === false;
     }
     if (dayNightBtn) dayNightBtn.style.display = theme.showDayNightBtn ? "" : "none";
     applyToolbarVisibility(root, theme);
@@ -1349,29 +1402,88 @@ export function createThemeController(ctx) {
     }
   });
 
-  const cleanupAppearanceSync = onPromptPaletteAppearanceChanged(() => {
-    const previousTypography = `${theme.fontFamily || ""}|${theme.editorFontSize}|${theme.uiFontScale}|${theme.promptTextColorMode}|${theme.promptTextColor}`;
-    Object.assign(theme, loadTheme());
-    const nextTypography = `${theme.fontFamily || ""}|${theme.editorFontSize}|${theme.uiFontScale}|${theme.promptTextColorMode}|${theme.promptTextColor}`;
-    customUiThemes = loadUiThemes();
-    const previousActiveTheme = activeUiThemeName;
-    activeUiThemeName = loadActiveUiThemeName();
-    if (!allUiThemes()[activeUiThemeName]) activeUiThemeName = "Cinder";
-    if (activeUiThemeName !== previousActiveTheme) activeThemePackId = primaryPackForTheme(activeUiThemeName)?.id || (customUiThemes[activeUiThemeName] ? "custom" : "all");
-    applyUiTheme();
+  function syncSettingsUiIfDirty() {
+    if (!settingsUiDirty) return;
+    settingsUiDirty = false;
     refreshUiThemeUI();
     refreshFontControlsUI();
-    applyFontSettings();
-    if (previousTypography !== nextTypography) refreshLibraryTypographyGeometry();
-    applyToolbarSettings();
     refreshToolbarSettingsUI();
-    if (root.classList.contains("wg-zen") !== !!theme.zenMode) applyZenMode();
+    if (typeof renderCatPins === "function") renderCatPins();
+  }
+
+  let lastSyncedAppearance = null;
+  function captureAppearanceSignature(t, activeName, customThemes) {
+    const activeColors = (BUILTIN_UI_THEMES[activeName] && !customThemes[activeName])
+      ? activeName
+      : JSON.stringify(customThemes[activeName] || {});
+    return {
+      colors: `${activeName}|${activeColors}`,
+      typography: `${t.fontFamily || ""}|${t.editorFontSize}|${t.uiFontScale}|${t.menuScale}|${t.promptTextColorMode}|${t.promptTextColor}`,
+      effects: `${t.cornerRadius ?? 10}`,
+      toolbar: `${t.toolbarMode}|${t.toolbarSize}|${t.toolbarScale}|${(t.toolbarOrder || []).join(",")}|${t.showSeedControls}|${t.seedFortuneEnabled}|${t.showDayNightBtn}|${t.showGalleryBtn}|${t.showLorasBtn}|${t.showEditBtn}|${t.showImportImageBtn}|${t.showSaveBtn}|${t.showResolveBtn}|${t.showRandomBtn}|${t.showBranchBtn}|${t.showClearBtn}|${t.showPositiveAntonymsBtn}|${t.layoutPreset}`,
+      render: `${t.booruPromptColors}|${t.hueRotate}|${t.saturation}|${JSON.stringify(t.categoryPins || {})}|${JSON.stringify(t.booruColors || {})}|${!!t.booruColorsCustomized}`,
+    };
+  }
+  lastSyncedAppearance = captureAppearanceSignature(theme, activeUiThemeName, customUiThemes);
+
+  const cleanupAppearanceSync = onPromptPaletteAppearanceChanged(() => {
+    if (suppressLocalAppearanceSync) {
+      lastSyncedAppearance = captureAppearanceSignature(theme, activeUiThemeName, customUiThemes);
+      return;
+    }
+    const nextTheme = loadTheme();
+    const nextCustomUiThemes = loadUiThemes();
+    let nextActiveUiThemeName = loadActiveUiThemeName();
+    if (!BUILTIN_UI_THEMES[nextActiveUiThemeName] && !nextCustomUiThemes[nextActiveUiThemeName]) nextActiveUiThemeName = "Cinder";
+
+    const nextSig = captureAppearanceSignature(nextTheme, nextActiveUiThemeName, nextCustomUiThemes);
+    const prevSig = lastSyncedAppearance;
+    lastSyncedAppearance = nextSig;
+
+    const colorsChanged = !prevSig || nextSig.colors !== prevSig.colors;
+    const typographyChanged = !prevSig || nextSig.typography !== prevSig.typography;
+    const effectsChanged = !prevSig || nextSig.effects !== prevSig.effects;
+    const toolbarChanged = !prevSig || nextSig.toolbar !== prevSig.toolbar;
+    const renderChanged = !prevSig || nextSig.render !== prevSig.render;
+    const zenChanged = root.classList.contains("wg-zen") !== !!nextTheme.zenMode;
+
+    const previousGeometryKey = `${theme.fontFamily || ""}|${theme.editorFontSize}|${theme.uiFontScale}`;
+    const nextGeometryKey = `${nextTheme.fontFamily || ""}|${nextTheme.editorFontSize}|${nextTheme.uiFontScale}`;
+    const previousActiveTheme = activeUiThemeName;
+
+    Object.assign(theme, nextTheme);
+    customUiThemes = nextCustomUiThemes;
+    activeUiThemeName = nextActiveUiThemeName;
+    if (activeUiThemeName !== previousActiveTheme) {
+      activeThemePackId = primaryPackForTheme(activeUiThemeName)?.id || (customUiThemes[activeUiThemeName] ? "custom" : "all");
+    }
+
+    if (colorsChanged) {
+      applyUiTheme({ skipRender: true });
+      if (typeof render === "function") render();
+    } else {
+      if (typographyChanged) applyFontSettings();
+      if (effectsChanged) applyCornerRadiusEffects();
+      if (renderChanged && typeof render === "function") render();
+    }
+
+    if (previousGeometryKey !== nextGeometryKey) refreshLibraryTypographyGeometry();
+    if (toolbarChanged) applyToolbarSettings();
+    if (zenChanged) applyZenMode();
+
+    if (isSettingsOpen()) {
+      if (colorsChanged || effectsChanged || renderChanged) refreshUiThemeUI();
+      if (typographyChanged) refreshFontControlsUI();
+      if (toolbarChanged) refreshToolbarSettingsUI();
+      if (renderChanged && typeof renderCatPins === "function") renderCatPins();
+    } else if (colorsChanged || typographyChanged || effectsChanged || toolbarChanged || renderChanged) {
+      settingsUiDirty = true;
+    }
   });
 
   try {
     applyUiTheme();
     refreshUiThemeUI();
-    applyFontSettings();
     applyToolbarSettings();
     refreshToolbarSettingsUI();
     applyStarterPacksSetting();
@@ -1393,6 +1505,7 @@ export function createThemeController(ctx) {
     applyStarterPacksSetting,
     applyZenMode,
     renderHelpResults,
+    syncSettingsUiIfDirty,
     toggleDayNight: () => el("dayNightBtn")?.click(),
     cleanup: cleanupAppearanceSync,
   };

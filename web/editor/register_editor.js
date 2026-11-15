@@ -7,10 +7,20 @@ import {
 } from "../prompt_palette_compat.js";
 import { notify } from "./notifications.js";
 import { editorStylesReady } from "./styles.js";
+import { installWorkspaceConfigureHook } from "./workspace_generation.js";
 
 export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPaletteNodes, cleanupSharedPromptPaletteDom }) {
   app.registerExtension({
     name: "comfyui.promptpalette.editor",
+
+    async beforeRegisterNodeDef(nodeType, nodeData) {
+      if (nodeData?.name !== "PromptPaletteEditor") return;
+      const onNodeCreated = nodeType.prototype.onNodeCreated;
+      nodeType.prototype.onNodeCreated = function () {
+        installWorkspaceConfigureHook(this);
+        return onNodeCreated?.apply(this, arguments);
+      };
+    },
 
     settings: [
       {
@@ -56,6 +66,7 @@ export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPal
       });
 
       hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
+      installWorkspaceConfigureHook(node);
       installPromptStateGuard(node, hiddenWidget);
       installPromptMetadataCapture(node);
       preparePromptBackingWidgets(node);
@@ -113,10 +124,16 @@ export function registerPromptPaletteEditor({ buildWildcardWidget, livePromptPal
         scheduleRendererInstall(() => {
           if (!nodeIsActive(node)) return;
           node._wgInstallSocketRailWhenReady?.();
+          node._wgRefreshFromHidden?.();
+          node._wgRefreshIoToggles?.();
           queueSocketRailLayout(node);
           scheduleDomWidgetRemeasure(node);
         });
-        queueMicrotask(() => reassertHiddenWidgets());
+        queueMicrotask(() => {
+          if (!nodeIsActive(node)) return;
+          node._wgRefreshFromHidden?.();
+          reassertHiddenWidgets();
+        });
         scheduleDomWidgetRemeasure(node);
 
         lifecycle.add(() => {

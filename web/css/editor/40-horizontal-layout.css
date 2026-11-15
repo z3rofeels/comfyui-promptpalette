@@ -5,14 +5,14 @@
   --pp-toolbar-height: max(24px, calc(32px * var(--pp-toolbar-scale, 1)));
   box-sizing: border-box;
   display: flex; flex: 0 0 auto; flex-flow: row nowrap; align-items: center;
-  min-width: 0; min-height: 0; gap: calc(var(--pp-s-1) * var(--pp-toolbar-scale, 1)); padding: calc(var(--pp-s-1) * var(--pp-toolbar-scale, 1)) calc(var(--pp-s-2) * var(--pp-toolbar-scale, 1));
+  min-width: 0; min-height: 0; gap: calc(var(--pp-s-1) * var(--pp-toolbar-scale, 1)); padding: calc(var(--pp-s-0) * var(--pp-toolbar-scale, 1)) calc(var(--pp-s-1) * var(--pp-toolbar-scale, 1));
   overflow: hidden; background: var(--wg-panel-bg);
 }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[hidden] { display: none !important; }
 .wg-root .wg-toolbar-track {
   display: flex; flex: 1 1 auto; flex-flow: row nowrap; align-items: center;
   justify-content: center; justify-content: safe center;
-  min-width: 0; gap: calc(var(--pp-s-0) * var(--pp-toolbar-scale, 1)); padding: calc(var(--pp-s-0) * var(--pp-toolbar-scale, 1));
+  min-width: 0; gap: calc(var(--pp-s-0) * var(--pp-toolbar-scale, 1)); padding: 0;
   overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
   scrollbar-width: thin; scrollbar-color: var(--wg-border-strong) transparent;
   scroll-padding: 2px;
@@ -33,6 +33,7 @@
 }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-mode="click"] .wg-toolbar-anchor { display: none; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-tool-label, .wg-settings-button-label, .wg-io-button-label) { display: none !important; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-action-btn, .wg-pill)[hidden] { display: none !important; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-action-btn, .wg-pill) {
   box-sizing: border-box; flex: 0 0 auto; display: inline-flex;
   align-items: center; justify-content: center;
@@ -57,9 +58,16 @@
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-io-toggle-btn { width: auto; min-width: var(--pp-toolbar-icon-size); padding-inline: 4px; gap: 3px; }
 .wg-root .wg-toolbar .wg-io-toggle-btn [data-io-count]:empty { display: none; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-settings-anchor { background: var(--wg-panel-bg); border: 1px solid var(--wg-border); }
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-pill):is(:hover, .on, .active, [aria-pressed="true"], [aria-expanded="true"]):not(:disabled) {
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-pill):hover:not(:disabled) {
   color: var(--pp-toolbar-accent-ink, var(--wg-text));
   background: color-mix(in srgb, var(--wg-accent) 8%, var(--wg-panel-bg));
+  border-color: color-mix(in srgb, var(--wg-accent) 35%, var(--wg-border));
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-pill):is(.on, .active, [aria-pressed="true"], [aria-expanded="true"]):not(:disabled) {
+  color: var(--pp-toolbar-accent-ink, var(--wg-text));
+  background: color-mix(in srgb, var(--wg-accent) 18%, var(--wg-panel-bg));
+  border-color: color-mix(in srgb, var(--wg-accent) 60%, var(--wg-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent) 22%, transparent);
 }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-icon-btn[data-act="clear"]:hover:not(:disabled) {
   color: var(--pp-toolbar-ink, var(--wg-text));
@@ -84,22 +92,22 @@
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-mode="auto"][data-expanded="false"] :is(.wg-toolbar-track, .wg-toolbar-scroll-button) {
   display: none !important;
 }
+/* The collapsed Settings button occupies exactly the box it has when the bar is expanded
+   (same icon-size x toolbar-height, same inline/block inset as the bar's own padding), so
+   revealing or retracting the bar never moves the gear. Size/inset come from the shared
+   --pp-toolbar-* tokens at every toolbar scale; do not give it a separate collapsed size. */
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-mode="auto"][data-expanded="false"] .wg-toolbar-anchor {
   position: absolute;
-  top: 4px;
-  right: 6px;
+  top: calc(var(--pp-s-0) * var(--pp-toolbar-scale, 1));
+  right: calc(var(--pp-s-1) * var(--pp-toolbar-scale, 1));
   padding: 0;
   border: 0;
   pointer-events: auto;
 }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-mode="auto"][data-expanded="false"] .wg-toolbar-anchor .wg-icon-btn {
-  width: 22px;
-  min-width: 22px;
-  height: 22px;
-  min-height: 22px;
   padding: 0;
-  background: color-mix(in srgb, var(--wg-panel-bg) 88%, transparent);
-  backdrop-filter: blur(6px);
+  background: var(--wg-panel-bg);
+  border-color: var(--wg-border);
   opacity: 0;
   transition: opacity 140ms ease;
 }
@@ -147,8 +155,7 @@
   min-height: 22px;
   padding: 0 6px;
   font-size: calc(10px * var(--wg-ui-font-scale, 1));
-  background: color-mix(in srgb, var(--wg-panel-bg) 88%, transparent);
-  backdrop-filter: blur(6px);
+  background: var(--wg-panel-bg);
   opacity: 0.45;
   transition: opacity 140ms ease, border-color 140ms ease, background 140ms ease;
 }
@@ -191,29 +198,80 @@
 @media (max-width: 520px) { .wg-root .wg-toolbar-options { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .wg-root .wg-toolbar[data-retractable="true"]:not([hidden]) { animation: none; } }
 
-/* Seed controls keep their existing setting and bindings outside the action rail.
-   Redesigned into a sleek, compact 32px bar with theme-harmonized styling. */
-.wg-root > .wg-seed-controls {
-  display: none;
+/* Seed controls live in a compact panel opened from the toolbar Seed module
+   (wheel + live seed). Closed, the panel is hidden in place and takes no node
+   height; open, it is portaled beside the module (see .wg-seed-panel-portal). */
+.wg-root .wg-seed-panel[hidden] { display: none !important; }
+.wg-root .wg-seed-panel {
   box-sizing: border-box;
-  position: relative;
-  flex: 0 0 auto;
-  min-width: 0;
-  height: 32px;
-  margin: 0;
-  padding: 0 8px;
-  gap: 6px;
-  border-top: 0;
-  border-bottom: 1px solid var(--wg-border, #2a2e34);
-  background: color-mix(in srgb, var(--wg-panel-bg, #17191c) 88%, var(--wg-surface, #121417));
-  align-items: center;
-  justify-content: flex-start;
-  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 268px;
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  border: 1px solid var(--wg-border-strong, #3a4048);
+  border-radius: min(var(--wg-corner-radius, 10px), 10px);
+  background: var(--wg-panel-bg, #1c1f23);
+  color: var(--wg-text, #f1eee8);
+  box-shadow: 0 10px 28px rgba(0,0,0,.38), 0 0 0 1px color-mix(in srgb, var(--seed-accent, var(--wg-accent, #d49a52)) 10%, transparent);
+  font-family: var(--wg-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  zoom: var(--wg-menu-scale, 1);
 }
+.wg-root .wg-seed-panel-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.wg-root .wg-seed-panel-row > .wg-seed-stepper-group { flex: 1 1 auto; min-width: 0; }
+.wg-root .wg-seed-panel-row > .wg-seed-stepper-group .wg-seed-input { flex: 1 1 auto; width: auto !important; }
+.wg-root .wg-seed-panel-selects { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
+.wg-root .wg-seed-panel-field { display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: center; gap: 6px; min-width: 0; margin: 0; }
+.wg-root .wg-seed-panel [hidden] { display: none !important; }
+.wg-root .wg-seed-panel-field[hidden] { display: none; }
+.wg-root .wg-seed-panel-field > span {
+  color: var(--wg-text-dim, #b8b0a4); font-size: 9.5px; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.wg-root .wg-seed-panel .wg-seed-fortune-chip { flex: 1 1 auto; min-width: 0; max-width: none; height: 24px; }
+.wg-root .wg-seed-panel .wg-seed-actions-group { margin-left: auto; }
 
-.wg-root > .wg-seed-controls.on {
-  display: flex !important;
+/* Portal: fixed to the viewport, escapes the canvas transform and node overflow. */
+.wg-root.wg-seed-panel-portal { position: fixed; inset: 0; pointer-events: none; z-index: 10005; background: none; border: 0; }
+.wg-seed-panel-portal .wg-seed-panel-frame { position: fixed; left: var(--pp-seed-panel-left, 0px); top: var(--pp-seed-panel-top, 0px); pointer-events: auto; }
+.wg-seed-panel-portal .wg-seed-panel { animation: pp-seed-panel-enter 120ms ease-out; }
+@keyframes pp-seed-panel-enter { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+/* Toolbar Seed module: wheel + seed value + run-behavior tag. Uses the toolbar's
+   pill sizing/scale tokens; in compact mode the label collapses to the wheel. */
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar .wg-seed-toolbar-btn { max-width: 168px; }
+.wg-root .wg-seed-toolbar-btn .wg-svg-icon { color: var(--seed-accent, var(--pp-toolbar-accent-ink, var(--wg-accent, #d49a52))); transition: transform 600ms cubic-bezier(.2,.8,.2,1); }
+.wg-root .wg-seed-toolbar-btn.rolling .wg-svg-icon { animation: pp-seed-wheel-roll 650ms cubic-bezier(.2,.8,.2,1); }
+@keyframes pp-seed-wheel-roll { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.wg-root .wg-seed-toolbar-label { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; overflow: hidden; }
+.wg-root .wg-seed-toolbar-value {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--wg-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: .01em;
 }
+.wg-root .wg-seed-toolbar-mode {
+  flex: none; padding: 0 4px; border-radius: 4px;
+  font-size: .78em; font-weight: 700; line-height: 1.45; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--wg-text-dim, #b8b0a4);
+  background: color-mix(in srgb, var(--wg-accent, #d49a52) 12%, transparent);
+}
+.wg-root .wg-seed-toolbar-mode[hidden] { display: none; }
+/* The seed value is the module's key information, so it stays readable when the
+   rail goes compact; only the run-behavior tag collapses (it remains in the tooltip). */
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-seed-toolbar-btn {
+  width: auto; max-width: 112px; gap: calc(3px * var(--pp-toolbar-scale, 1)); padding-inline: calc(5px * var(--pp-toolbar-scale, 1));
+}
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-seed-toolbar-btn .wg-toolbar-label { display: inline-flex; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-seed-toolbar-mode { display: none; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-compact="true"] .wg-seed-toolbar-value { font-size: .92em; }
+.wg-root .wg-seed-toolbar-btn[data-seed-mode="randomize"] .wg-seed-toolbar-mode,
+.wg-root .wg-seed-toolbar-btn[data-seed-mode="connected"] .wg-seed-toolbar-mode { color: var(--pp-toolbar-accent-ink, var(--wg-accent, #d49a52)); }
+@media (prefers-reduced-motion: reduce) {
+  .wg-root .wg-seed-toolbar-btn.rolling .wg-svg-icon, .wg-seed-panel-portal .wg-seed-panel { animation: none; }
+}
+.wg-root.wg-disable-animations .wg-seed-toolbar-btn.rolling .wg-svg-icon,
+.wg-root.wg-reduce-motion .wg-seed-toolbar-btn.rolling .wg-svg-icon { animation: none; }
 
 /* Stepper group capsule: [ Spin | - | Input | + ] */
 .wg-root .wg-seed-stepper-group {
@@ -253,6 +311,11 @@
   color: #ffffff;
 }
 
+.wg-root .wg-seed-stepper-group .wg-seed-spin-btn:active {
+  background: color-mix(in srgb, var(--wg-accent, #d49a52) 28%, var(--wg-surface, #121417));
+  transform: scale(0.95);
+}
+
 .wg-root .wg-seed-step-btn {
   display: inline-flex;
   align-items: center;
@@ -264,12 +327,17 @@
   color: var(--wg-text-dim, #b8b0a4);
   cursor: pointer;
   padding: 0;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
 }
 
 .wg-root .wg-seed-step-btn:hover {
   background: color-mix(in srgb, var(--wg-accent, #d49a52) 15%, transparent);
   color: var(--wg-text, #f1eee8);
+}
+
+.wg-root .wg-seed-step-btn:active {
+  background: color-mix(in srgb, var(--wg-accent, #d49a52) 28%, transparent);
+  transform: scale(0.93);
 }
 
 .wg-root .wg-seed-step-btn.flash {
@@ -310,11 +378,12 @@
 }
 
 /* Polished Select Dropdowns */
-.wg-root > .wg-seed-controls .wg-seed-mode {
+.wg-root .wg-seed-panel .wg-seed-mode {
+  width: 100%;
+  max-width: none;
   box-sizing: border-box;
   height: 24px;
-  flex: 0 1 auto;
-  max-width: 145px;
+  min-width: 0;
   padding: 2px 18px 2px 7px;
   border-radius: 6px;
   border: 1px solid var(--wg-border, #2a2e34);
@@ -333,8 +402,8 @@
   transition: border-color 120ms ease, color 120ms ease;
 }
 
-.wg-root > .wg-seed-controls .wg-seed-mode:hover,
-.wg-root > .wg-seed-controls .wg-seed-mode:focus {
+.wg-root .wg-seed-panel .wg-seed-mode:hover,
+.wg-root .wg-seed-panel .wg-seed-mode:focus {
   border-color: var(--wg-accent, #d49a52);
   color: var(--wg-text, #f1eee8);
 }
@@ -355,7 +424,6 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--seed-accent, var(--wg-accent, #d49a52)) 15%, transparent);
   transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
   flex: 0 1 auto;
   overflow: hidden;
@@ -411,6 +479,10 @@
   color: var(--wg-text, #ffffff);
 }
 
+.wg-root .wg-seed-action-btn:active {
+  transform: scale(0.93);
+}
+
 .wg-root .wg-seed-wheel-btn {
   color: var(--wg-accent, #d49a52);
 }
@@ -428,7 +500,6 @@
   border: 1px solid var(--wg-border-strong, #3a4048);
   border-radius: 10px;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px color-mix(in srgb, var(--wg-accent, #d49a52) 15%, transparent);
-  backdrop-filter: blur(16px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -489,7 +560,7 @@
   font-size: 9.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
   white-space: nowrap;
 }
 
@@ -617,6 +688,10 @@
   transform: scale(1.08);
 }
 
+.wg-root .wg-seed-wheel-center-btn:active {
+  transform: scale(0.96);
+}
+
 .wg-root .wg-seed-wheel-status {
   text-align: center;
   font-size: 10px;
@@ -657,7 +732,7 @@
   font-family: inherit;
   font-size: 9.5px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 
 .wg-root .wg-seed-preset-pill:hover,
@@ -699,40 +774,6 @@
 
 .wg-root .wg-seed-item-unfav:hover {
   color: var(--wg-danger, #e06c75);
-}
-
-@container (max-width: 650px) {
-  .wg-root .wg-seed-fortune-rating {
-    display: none;
-  }
-}
-
-@container (max-width: 480px) {
-  .wg-root .wg-seed-fortune-name {
-    display: none;
-  }
-  .wg-root .wg-seed-fortune-chip {
-    padding: 0 5px;
-    max-width: 24px;
-  }
-}
-
-@container (max-width: 380px) {
-  .wg-root .wg-seed-fortune-chip {
-    display: none !important;
-  }
-}
-
-@container (max-width: 440px) {
-  .wg-root > .wg-seed-controls .wg-seed-mode[data-el="processingModeSelect"] {
-    display: none !important;
-  }
-}
-
-@container (max-width: 340px) {
-  .wg-root > .wg-seed-controls .wg-seed-mode {
-    display: none !important;
-  }
 }
 
 /* Horizontal workspace: drawers stay beside the editor without covering prompt text. */

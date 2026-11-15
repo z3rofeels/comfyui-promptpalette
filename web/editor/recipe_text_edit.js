@@ -1,11 +1,50 @@
 import { cloneWorkspaceData, compileWorkspace, validateWorkspaceRecipe } from "./recipe_workspace_model.js";
+import { LORA_DOCK_HEADER, LORA_DOCK_HEADER_RE, isLoraDockSegment, standaloneLoraTags, stripStandaloneLoraTags } from "../engine/lora_tags.js";
 
 // Apply text edits to one compiled channel without losing field identities,
 // the other channel, disabled fields, defaults or iteration history.
 export function editCompiledPrompt(recipe, after, { channel = "positive" } = {}) {
   if (!["positive", "negative"].includes(channel)) throw new Error("Invalid prompt channel.");
-  const next = cloneWorkspaceData(recipe), compiled = compileWorkspace(next), before = compiled[channel];
+  let next = cloneWorkspaceData(recipe);
+  const compiled = compileWorkspace(next), before = compiled[channel];
   if (before === after) return next;
+  if (channel === "positive" && (LORA_DOCK_HEADER_RE.test(before) || LORA_DOCK_HEADER_RE.test(after) || next.segments.some(s => isLoraDockSegment(s, channel)))) {
+    const match = LORA_DOCK_HEADER_RE.exec(after);
+    const afterBody = match ? after.slice(0, match.index).replace(/(?:\r?\n)+$/, "") : after;
+    const afterTail = match ? after.slice(match.index + match[0].length).replace(/^(?:\r?\n)+/, "").trim() : "";
+    const afterLoraBlock = afterTail ? `${LORA_DOCK_HEADER}\n${afterTail}` : "";
+    next.segments = next.segments.filter(s => !isLoraDockSegment(s, channel));
+    if (standaloneLoraTags(afterBody).length === 0) {
+      for (const f of next.fields) {
+        if ((f.channel || "positive") !== channel || !f.enabled) continue;
+        let val = f.value;
+        const dockMatch = LORA_DOCK_HEADER_RE.exec(val);
+        if (dockMatch) val = val.slice(0, dockMatch.index).replace(/(?:\r?\n)+$/, "");
+        if (standaloneLoraTags(val).length > 0) val = stripStandaloneLoraTags(val).clean;
+        if (val !== f.value) {
+          f.value = val;
+          delete f.variationTemplate;
+        }
+      }
+      next.segments = next.segments.filter(s => {
+        if (s.type !== "static" || (s.channel || "positive") !== channel) return true;
+        if (standaloneLoraTags(s.text).length > 0) {
+          s.text = stripStandaloneLoraTags(s.text).clean.replace(/^[,\s]+$/, "");
+        }
+        return s.boundary || s.text.length > 0;
+      });
+    }
+    if (compileWorkspace(next)[channel] !== afterBody) {
+      next = editCompiledPrompt(next, afterBody, { channel });
+    }
+    if (afterLoraBlock) {
+      const finalBody = compileWorkspace(next)[channel];
+      next.segments.push({ type: "static", text: finalBody ? `\n\n${afterLoraBlock}` : afterLoraBlock, channel });
+    }
+    const valid = validateWorkspaceRecipe(next);
+    if (compileWorkspace(valid)[channel] !== after) throw new Error("The text edit could not be mapped to workspace fields.");
+    return valid;
+  }
   if (channel === "negative") next.negative = "";
   let start = 0, end = before.length, tail = after.length;
   while (start < end && start < tail && before[start] === after[start]) start++;

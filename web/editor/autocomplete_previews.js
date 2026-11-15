@@ -88,25 +88,28 @@ export function hydrateAcThumbnails(menu, rows, activeIndex, isCurrent, onLayout
     const enter = () => { hovering = index; hide(); };
     row.addEventListener("mouseenter", enter); listeners.push(() => row.removeEventListener("mouseenter", enter));
   }
-  previewUrls(rows).then(urls => {
+  const previewTimer = setTimeout(() => {
     if (disposed || !isCurrent()) return;
-    rows.forEach(({row, index}, position) => {
-      const url = urls[position]; if (!url) return;
-      const image = document.createElement("img");
-      image.className = "wg-ac-thumb"; image.alt = ""; image.decoding = "async"; image.hidden = true;
-      image.onload = () => {
-        if (disposed || !isCurrent()) return;
-        image.hidden = false;
-        if (!layoutFrame) layoutFrame = requestAnimationFrame(() => { layoutFrame = 0; if (!disposed && isCurrent()) onLayout(); });
-        if (hovering === index) show(row, url);
-      };
-      image.onerror = () => { image.hidden = true; image.remove(); if (hovering === index) hide(); };
-      row.prepend(image); images.push(image); image.src = url;
-      const enter = () => { hovering = index; if (!image.hidden) show(row, url); else hide(); };
-      row.addEventListener("mouseenter", enter); listeners.push(() => row.removeEventListener("mouseenter", enter));
-    });
-  }).catch(() => { /* Optional imagery must leave autocomplete usable. */ });
-  const cleanup = () => { disposed = true; hide(); cancelAnimationFrame(layoutFrame); for (const remove of listeners) remove(); for (const image of images) { image.onload = null; image.onerror = null; image.remove(); } };
+    previewUrls(rows).then(urls => {
+      if (disposed || !isCurrent()) return;
+      rows.forEach(({row, index}, position) => {
+        const url = urls[position]; if (!url) return;
+        const image = document.createElement("img");
+        image.className = "wg-ac-thumb"; image.alt = ""; image.decoding = "async"; image.hidden = true;
+        image.onload = () => {
+          if (disposed || !isCurrent()) return;
+          image.hidden = false;
+          if (!layoutFrame) layoutFrame = requestAnimationFrame(() => { layoutFrame = 0; if (!disposed && isCurrent()) onLayout(); });
+          if (hovering === index) show(row, url);
+        };
+        image.onerror = () => { image.hidden = true; image.remove(); if (hovering === index) hide(); };
+        row.prepend(image); images.push(image); image.src = url;
+        const enter = () => { hovering = index; if (!image.hidden) show(row, url); else hide(); };
+        row.addEventListener("mouseenter", enter); listeners.push(() => row.removeEventListener("mouseenter", enter));
+      });
+    }).catch(() => { /* Optional imagery must leave autocomplete usable. */ });
+  }, 75);
+  const cleanup = () => { disposed = true; clearTimeout(previewTimer); hide(); cancelAnimationFrame(layoutFrame); for (const remove of listeners) remove(); for (const image of images) { image.onload = null; image.onerror = null; image.remove(); } };
   cleanup.dismiss = leave;
   return cleanup;
 }

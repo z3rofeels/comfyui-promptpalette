@@ -1,16 +1,20 @@
-import { workspaceGeneration, syncWorkspaceGeneration } from "./workspace_generation.js";
+import { app } from "../../../scripts/app.js";
+import { workspaceGeneration, syncWorkspaceGeneration, syncWorkspaceFieldSockets, prepareWorkspaceFieldSockets, recoverWorkspaceFromNode, hasOccupiedWorkspaceFields } from "./workspace_generation.js";
 import { API } from "../prompt_palette_api.js";
 import { getPowerToolPreferences } from "../prompt_palette_state.js";
-import { onPromptPaletteAppearanceChanged } from "../prompt_palette_shared.js";
+import { onPromptPaletteAppearanceChanged, svgIcon } from "../prompt_palette_shared.js";
 import { positiveAntonymsEnabled } from "./positive_antonyms.js";
 import { loadTheme } from "./preferences.js";
-import { normalizeFieldEditorPreferences, fieldGridRows } from "./field_editor_preferences.js";
-import { dialogPrompt, dialogConfirm } from "./dialogs.js";
+import { normalizeFieldEditorPreferences, fieldGridRows, fieldEditorHeight, fieldGridColumns, fieldAccentPlan } from "./field_editor_preferences.js";
+import { nudgeHexForContrast, currentUiSurface } from "./text_utils.js";
+import { dialogPrompt, dialogConfirm, dialogChoice } from "./dialogs.js";
 import { notify } from "./notifications.js";
 import { serializeRecipe, validateRecipe } from "./prompt_refinement.js";
 import { exportRecipePack } from "./recipe_io.js";
 import { attachRecipeFieldEditor } from "./recipe_field_editor.js";
-import { cloneWorkspaceData, WORKSPACE_KEY, blankWorkspace, workspaceFromRecipe, validateWorkspaceRecipe, compileWorkspace, newField, fieldId, reorderField, separators } from "./recipe_workspace_model.js";
+import { cloneWorkspaceData, WORKSPACE_KEY, blankWorkspace, workspaceFromRecipe, validateWorkspaceRecipe, compileWorkspace, combineFieldInput, newField, fieldId, reorderField, normalizeWorkspaceLoraDock, separators } from "./recipe_workspace_model.js";
+import { findFieldInputConnection, resolveFieldInputText, disconnectFieldInput } from "./upstream_input_import.js";
+import { LORA_DOCK_HEADER, LORA_DOCK_HEADER_RE, isLoraDockSegment, splitLoraDock } from "../engine/lora_tags.js";
 import { closeAcMenu, openOrUpdateAcMenu } from "./autocomplete.js";
 import { fieldVariationHint, choicesFromLines, editableChoiceLines } from "./recipe_variation_source.js";
 import { createExperimentPlan, resolveExperiment, applyExperiment, projectExperiment } from "./recipe_experiment.js";
@@ -21,6 +25,8 @@ import { workspaceCore } from "./recipe_workspace_model.js";
 import { sendPreparedPrompts } from "./prepared_handoff.js";
 import { installNegativePromptState } from "../prompt_palette_compat.js";
 import { editCompiledPrompt } from "./recipe_text_edit.js";
+import { onTagColorsChanged } from "./booru_tag_colors.js";
+import { socketConnected } from "../renderer/base_renderer_adapter.js";
 
 const ACCENT_PRESETS = [["#d86f70", "Red"], ["#82c6a2", "Green"], ["#75b7e8", "Blue"], ["#bb8ee8", "Purple"], ["#d49a52", "Amber"]];
 
@@ -29,9 +35,114 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   const wrap = root.querySelector(".wg-editor-wrap"), editors = new Map();
   let negativeWidget = node.widgets?.find(w => w.name === "negative_text");
   const negativeState = installNegativePromptState(node);
-  let state = null, syncing = false, disposed = false, activeFieldId = null;
+  let state = null, syncing = false, syncingSlots = false, previewReturnToWorkspace = false, disposed = false, activeFieldId = null;
+  const importingFieldIds = new Set();
+  function syncFieldInputImportState() {
+    if (!state?.recipe?.fields || state.view !== "workspace") return;
+    for (const f of state.recipe.fields) {
+      const conn = f.hasInput ? findFieldInputConnection(node, f.id) : { connected: false, sourceLabel: "" };
+      const busy = importingFieldIds.has(f.id);
+      const cardBtn = fieldsPane.querySelector(`[data-field-import="${CSS.escape(f.id)}"]`);
+      if (cardBtn) {
+        cardBtn.hidden = !conn.connected;
+        cardBtn.disabled = busy;
+        cardBtn.title = conn.connected
+          ? `Import text from ${conn.sourceLabel} into ${f.label} before running`
+          : "Connect an upstream node to this field's input socket to import text";
+      }
+      const settingsBtn = settingsPane.querySelector(`[data-settings-import="${CSS.escape(f.id)}"]`);
+      if (settingsBtn) {
+        settingsBtn.disabled = !conn.connected || busy;
+        settingsBtn.title = conn.connected
+          ? `Import text from ${conn.sourceLabel} into ${f.label} before running`
+          : "Connect an upstream node to this field's input socket to import text";
+      }
+      const disconnectBtn = settingsPane.querySelector(`[data-settings-disconnect="${CSS.escape(f.id)}"]`);
+      if (disconnectBtn) disconnectBtn.hidden = !conn.connected;
+    }
+  }
+  async function importFieldInput(id) {
+    if (disposed || !state || importingFieldIds.has(id)) return;
+    const field = state.recipe.fields.find(x => x.id === id);
+    if (!field?.hasInput) return;
+    importingFieldIds.add(id);
+    syncFieldInputImportState();
+    try {
+      const { text, sourceLabel } = await resolveFieldInputText({ node, fieldId: id, app });
+      if (disposed || !state) return;
+      const liveField = state.recipe.fields.find(x => x.id === id);
+      if (!liveField) return;
+      if (!text.trim()) {
+        notify("warn", "Input is empty", `${sourceLabel} returned empty text.`);
+        return;
+      }
+      const currentText = liveField.value || "";
+      let mode = "replace";
+      if (currentText.trim()) {
+        const clean = text.trim();
+        const preview = clean.length > 160 ? `${clean.slice(0, 160)}…` : clean;
+        mode = await dialogChoice({
+          title: `Import into ${liveField.label}`,
+          message: `From ${sourceLabel}:\n\n"${preview}"\n\nChoose how to apply this text:`,
+          choices: [
+            { label: "Replace", value: "replace", primary: true },
+            { label: "Replace & disconnect wire", value: "replace-disconnect" },
+            { label: "Append", value: "append" },
+            { label: "Prepend", value: "prepend" },
+            { label: "Cancel", value: null },
+          ],
+        });
+        if (!mode || disposed || !state) return;
+      }
+      const sep = liveField.separator ?? state.recipe.separator ?? ", ";
+      const nextValue = mode === "append"
+        ? combineFieldInput(currentText, text, { placement: "after", separator: sep })
+        : mode === "prepend"
+          ? combineFieldInput(currentText, text, { placement: "before", separator: sep })
+          : text;
+      mutate(r => {
+        const target = r.fields.find(x => x.id === id);
+        if (!target) return;
+        delete target.variationTemplate;
+        target.value = nextValue;
+        if (target.collapsed && !state.settingsOpen) target.collapsed = false;
+      });
+      if (mode === "replace-disconnect") {
+        disconnectFieldInput(node, id);
+      }
+      activeFieldId = id;
+      if (!state.settingsOpen) focusActiveField();
+      notify(
+        "info",
+        `Imported from ${sourceLabel}`,
+        mode === "replace-disconnect"
+          ? `Replaced ${liveField.label} and disconnected the input wire.`
+          : `Loaded ${text.length.toLocaleString()} characters into ${liveField.label}. Disconnect the input wire before running if you don't want it combined again.`
+      );
+    } catch (error) {
+      notify("error", "Could not import input text", error?.message || String(error));
+    } finally {
+      importingFieldIds.delete(id);
+      syncFieldInputImportState();
+    }
+  }
+  const channelConnected = channel => {
+    const input = node.inputs?.find(input => input.name === (channel === "negative" ? "negative_text" : "text"));
+    return !!input && socketConnected("input", input, node);
+  };
+  const refinementRevision = () => node._ppHistoryRefinement?.revision() ?? 0;
+  function syncFieldReadOnly(editor, channel) {
+    const readOnly = channelConnected(channel);
+    if (editor.readOnly === readOnly) return;
+    editor.readOnly = readOnly; editor.contentEditable = readOnly ? "false" : "true";
+    editor.setAttribute("aria-readonly", String(readOnly));
+  }
+  const summarySources = new WeakMap();
+  const fieldProjections = new WeakMap();
+  const fieldViewports = new Map();
+  let summaryRevision = 0;
   let insightTimer = null, insightPending = null, insightVersion = 0, insightKey = "", insightResult = null;
-  syncWorkspaceGeneration(node, null);
+  syncWorkspaceFieldSockets(node, recoverWorkspaceFromNode(node)?.recipe || null);
   let estimateScope = "vary";
   function cancelInsights() { clearTimeout(insightTimer); insightTimer = null; insightPending?.abort(); insightPending = null; insightVersion++; }
   function insightContext() { return state ? JSON.stringify({ recipe: workspaceCore(state.recipe), seed: getSeed(), mode: getMode(), scope: estimateScope, currentId: activeFieldId }) : ""; }
@@ -82,11 +193,23 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   const tabs = make("div", "pp-recipe-mode pp-refine-actions pp-split-rail");
   const section = make("section", "pp-recipe-workspace is-split"); section.hidden = true;
   const notice = make("span", "pp-refine-label");
+  const fieldNav = make("select", "pp-field-navigator"); fieldNav.hidden = true;
+  fieldNav.setAttribute("aria-label", "Jump to field"); fieldNav.title = "Jump to a field · keeps your selection and scroll position";
+  fieldNav.addEventListener("change", () => revealField(fieldNav.value));
+  fieldNav.addEventListener("keydown", event => event.stopPropagation());
+  fieldNav.addEventListener("pointerdown", event => event.stopPropagation());
   const modeGroup = make("div", "pp-split-seg"); modeGroup.setAttribute("role", "group"); modeGroup.setAttribute("aria-label", "Prompt editing mode");
   const railActions = make("div", "pp-split-actions");
   const fieldsPane = make("div", "pp-split-fields");
+  fieldsPane.addEventListener("focusout", event => {
+    const id = event.target.closest?.("[data-field-id]")?.dataset.fieldId;
+    if (editors.get(id)?.editor !== event.target) return;
+    const editor = event.target;
+    fieldViewports.set(id, { start: editor.selectionStart, end: editor.selectionEnd, direction: editor.selectionDirection, top: editor.scrollTop, left: editor.scrollLeft });
+  });
   const settingsPane = make("div", "pp-split-settings"); settingsPane.hidden = true;
   settingsPane.setAttribute("role", "region"); settingsPane.setAttribute("aria-label", "Workspace settings");
+  settingsPane.addEventListener("keydown", event => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); closeSettings(); } });
   function button(text, action, title = text) {
     const b = document.createElement("button"); b.type = "button"; b.className = "wg-button"; b.textContent = text; b.title = title;
     // Action roles share the user's palette, including custom themes.
@@ -106,161 +229,212 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     flushHistory(); state = null; persist(); rebuild(); render(); flushHistory();
   });
   convert.dataset.tone = "danger"; convert.title = "Keep the compiled prompt and switch to plain editing";
-  modeGroup.append(editorTab, workspaceTab); tabs.append(modeGroup, notice, railActions, convert); wrap.before(tabs); wrap.after(section);
-  function persist() { syncWorkspaceGeneration(node, state?.recipe || null); node.properties ||= {}; node.properties[WORKSPACE_KEY] = state ? cloneWorkspaceData(state) : null; node.setDirtyCanvas?.(true, true); }
+  modeGroup.append(editorTab, workspaceTab); tabs.append(modeGroup, fieldNav, notice, railActions, convert); wrap.before(tabs); wrap.after(section);
+  function persist() {
+    syncWorkspaceGeneration(node, state?.recipe || null);
+    node.properties ||= {};
+    node._ppWorkspaceVersion = (node._ppWorkspaceVersion || 0) + 1;
+    if (state) {
+      const saved = cloneWorkspaceData(state);
+      if (previewReturnToWorkspace) saved.view = "workspace";
+      node.properties[WORKSPACE_KEY] = saved;
+      node._ppConfiguredWorkspace = saved;
+    } else {
+      node.properties[WORKSPACE_KEY] = null;
+      delete node._ppConfiguredWorkspace;
+    }
+    if (!syncingSlots) {
+      syncingSlots = true;
+      try { node._ppPromptSlots?.syncActiveSlot?.(); } finally { syncingSlots = false; }
+    }
+    node.setDirtyCanvas?.(true, true);
+  }
   function currentCompilation() { return compileWorkspace(state.recipe); }
   function sync() {
     if (!state || syncing) return;
     syncing = true;
     try {
-      const result = currentCompilation(); textarea.value = result.positive;
+      const result = currentCompilation();
+      const changed = textarea.value !== result.positive || node._ppPromptStateGuard?.current?.() !== result.positive;
+      textarea.value = result.positive;
+      node._ppPromptStateGuard?.commit?.(result.positive, { notify: false, dirty: false });
       negativeState.commit(result.negative);
       negativeWidget = node.widgets?.find(w => w.name === "negative_text");
-      persist(); updatePreview();
+      persist(); updatePreview({ compilation: result });
+      if (changed) textarea.dispatchEvent(new CustomEvent("pp-workspace-sync"));
     } finally { syncing = false; }
   }
   function mutate(action, { typing = false, rebuildUI = true } = {}) {
     if (!state) return;
     const previous = cloneWorkspaceData(state);
     if (!typing) flushHistory();
-    try { action(state.recipe); state.recipe = captureBranch(validateWorkspaceRecipe(state.recipe)); sync(); }
+    try {
+      action(state.recipe);
+      normalizeWorkspaceLoraDock(state.recipe);
+      state.recipe = captureBranch(validateWorkspaceRecipe(state.recipe));
+      for (const channel of ["positive", "negative"]) if (channelConnected(channel)) {
+        const channelState = recipe => JSON.stringify([compileWorkspace(recipe)[channel], recipe.fields.filter(f => f.channel === channel)]);
+        if (channelState(state.recipe) !== channelState(previous.recipe)) throw new Error(`The ${channel} prompt is controlled by a connected input.`);
+      }
+      sync();
+    }
     catch (error) { state = previous; throw error; }
     if (rebuildUI) rebuild();
     render(); updateWorkspaceCharCount(); if (!typing) flushHistory();
   }
   const resizeCleanups = new Set();
-  function clearEditors() { resizeCleanups.forEach(cleanup => cleanup()); resizeCleanups.clear(); editors.forEach(e => e.cleanup()); editors.clear(); delete node._ppActiveRecipeEditor; }
-  let gridFrame = null;
+  function clearEditors() { if (observedField) gridObserver?.unobserve(observedField); observedField = null; resizeCleanups.forEach(cleanup => cleanup()); resizeCleanups.clear(); editors.forEach(e => e.cleanup()); editors.clear(); delete node._ppActiveRecipeEditor; }
+  let gridFrame = null, revealActive = false, observedField = null;
+  function observeActiveField() {
+    const card = fieldCard(activeFieldId);
+    if (card === observedField) return;
+    if (observedField) gridObserver?.unobserve(observedField);
+    observedField = card; if (card) gridObserver?.observe(card);
+  }
+  function keepFieldVisible(id) {
+    const card = fieldCard(id);
+    if (!card || !fieldsPane.clientHeight) return;
+    const pane = fieldsPane.getBoundingClientRect(), box = card.getBoundingClientRect();
+    const scale = pane.height / fieldsPane.offsetHeight || 1;
+    const bottom = box.height <= pane.height ? box.bottom : box.top + Math.min(pane.height, 96 * scale);
+    if (box.top < pane.top) fieldsPane.scrollTop += (box.top - pane.top) / scale;
+    else if (bottom > pane.bottom) fieldsPane.scrollTop += (bottom - pane.bottom) / scale;
+  }
   function scheduleFieldGrid() {
     if (disposed || gridFrame != null) return;
     gridFrame = requestAnimationFrame(() => {
       gridFrame = null;
       if (section.hidden) return;
-      const tracks = getComputedStyle(fieldsPane).gridTemplateColumns;
-      const columns = tracks && tracks !== "none" ? tracks.trim().split(/\s+/).length : 1;
+      let columns = fieldGridColumns(section.dataset.fieldColumns, fieldsPane.clientWidth);
+      if (section.dataset.fieldColumns === "auto") columns = Math.min(columns, Math.max(1, state.recipe.fields.length));
+      const tracks = `repeat(${columns}, minmax(0, 1fr))`;
+      if (fieldsPane.style.gridTemplateColumns !== tracks) fieldsPane.style.gridTemplateColumns = tracks;
       const rows = fieldGridRows([...fieldsPane.children].map(card => ({
         static: card.classList.contains("pp-recipe-static"),
         flexible: !card.classList.contains("is-collapsed") && card.dataset.heightMode === "fill",
       })), columns);
       if (fieldsPane.style.getPropertyValue("--pp-field-rows") !== rows) fieldsPane.style.setProperty("--pp-field-rows", rows || "none");
+      if (!fieldsPane.classList.contains("is-resizing") && (revealActive || fieldsPane.contains(document.activeElement))) keepFieldVisible(activeFieldId);
+      revealActive = false;
     });
   }
-  const gridObserver = typeof ResizeObserver === "function" ? new ResizeObserver(scheduleFieldGrid) : null;
+  const gridObserver = typeof ResizeObserver === "function" ? new ResizeObserver(() => {
+    if (root.contains(document.activeElement)) revealActive = true;
+    scheduleFieldGrid();
+  }) : null;
   gridObserver?.observe(fieldsPane);
   window.addEventListener("resize", scheduleFieldGrid);
-  // Editors fill the node by default, or auto-fit content when set to "auto". Dragging the grip pins a manual height; double-click resets.
+  // The existing grip owns one gesture, including cancellation and canvas zoom.
   function attachResizeGrip(card, editWrap, id, onModeChanged) {
-    const MIN = 48, MAX = 2400, grip = make("div", "pp-split-grip");
+    const grip = make("div", "pp-split-grip");
     grip.setAttribute("role", "separator"); grip.setAttribute("aria-orientation", "horizontal"); grip.tabIndex = 0;
-    grip.title = "Drag to resize · Shift or setting snaps to 8px · double-click to reset height";
+    grip.setAttribute("aria-label", "Field editor height");
+    grip.setAttribute("aria-valuemin", "48"); grip.setAttribute("aria-valuemax", "2400");
+    grip.title = "Drag to resize · Shift snaps to 8px · Escape cancels · double-click or Home restores Grid";
     const badge = make("span", "pp-resize-badge"); badge.hidden = true; card.appendChild(badge);
-    let badgeTimer = null;
+    let badgeTimer = null, start = null;
     const showBadge = (text, hold = false) => {
       clearTimeout(badgeTimer);
       badge.textContent = text; badge.hidden = false; card.classList.add("is-resizing");
       if (!hold) badgeTimer = setTimeout(() => { badge.hidden = true; card.classList.remove("is-resizing"); }, 650);
     };
-    const applyMode = modeOrHeight => {
-      if (modeOrHeight === "auto") {
-        editWrap.style.height = "";
-        delete card.dataset.sized;
-        card.dataset.heightMode = "auto";
-      } else if (Number.isFinite(Number(modeOrHeight)) && Number(modeOrHeight) >= MIN && Number(modeOrHeight) <= MAX) {
-        const raw = Number(modeOrHeight);
-        const px = loadTheme().workspaceSnapGrid !== false ? Math.round(raw / 8) * 8 : Math.round(raw);
-        editWrap.style.height = `${px}px`;
-        card.dataset.sized = "true";
-        card.dataset.heightMode = "manual";
-      } else {
-        editWrap.style.height = "";
-        delete card.dataset.sized;
-        card.dataset.heightMode = "fill";
-      }
-      onModeChanged?.(card.dataset.heightMode);
-      scheduleFieldGrid();
+    const applyMode = value => {
+      const height = value != null && value !== "auto" ? fieldEditorHeight(value, false) : null;
+      const mode = value === "auto" ? "auto" : height != null ? "manual" : "fill";
+      editWrap.style.height = height == null ? "" : `${height}px`;
+      if (height == null) delete card.dataset.sized; else card.dataset.sized = "true";
+      card.dataset.heightMode = mode;
+      grip.setAttribute("aria-valuenow", String(height ?? Math.round(editWrap.offsetHeight)));
+      grip.setAttribute("aria-valuetext", mode === "fill" ? "Grid cell" : mode === "auto" ? "Fit content" : `${height} pixels`);
+      onModeChanged?.(mode); scheduleFieldGrid();
     };
     const commit = value => {
+      if (!state) return;
       state.editorHeights = { ...(state.editorHeights || {}) };
-      if (value == null) delete state.editorHeights[id];
-      else state.editorHeights[id] = value;
+      if (value == null) delete state.editorHeights[id]; else state.editorHeights[id] = value;
       persist();
     };
-    const savedRaw = state?.editorHeights?.[id];
-    if (savedRaw === "auto") applyMode("auto");
-    else if (Number.isFinite( parseFloat(savedRaw) )) applyMode(parseFloat(savedRaw));
-    else applyMode(null);
-    let start = null;
+    const saved = state?.editorHeights?.[id];
+    applyMode(saved === "auto" ? saved : saved != null && Number.isFinite(Number(saved)) ? Number(saved) : null);
+    const owner = grip.ownerDocument, win = owner.defaultView;
+    const stopListening = () => {
+      owner.removeEventListener("pointermove", onMove, true);
+      owner.removeEventListener("pointerup", onUp, true);
+      owner.removeEventListener("pointercancel", onCancel, true);
+      owner.removeEventListener("keydown", onEscape, true);
+      win.removeEventListener("blur", onCancel);
+    };
+    const finish = (cancel = false) => {
+      if (!start) return;
+      const previous = start; start = null; stopListening();
+      try { if (grip.hasPointerCapture?.(previous.pointerId)) grip.releasePointerCapture(previous.pointerId); } catch {}
+      fieldsPane.classList.remove("is-resizing");
+      if (cancel) applyMode(previous.mode);
+      else commit(parseFloat(editWrap.style.height));
+      showBadge(cancel ? "Cancelled" : editWrap.style.height, false);
+    };
     const onMove = event => {
-      if (!start) return;
-      const snap = loadTheme().workspaceSnapGrid !== false || event.shiftKey;
-      let raw = start.h + (event.clientY - start.y) / start.scale;
-      if (snap) raw = Math.round(raw / 8) * 8;
-      const next = Math.min(MAX, Math.max(MIN, Math.round(raw)));
-      applyMode(next);
-      showBadge(`${next}px`, true);
-    };
-    const finish = () => {
-      if (!start) return;
-      start = null;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
-      const height = parseFloat(editWrap.style.height);
-      if (state && Number.isFinite(height)) {
-        commit(height);
-        showBadge(`${Math.round(height)}px`, false);
-      } else {
-        badge.hidden = true;
-        card.classList.remove("is-resizing");
-      }
-    };
-    grip.addEventListener("pointerdown", event => {
-      if (event.button !== 0) return;
-      const rect = editWrap.getBoundingClientRect();
-      start = { y: event.clientY, h: editWrap.offsetHeight, scale: rect.height / Math.max(1, editWrap.offsetHeight) || 1 };
-      event.stopPropagation();
-      try { grip.setPointerCapture?.(event.pointerId); } catch {}
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", finish);
-      window.addEventListener("pointercancel", finish);
-      event.preventDefault();
-    });
-    grip.addEventListener("keydown", event => {
-      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      if (!start || event.pointerId !== start.pointerId) return;
+      const next = fieldEditorHeight(start.h + (event.clientY - start.y) / start.scale, start.snap || event.shiftKey);
+      applyMode(next); showBadge(`${next}px`, true);
       event.preventDefault(); event.stopPropagation();
-      const snap = loadTheme().workspaceSnapGrid !== false || event.shiftKey;
-      const raw = editWrap.offsetHeight + (event.key === "ArrowDown" ? 8 : -8);
-      const next = Math.min(MAX, Math.max(MIN, snap ? Math.round(raw / 8) * 8 : Math.round(raw)));
-      applyMode(next); commit(next); showBadge(`${next}px`, false);
-    });
-    grip.addEventListener("dblclick", () => {
-      applyMode(null); commit(null); showBadge("Grid", false);
-    });
-    card._ppSetHeightMode = mode => {
-      applyMode(mode); commit(mode); showBadge(mode === "auto" ? "Auto" : mode == null ? "Grid" : `${editWrap.style.height}`, false);
     };
-    resizeCleanups.add(() => {
-      start = null; clearTimeout(badgeTimer);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
+    const onUp = event => { if (event.pointerId === start?.pointerId) { finish(); event.preventDefault(); event.stopPropagation(); } };
+    const onCancel = event => { if (event.type === "blur" || event.pointerId === start?.pointerId) finish(true); };
+    const onEscape = event => { if (event.key === "Escape") { finish(true); event.preventDefault(); event.stopPropagation(); } };
+    grip.addEventListener("pointerdown", event => {
+      if (start || event.button !== 0) return;
+      const rect = editWrap.getBoundingClientRect();
+      start = { pointerId: event.pointerId, y: event.clientY, h: editWrap.offsetHeight,
+        scale: rect.height / Math.max(1, editWrap.offsetHeight) || 1,
+        snap: loadTheme().workspaceSnapGrid !== false,
+        mode: card.dataset.heightMode === "manual" ? parseFloat(editWrap.style.height) : card.dataset.heightMode === "auto" ? "auto" : null };
+      // Pin the starting height before grid tracks redistribute their free space.
+      applyMode(start.h); fieldsPane.classList.add("is-resizing");
+      try { grip.setPointerCapture?.(event.pointerId); } catch {}
+      owner.addEventListener("pointermove", onMove, true);
+      owner.addEventListener("pointerup", onUp, true);
+      owner.addEventListener("pointercancel", onCancel, true);
+      owner.addEventListener("keydown", onEscape, true);
+      win.addEventListener("blur", onCancel);
+      event.preventDefault(); event.stopPropagation();
     });
+    grip.addEventListener("lostpointercapture", () => finish(true));
+    grip.addEventListener("mousedown", event => event.stopPropagation());
+    grip.addEventListener("keydown", event => {
+      if (!["ArrowUp", "ArrowDown", "Home"].includes(event.key)) return;
+      event.preventDefault(); event.stopPropagation();
+      const next = event.key === "Home" ? null : fieldEditorHeight(editWrap.offsetHeight + (event.key === "ArrowDown" ? 8 : -8), loadTheme().workspaceSnapGrid !== false || event.shiftKey);
+      applyMode(next); commit(next); showBadge(next == null ? "Grid" : `${next}px`);
+    });
+    grip.addEventListener("dblclick", event => { event.preventDefault(); event.stopPropagation(); applyMode(null); commit(null); showBadge("Grid"); });
+    card._ppSetHeightMode = mode => { applyMode(mode); commit(mode); showBadge(mode === "auto" ? "Auto" : mode == null ? "Grid" : editWrap.style.height); };
+    resizeCleanups.add(() => { start = null; stopListening(); clearTimeout(badgeTimer); fieldsPane.classList.remove("is-resizing"); });
     return grip;
   }
   function fieldCard(id) { return section.querySelector(`[data-field-id="${CSS.escape(id)}"]`); }
   function optionsCard(id) { return section.querySelector(`[data-settings-field="${CSS.escape(id)}"]`); }
+  // The accent can color the card, the title or both (workspace default, per-field override).
+  // Only the card chrome, the title text and the caret are touched; editor syntax colors, theme
+  // variables and the theme's own title color (Automatic / No accent) are never overridden. The
+  // title and caret colors are nudged to stay readable on the active theme's field surface, and
+  // re-derived whenever the appearance changes (`summaryRevision`).
+  let accentContext = { revision: -1, surface: "", target: "both" };
+  function accentEnvironment() {
+    if (accentContext.revision !== summaryRevision) accentContext = { revision: summaryRevision, surface: currentUiSurface(), target: normalizeFieldEditorPreferences(loadTheme()).fieldColorTarget };
+    return accentContext;
+  }
   function applyAccent(card, f) {
-    const raw = (f.accent || "").toLowerCase();
-    if (raw === "none") {
-      card.dataset.accent = "none";
-      card.style.removeProperty("--pp-field-accent");
-    } else if (raw) {
-      card.dataset.accent = "custom";
-      card.style.setProperty("--pp-field-accent", f.accent);
-    } else {
-      card.dataset.accent = "auto";
-      card.style.removeProperty("--pp-field-accent");
-    }
+    const { surface, target } = accentEnvironment(), plan = fieldAccentPlan(f, target), style = card.style;
+    card.dataset.accent = plan.chrome;
+    if (plan.chrome === "custom") { style.setProperty("--pp-field-accent", plan.hex); style.setProperty("--pp-field-caret", nudgeHexForContrast(plan.hex, surface, 3)); }
+    else { style.removeProperty("--pp-field-accent"); style.removeProperty("--pp-field-caret"); }
+    if (plan.title) { card.dataset.titleAccent = "true"; style.setProperty("--pp-field-title-color", nudgeHexForContrast(plan.hex, surface, 4.5)); }
+    else { delete card.dataset.titleAccent; style.removeProperty("--pp-field-title-color"); }
+  }
+  function refreshAccents() {
+    if (!state?.recipe?.fields) return;
+    for (const f of state.recipe.fields) { const card = fieldCard(f.id); if (card) applyAccent(card, f); }
   }
   function openSettings(tab = state?.settingsTab || "fields", fieldId = null) {
     if (!state) return;
@@ -268,12 +442,12 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     if (fieldId) state.optionsOpen = [...new Set([...(state.optionsOpen || []), fieldId])];
     persist(); rebuild();
     if (fieldId) optionsCard(fieldId)?.scrollIntoView?.({ block: "nearest" });
-    settingsPane.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
+    (fieldId ? optionsCard(fieldId)?.querySelector("[data-field-variation]") : settingsPane.querySelector('[role="tab"][aria-selected="true"]'))?.focus({ preventScroll: true });
   }
   function closeSettings() {
     if (!state?.settingsOpen) return;
     state.settingsOpen = false; persist(); rebuild();
-    (editors.get(activeFieldId) || editors.values().next().value)?.editor.focus({ preventScroll: true });
+    focusActiveField();
   }
   // Brings a field's editor into view (closing settings, expanding it) for actions that act on its text.
   function revealField(id) {
@@ -281,13 +455,19 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     state.settingsOpen = false; activeFieldId = id;
     if (state.recipe.fields.find(f => f.id === id)?.collapsed) mutate(r => { r.fields.find(f => f.id === id).collapsed = false; });
     else { persist(); rebuild(); }
-    const tools = editors.get(id); tools?.editor.focus({ preventScroll: true }); return tools || null;
+    // Rebuilding may restore the previously focused editor first.
+    activeFieldId = id; return focusActiveField();
+  }
+  function focusActiveField() {
+    const tools = editors.get(activeFieldId) || editors.values().next().value;
+    tools?.editor.focus({ preventScroll: true }); revealActive = true; scheduleFieldGrid(); return tools || null;
   }
   function variationGuard(id, captured = null) {
     const f = state?.recipe.fields.find(f => f.id === id);
     if (!f || !f.enabled) throw new Error("Enable this field before varying it.");
+    if (channelConnected(f.channel)) throw new Error("This field is controlled by a connected prompt input.");
     if (f.experimentState === "lock") throw new Error("This field is locked. Change its experiment state before varying it.");
-    const context = JSON.stringify({ recipe: state.recipe, seed: getSeed(), mode: getMode() });
+    const context = JSON.stringify({ recipe: state.recipe, seed: getSeed(), mode: getMode(), refinement: refinementRevision() });
     if (captured != null && captured !== context) throw new Error("The workspace or seed changed. Capture the selection again.");
     return context;
   }
@@ -308,17 +488,24 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     else textarea.readOnly = enabled;
     textarea.setAttribute("aria-readonly", String(enabled));
   }
-  function view(mode) { if (!state) return; closeAcMenu(); state.view = mode; persist(); rebuild(); if (mode === "editor") { onShowEditor?.(); textarea.focus({ preventScroll: true }); } }
+  function view(mode, { fromPreview = false } = {}) {
+    if (!state) return;
+    if (!fromPreview) previewReturnToWorkspace = false;
+    closeAcMenu(); state.view = mode; persist(); rebuild();
+    if (mode === "editor") { onShowEditor?.(); if (!fromPreview) textarea.focus({ preventScroll: true }); }
+    else if (mode === "workspace") onShowEditor?.();
+  }
   function orderedFields() { const lookup = new Map(state.recipe.fields.map(f => [f.id, f])); return state.recipe.segments.filter(s => s.type === "field").map(s => lookup.get(s.id)); }
   async function freezeField(id) {
     const field = state?.recipe.fields.find(f => f.id === id);
     if (!field?.enabled || !field.value.trim()) throw new Error("Enable and fill this field before freezing it.");
-    const captured = JSON.stringify(state.recipe), seed = getSeed(), mode = getMode();
+    if (channelConnected(field.channel)) throw new Error("This field is controlled by a connected prompt input.");
+    const captured = JSON.stringify(state.recipe), seed = getSeed(), mode = getMode(), revision = refinementRevision();
     const last = node.properties?.prompt_palette_last_result;
     const payload = JSON.stringify(workspaceGeneration(state.recipe, { namespace: node.id }));
     const preview = last?.workspace_runtime === payload && last.workspace_fields?.[id] != null
       ? { fields: last.workspace_fields } : await resolveWorkspacePreview(state.recipe, seed, mode, API.resolveVariations, { namespace: node.id });
-    if (disposed || !state || captured !== JSON.stringify(state.recipe) || seed !== getSeed() || mode !== getMode()) throw new Error("The workspace or seed changed. Freeze the current value again.");
+    if (disposed || !state || revision !== refinementRevision() || captured !== JSON.stringify(state.recipe) || seed !== getSeed() || mode !== getMode()) throw new Error("The workspace or seed changed. Freeze the current value again.");
     if (!Object.hasOwn(preview.fields, id)) throw new Error("This field has no active resolved value.");
     mutate(r => {
       const f = r.fields.find(f => f.id === id);
@@ -388,7 +575,8 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     if (!state) return;
     for (const f of state.recipe.fields) {
       const chip = section.querySelector(`[data-field-count="${CSS.escape(f.id)}"]`);
-      if (chip) chip.textContent = `${f.value.length.toLocaleString()}c`;
+      const text = `${f.value.length.toLocaleString()}c`;
+      if (chip && chip.textContent !== text) chip.textContent = text;
     }
     const charCountEl = root.querySelector('[data-el="charCount"]');
     if (!charCountEl) return;
@@ -409,6 +597,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     for (const [key, value] of Object.entries(ui)) if (key.startsWith("showField")) section.dataset[key] = String(value);
     section.dataset.fieldColumns = ui.fieldEditorColumns;
     section.style.setProperty("--pp-field-min-height", `${ui.fieldEditorMinHeight}px`);
+    refreshAccents();
     notice.hidden = !ui.showWorkspaceName;
     convert.hidden = !state || !ui.showFieldUnlink;
     const railPreferences = { add: "showFieldAdd", save: "showFieldSave", variation: "showFieldVariation", layouts: "showLayoutsShortcut" };
@@ -417,29 +606,50 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     section.querySelectorAll('[data-field-doctor]').forEach(btn => { btn.hidden = !doctorEnabled || !ui.showFieldReview; });
     scheduleFieldGrid();
   }
-  function updatePreview() {
+  function updatePreview({ compilation = null } = {}) {
     if (!state) return;
-    const result = currentCompilation();
+    const result = compilation || currentCompilation();
     const summary = section.querySelector(".pp-recipe-preview > summary");
     if (summary) summary.textContent = positiveAntonymsEnabled(node) ? "Compiled source · Positive Antonyms apply in output preview" : "Compiled Prompt";
-    section.querySelector('[data-compiled="positive"]')?.replaceChildren(document.createTextNode(result.positive || "(empty prompt)"));
-    section.querySelector('[data-compiled="negative"]')?.replaceChildren(document.createTextNode(result.negative));
+    for (const channel of ["positive", "negative"]) {
+      const preview = section.querySelector(`[data-compiled="${channel}"]`);
+      const text = result[channel] || (channel === "positive" ? "(empty prompt)" : "");
+      if (preview && preview.textContent !== text) preview.textContent = text;
+    }
     notice.textContent = `${state.recipe.name || "Adjustable recipe"}${historyOf(state.recipe).activeVariantId ? " / " + historyOf(state.recipe).variants.find(v => v.id === historyOf(state.recipe).activeVariantId)?.name : ""}${JSON.stringify(state.recipe) !== state.baseline ? " • edited" : ""}`;
+    const variationEnabled = !!getPowerToolPreferences().variationLab;
     for (const f of state.recipe.fields) {
-      const card = fieldCard(f.id), options = optionsCard(f.id); ensureResolvedUI(options, f);
-      const guide = options?.querySelector(".pp-field-variation-hint"); if (guide) guide.textContent = fieldVariationHint(f, state.recipe.fields);
-      const vary = options?.querySelector("[data-vary-field]"); if (vary) { vary.disabled = !f.enabled || !f.value.trim() || f.experimentState === "lock"; vary.hidden = !getPowerToolPreferences().variationLab; }
+      const card = fieldCard(f.id), options = optionsCard(f.id);
+      const hint = fieldVariationHint(f, state.recipe.fields), inheritanceText = fieldInheritance(state.recipe, f.id) || "";
+      const projection = [f.value, f.enabled, f.experimentState, f.variationTemplate, variationEnabled, hint, inheritanceText, summaryRevision];
+      const owner = card || options;
+      const previousProjection = owner && fieldProjections.get(owner);
+      if (previousProjection?.every((value, index) => value === projection[index])) continue;
+      if (owner) fieldProjections.set(owner, projection);
+      ensureResolvedUI(options, f);
+      const guide = options?.querySelector(".pp-field-variation-hint"); if (guide && guide.textContent !== hint) guide.textContent = hint;
+      const vary = options?.querySelector("[data-vary-field]"); if (vary) { vary.disabled = !f.enabled || !f.value.trim() || f.experimentState === "lock"; vary.hidden = !variationEnabled; vary.title = !f.enabled ? "Include this field before previewing choices" : !f.value.trim() ? "Add text, choices or a wildcard first" : f.experimentState === "lock" ? "Locked: choose Vary in this field’s settings to explore its choices" : "Preview choices for this field in Variation Lab"; }
       const freeze = options?.querySelector("[data-freeze-field]"); if (freeze) { freeze.hidden = !hasDynamicSyntax(f.value); freeze.disabled = !f.enabled || !f.value.trim(); }
       const restore = options?.querySelector("[data-restore-choices]"); if (restore) restore.hidden = !f.variationTemplate;
       const saved = options?.querySelector(".pp-field-saved-choices"); if (saved) { saved.hidden = !f.variationTemplate; saved.querySelector("pre").textContent = f.variationTemplate || ""; }
-      const resetBase = options?.querySelector("[data-reset-base]"); if (resetBase) resetBase.hidden = fieldInheritance(state.recipe, f.id) !== "overridden";
+      const resetBase = options?.querySelector("[data-reset-base]"); if (resetBase) resetBase.hidden = inheritanceText !== "overridden";
       const header = card?.querySelector(".pp-recipe-summary");
       if (header) {
         const singleLine = f.value.trim().replace(/\s+/g, " ");
-        if (singleLine && typeof paintSyntax === "function") header.innerHTML = paintSyntax(singleLine).html;
-        else header.textContent = singleLine || "Empty field";
+        const previous = summarySources.get(header);
+        if (previous?.source !== singleLine || previous?.revision !== summaryRevision) {
+          if (singleLine && typeof paintSyntax === "function") {
+            const html = paintSyntax(singleLine).html;
+            if (header.innerHTML !== html) header.innerHTML = html;
+          } else if (header.textContent !== (singleLine || "Empty field")) header.textContent = singleLine || "Empty field";
+          summarySources.set(header, { source: singleLine, revision: summaryRevision });
+        }
       }
-      section.querySelectorAll(`[data-inheritance-field="${CSS.escape(f.id)}"]`).forEach(inheritance => { inheritance.textContent = fieldInheritance(state.recipe, f.id) || ""; inheritance.dataset.inheritance = inheritance.textContent; inheritance.hidden = !inheritance.textContent; });
+      section.querySelectorAll(`[data-inheritance-field="${CSS.escape(f.id)}"]`).forEach(inheritance => {
+        if (inheritance.textContent !== inheritanceText) inheritance.textContent = inheritanceText;
+        if (inheritance.dataset.inheritance !== inheritanceText) inheritance.dataset.inheritance = inheritanceText;
+        if (inheritance.hidden !== !inheritanceText) inheritance.hidden = !inheritanceText;
+      });
     }
     updateWorkspaceCharCount();
     scheduleInsights();
@@ -506,7 +716,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     const custom = make("input", "pp-accent-custom"); custom.type = "color"; custom.value = isHex ? current : "#d49a52";
     custom.title = "Custom color"; custom.setAttribute("aria-label", `Custom accent color for ${label}`);
     custom.dataset.active = String(isHex && !ACCENT_PRESETS.some(([value]) => value === current));
-    custom.addEventListener("input", () => { const card = fieldCard(f.id); if (card) applyAccent(card, { accent: custom.value }); });
+    custom.addEventListener("input", () => { const card = fieldCard(f.id); if (card) applyAccent(card, { ...f, accent: custom.value }); });
     custom.addEventListener("change", () => choose(custom.value));
     group.appendChild(custom); return group;
   }
@@ -519,7 +729,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       added = newField(`Section ${r.fields.length + 1}`); added.titleHidden = true;
       r.fields.push(added); r.segments.push({ type: "field", id: added.id, join: true });
     });
-    editors.get(added.id)?.editor.focus({ preventScroll: true });
+    activeFieldId = added.id; focusActiveField();
   }
   function buildFieldCard(f, index) {
     const card = make("article", "pp-recipe-field"); card.dataset.fieldId = f.id;
@@ -534,7 +744,21 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     const summary = make("span", "pp-recipe-summary");
     const inherited = make("span", "pp-field-inheritance"); inherited.dataset.inheritanceField = f.id; inherited.textContent = fieldInheritance(state.recipe, f.id) || ""; inherited.hidden = !inherited.textContent;
     const stateChip = f.experimentState ? make("span", "pp-recipe-state", f.experimentState[0].toUpperCase() + f.experimentState.slice(1)) : null;
-    if (stateChip) stateChip.title = "Variation mode · change it in Field settings";
+    if (stateChip) stateChip.title = `${fieldVariationHint(f, state.recipe.fields)} Open ⚙ to change Lock / Vary / Follow.`;
+    const ioChip = (f.hasInput && f.hasOutput)
+      ? make("span", "pp-recipe-state pp-field-io-chip", "IN·OUT")
+      : f.hasInput
+      ? make("span", "pp-recipe-state pp-field-io-chip", "IN")
+      : f.hasOutput
+      ? make("span", "pp-recipe-state pp-field-io-chip", "OUT")
+      : null;
+    if (ioChip) {
+      ioChip.title = f.hasInput && f.hasOutput
+        ? "Field Input & Output sockets enabled on node"
+        : f.hasInput
+        ? "Field Input socket enabled on node"
+        : "Field Output socket enabled on node";
+    }
     const charChip = make("span", "pp-field-char-count", `${f.value.length.toLocaleString()}c`);
     charChip.dataset.fieldCount = f.id; charChip.title = "Characters in this field";
     const isNeg = f.channel === "negative";
@@ -552,6 +776,18 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     checkbox.setAttribute("aria-label", `Include ${name}`);
     checkbox.addEventListener("change", () => mutate(r => { r.fields.find(x => x.id === f.id).enabled = checkbox.checked; }));
     const headActions = make("span", "pp-field-head-actions");
+    if (f.hasInput) {
+      const conn = findFieldInputConnection(node, f.id);
+      const importBtn = button("", () => importFieldInput(f.id), conn.connected
+        ? `Import text from ${conn.sourceLabel} into ${name} before running`
+        : "Connect an upstream node to this field's input socket to import text");
+      importBtn.innerHTML = `${svgIcon("download", 11)}<span>Import</span>`;
+      importBtn.classList.add("pp-field-action", "pp-field-import-btn");
+      importBtn.dataset.fieldImport = f.id;
+      importBtn.hidden = !conn.connected;
+      importBtn.disabled = importingFieldIds.has(f.id);
+      headActions.appendChild(importBtn);
+    }
     let heightBtn = null;
     if (!f.collapsed) {
       heightBtn = button("Auto", () => {
@@ -566,11 +802,12 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       doctorBtn.hidden = !getPowerToolPreferences().promptDoctor;
       headActions.append(heightBtn, doctorBtn);
     }
-    const gear = button("⚙", () => openSettings("fields", f.id), `Field settings for ${name}`);
+    const gear = button("", () => openSettings("fields", f.id), `Settings for ${name} · Lock / Vary / Follow, choices and appearance`);
+    gear.innerHTML = svgIcon("settings", 12);
     gear.classList.add("pp-recipe-field-gear", "pp-field-action");
     gear.setAttribute("aria-label", gear.title);
     headActions.appendChild(gear);
-    head.append(collapse, summary, inherited, ...(stateChip ? [stateChip] : []), charChip, headActions, channel, checkbox);
+    head.append(collapse, summary, inherited, ...(stateChip ? [stateChip] : []), ...(ioChip ? [ioChip] : []), charChip, headActions, channel, checkbox);
     card.appendChild(head); fieldsPane.appendChild(card);
     if (f.collapsed) return;
     const editWrap = make("div", "pp-recipe-editor wg-editor-real");
@@ -594,9 +831,38 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       variationGuard: captured => variationGuard(f.id, captured), prepareBatchPrompts: (prompts, captured) => prepareFieldBatch(f.id, prompts, captured),
       mapBatchPrompt: value => compileWorkspace(state.recipe, { [f.id]: value }).positive,
       projectPrompt: value => compileWorkspace(state.recipe, { [f.id]: value })[f.channel],
-      onChange: value => { mutate(r => { const field = r.fields.find(x => x.id === f.id); if (field.value !== value) delete field.variationTemplate; field.value = value; }, { typing: true, rebuildUI: false }); card.classList.toggle("is-empty", !value.trim()); updateWorkspaceCharCount(); },
-      atomicEdit: value => mutate(r => { const field = r.fields.find(x => x.id === f.id); if (field.value !== value) delete field.variationTemplate; field.value = value; }, { rebuildUI: false }),
-      onFocus: editor => { activeFieldId = f.id; node._ppActiveRecipeEditor = editor; updateWorkspaceCharCount(); scheduleInsights(); } }); editors.set(f.id, tools);
+      onChange: value => {
+        // Composition-end and tool sync can repeat the final native input.
+        // Keep their selection/paint behavior without committing the same edit.
+        if (state?.recipe.fields.find(x => x.id === f.id)?.value === value) return;
+        mutate(r => { const field = r.fields.find(x => x.id === f.id); if (field.value !== value) delete field.variationTemplate; field.value = value; }, { typing: true, rebuildUI: false });
+        card.classList.toggle("is-empty", !value.trim());
+      },
+      atomicEdit: value => {
+        const dock = f.channel === "positive" && LORA_DOCK_HEADER_RE.test(value);
+        mutate(r => {
+          const field = r.fields.find(x => x.id === f.id);
+          if (dock) {
+            const { body, items } = splitLoraDock(value);
+            if (field.value !== body) delete field.variationTemplate;
+            field.value = body;
+            if (items.length) {
+              r.segments.push({ type: "static", text: `${LORA_DOCK_HEADER}\n${items.join(" ")}`, channel: "positive" });
+            }
+          } else {
+            if (field.value !== value) delete field.variationTemplate;
+            field.value = value;
+          }
+        }, { rebuildUI: dock });
+      },
+      onFocus: editor => {
+        activeFieldId = f.id; fieldNav.value = f.id; node._ppActiveRecipeEditor = editor;
+        for (const field of fieldsPane.children) field.classList.toggle("is-active-field", field === card);
+        observeActiveField(); revealActive = true; scheduleFieldGrid(); updateWorkspaceCharCount(); scheduleInsights();
+      } }); editors.set(f.id, tools);
+    const viewport = fieldViewports.get(f.id);
+    syncFieldReadOnly(tools.editor, f.channel);
+    if (viewport) tools.editor.setSelectionRange(viewport.start, viewport.end, viewport.direction);
   }
   function buildFieldOptions(f, index, total) {
     const name = f.titleHidden ? `field ${index + 1}` : f.label;
@@ -626,7 +892,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
         const raw = await dialogPrompt({ title: "Field editor height", message: "Height in pixels (48–2400)", defaultValue: String(Number(savedHeight) || 160) });
         if (raw == null) { rebuild(); return; }
         next = Number(raw); if (!Number.isFinite(next) || next < 48 || next > 2400) throw new Error("Choose a height from 48 to 2400 pixels.");
-        if (loadTheme().workspaceSnapGrid !== false) next = Math.round(next / 8) * 8;
+        next = fieldEditorHeight(next, loadTheme().workspaceSnapGrid !== false);
       }
       state.editorHeights = { ...(state.editorHeights || {}) };
       if (next == null) delete state.editorHeights[f.id]; else state.editorHeights[f.id] = next;
@@ -634,13 +900,83 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     });
     body.appendChild(settingsRow("Editor height", height));
     body.appendChild(settingsRow("Accent", accentControl(f, name)));
-    const experiment = selectControl(`Variation mode for ${name}`, [["", "Default"], ["lock", "Lock"], ["vary", "Vary"], ["follow", "Follow"]], f.experimentState || "", async value => { if (value && !node.widgets?.some(w => w.name === "workspace_runtime")) throw new Error("Restart ComfyUI and reload this workflow to activate field generation controls."); if (value === "lock" && f.enabled && f.value.trim()) await freezeField(f.id); else mutate(r => { r.fields.find(x => x.id === f.id).experimentState = value || null; }); });
+    const targetNames = { both: "Field and title", field: "Field only", title: "Title only" }, hasAccentColor = /^#[0-9a-f]{6}$/i.test(f.accent || "");
+    const targetControl = selectControl(`Accent color target for ${name}`, [["", `Workspace default · ${targetNames[normalizeFieldEditorPreferences(loadTheme()).fieldColorTarget]}`], ...Object.entries(targetNames)], f.accentTarget || "", value => mutate(r => { const target = r.fields.find(x => x.id === f.id); if (value) target.accentTarget = value; else delete target.accentTarget; }));
+    targetControl.disabled = !hasAccentColor; targetControl.dataset.fieldAccentTarget = f.id;
+    targetControl.title = hasAccentColor ? "Where this field's accent shows: its card, its title, or both. Editor text colors never change." : "Choose an accent color above to pick where it shows.";
+    body.appendChild(settingsRow("Color on", targetControl));
+    const experiment = selectControl(`Variation mode for ${name}`, [["", "Default"], ["lock", "Lock"], ["vary", "Vary"], ["follow", "Follow"]], f.experimentState || "", async value => {
+      if (value && !node.widgets?.some(w => w.name === "workspace_runtime")) throw new Error("Restart ComfyUI and reload this workflow to activate field generation controls.");
+      // Typing replaces validated recipe objects without rebuilding these controls.
+      const field = state?.recipe.fields.find(x => x.id === f.id);
+      if (!field || disposed) return;
+      if (value === "lock" && field.enabled && field.value.trim()) await freezeField(field.id);
+      else mutate(r => { r.fields.find(x => x.id === field.id).experimentState = value || null; });
+    });
     experiment.title = "Vary: change choices during generation. Lock: capture and keep a value across seeds and reloads. Follow: change only when a source field changes. Default: normal prompt syntax.";
-    body.appendChild(settingsRow("Variation", experiment));
+    experiment.dataset.fieldVariation = f.id;
+    experiment.setAttribute("aria-description", experiment.title);
+    body.appendChild(settingsRow("Lock / Vary / Follow", experiment));
     body.appendChild(settingsRow("Prompt", selectControl(`Prompt channel for ${name}`, [["positive", "Positive"], ["negative", "Negative"]], f.channel, value => mutate(r => { r.fields.find(x => x.id === f.id).channel = value; }))));
     const builtinTypes = ["text", "character", "outfit", "pose", "lighting", "environment", "camera", "composition", "style", "negative", "custom"];
     body.appendChild(settingsRow("Type", selectControl(`Field type for ${name}`, [["text", "Unspecified"], ["character", "Character"], ["outfit", "Outfit"], ["pose", "Pose"], ["lighting", "Lighting"], ["environment", "Environment"], ["camera", "Camera"], ["composition", "Composition"], ["style", "Style"], ["negative", "Negative"], ["custom", "Custom"], ...(!builtinTypes.includes(f.fieldType || "text") ? [[f.fieldType, f.fieldType]] : [])], f.fieldType || "text", value => mutate(r => { r.fields.find(x => x.id === f.id).fieldType = value; }))));
     body.appendChild(settingsRow("Joined by", separatorControl(f)));
+    function fieldInputControl() {
+      const wrap = make("div", "pp-split-row-group");
+      const check = make("input"); check.type = "checkbox"; check.checked = !!f.hasInput;
+      check.setAttribute("aria-label", `Enable input socket for ${name}`);
+      check.title = "Expose an input socket on the node to send external text into this field";
+      check.addEventListener("change", () => {
+        mutate(r => { const target = r.fields.find(x => x.id === f.id); target.hasInput = check.checked; });
+      });
+      const checkLabel = make("label", "pp-split-check-label");
+      checkLabel.append(check, document.createTextNode("Socket")); wrap.append(checkLabel);
+      if (f.hasInput) {
+        const conn = findFieldInputConnection(node, f.id);
+        const placement = selectControl(`Placement for ${name}`, [["before", "Insert before text"], ["after", "Insert after text"]], f.inputPlacement || "before", value => mutate(r => { r.fields.find(x => x.id === f.id).inputPlacement = value; }));
+        placement.title = "Choose whether incoming external text is prepended before or appended after the widget text";
+        const importBtn = button("Import", () => importFieldInput(f.id), conn.connected
+          ? `Import text from ${conn.sourceLabel} into ${name} before running`
+          : "Connect an upstream node to this field's input socket to import text");
+        importBtn.classList.add("pp-field-settings-import");
+        importBtn.dataset.settingsImport = f.id;
+        importBtn.disabled = !conn.connected || importingFieldIds.has(f.id);
+        const disconnectBtn = button("Disconnect", () => {
+          if (disconnectFieldInput(node, f.id)) notify("info", "Input disconnected", `Disconnected input wire from ${name}.`);
+        }, `Disconnect input wire from ${name}`);
+        disconnectBtn.classList.add("pp-field-settings-disconnect");
+        disconnectBtn.dataset.settingsDisconnect = f.id;
+        disconnectBtn.hidden = !conn.connected;
+        wrap.append(placement, importBtn, disconnectBtn);
+      }
+      return wrap;
+    }
+    function fieldOutputControl() {
+      const wrap = make("div", "pp-split-row-group");
+      const check = make("input"); check.type = "checkbox"; check.checked = !!f.hasOutput;
+      check.setAttribute("aria-label", `Enable output socket for ${name}`);
+      check.title = "Expose an output socket on the node to pipe the resolved prompt from this field to other nodes";
+      check.addEventListener("change", () => {
+        mutate(r => { const target = r.fields.find(x => x.id === f.id); target.hasOutput = check.checked; });
+      });
+      const checkLabel = make("label", "pp-split-check-label");
+      checkLabel.append(check, document.createTextNode("Socket (STRING)")); wrap.append(checkLabel);
+      return wrap;
+    }
+    body.appendChild(settingsRow("Input text", fieldInputControl()));
+    body.appendChild(settingsRow("Output text", fieldOutputControl()));
+    if (f.hasInput || f.hasOutput) {
+      const route = make("p", "pp-refine-note");
+      route.dataset.fieldRouting = f.id;
+      const separator = f.separator ?? state.recipe.separator ?? ", ";
+      const separatorLabel = separator === "\n" ? "a newline" : separator === "" ? "no separator" : separator === " " ? "a space" : JSON.stringify(separator);
+      route.textContent = [
+        f.hasInput ? `${f.inputPlacement === "after" ? "Field text → incoming text" : "Incoming text → field text"}, joined with ${separatorLabel}. Empty field text accepts incoming text on its own; empty incoming text keeps your writing. Upstream text is available at execution; previews show authored text.` : "",
+        f.hasOutput ? `Out: ${name} supplies only this field’s resolved text, including its input. Global prefix/suffix and other fields are excluded. Connect to a text encoder for regional conditioning. The field stays in its original place in the full prompt.` : "",
+        !f.enabled ? "This field is disabled: its input is ignored and its output is empty." : "",
+      ].filter(Boolean).join(" ");
+      body.appendChild(route);
+    }
     if (["vary", "follow"].includes(f.experimentState)) body.appendChild(settingsRow("How to vary", selectControl(`Generation method for ${name}`, [["cycle", "Cycle choices · every generation"], ["shuffle", "Shuffle · avoid repeats"], ["seed", "By seed · reproducible"], ["syntax", "Use written syntax · advanced"]], f.variationMode || "cycle", value => mutate(r => { r.fields.find(x => x.id === f.id).variationMode = value; }))));
     ensureResolvedUI(opts, f); sourceControls(body, f);
     if (f.experimentState === "follow") followControls(body, f);
@@ -664,19 +1000,35 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     const focusedField = section.contains(focused) ? focused.closest?.("[data-field-id]")?.dataset.fieldId : null;
     const fieldSelection = focusedField && focused.classList?.contains("wg-textarea") ? [focused.selectionStart, focused.selectionEnd, focused.selectionDirection] : null;
     const needsEditorFocus = focused === textarea || !!focusedField;
+    // Every edit rebuilds the surface. Remember where the person was so the rebuild is invisible to them.
     const settingsScroll = settingsPane.querySelector(".pp-split-settings-body")?.scrollTop || 0;
+    const settingsWasOpen = !settingsPane.hidden;
+    const fieldsScroll = fieldsPane.scrollTop;
+    for (const [id, { editor }] of editors) {
+      const previous = fieldViewports.get(id);
+      const selection = editor === focused || !previous ? { start: editor.selectionStart, end: editor.selectionEnd, direction: editor.selectionDirection } : previous;
+      fieldViewports.set(id, { ...selection, top: editor.scrollTop, left: editor.scrollLeft });
+    }
     clearEditors(); section.replaceChildren(); fieldsPane.replaceChildren(); settingsPane.replaceChildren(); railActions.replaceChildren();
     const enabled = getPowerToolPreferences().adjustableRecipes;
-    workspaceTab.hidden = !enabled; tabs.hidden = !enabled && !state;
+    workspaceTab.hidden = !enabled && !state; tabs.hidden = !enabled && !state;
     convert.hidden = !state; setReadOnly(false);
     const split = !!state && state.view === "workspace";
+    fieldNav.hidden = !split || state.recipe.fields.length < 2;
     editorTab.setAttribute("aria-pressed", String(!split)); workspaceTab.setAttribute("aria-pressed", String(split));
     wrap.hidden = !!state && state.view === "workspace"; section.hidden = !split; tabs.classList.toggle("is-workspace", split);
     root.classList.toggle("pp-recipe-active", split);
     if (!split) { cancelInsights(); if (!insightResult) insightKey = ""; if (state) updatePreview(); else notice.textContent = ""; return; }
+    if (!state.recipe.fields.some(f => f.id === activeFieldId)) activeFieldId = orderedFields().find(f => !f.collapsed)?.id || orderedFields()[0]?.id;
+    for (const id of fieldViewports.keys()) if (!state.recipe.fields.some(f => f.id === id)) fieldViewports.delete(id);
+    fieldNav.replaceChildren(...orderedFields().map((f, i) => {
+      const option = make("option", "", `${i + 1}. ${f.titleHidden ? "Untitled field" : f.label}${f.channel === "negative" ? " · Negative" : ""}${!f.enabled ? " · Excluded" : f.experimentState ? ` · ${f.experimentState}` : ""}`);
+      option.value = f.id; return option;
+    })); fieldNav.value = activeFieldId;
+    section.dataset.settingsOpen = String(!!state.settingsOpen);
     const settingsButton = button("Settings", () => state.settingsOpen ? closeSettings() : openSettings(), "Field and workspace settings");
     settingsButton.setAttribute("aria-expanded", String(!!state.settingsOpen)); settingsButton.classList.add("pp-split-settings-toggle");
-    const variationBtn = button("Variation Lab", () => openVariations("vary"));
+    const variationBtn = button("Variation Lab", () => openVariations(), "Preview choices for a scope, then apply a version or send it to Combinatorial");
     variationBtn.dataset.workspaceAct = "variation";
     variationBtn.hidden = !getPowerToolPreferences().variationLab;
     const layoutsBtn = button("Layouts", () => { openSettings("workspace"); const picker = section.querySelector(".pp-workspace-layout-picker"); if (picker) picker.open = true; });
@@ -709,7 +1061,13 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     for (const segment of state.recipe.segments) {
       if (segment.type === "static") {
         if (!segment.text.trim() || segment.boundary) continue;
-        const fixed = make("div", "pp-recipe-static", segment.text); fixed.title = "Fixed recipe text; preserved in this position"; fieldsPane.appendChild(fixed); continue;
+        const isDock = isLoraDockSegment(segment);
+        const display = isDock ? segment.text.trim() : segment.text;
+        const fixed = make("div", isDock ? "pp-recipe-static pp-recipe-lora-dock" : "pp-recipe-static");
+        if (isDock && typeof paintSyntax === "function") fixed.innerHTML = paintSyntax(display).html;
+        else fixed.textContent = display;
+        fixed.title = isDock ? "Docked LoRAs · always kept at the end of the prompt after all fields" : "Fixed recipe text; preserved in this position";
+        fieldsPane.appendChild(fixed); continue;
       }
       const f = lookup.get(segment.id), index = fieldIndex++;
       buildFieldCard(f, index); panes.fields.appendChild(buildFieldOptions(f, index, total));
@@ -720,7 +1078,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       settingsGroup("Joining", settingsRow("Default separator", separatorControl())),
       settingsGroup("Workspace", (() => {
         const row = make("div", "pp-refine-actions pp-split-global-actions");
-        const globalVariation = button("Variation Lab", () => openVariations("vary"));
+        const globalVariation = button("Variation Lab", () => openVariations(), "Preview choices for a scope, then apply a version or send it to Combinatorial");
         globalVariation.dataset.workspaceGlobal = "variation";
         globalVariation.hidden = !getPowerToolPreferences().variationLab;
         row.append(button("+ Field", addField), button("Save", () => saveRecipe()), globalVariation, button("Save copy", () => saveRecipe(true)), button("Rename workspace", renameRecipe), button("Export", () => exportRecipePack(state.recipe)), button("Unlink fields", () => convert.click()), button("Reset workspace", () => mutate(r => r.fields.forEach(f => { f.value = f.default; delete f.variationTemplate; }))));
@@ -755,13 +1113,24 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     const close = button("×", () => closeSettings(), "Close settings"); close.classList.add("wg-close-btn", "pp-split-close"); close.setAttribute("aria-label", "Close settings");
     head.append(tabBar, close); settingsPane.append(head, body);
     showTab(["fields", "workspace", "preview", "history"].includes(state.settingsTab) ? state.settingsTab : "fields");
-    settingsPane.hidden = !state.settingsOpen; body.scrollTop = settingsScroll;
-    settingsPane.addEventListener("keydown", event => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); closeSettings(); } });
+    settingsPane.hidden = !state.settingsOpen;
     section.append(fieldsPane, settingsPane);
+    fieldsPane.scrollTop = fieldsScroll;
+    for (const [id, { editor }] of editors) {
+      const viewport = fieldViewports.get(id);
+      if (viewport) { editor.scrollTop = viewport.top; editor.scrollLeft = viewport.left; }
+    }
+    fieldCard(activeFieldId)?.classList.add("is-active-field");
+    observeActiveField();
+    revealActive ||= needsEditorFocus || (!!state.settingsOpen && !settingsWasOpen);
     updatePreview(); refreshChrome();
+    // Offsets only stick on attached, visible elements that already have their final height. The cards are
+    // populated by updatePreview/refreshChrome, so restoring earlier clamps the offset against a short pane.
+    if (state.settingsOpen) body.scrollTop = settingsScroll;
+    fieldsPane.scrollTop = fieldsScroll;
     if (needsEditorFocus && !state.settingsOpen) {
       const editor = (editors.get(focusedField || activeFieldId) || editors.values().next().value)?.editor;
-      if (editor) { editor.focus({ preventScroll: true }); if (fieldSelection && editors.get(focusedField)?.editor === editor) editor.setSelectionRange(...fieldSelection); }
+      if (editor) { editor.focus({ preventScroll: true }); if (fieldSelection && editors.get(focusedField)?.editor === editor) editor.setSelectionRange(...fieldSelection); const viewport = fieldViewports.get(activeFieldId); if (viewport) editor.scrollTop = viewport.top; }
     }
   }
   function restore(snapshot, { commit = true } = {}) {
@@ -779,11 +1148,19 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   function reconcile() {
     if (!state || syncing) return;
     const compiled = currentCompilation();
-    if (textarea.value === compiled.positive) return;
+    const currentText = textarea.value;
+    if (currentText === compiled.positive) return;
     const selection = { start: textarea.selectionStart, end: textarea.selectionEnd, direction: textarea.selectionDirection };
-    state.recipe = captureBranch(editCompiledPrompt(state.recipe, textarea.value));
-    sync(); rebuild();
-    textarea.setSelectionRange(selection.start, selection.end, selection.direction);
+    state.recipe = captureBranch(editCompiledPrompt(state.recipe, currentText));
+    sync();
+    let rebuilt = false;
+    if (state.view === "workspace" || !section.hidden || editors.size > 0 || fieldsPane.childElementCount > 0) {
+      rebuild();
+      rebuilt = true;
+    }
+    if (rebuilt || textarea.value !== currentText) {
+      textarea.setSelectionRange(selection.start, selection.end, selection.direction);
+    }
   }
   function refreshPresetOptions() {
     const select = section.querySelector('[aria-label="Field preset"]'); if (!select) return;
@@ -793,27 +1170,130 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     for (const path of paths) if (![...select.options].some(option => option.value === `saved:${path}`)) { const option = document.createElement("option"); option.value = `saved:${path}`; option.textContent = path.split("/").at(-1).replace(/[_-]/g, " "); select.appendChild(option); }
     select.value = [...select.options].some(option => option.value === selected) ? selected : "";
   }
-  function refresh() {
-    const saved = node.properties?.[WORKSPACE_KEY];
+  function refresh({ fromConfigure = false, info = null } = {}) {
+    summaryRevision++;
+    const saved = fromConfigure ? recoverWorkspaceFromNode(node, info) : (node.properties?.[WORKSPACE_KEY] ?? recoverWorkspaceFromNode(node));
+    if (fromConfigure && saved && hasOccupiedWorkspaceFields(saved)) saved.view = "workspace";
     if (JSON.stringify(saved || null) !== JSON.stringify(state)) restore(saved || null, { commit: false });
     else if (state) { insightKey = ""; sync(); refreshPresetOptions(); refreshChrome(); editors.forEach(e => e.repaint()); }
   }
-  const settings = () => { if (state && !getPowerToolPreferences().adjustableRecipes) state.view = "editor"; persist(); rebuild(); };
-  const unsubscribeAppearance = onPromptPaletteAppearanceChanged(() => { if (!disposed) refreshChrome(); });
-  const showCompiledForPreview = event => { if (state?.view === "workspace" && event.target.closest('[data-act="resolve"]')) view("editor"); };
+  const settings = () => { rebuild(); };
+  const nativeConfigure = node.configure;
+  const configure = function(info, ...args) {
+    return nativeConfigure.call(this, prepareWorkspaceFieldSockets(this, info), ...args);
+  };
+  if (typeof nativeConfigure === 'function') node.configure = configure;
+  const previousConfigure = node.onConfigure;
+  const onConfigure = function(info) {
+    // Synchronous restoration also covers hosts calling onConfigure directly.
+    const incoming = recoverWorkspaceFromNode(this, info);
+    if (incoming) {
+      if (hasOccupiedWorkspaceFields(incoming)) incoming.view = "workspace";
+      this.properties ||= {};
+      this.properties[WORKSPACE_KEY] = cloneWorkspaceData(incoming);
+      this._ppConfiguredWorkspace = cloneWorkspaceData(incoming);
+    }
+    syncWorkspaceFieldSockets(node, incoming?.recipe || this.properties?.[WORKSPACE_KEY]?.recipe || null);
+    if (!disposed && incoming) refresh({ fromConfigure: true, info });
+    const result = previousConfigure?.apply(this, arguments);
+    if (!disposed) refresh({ fromConfigure: true, info });
+    return result;
+  };
+  node.onConfigure = onConfigure;
+  const previousSerialize = node.onSerialize;
+  const onSerialize = function(data) {
+    const result = previousSerialize?.apply(this, arguments);
+    if (!data || typeof data !== "object") return result;
+    syncWorkspaceGeneration(this, state?.recipe || null);
+    if (state) {
+      const saved = cloneWorkspaceData(state);
+      if (previewReturnToWorkspace) saved.view = "workspace";
+      data.properties ||= {};
+      data.properties[WORKSPACE_KEY] = saved;
+      const runtimeWidget = this.widgets?.find?.(w => w.name === "workspace_runtime");
+      const runtimeVal = runtimeWidget?.serializeValue?.() ?? runtimeWidget?.value ?? "";
+      if (runtimeVal) {
+        data.widgets_values_named = {
+          ...(data.widgets_values_named && typeof data.widgets_values_named === "object" ? data.widgets_values_named : {}),
+          workspace_runtime: runtimeVal,
+        };
+      }
+    }
+    return result;
+  };
+  node.onSerialize = onSerialize;
+  const unsubscribeAppearance = onPromptPaletteAppearanceChanged(() => {
+    if (disposed) return;
+    summaryRevision++; refreshChrome();
+    if (state?.view === "workspace") updatePreview();
+  });
+  const unsubscribeTagColors = onTagColorsChanged(() => {
+    if (disposed) return;
+    summaryRevision++;
+    if (state?.view === "workspace") updatePreview();
+  });
+  const showCompiledForPreview = event => {
+    if (!state || !event.target.closest('[data-act="resolve"]')) return;
+    const resolvedView = root.querySelector('[data-el="resolvedView"]');
+    const enteringPreview = !resolvedView?.classList.contains("on");
+    if (enteringPreview && state.view === "workspace") {
+      previewReturnToWorkspace = true;
+      view("editor", { fromPreview: true });
+    } else if (!enteringPreview && previewReturnToWorkspace) {
+      previewReturnToWorkspace = false;
+      queueMicrotask(() => { if (!disposed && state) view("workspace"); });
+    }
+  };
   root.addEventListener("click", showCompiledForPreview, true);
   root.addEventListener("pp-output-transform-changed", updatePreview);
   window.addEventListener("pp-power-tools-changed", settings);
-  try { if (node.properties?.[WORKSPACE_KEY]) restore(node.properties[WORKSPACE_KEY], { commit: false }); else rebuild(); }
+  try {
+    const initialSaved = recoverWorkspaceFromNode(node);
+    if (initialSaved) {
+      if (hasOccupiedWorkspaceFields(initialSaved)) initialSaved.view = "workspace";
+      restore(initialSaved, { commit: false });
+    } else rebuild();
+  }
   catch (error) { notify("error", "Workspace could not be restored", error.message); state = null; rebuild(); }
-  function experimentPlan(scope) { if (!state) throw new Error("Open a workspace first."); const plan = createExperimentPlan(state.recipe, scope, activeFieldId); plan.runtimeNamespace = String(node.id); return plan; }
-  function assertPlan(plan) { if (disposed || !state) throw new Error("The workspace was closed."); applyExperiment(state.recipe, plan, {}); }
+  function experimentPlan(scope) {
+    if (!state) throw new Error("Open a workspace first.");
+    const plan = createExperimentPlan(state.recipe, scope, activeFieldId);
+    const editable = id => !channelConnected(state.recipe.fields.find(f => f.id === id).channel);
+    plan.primaryTargets = plan.primaryTargets.filter(editable); plan.targets = plan.targets.filter(editable);
+    if (!plan.primaryTargets.length) throw new Error("This scope has no editable fields; its prompt inputs are connected.");
+    plan.runtimeNamespace = String(node.id); plan.refinementRevision = refinementRevision(); return plan;
+  }
+  function assertPlan(plan) {
+    if (disposed || !state || plan.refinementRevision !== refinementRevision()) throw new Error("The workspace or refinement changed. Refresh variations first.");
+    applyExperiment(state.recipe, plan, {});
+  }
   return { open, reconcile, refresh, refreshChrome, restore, snapshot: () => state ? cloneWorkspaceData(state) : null,
-    isActive: () => !!state, showEditor: () => view("editor"), experimentPlan, assertPlan, contextChanged: () => scheduleInsights(),
+    openFieldSettings: () => openSettings("fields"),
+    captureEditingContext() {
+      for (const [id, { editor }] of editors) fieldViewports.set(id, { start: editor.selectionStart, end: editor.selectionEnd, direction: editor.selectionDirection, top: editor.scrollTop, left: editor.scrollLeft });
+      return state ? { activeFieldId, viewports: [...fieldViewports].map(([id, viewport]) => [id, { ...viewport }]), scroll: fieldsPane.scrollTop, focusField: state.view === "workspace" } : null;
+    },
+    restoreEditingContext(saved) {
+      if (!state || !saved) return;
+      rebuild();
+      activeFieldId = saved.activeFieldId; fieldViewports.clear();
+      for (const [id, viewport] of saved.viewports) fieldViewports.set(id, viewport);
+      if (saved.focusField) focusActiveField(); else textarea.focus({ preventScroll: true });
+      for (const [id, { editor }] of editors) { const viewport = fieldViewports.get(id); if (viewport) { editor.setSelectionRange(viewport.start, viewport.end, viewport.direction); editor.scrollTop = viewport.top; editor.scrollLeft = viewport.left; } }
+      fieldsPane.scrollTop = saved.scroll;
+    },
+    isActive: () => !!state, showEditor: () => view("editor"), experimentPlan, assertPlan, contextChanged: () => {
+      for (const [id, { editor }] of editors) {
+        syncFieldReadOnly(editor, state.recipe.fields.find(f => f.id === id).channel);
+      }
+      syncFieldInputImportState();
+      node._ppHistoryRefinement?.refreshControls();
+      scheduleInsights();
+    },
     editingSurface: () => state?.view === "workspace" ? (editors.get(activeFieldId) || editors.values().next().value)?.editor : null,
     focusEditingSurface() {
       const editor = state?.view === "workspace" ? (editors.get(activeFieldId) || editors.values().next().value)?.editor : null;
-      if (editor) editor.focus({ preventScroll: true });
+      if (editor) focusActiveField();
       else { if (state) view("editor"); textarea.focus({ preventScroll: true }); }
     },
     analyze: () => state ? analyzeWorkspace(state.recipe, { libraryEntries: getLibrary(), compiledPreview: { positive: textarea.value, negative: String(negativeWidget?.value || "") } }) : null,
@@ -835,6 +1315,6 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
         session: { resolution_seed: seed, wildcards: [...new Set(items.flatMap(item => item.wildcards))], negative_prompts: items.map(item => item.negative),
           ...(plan.strategy === "one-field" ? { comparison: "one-field", labels: items.map(item => item.trial?.label || "Trial") } : {}) } });
     },
-    cleanup() { disposed = true; cancelInsights(); gridObserver?.disconnect(); if (gridFrame != null) cancelAnimationFrame(gridFrame); window.removeEventListener("resize", scheduleFieldGrid); clearEditors(); unsubscribeAppearance?.(); window.removeEventListener("pp-power-tools-changed", settings); root.removeEventListener("pp-output-transform-changed", updatePreview); root.removeEventListener("click", showCompiledForPreview, true); tabs.remove(); section.remove(); delete node._ppActiveRecipeEditor; } };
+    cleanup() { disposed = true; if (node.configure === configure) node.configure = nativeConfigure; if (node.onConfigure === onConfigure) node.onConfigure = previousConfigure; if (node.onSerialize === onSerialize) node.onSerialize = previousSerialize; cancelInsights(); gridObserver?.disconnect(); if (gridFrame != null) cancelAnimationFrame(gridFrame); window.removeEventListener("resize", scheduleFieldGrid); clearEditors(); unsubscribeAppearance?.(); unsubscribeTagColors(); window.removeEventListener("pp-power-tools-changed", settings); root.removeEventListener("pp-output-transform-changed", updatePreview); root.removeEventListener("click", showCompiledForPreview, true); tabs.remove(); section.remove(); delete node._ppActiveRecipeEditor; } };
 }
 import { isComfyQueueShortcut } from "../editor_shortcuts.js";

@@ -41,7 +41,7 @@ dialog.pp-prompt-tools.wg-root {
   font-family: var(--wg-font-family, system-ui); font-size: calc(12px * var(--wg-ui-font-scale, 1)); line-height: 1.5;
 }
 dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
-.pp-prompt-tools::backdrop { background: rgb(0 0 0 / .38); backdrop-filter: blur(3px); }
+.pp-prompt-tools::backdrop { background: rgb(0 0 0 / .5); }
 .pp-prompt-tools *, .pp-prompt-tools *::before, .pp-prompt-tools *::after { box-sizing: border-box; }
 .pp-prompt-tools [hidden] { display: none !important; }
 .pp-tool-header { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 16px 20px 12px; flex: none; background: linear-gradient(125deg, color-mix(in srgb, var(--wg-accent) 9%, transparent), transparent 65%); }
@@ -119,7 +119,6 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   .pp-tool-title h2 { font-size: calc(18px * var(--wg-ui-font-scale, 1)); }
   .pp-inspect-row { flex-wrap: wrap; gap: 4px; }
 }
-@media (prefers-reduced-motion: reduce) { .pp-prompt-tools::backdrop { backdrop-filter: none; } }
 @media (forced-colors: active) { .pp-prompt-tools, .pp-prompt-tools input, .pp-prompt-tools select, .pp-prompt-tools textarea { border-color: CanvasText; } }
 
 .pp-tool-status:empty { display: none; }
@@ -215,7 +214,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 .pp-lora-window-head .wg-close-btn {
   display: grid; place-items: center; flex: none; width: 26px; height: 26px; padding: 0;
   border: 1px solid transparent; border-radius: 6px; background: transparent;
-  color: var(--wg-text-dim); cursor: pointer; transition: all 120ms ease;
+  color: var(--wg-text-dim); cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 .pp-lora-window-head .wg-close-btn:hover {
   border-color: color-mix(in srgb, var(--wg-danger, var(--wg-border)) 45%, var(--wg-border));
@@ -257,7 +256,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 }
 
 /* Custom Theme-Aware Inputs & Dropdown Select Pickers (No Default Browser Grey Boxes) */
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) select,
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) select,
 .pp-lora-select {
   appearance: none; -webkit-appearance: none;
   box-sizing: border-box; min-width: 0; min-height: 28px;
@@ -279,7 +278,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--wg-text, #fff) 4%, transparent);
   transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
 }
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) select:hover:not(:disabled),
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) select:hover:not(:disabled),
 .pp-lora-select:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--wg-accent) 62%, var(--wg-border-strong, var(--wg-border)));
   background-color: color-mix(in srgb, var(--wg-accent) 7%, var(--wg-surface, #121417));
@@ -287,22 +286,22 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
     linear-gradient(45deg, transparent 50%, var(--wg-accent) 50%),
     linear-gradient(135deg, var(--wg-accent) 50%, transparent 50%);
 }
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) select:focus-visible,
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) select:focus-visible,
 .pp-lora-select:focus-visible {
   border-color: var(--wg-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--wg-accent) 20%, transparent);
 }
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) select:disabled,
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) select:disabled,
 .pp-lora-select:disabled {
   opacity: .5; cursor: default;
 }
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) select option,
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) select option,
 .pp-lora-select option {
   background-color: var(--wg-panel-bg, #1c1f23);
   color: var(--wg-text, #f1eee8);
 }
 
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
 .pp-lora-input {
   appearance: none; -webkit-appearance: none;
   box-sizing: border-box; width: 100%; min-width: 0; min-height: 28px;
@@ -315,17 +314,17 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
   transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]):hover:not(:disabled),
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]):hover:not(:disabled),
 .pp-lora-input:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--wg-accent) 48%, var(--wg-border-strong, var(--wg-border)));
 }
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]):focus,
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]):focus,
 .pp-lora-input:focus {
   border-color: var(--wg-accent);
   background: var(--wg-surface, #121417);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--wg-accent) 18%, transparent);
 }
-:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker) input::placeholder {
+:is(.pp-lora-sidecar-window, .pp-lora-sidecar, .pp-lora-picker, .pp-lora-flyout) input::placeholder {
   color: var(--wg-text-faint, var(--wg-text-dim));
 }
 
@@ -344,6 +343,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   scrollbar-width: thin; scrollbar-color: var(--wg-border-strong, #3a4048) transparent;
   padding: 10px; display: flex; flex-direction: column; gap: 10px;
 }
+.pp-lora-body > * { flex: none; }
 .pp-lora-section {
   display: flex; flex-direction: column; min-width: 0;
   border: 1px solid color-mix(in srgb, var(--wg-border) 90%, transparent);
@@ -351,6 +351,19 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   background: color-mix(in srgb, var(--wg-surface) 72%, var(--wg-panel-bg));
   box-shadow: 0 2px 8px rgb(0 0 0 / .08), inset 0 1px 0 color-mix(in srgb, var(--wg-text) 4%, transparent);
   overflow: hidden; flex: none;
+}
+.pp-lora-section summary {
+  cursor: pointer; list-style: none; user-select: none;
+}
+.pp-lora-section summary::-webkit-details-marker { display: none; }
+.pp-lora-section:not([open]) .pp-lora-section-head { border-bottom: none; }
+.pp-lora-section > .pp-lora-section-head .pp-lora-caret {
+  display: inline-flex; color: var(--wg-text-faint, var(--wg-text-dim));
+  transition: transform 140ms ease;
+}
+/* Child combinator: a nested, closed disclosure must not inherit its parent section's open state. */
+.pp-lora-section[open] > .pp-lora-section-head .pp-lora-caret {
+  transform: rotate(180deg); color: var(--wg-accent);
 }
 .pp-lora-section-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -401,17 +414,17 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   border: 1px solid color-mix(in srgb, var(--wg-accent) 38%, transparent);
   color: var(--wg-accent);
 }
-.pp-lora-deck-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pp-lora-deck-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pp-lora-deck-items {
-  display: flex; flex-direction: column; gap: 5px; padding: 7px;
-  max-height: 175px; overflow-y: auto; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 4px; padding: 6px;
+  max-height: clamp(120px, 28vh, 280px); overflow-y: auto; scrollbar-width: thin;
 }
 .pp-lora-deck-items .pp-tool-empty {
   margin: 2px 0; padding: 4px 6px; font-size: 11px; color: var(--wg-text-dim); text-align: center;
 }
 .pp-lora-deck-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 5px 8px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 4px 7px; border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--wg-border) 82%, transparent);
   border-left: 3px solid var(--pp-lora-color, var(--wg-accent));
   background: linear-gradient(90deg, color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 7%, var(--wg-surface)), var(--wg-surface) 48%);
@@ -425,17 +438,30 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   font-weight: 650; color: var(--wg-text); cursor: pointer;
 }
 .pp-lora-deck-item .pp-deck-name:hover { color: var(--wg-accent); }
-.pp-lora-deck-item .pp-deck-controls { display: flex; align-items: center; gap: 5px; flex: none; }
+.pp-lora-deck-item .pp-deck-controls { display: flex; align-items: flex-end; gap: 4px; flex: none; }
 .pp-lora-deck-item .pp-deck-controls input[type="number"] {
-  width: 54px !important; min-height: 24px !important; padding: 2px 4px !important;
-  font-size: 11px !important; font-variant-numeric: tabular-nums; text-align: center;
+  width: 50px !important; min-height: 22px !important; padding: 2px 4px !important;
+  font-size: 10.5px !important; font-variant-numeric: tabular-nums; text-align: center;
+}
+.pp-deck-strength { display: flex; flex-direction: column; gap: 1px; font-size: 9.5px; color: var(--wg-text); }
+.pp-deck-strength .pp-lora-field-label { opacity: .75; font-size: 9px; }
+.pp-lora-deck-item .pp-deck-reset {
+  min-height: 22px; padding: 2px 5px; font-size: 10px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: 5px; border: 1px solid color-mix(in srgb, var(--wg-border) 85%, transparent);
+  background: color-mix(in srgb, var(--wg-bg) 65%, var(--wg-surface));
+  color: var(--wg-text-dim); cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+.pp-lora-deck-item .pp-deck-reset:hover {
+  border-color: var(--wg-accent); color: var(--wg-accent);
+  background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-surface));
 }
 .pp-lora-deck-item .pp-deck-mute,
 .pp-lora-deck-item .pp-deck-btn {
-  min-height: 24px; padding: 2px 7px; font-size: 10px; font-weight: 600;
+  min-height: 22px; padding: 2px 6px; font-size: 10px; font-weight: 600;
   border-radius: 5px; border: 1px solid var(--wg-border);
   background: color-mix(in srgb, var(--wg-bg) 65%, var(--wg-surface));
-  color: var(--wg-text-dim); cursor: pointer; transition: all 120ms ease;
+  color: var(--wg-text-dim); cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 .pp-lora-deck-item .pp-deck-mute:hover,
 .pp-lora-deck-item .pp-deck-btn:hover {
@@ -450,8 +476,8 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 .pp-lora-deck-item .pp-deck-del {
   display: inline-grid; place-items: center; width: 22px; height: 22px;
   background: transparent; border: 1px solid transparent; border-radius: 5px;
-  color: var(--wg-text-dim); font-size: 14px; line-height: 1; cursor: pointer; padding: 0;
-  transition: all 120ms ease;
+  color: var(--wg-text-dim); font-size: 13px; line-height: 1; cursor: pointer; padding: 0;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 .pp-lora-deck-item .pp-deck-del:hover {
   color: var(--wg-danger);
@@ -464,6 +490,8 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   font-size: 10.5px; color: var(--wg-text-dim); font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.pp-lora-head-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; }
+.pp-lora-head-actions .pp-lora-chip-btn { flex: none; min-height: 22px; padding: 2px 7px; }
 .pp-lora-catalog-toolbar {
   display: flex; flex-direction: column; gap: 7px; padding: 9px 10px 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--wg-border) 75%, transparent);
@@ -475,12 +503,13 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 .pp-lora-filter-pills {
   display: inline-flex; align-items: center; gap: 3px; padding: 2px;
   border: 1px solid color-mix(in srgb, var(--wg-border) 85%, transparent);
-  border-radius: 8px; background: color-mix(in srgb, var(--wg-bg) 75%, var(--wg-surface));
+  border-radius: 7px; background: color-mix(in srgb, var(--wg-bg) 75%, var(--wg-surface));
 }
 .pp-lora-pill {
+  display: inline-flex; align-items: center; gap: 4px;
   padding: 3px 9px; font-size: 10.5px; font-weight: 600; border-radius: 6px;
   border: 1px solid transparent; background: transparent; color: var(--wg-text-dim);
-  cursor: pointer; transition: all 120ms ease; white-space: nowrap;
+  cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease; white-space: nowrap;
 }
 .pp-lora-pill:hover { color: var(--wg-text); background: color-mix(in srgb, var(--wg-surface) 80%, transparent); }
 .pp-lora-pill.is-active, .pp-lora-pill[aria-pressed="true"] {
@@ -508,7 +537,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   display: inline-flex; align-items: center; gap: 4px;
   padding: 3px 8px; font-size: 10.5px; font-weight: 600; border-radius: 5px;
   border: 1px solid transparent; background: transparent; color: var(--wg-text-dim);
-  cursor: pointer; transition: all 120ms ease;
+  cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 .pp-lora-view-btn:hover { color: var(--wg-text); }
 .pp-lora-view-btn.is-active {
@@ -597,14 +626,18 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 }
 .pp-lora-badge-row {
   position: absolute; top: 5px; left: 5px; right: 5px; display: flex; align-items: center;
-  justify-content: space-between; pointer-events: none; z-index: 2;
+  justify-content: flex-end; gap: 4px; pointer-events: none; z-index: 2;
+}
+.pp-lora-card-media > .pp-lora-model-badge {
+  position: absolute; left: 5px; bottom: 5px; z-index: 2; max-width: calc(100% - 10px);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
 }
 .pp-lora-model-badge {
   padding: 2px 5px; font-size: 9px; font-weight: 700; border-radius: 4px;
-  background: color-mix(in srgb, var(--wg-panel-bg, #1c1f23) 82%, #000);
+  background: color-mix(in srgb, var(--wg-panel-bg, #1c1f23) 92%, #000);
   border: 1px solid color-mix(in srgb, var(--wg-text, #fff) 14%, transparent);
   color: var(--wg-text, #fff);
-  backdrop-filter: blur(4px); text-transform: uppercase; letter-spacing: .04em;
+  text-transform: uppercase; letter-spacing: .04em;
 }
 .pp-lora-card-star {
   pointer-events: auto; margin-left: auto;
@@ -612,7 +645,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   background: color-mix(in srgb, var(--wg-panel-bg, #1c1f23) 76%, #000);
   border: 1px solid color-mix(in srgb, var(--wg-text, #fff) 12%, transparent);
   border-radius: 5px; padding: 0; color: var(--wg-text-dim);
-  cursor: pointer; font-size: 12px; line-height: 1; transition: all 120ms ease;
+  cursor: pointer; font-size: 12px; line-height: 1; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 .pp-lora-card-star:hover { color: var(--wg-text); transform: scale(1.06); }
 .pp-lora-card-star[aria-pressed="true"] {
@@ -620,7 +653,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   border-color: color-mix(in srgb, var(--wg-accent, #f59e0b) 50%, transparent);
 }
 .pp-lora-card-body {
-  padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  flex: 1 1 auto; padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 3px; min-width: 0;
   border-top: 1px solid color-mix(in srgb, var(--wg-border) 60%, transparent);
 }
 .pp-lora-card-body strong {
@@ -628,7 +661,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .pp-lora-card-meta {
-  display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 9.5px; color: var(--wg-text-dim);
+  display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 17px; font-size: 9.5px; color: var(--wg-text-dim);
 }
 .pp-lora-card-folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 75%; }
 .pp-lora-card-triggers {
@@ -643,7 +676,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   border: 1px solid color-mix(in srgb, var(--wg-border) 85%, transparent);
   border-radius: 6px; background: var(--wg-surface);
   border-left: 3px solid var(--pp-lora-color, var(--wg-accent));
-  transition: all 120ms ease; cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease; cursor: pointer;
 }
 .pp-lora-row:hover {
   border-color: color-mix(in srgb, var(--wg-accent) 60%, var(--wg-border));
@@ -663,6 +696,12 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 .pp-lora-row-info small { font-size: 9.5px; color: var(--wg-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-lora-row-tools { display: flex; align-items: center; gap: 5px; flex: none; }
 .pp-lora-row-tools .wg-button { min-height: 22px; padding: 2px 7px; font-size: 11px; border-radius: 5px; }
+.pp-lora-row-tools .wg-button.pp-lora-row-add {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; min-height: 22px; padding: 0;
+  font-size: 14px; line-height: 1; color: var(--wg-accent);
+  background: color-mix(in srgb, var(--wg-panel-bg, #1c1f23) 76%, #000);
+  border: 1px solid color-mix(in srgb, var(--wg-text, #fff) 12%, transparent);
+}
 
 /* 3. LoRA Audition Lab */
 .pp-lora-audition-target {
@@ -670,14 +709,14 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   background: color-mix(in srgb, var(--wg-accent) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--wg-accent) 30%, transparent);
   padding: 2px 7px; border-radius: 999px;
-  max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 0 1 auto; min-width: 0; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pp-lora-presets { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .pp-lora-preset-chip {
   padding: 3px 8px; font-size: 10px; font-weight: 600; border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--wg-border-strong, var(--wg-border)) 80%, transparent);
   background: color-mix(in srgb, var(--wg-bg) 65%, var(--wg-surface));
-  color: var(--wg-text-dim); cursor: pointer; transition: all 120ms ease;
+  color: var(--wg-text-dim); cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 .pp-lora-preset-chip:hover {
   border-color: color-mix(in srgb, var(--wg-accent) 65%, var(--wg-border));
@@ -707,30 +746,80 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   accent-color: var(--wg-accent); width: 14px; height: 14px; margin: 0; cursor: pointer;
 }
 
-/* Interactive Triggers Box */
+/* Interactive Triggers Box (Collapsible disclosure) */
 .pp-lora-triggers-box {
-  padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--wg-accent) 32%, var(--wg-border));
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 32%, var(--wg-border));
+  border-left: 3px solid var(--pp-lora-color, var(--wg-accent));
   border-radius: 7px;
-  background: color-mix(in srgb, var(--wg-accent) 5%, var(--wg-bg));
-  display: flex; flex-direction: column; gap: 5px;
+  background: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 5%, var(--wg-bg));
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.pp-lora-triggers-summary {
+  padding: 6px 9px; cursor: pointer; user-select: none;
+}
+.pp-lora-summary-actions {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+}
+.pp-lora-triggers-name-badge {
+  font-size: 9.5px; font-weight: 600; color: var(--pp-lora-color, var(--wg-accent));
+  background: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 12%, transparent);
+  padding: 1px 6px; border-radius: 4px;
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pp-lora-triggers-body {
+  padding: 7px 9px; display: flex; flex-direction: column; gap: 6px;
 }
 .pp-lora-triggers-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
   font-size: 10px; font-weight: 600; color: var(--wg-text-dim);
 }
-.pp-lora-triggers-header strong { color: var(--wg-text); }
+.pp-lora-triggers-head-left {
+  display: flex; align-items: baseline; gap: 6px; min-width: 0;
+}
+.pp-lora-triggers-head-left strong { color: var(--wg-text); font-size: 10.5px; }
+.pp-lora-trigger-count-badge {
+  font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 999px;
+  background: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 16%, var(--wg-surface));
+  color: var(--pp-lora-color, var(--wg-accent));
+}
+.pp-lora-trigger-count-badge:empty { display: none; }
+.pp-lora-triggers-hint { font-size: 9.5px; opacity: .75; }
+.pp-lora-copy-triggers-btn {
+  min-height: 22px; padding: 2px 7px; font-size: 10px; font-weight: 600;
+}
+.pp-lora-copy-triggers-btn.is-copied {
+  border-color: var(--wg-success, #22c55e) !important;
+  color: var(--wg-success, #22c55e) !important;
+  background: color-mix(in srgb, var(--wg-success, #22c55e) 15%, var(--wg-surface)) !important;
+}
 .pp-lora-triggers-list { display: flex; flex-wrap: wrap; gap: 4px; max-height: 84px; overflow-y: auto; }
 .pp-lora-trigger-chip {
   padding: 2px 7px; font-size: 10px; font-weight: 600; border-radius: 5px;
-  border: 1px solid color-mix(in srgb, var(--wg-accent) 38%, var(--wg-border));
-  background: color-mix(in srgb, var(--wg-accent) 10%, var(--wg-surface));
-  color: var(--wg-accent); cursor: pointer; transition: all 120ms ease;
+  border: 1px solid color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 38%, var(--wg-border));
+  background: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 10%, var(--wg-surface));
+  color: var(--pp-lora-color, var(--wg-accent)); cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 .pp-lora-trigger-chip:hover {
-  border-color: var(--wg-accent);
-  background: color-mix(in srgb, var(--wg-accent) 22%, var(--wg-surface));
+  border-color: var(--pp-lora-color, var(--wg-accent));
+  background: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 22%, var(--wg-surface));
   color: var(--wg-text);
+}
+.pp-lora-detail-color {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 24px; padding: 2px 6px; border-radius: 6px;
+  border: 1px solid var(--wg-border); background: var(--wg-surface);
+  font-size: 10.5px; color: var(--wg-text-dim); cursor: pointer;
+}
+.pp-lora-detail-color:hover {
+  border-color: var(--wg-accent); color: var(--wg-text);
+}
+.pp-lora-link-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+}
+.pp-lora-weight-reset {
+  min-height: 22px; padding: 2px 7px; font-size: 10px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Disclosures (Variation Modes, Syntax Preview, Browser Options) */
@@ -739,18 +828,20 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   border-radius: 7px; background: color-mix(in srgb, var(--wg-bg) 55%, var(--wg-surface));
   overflow: hidden;
 }
-.pp-lora-options.pp-lora-disclosure {
+.pp-lora-options.pp-lora-disclosure,
+.pp-lora-sets.pp-lora-disclosure {
   border-radius: 9px;
   background: color-mix(in srgb, var(--wg-surface) 72%, var(--wg-panel-bg));
 }
-.pp-lora-disclosure-summary {
+.pp-lora-disclosure > .pp-lora-disclosure-summary {
+  margin: 0;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 7px 10px; list-style: none; cursor: pointer; user-select: none;
   font-size: 11px; font-weight: 650; color: var(--wg-text-dim);
   transition: color 120ms ease, background 120ms ease;
 }
-.pp-lora-disclosure-summary::-webkit-details-marker { display: none; }
-.pp-lora-disclosure-summary:hover {
+.pp-lora-disclosure > .pp-lora-disclosure-summary::-webkit-details-marker { display: none; }
+.pp-lora-disclosure > .pp-lora-disclosure-summary:hover {
   color: var(--wg-text);
   background: color-mix(in srgb, var(--wg-accent) 6%, transparent);
 }
@@ -761,6 +852,7 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   transition: transform 140ms ease;
 }
 .pp-lora-disclosure[open] > .pp-lora-disclosure-summary {
+  margin: 0;
   color: var(--wg-text);
   border-bottom: 1px solid color-mix(in srgb, var(--wg-border) 75%, transparent);
   background: color-mix(in srgb, var(--wg-accent) 7%, transparent);
@@ -824,16 +916,33 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 .wg-ctx-menu.pp-lora-context { max-height: min(70vh, calc(560px * var(--wg-menu-scale, 1))); max-width: calc(100vw - 16px); overflow: auto; scrollbar-width: thin; overscroll-behavior: contain; }
 .wg-root .wg-tok-lora { color: var(--wg-accent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 
-/* LoraPal: compact artwork + local facts, with controls that wrap at node sizes. */
-.pp-lora-picker .pp-lora-detail-info { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
-.pp-lora-picker .pp-lora-detail-art { flex: 0 0 76px; border-radius: 7px; overflow: hidden; }
-.pp-lora-picker .pp-lora-detail-art:empty { display: none; }
-.pp-lora-picker .pp-lora-detail-art :is(img, video) { display: block; width: 76px; max-height: 140px; object-fit: contain; background: var(--wg-bg); }
-.pp-lora-picker .pp-lora-detail-copy { display: grid; gap: 4px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
-.pp-lora-picker .pp-lora-detail-copy small { color: var(--wg-text-dim); }
-.pp-lora-picker .pp-lora-detail-copy p { margin: 0; max-height: 110px; overflow: auto; }
-.pp-lora-picker .pp-lora-detail-tools { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 7px; }
-.pp-lora-picker .pp-lora-card-add { margin-top: 3px; width: 100%; color: var(--pp-lora-color, var(--wg-accent)); }
+/* LoraPal: Civitai-style artwork, metadata facts, description and controls */
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-info { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-hero { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-art { flex: 0 0 80px; width: 80px; height: 106px; border-radius: 7px; overflow: hidden; background: var(--wg-surface); border: 1px solid var(--wg-border); position: relative; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-art:empty { display: none; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-art .pp-lora-preview-frame { width: 100%; height: 100%; position: absolute; inset: 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-art :is(img, video) { width: 100%; height: 100%; max-height: none; object-fit: var(--pp-lora-image-fit, cover); display: block; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-header { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-title { font-size: 13px; font-weight: 700; color: var(--wg-text); line-height: 1.3; overflow-wrap: anywhere; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-badge-list { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 2px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-badge-list .pp-lora-pill { font-size: 9.5px; font-weight: 600; padding: 1.5px 6px; border-radius: 999px; line-height: 1.2; letter-spacing: .02em; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-pill-model { background: color-mix(in srgb, var(--wg-accent) 18%, var(--wg-surface)); border: 1px solid color-mix(in srgb, var(--wg-accent) 35%, var(--wg-border)); color: var(--wg-accent); text-transform: uppercase; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-pill-version { background: var(--wg-surface); border: 1px solid var(--wg-border); color: var(--wg-text-dim); }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-byline { font-size: 10.5px; color: var(--wg-text-dim); font-style: italic; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-header > .pp-lora-detail-toolbar { margin-top: auto; padding-top: 6px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-folder { display: flex; align-items: center; gap: 5px; font-size: 9.5px; color: var(--wg-text-dim); font-family: monospace; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-toolbar, :is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-tools { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; padding: 2px 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-rec-btn { border-color: color-mix(in srgb, var(--wg-accent) 45%, var(--wg-border)) !important; color: var(--wg-accent) !important; font-weight: 650; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-desc { max-height: 120px; overflow-y: auto; padding: 7px 9px; border-radius: 6px; background: color-mix(in srgb, var(--wg-surface) 60%, var(--wg-bg)); border: 1px solid var(--wg-border); font-size: 11px; line-height: 1.45; color: var(--wg-text); white-space: pre-wrap; word-break: break-word; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-tag-chip { font-size: 9.5px; padding: 1.5px 6px; border-radius: 4px; background: color-mix(in srgb, var(--wg-surface) 80%, var(--wg-border)); border: 1px solid var(--wg-border); color: var(--wg-text-dim); }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-mini-field { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; margin: 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-mini-field select { padding: 2px 4px; font-size: 10px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-copy { display: grid; gap: 4px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-copy small { color: var(--wg-text-dim); }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-copy p { margin: 0; max-height: 110px; overflow: auto; }
+.pp-lora-picker .pp-lora-card-add { margin-top: auto; width: 100%; color: var(--pp-lora-color, var(--wg-accent)); }
 .pp-lora-picker .pp-lora-deck-item { flex-wrap: wrap; }
 .pp-lora-picker .pp-lora-deck-item .pp-deck-name { min-width: 80px; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; }
 .pp-lora-picker .pp-lora-deck-item .pp-deck-controls { flex-wrap: wrap; max-width: 100%; margin-left: auto; }
@@ -844,11 +953,11 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   .pp-lora-picker .pp-lora-deck-item .pp-deck-controls { margin-left: 0; }
 }
 
-.pp-lora-picker .pp-lora-entry-color { appearance: none; -webkit-appearance: none; pointer-events: auto; flex: none; margin-left: auto; width: 22px; height: 22px; min-width: 22px; border: 1px solid var(--wg-border); border-radius: 5px; padding: 2px; background: var(--wg-panel-bg); cursor: pointer; }
-.pp-lora-picker .pp-lora-entry-color::-webkit-color-swatch-wrapper { padding: 0; }
-.pp-lora-picker .pp-lora-entry-color::-webkit-color-swatch { border: 0; border-radius: 3px; }
-.pp-lora-picker .pp-lora-entry-color::-moz-color-swatch { border: 0; border-radius: 3px; }
-.pp-lora-picker .pp-lora-entry-color + .pp-lora-card-star { margin-left: 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-entry-color { appearance: none; -webkit-appearance: none; pointer-events: auto; flex: none; margin-left: auto; width: 22px; height: 22px; min-width: 22px; border: 1px solid var(--wg-border); border-radius: 5px; padding: 2px; background: var(--wg-panel-bg); cursor: pointer; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-entry-color::-webkit-color-swatch-wrapper { padding: 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-entry-color::-webkit-color-swatch { border: 0; border-radius: 3px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-entry-color::-moz-color-swatch { border: 0; border-radius: 3px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-entry-color + .pp-lora-card-star { margin-left: 0; }
 
 /* LoraPal owns its slider; sidebar-only --pps-* variables must not leak here. */
 .pp-lora-picker .pp-lora-size-slider { display: flex; gap: 6px; min-width: 130px; }
@@ -861,8 +970,8 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
   position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: var(--pp-lora-image-fit, cover);
 }
 .pp-lora-preview-frame .pp-lora-card-placeholder, .pp-lora-row-thumb .pp-lora-card-placeholder { position: absolute; inset: 0; box-sizing: border-box; font-size: 10px; }
-.pp-lora-picker .pp-lora-detail-art .pp-lora-preview-frame { width: 76px; height: 100px; }
-.pp-lora-picker .pp-lora-detail-art :is(img, video) { width: 100%; height: 100%; max-height: none; object-fit: contain; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-art .pp-lora-preview-frame { width: 100%; height: 100%; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-art :is(img, video) { width: 100%; height: 100%; max-height: none; object-fit: var(--pp-lora-image-fit, cover); }
 .pp-lora-picker .pp-lora-row-thumb .pp-lora-card-placeholder span { display: none; }
 
 .pp-lora-preview-frame > :is(img, video):not(.is-ready), .pp-lora-row-thumb > :is(img, video):not(.is-ready) { opacity: 0; }
@@ -872,3 +981,132 @@ dialog.pp-prompt-tools[open] { display: flex; flex-direction: column; }
 /* Preview visibility is a primary collection control, never inside a disclosure. */
 .pp-lora-picker .pp-lora-view-bar .pp-lora-preview-toggle { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 6px; min-height: 28px; margin: 0; padding: 2px 6px; color: var(--wg-text); cursor: pointer; white-space: nowrap; }
 .pp-lora-picker .pp-lora-preview-toggle input { accent-color: var(--wg-accent); cursor: pointer; }
+
+/* LoraPal: readable strengths and reusable combinations. */
+.pp-lora-sets-list { display:flex; flex-direction:column; gap:8px; }
+.pp-lora-set { padding:10px; border:1px solid var(--wg-border); border-radius:10px; background:linear-gradient(125deg,color-mix(in srgb,var(--wg-accent) 12%,var(--wg-surface)),var(--wg-surface)); }
+.pp-lora-set-description { display:block; overflow-wrap:anywhere; opacity:.75; margin:5px 0 9px; line-height:1.5; }
+.pp-lora-set-actions { display:flex; flex-wrap:wrap; gap:5px; }
+.pp-lora-view-modes { flex-wrap:wrap; }
+.pp-lora-list[data-layout="masonry"], .pp-lora-list[data-layout="filmstrip"] { display:block; }
+.pp-lora-picker .pp-view-masonry .pp-lora-card-media { height:auto; aspect-ratio:var(--pp-natural-ratio,1); }
+.pp-lora-picker .pp-view-filmstrip .pp-lora-card-media { height:clamp(160px,32vh,360px); }
+.pp-lora-picker .pp-view-filmstrip .pp-lora-card-media :is(img,video) { object-fit:contain; }
+.pp-lora-list:is([data-layout="masonry"],[data-layout="filmstrip"]) { max-height:52vh; min-height:150px; }
+.pp-lora-sets .wg-button { border:1px solid var(--wg-border); background:var(--wg-surface); color:var(--wg-text); border-radius:6px; padding:5px 9px; cursor:pointer; font:inherit; font-size:11px; }
+.pp-lora-sets .wg-button:hover { border-color:var(--wg-accent); background:color-mix(in srgb,var(--wg-accent) 12%,var(--wg-surface)); }
+.pp-lora-picker .pp-film-neighbor > .pp-lora-preview-frame { position:relative; width:100%; height:48px; flex:none; }
+.pp-lora-picker .pp-film-neighbor .pp-lora-card-placeholder { font-size:9px; }
+
+
+/* ============ LoRA info flyout (Civitai-style pop-out) ============ */
+.pp-lora-flyout.wg-root {
+  position: fixed; z-index: 10006; box-sizing: border-box;
+  left: var(--pp-fly-left, 8px); top: var(--pp-fly-top, 8px);
+  display: flex; flex-direction: column; width: var(--pp-fly-width, min(500px, calc(100vw - 16px)));
+  max-width: calc(100vw - 16px); max-height: var(--pp-fly-max-height, calc(100vh - 16px)); overflow: hidden;
+  container: pp-lora-fly / inline-size;
+  background: var(--pp-glass, var(--wg-panel-bg, #1c1f23));
+  -webkit-backdrop-filter: blur(var(--pp-glass-blur, 14px)) saturate(var(--pp-glass-sat, 1.45));
+  backdrop-filter: blur(var(--pp-glass-blur, 14px)) saturate(var(--pp-glass-sat, 1.45));
+  border: 1px solid color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 38%, var(--wg-border-strong, #3a4048));
+  border-top: 3px solid var(--pp-lora-color, var(--wg-accent));
+  border-radius: var(--wg-corner-radius, 10px);
+  box-shadow: var(--pp-shadow-3, 0 18px 48px rgb(0 0 0 / .45));
+  color: var(--wg-text, #eef0f3);
+  font-family: var(--wg-font-family, system-ui, sans-serif);
+  font-size: calc(12px * var(--wg-ui-font-scale, 1)); line-height: 1.4;
+  pointer-events: auto !important;
+}
+.pp-lora-flyout.wg-root[hidden], .pp-lora-flyout [hidden] { display: none !important; }
+.pp-lora-flyout *, .pp-lora-flyout *::before, .pp-lora-flyout *::after { box-sizing: border-box; }
+.pp-lora-flyout-head {
+  display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; flex: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--wg-border) 80%, transparent);
+  background: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 7%, transparent);
+}
+.pp-lora-flyout-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; font-size: 11px; color: var(--wg-text-dim); flex: none; }
+.pp-lora-flyout-title .wg-svg-icon { color: var(--pp-lora-color, var(--wg-accent)); }
+.pp-lora-flyout-head .pp-lora-triggers-name-badge { margin-right: auto; max-width: none; min-width: 0; flex: 1 1 auto; }
+.pp-lora-flyout-head .wg-close-btn {
+  display: grid; place-items: center; flex: none; width: 26px; height: 26px; padding: 0;
+  border: 1px solid transparent; border-radius: 6px; background: transparent;
+  color: var(--wg-text-dim); cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+.pp-lora-flyout-head .wg-close-btn:hover {
+  border-color: color-mix(in srgb, var(--wg-danger, var(--wg-border)) 45%, var(--wg-border));
+  background: color-mix(in srgb, var(--wg-danger, var(--wg-accent)) 12%, var(--wg-surface));
+  color: var(--wg-text);
+}
+.pp-lora-flyout-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; }
+.pp-lora-flyout-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; padding: 8px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--wg-border) 80%, transparent);
+  background: color-mix(in srgb, var(--wg-surface) 70%, transparent);
+}
+.pp-lora-flyout-hint { font-size: 10px; color: var(--wg-text-dim); min-width: 0; }
+.pp-lora-flyout-foot .pp-lora-apply-btn { flex: none; }
+
+/* Roomier Civitai-style hero inside the flyout (the inline 80x106 art stays for narrow hosts). */
+.pp-lora-flyout .pp-lora-detail-info { gap: 10px; }
+.pp-lora-flyout .pp-lora-detail-hero { gap: 12px; align-items: stretch; }
+.pp-lora-flyout .pp-lora-detail-art { align-self: flex-start; }
+.pp-lora-flyout .pp-lora-detail-art { flex-basis: 132px; width: 132px; height: 176px; border-radius: 9px; border-color: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 40%, var(--wg-border)); }
+.pp-lora-flyout .pp-lora-detail-title { font-size: 15px; }
+.pp-lora-flyout .pp-lora-pill { cursor: default; }
+.pp-lora-flyout .pp-lora-pill:hover { color: inherit; background: inherit; }
+.pp-lora-flyout .pp-lora-pill-type { background: color-mix(in srgb, var(--wg-surface) 85%, var(--wg-border)); border: 1px solid var(--wg-border); color: var(--wg-text); }
+.pp-lora-flyout .pp-lora-detail-desc { max-height: 190px; font-size: 11.5px; }
+.pp-lora-flyout .pp-lora-detail-tags { gap: 5px; }
+.pp-lora-flyout .pp-lora-triggers-list { max-height: 140px; }
+.pp-lora-flyout .pp-lora-triggers-section {
+  display: flex; flex-direction: column; gap: 7px; padding: 9px 10px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 32%, var(--wg-border));
+  border-left: 3px solid var(--pp-lora-color, var(--wg-accent));
+  background: color-mix(in srgb, var(--pp-lora-color, var(--wg-accent)) 5%, var(--wg-bg));
+}
+.pp-lora-flyout .pp-lora-triggers-name-badge { font-size: 10.5px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-label { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--wg-text-dim); margin-bottom: -4px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-stat {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; min-width: 52px; padding: 3px 8px; border-radius: 6px;
+  background: color-mix(in srgb, var(--wg-surface) 70%, var(--wg-bg)); border: 1px solid var(--wg-border);
+}
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-stat b { font-size: 12px; font-weight: 700; color: var(--wg-text); line-height: 1.2; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-stat small { font-size: 8.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--wg-text-dim); }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-link { align-self: flex-start; font-size: 10.5px; font-weight: 600; color: var(--wg-accent); text-decoration: none; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-link:hover { text-decoration: underline; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-strip { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: thin; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-thumb {
+  position: relative; flex: 0 0 auto; width: 52px; height: 68px; padding: 0; overflow: hidden; cursor: pointer;
+  border-radius: 6px; border: 2px solid transparent; background: var(--wg-surface); opacity: .72; transition: opacity 120ms ease, border-color 120ms ease;
+}
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-thumb:hover { opacity: 1; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-thumb.is-active { opacity: 1; border-color: var(--pp-lora-color, var(--wg-accent)); }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-thumb .pp-lora-preview-frame { position: absolute; inset: 0; }
+:is(.pp-lora-picker, .pp-lora-flyout) .pp-lora-detail-thumb .pp-lora-card-placeholder span { display: none; }
+.pp-lora-flyout :is(button, a, select):focus-visible { outline: 2px solid var(--wg-accent); outline-offset: 2px; }
+.pp-lora-card-star.pp-lora-card-info + .pp-lora-card-star { margin-left: 0; }
+.pp-lora-card-info { font-size: 11px; }
+.pp-lora-row-tools .pp-lora-card-info { margin-left: 0; }
+
+/* Narrow flyout (tiny viewports): stack the hero so artwork never squeezes the title. */
+@container pp-lora-fly (max-width: 380px) {
+  .pp-lora-flyout .pp-lora-detail-hero { flex-direction: column; }
+  .pp-lora-flyout .pp-lora-detail-art { width: 100%; flex-basis: auto; height: 220px; }
+}
+
+
+/* ============ Polish pass: rhythm, alignment, consistency ============ */
+/* List rows: a fixed badge slot keeps swatch / info / star / add in straight columns. */
+.pp-lora-row-tools .pp-lora-model-badge { min-width: 58px; text-align: center; }
+.pp-lora-row-tools .pp-lora-model-badge.is-empty { visibility: hidden; }
+.pp-lora-row-tools .pp-lora-card-star { margin-left: 0; }
+.pp-lora-row-tools .pp-lora-entry-color, .pp-lora-badge-row .pp-lora-entry-color { flex: none; }
+.pp-lora-disclosure-body > .pp-tool-note { margin: 0; }
+.pp-lora-weight-reset {
+  border: 1px solid color-mix(in srgb, var(--wg-border) 85%, transparent); border-radius: 5px; cursor: pointer;
+  background: color-mix(in srgb, var(--wg-bg) 65%, var(--wg-surface)); color: var(--wg-text-dim); transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+.pp-lora-weight-reset:hover { border-color: var(--wg-accent); color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-surface)); }
+.pp-lora-clipboard-proxy { position: fixed; opacity: 0; pointer-events: none; }

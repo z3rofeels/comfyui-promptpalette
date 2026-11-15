@@ -1,15 +1,18 @@
 import { FIELD_EDITOR_DEFAULTS, normalizeFieldEditorPreferences } from "./field_editor_preferences.js";
-import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
+import { readEditorPreference, writeEditorPreference, getPromptPaletteSectionSnapshot } from "../prompt_palette_state.js";
 import { notifyPromptPaletteAppearanceChanged, normalizePromptPaletteMenuScale } from "../prompt_palette_shared.js";
 import { TOOLBAR_BUTTONS, normalizeToolbarPreferences } from "./toolbar.js";
 
-function loadTheme() {
-  const saved = readEditorPreference("theme", null);
+let cachedRawTheme = undefined;
+let cachedNormalizedTheme = null;
+
+function buildNormalizedTheme(saved) {
   if (!saved || typeof saved !== "object" || Array.isArray(saved)) return defaultTheme();
   // v2 briefly exposed experimental finish/glow controls. Drop those legacy fields
   // on load so an old local preference cannot keep repainting the suite differently.
   const { surfaceFinish: _legacySurfaceFinish, accentGlow: _legacyAccentGlow, ...clean } = saved;
   const theme = { ...defaultTheme(), ...clean };
+  if (!["auto", "always", "warnings"].includes(theme.statusBarMode)) theme.statusBarMode = "auto";
   // Seed older preferences from their readable interface size, then save independently.
   theme.menuScale = normalizePromptPaletteMenuScale(clean.menuScale, clean.uiFontScale);
   Object.assign(theme, normalizeToolbarPreferences({ ...theme, toolbarScale: clean.toolbarScale }));
@@ -28,6 +31,25 @@ function loadTheme() {
   theme.autocompleteRecentLimit = Math.max(5, Math.min(10, Math.round(Number(theme.autocompleteRecentLimit) || 5)));
   Object.assign(theme, normalizeFieldEditorPreferences(clean));
   return theme;
+}
+
+function cloneNormalizedTheme(theme) {
+  return {
+    ...theme,
+    categoryPins: { ...(theme.categoryPins || {}) },
+    booruColors: { ...(theme.booruColors || {}) },
+    loraColors: { ...(theme.loraColors || {}) },
+  };
+}
+
+function loadTheme() {
+  const editorSection = getPromptPaletteSectionSnapshot("editor");
+  const raw = editorSection && Object.prototype.hasOwnProperty.call(editorSection, "theme") ? editorSection.theme : null;
+  if (!cachedNormalizedTheme || raw !== cachedRawTheme) {
+    cachedRawTheme = raw;
+    cachedNormalizedTheme = buildNormalizedTheme(raw);
+  }
+  return cloneNormalizedTheme(cachedNormalizedTheme);
 }
 const DEFAULT_BOORU_COLORS_DARK = Object.freeze({
   general: "#009be6",
@@ -49,7 +71,7 @@ const DEFAULT_BOORU_COLORS_LIGHT = Object.freeze({
 
 function defaultTheme() {
   return {
-    loraAutocomplete: false, highlightLoras: false,
+    loraAutocomplete: false, highlightLoras: true,
     hueRotate: 0, saturation: 58, categoryPins: {},
     booruColors: { ...DEFAULT_BOORU_COLORS_DARK },
     booruColorsCustomized: false,
@@ -79,6 +101,7 @@ function defaultTheme() {
     showClearBtn: true,
 
     showSeedControls: false,
+    statusBarMode: "auto",
     seedFortuneEnabled: true,
     showDayNightBtn: true,
     dayTheme: "Porcelain",
@@ -176,13 +199,15 @@ const SIDEBAR_DISPLAY_KEY = "sidebarDisplayV1";
 export function loadSidebarDisplay() {
   const saved = readEditorPreference(SIDEBAR_DISPLAY_KEY, {}) || {};
   const old = readEditorPreference("prompt_palette_style_explorer_v1", {}) || {};
-  const layouts = { library: "list", styles: old.compact === true ? "list" : "gallery", classic: "gallery", artists: "gallery", anima: "gallery", tags: "gallery", favorites: "list", previews: "gallery", custom: "list" };
+  const layouts = { library: "list", generations: "gallery", loras: "gallery", styles: old.compact === true ? "list" : "gallery", classic: "gallery", artists: "gallery", anima: "gallery", tags: "gallery", favorites: "list", previews: "gallery", custom: "list" };
   if (saved.layouts && typeof saved.layouts === "object") for (const key of Object.keys(layouts)) if (["gallery", "list", "masonry", "filmstrip"].includes(saved.layouts[key])) layouts[key] = saved.layouts[key];
   const chrome = { fillRows: saved.chrome?.fillRows !== false, hoverImages: saved.chrome?.hoverImages === true,
     hoverText: saved.chrome?.hoverText === true, displayControls: saved.chrome?.displayControls !== false,
     ratioControls: saved.chrome?.ratioControls !== false, images: saved.chrome?.images !== false, prompt: saved.chrome?.prompt === true,
-    descriptions: saved.chrome?.descriptions === true, syntax: saved.chrome?.syntax !== false,
-    tools: saved.chrome?.tools !== false, styles: saved.chrome?.styles !== false,
+    descriptions: saved.chrome?.descriptions === true, recentGenerations: saved.chrome?.recentGenerations !== false,
+    generationsTab: saved.chrome?.generationsTab === true,
+    syntax: saved.chrome?.syntax !== false,
+    tools: saved.chrome?.tools !== false, loras: saved.chrome?.loras !== false, styles: saved.chrome?.styles !== false,
     intro: saved.chrome?.intro !== false, modelHelp: saved.chrome?.modelHelp !== false,
     artists: saved.chrome?.artists !== false, tags: saved.chrome?.tags !== false,
     favorites: saved.chrome?.favorites !== false, previews: saved.chrome?.previews !== false,

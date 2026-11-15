@@ -41,13 +41,21 @@ export class PromptPaletteReactiveRuntime {
   }
 
   subscribe(channels, callback, { schedule = "frame", visual = true, key = null } = {}) {
+    if (this.disposed) return () => {};
     const list = Array.isArray(channels) ? channels : [channels];
     const effect = { callback, schedule, visual, key: key || `effect-${Math.random().toString(36).slice(2)}`, channels: list };
     for (const channel of list) {
       if (!this.channels.has(channel)) this.channels.set(channel, new Set());
       this.channels.get(channel).add(effect);
     }
-    return () => { for (const channel of list) this.channels.get(channel)?.delete(effect); };
+    return () => {
+      effect.disposed = true;
+      for (const channel of list) this.channels.get(channel)?.delete(effect);
+      cancelFrame(this.frames.get(effect.key));
+      this.frames.delete(effect.key);
+      this.microtasks.delete(effect.key);
+      this.pending.delete(effect.key);
+    };
   }
 
   batch(callback) {
@@ -73,7 +81,7 @@ export class PromptPaletteReactiveRuntime {
   }
 
   _schedule(effect, channel, payload) {
-    if (this.disposed) return;
+    if (this.disposed || effect.disposed) return;
     const key = effect.key;
     const existing = this.pending.get(key) || { channels: new Set(), payloads: new Map() };
     existing.channels.add(channel);
@@ -93,7 +101,7 @@ export class PromptPaletteReactiveRuntime {
   }
 
   _run(effect) {
-    if (this.disposed) return;
+    if (this.disposed || effect.disposed) return;
     if (effect.visual && !this.visualActive()) {
       this.profiler?.count?.("reactiveEffectsSkippedInactive");
       return;

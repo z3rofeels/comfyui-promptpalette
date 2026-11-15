@@ -1,4 +1,4 @@
-import { RendererAdapter, nodeActive, socketDisplayLabel, managedSocketGroups, frame, cancelFrame } from "./base_renderer_adapter.js";
+import { RendererAdapter, nodeActive, socketConnected, socketDisplayLabel, managedSocketGroups, compactSocketLayout, frame, cancelFrame } from "./base_renderer_adapter.js";
 
 function escapeAttributeValue(value) {
   return String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -7,20 +7,37 @@ function vueNodeIdFromElement(element) {
   const host = element?.matches?.(".lg-node") ? element : element?.closest?.(".lg-node");
   return host?.dataset?.nodeId ?? null;
 }
+const PP_OWNED_DOM_SELECTOR = ".wg-node-frame, .ppwc-surface, .wg-root, .wg-settings-popup, .wg-seed-portal, .wg-ac-menu, .wg-ac-preview, .wg-ctx-menu, .wg-tip, .pp-sidebar-hover-preview, .pp-lora-flyout, .pp-lora-sidecar-window";
+function isPromptPaletteOwnedNode(node) {
+  return node?.nodeType === 1 && (node.matches?.(PP_OWNED_DOM_SELECTOR) || node.dataset?.promptPaletteGlobal === "true" || !!node.closest?.(PP_OWNED_DOM_SELECTOR));
+}
 function affectedVueNodeIds(records) {
   const ids = new Set();
+  let externalMutation = false;
   const collect = (element) => {
-    if (element?.nodeType !== 1) return;
+    if (element?.nodeType !== 1 || isPromptPaletteOwnedNode(element)) return;
+    externalMutation = true;
     const ownId = vueNodeIdFromElement(element);
     if (ownId != null) ids.add(String(ownId));
-    for (const host of element.querySelectorAll?.(".lg-node[data-node-id]") || []) if (host.dataset.nodeId != null) ids.add(String(host.dataset.nodeId));
+    if (element.firstElementChild) {
+      for (const host of element.querySelectorAll?.(".lg-node[data-node-id]") || []) {
+        if (host.dataset.nodeId != null) ids.add(String(host.dataset.nodeId));
+      }
+    }
   };
   for (const record of records || []) {
-    collect(record.target);
-    for (const added of record.addedNodes || []) collect(added);
-    for (const removed of record.removedNodes || []) collect(removed);
+    // Prompt text, status counts, popups and virtual cards are owned by Prompt Palette.
+    // They cannot change Vue's native sockets. A widget mount/removal is still
+    // detected because its mutation target lies outside this owned subtree.
+    if (isPromptPaletteOwnedNode(record.target)) continue;
+    const targetId = vueNodeIdFromElement(record.target);
+    if (targetId != null) ids.add(String(targetId));
+    if (record.addedNodes?.length || record.removedNodes?.length) {
+      for (const added of record.addedNodes || []) collect(added);
+      for (const removed of record.removedNodes || []) collect(removed);
+    }
   }
-  return ids;
+  return { ids, externalMutation };
 }
 function directSlotElements(group, kind) {
   if (!group?.children) return [];
@@ -56,6 +73,7 @@ function findPrimarySlotRail(nodeElement, node) {
 
   if (root && (inputGroup || outputGroup)) {
     return {
+      body,
       root,
       inputGroup,
       outputGroup,
@@ -70,6 +88,7 @@ function findPrimarySlotRail(nodeElement, node) {
     const legacyOutputGroup = groups.find((group) => directSlotElements(group, "output").length > 0) || null;
     if (!legacyInputGroup && !legacyOutputGroup) continue;
     return {
+      body,
       root: candidate,
       inputGroup: legacyInputGroup,
       outputGroup: legacyOutputGroup,
@@ -88,11 +107,11 @@ function renderedNode2Inputs(list) {
   return Array.from(list || []).filter((slot) => !slot?.widget);
 }
 
-function slotIndexFromVueSocket(element, nodeId) {
+function slotIndexFromVueSocket(element, nodeId, kind = "input") {
   const keyed = element?.querySelector?.('[data-slot-key]')?.dataset?.slotKey;
   if (!keyed) return -1;
   const parts = String(keyed).split(":");
-  if (parts.length < 3 || parts[0] !== String(nodeId) || parts[1] !== "input") return -1;
+  if (parts.length < 3 || parts[0] !== String(nodeId) || parts[1] !== kind) return -1;
   const index = Number(parts[2]);
   return Number.isInteger(index) && index >= 0 ? index : -1;
 }
@@ -107,7 +126,8 @@ function managedWidgetSocketElements(nodeElement, node, inputDefs) {
   for (let inputIndex = 0; inputIndex < (node?.inputs || []).length; inputIndex += 1) {
     const slot = node.inputs[inputIndex];
     if (!slot?.name || !defsByName.has(slot.name)) continue;
-    const widget = slot.widget || widgetsByName.get(slot.name);
+    // slot.widget is often only a { name } descriptor, not the backing widget.
+    const widget = widgetsByName.get(slot.widget?.name || slot.name) || slot.widget;
     if (!widget || (!widget.__ppSocketOnly && !widget.__ppSocketRailCandidate)) continue;
     managedByInputIndex.set(inputIndex, { widget, inputIndex, def: defsByName.get(slot.name) });
   }
@@ -150,50 +170,33 @@ function managedWidgetSocketElements(nodeElement, node, inputDefs) {
   return elements;
 }
 
-function hideWidgetRowControl(row) {
+function hideWidgetRowControl(row, remember) {
   if (!row) return;
   for (const child of Array.from(row.children || [])) {
     if (child.querySelector?.('.lg-slot--input')) continue;
+    remember(child);
     child.hidden = true;
     child.setAttribute('aria-hidden', 'true');
     child.style.display = 'none';
   }
 }
 
-function setWidgetSocketLabel(element, label, show) {
+function exposeWidgetSocket(element, remember) {
   const wrapper = element?.parentElement;
   if (!wrapper) return;
-  if (show && label) {
-    wrapper.style.position = 'relative';
-    wrapper.style.opacity = '1';
-    let labelEl = wrapper.querySelector?.('[data-pp-widget-socket-label]');
-    if (!labelEl) {
-      const doc = element?.ownerDocument || globalThis.document;
-      if (!doc?.createElement) return;
-      labelEl = doc.createElement('span');
-      labelEl.dataset.ppWidgetSocketLabel = 'true';
-      wrapper.appendChild(labelEl);
-    }
-    labelEl.textContent = label;
-    labelEl.style.position = 'absolute';
-    labelEl.style.left = '11px';
-    labelEl.style.top = '50%';
-    labelEl.style.transform = 'translateY(-50%)';
-    labelEl.style.whiteSpace = 'nowrap';
-    labelEl.style.pointerEvents = 'none';
-    labelEl.style.fontSize = '9px';
-    labelEl.style.lineHeight = '12px';
-    labelEl.style.color = 'var(--node-text, var(--fg-color, #c9c9c9))';
-  } else {
-    const labelEl = wrapper.querySelector?.('[data-pp-widget-socket-label]');
-    labelEl?.remove?.();
-  }
+  remember(wrapper);
+  // The backing control is hidden, but its native connection target and label
+  // remain usable. Do not create another absolutely positioned label system.
+  wrapper.style.position = "relative";
+  wrapper.style.opacity = "1";
 }
-
+function nativeLabelElement(element) {
+  return element?.querySelector?.('.text-node-component-slot-text, [data-slot-label], [class*="slot-text"], :scope > [data-testid="slot-connection-dot"] ~ div, :scope > div:has(+ [data-testid="slot-connection-dot"])');
+}
 function renderedLabelText(element) {
-  return element?.querySelector?.('.text-node-component-slot-text')?.textContent ?? '';
+  return nativeLabelElement(element)?.textContent ?? '';
 }
-function setVueSocketState(element, { hidden = false, showLabels = false, label = "" } = {}) {
+function setVueSocketState(element, { hidden = false, showLabels = false, label = "", widget = false } = {}) {
   if (!element) return;
   const hiddenText = hidden ? "true" : "false";
   const labelMode = showLabels ? "shown" : "hidden";
@@ -203,19 +206,25 @@ function setVueSocketState(element, { hidden = false, showLabels = false, label 
   element.hidden = hidden;
   element.setAttribute("aria-hidden", hiddenText);
   if (label) {
-    element.title = label;
     element.setAttribute("aria-label", label);
-    // V3's Nodes 2 slot labels are Vue-rendered from NodeState. Palette's
-    // classic renderer deliberately uses a zero-width compact label, so keep
-    // the mounted Vue text authoritative here without changing graph links.
-    const text = element.querySelector?.('.text-node-component-slot-text');
-    if (text && showLabels && text.textContent !== label) text.textContent = label;
+    // Leave Vue-owned label text untouched. A blank label can get a separate
+    // fallback while the host mounts; remove it as soon as native text exists.
+    const text = nativeLabelElement(element);
+    const content = text ? text.textContent : [...element.childNodes].filter(child =>
+      child.nodeType === 3 || child.nodeType === 1 && !child.matches('[data-pp-socket-fallback-label], .lg-slot__connection-dot, svg')).map(child => child.textContent).join("");
+    const present = String(content || "").replace(/\u200b/g, "").trim();
+    let fallback = element.querySelector('[data-pp-socket-fallback-label]');
+    if (showLabels && (text || widget) && !present && !hidden) {
+      if (!fallback) { fallback = document.createElement("span"); fallback.dataset.ppSocketFallbackLabel = "true"; element.append(fallback); }
+      if (fallback.textContent !== label) fallback.textContent = label;
+    } else fallback?.remove();
   }
   if (hidden) element.setAttribute("inert", ""); else element.removeAttribute("inert");
 }
 
 class Nodes2LifecycleObserver {
-  constructor() { this.adapters = new Map(); this.observer = null; this.host = null; }
+  constructor() { this.adapters = new Map(); this.observer = null; this.host = null; this.vueDomEpoch = 0; }
+  isObservingHost() { return !!this.observer && !!this.host?.isConnected; }
   register(adapter) {
     const id = adapter.node?.id;
     if (id == null) return;
@@ -233,8 +242,11 @@ class Nodes2LifecycleObserver {
     if (this.observer || typeof MutationObserver === "undefined" || typeof document === "undefined") return;
     this.host = document.getElementById?.("graph-canvas-container") || document.querySelector?.(".graph-canvas-container") || document.body || document.documentElement;
     if (!this.host) return;
+    this.vueDomEpoch += 1;
     this.observer = new MutationObserver((records) => {
-      for (const id of affectedVueNodeIds(records)) {
+      const { ids, externalMutation } = affectedVueNodeIds(records);
+      if (externalMutation || ids.size) this.vueDomEpoch += 1;
+      for (const id of ids) {
         const adapter = this.adapters.get(String(id));
         if (!adapter) continue;
         if (!nodeActive(adapter.node)) { this.unregister(adapter); continue; }
@@ -248,24 +260,56 @@ class Nodes2LifecycleObserver {
     this.observer?.disconnect();
     this.observer = null;
     this.host = null;
+    this.vueDomEpoch += 1;
   }
   count() { return this.observer ? 1 : 0; }
 }
 const lifecycleObserver = new Nodes2LifecycleObserver();
 
 export class Nodes2RendererAdapter extends RendererAdapter {
-  constructor(node, { labelsShown = () => false } = {}) {
+  constructor(node, { labelsShown = () => false, hover = null } = {}) {
     super(node);
     this.labelsShown = labelsShown;
+    this.hover = hover;
+    this.socketElements = new WeakMap();
+    this.hoverHost = null;
+    this.hoverMove = event => {
+      const element = event.target.closest?.('[data-pp-socket-rail-item]');
+      const entry = element && this.socketElements.get(element);
+      if (entry) this.hover?.show(event, entry.slot, entry.kind, entry.kind === "input" ? this.inputDefs : this.outputDefs);
+      else this.hover?.hide();
+    };
+    this.hoverLeave = () => this.hover?.hide();
     this.inputDefs = [];
     this.outputDefs = [];
     this.vueNode = null;
+    this.lastMissEpoch = -1;
     this.syncFrame = 0;
     this.signature = "";
     this.lastSyncedVueNode = null;
     this.lastSyncedElements = [];
     this.inSync = false;
     this.mode = null;
+    this.domState = new Map();
+  }
+  remember(element) {
+    if (!element || this.domState.has(element)) return;
+    const attrs = ["hidden", "aria-hidden", "aria-label", "inert", "title", "data-pp-socket-rail-item", "data-pp-socket-hidden", "data-pp-socket-labels", "data-pp-socket-rail", "data-pp-socket-empty", "data-pp-socket-compact", "data-pp-socket-rail-group", "data-pp-socket-rail-body", "data-pp-socket-body", "data-pp-socket-widget-path", "data-pp-socket-native-collapsed"];
+    this.domState.set(element, { attrs: attrs.map(key => [key, element.getAttribute(key)]),
+      styles: ["display", "position", "opacity", "--pp-socket-x", "--pp-socket-y", "--pp-socket-rail-height"].map(key => [key, element.style.getPropertyValue(key), element.style.getPropertyPriority(key)]) });
+  }
+  restoreElement(element, state) {
+    for (const [key, value] of state.attrs) { if (value === null) element.removeAttribute(key); else element.setAttribute(key, value); }
+    for (const [key, value, priority] of state.styles) { if (value) element.style.setProperty(key, value, priority); else element.style.removeProperty(key); }
+    for (const label of element.querySelectorAll('[data-pp-widget-socket-label], [data-pp-socket-fallback-label]')) label.remove();
+  }
+  releaseDom() {
+    this.hoverHost?.removeEventListener("pointermove", this.hoverMove);
+    this.hoverHost?.removeEventListener("pointerleave", this.hoverLeave);
+    this.hoverHost = null;
+    this.hover?.hide();
+    for (const [element, state] of this.domState) this.restoreElement(element, state);
+    this.domState.clear();
   }
   install(inputDefs = [], outputDefs = []) {
     this.inputDefs = inputDefs;
@@ -275,24 +319,41 @@ export class Nodes2RendererAdapter extends RendererAdapter {
   }
   findVueNode() {
     if (this.vueNode?.isConnected && this.vueNode.dataset?.nodeId === String(this.node?.id)) return this.vueNode;
+    this.vueNode = null;
+    if (this.lastMissEpoch === lifecycleObserver.vueDomEpoch && lifecycleObserver.isObservingHost()) return null;
     const nodeId = this.node?.id;
     if (nodeId == null || typeof document === "undefined") return null;
     this.vueNode = document.querySelector?.(`.lg-node[data-node-id="${escapeAttributeValue(nodeId)}"]`) || null;
+    if (!this.vueNode && lifecycleObserver.isObservingHost()) {
+      this.lastMissEpoch = lifecycleObserver.vueDomEpoch;
+    } else if (this.vueNode) {
+      this.lastMissEpoch = -1;
+    }
     return this.vueNode;
+  }
+  requestSyncIfActive() {
+    if (this.mode === "classic" && !this.findVueNode()) return;
+    this.requestSync();
   }
   requestSync() {
     if (!nodeActive(this.node) || this.syncFrame) return;
     this.syncFrame = frame(() => { this.syncFrame = 0; if (nodeActive(this.node)) this.sync(); });
   }
   setMode(nextMode) {
-    if (this.mode === nextMode) return false;
+    const prevMode = this.mode;
+    if (prevMode === nextMode) return false;
     this.mode = nextMode;
-    // Renderer switches detach/remount DOM widgets without changing their value.
-    // Notify only this node so it can re-register visual state after the mount.
-    // The existing shared Nodes 2 MutationObserver is the source of the event;
-    // no extra observer, polling loop, or geometry mutation is introduced.
-    try { this.node?._wgRendererModeChanged?.(nextMode); } catch (error) {
-      console.warn("Prompt Palette: renderer-mode refresh failed", error);
+    // Initial classic discovery only confirms the already-mounted legacy node;
+    // re-running full theme/visual/geometry teardown+remount here adds a large startup spike.
+    if (prevMode !== null || nextMode === "nodes2") {
+      this.node._ppRendererAdapter?.classic.requestLayout();
+      // Renderer switches detach/remount DOM widgets without changing their value.
+      // Notify only this node so it can re-register visual state after the mount.
+      // The existing shared Nodes 2 MutationObserver is the source of the event;
+      // no extra observer, polling loop, or geometry mutation is introduced.
+      try { this.node?._wgRendererModeChanged?.(nextMode); } catch (error) {
+        console.warn("Prompt Palette: renderer-mode refresh failed", error);
+      }
     }
     return true;
   }
@@ -305,22 +366,39 @@ export class Nodes2RendererAdapter extends RendererAdapter {
     try {
       const nodeElement = this.findVueNode();
       this.setMode(nodeElement ? "nodes2" : "classic");
-      if (!nodeElement) return false;
+      if (this.lastSyncedVueNode && this.lastSyncedVueNode !== nodeElement) this.releaseDom();
+      if (!nodeElement) { this.lastSyncedVueNode = null; this.signature = ""; this.lastSyncedElements = []; return false; }
+      for (const [element, state] of this.domState) if (!element.isConnected) { this.restoreElement(element, state); this.domState.delete(element); }
       const rail = findPrimarySlotRail(nodeElement, this.node);
-      if (!rail) return false;
+      if (!rail) {
+        // Native node collapse replaces the body with ComfyUI's own title slots.
+        // Release our body presentation rather than leaving a second compact rail.
+        this.releaseDom(); this.signature = ""; this.lastSyncedElements = [];
+        this.lastSyncedVueNode = null;
+        return false;
+      }
       const inputSlots = renderedNode2Inputs(this.node?.inputs || []);
       const widgetSocketEntries = managedWidgetSocketElements(nodeElement, this.node, this.inputDefs);
       const outputSlots = Array.from(this.node?.outputs || []);
-      const inputGroups = managedSocketGroups([
-        ...inputSlots,
-        ...widgetSocketEntries.map((entry) => this.node?.inputs?.[entry.inputIndex]).filter(Boolean),
-      ], this.inputDefs, "input");
-      const outputGroups = managedSocketGroups(outputSlots, this.outputDefs, "output");
-      const showLabels = !!this.labelsShown();
+      const inputGroups = managedSocketGroups(this.node.inputs, this.inputDefs, "input", this.node);
+      const outputGroups = managedSocketGroups(outputSlots, this.outputDefs, "output", this.node);
+      const showLabels = this.labelsShown();
+      const width = rail.body.clientWidth || Number(this.node.size?.[0]) || 180;
+      const compact = compactSocketLayout(width, inputGroups.visible.length, outputGroups.visible.length);
+      const positions = new Map([
+        ...inputGroups.visible.map((slot, index) => [slot, compact.inputs[index]]),
+        ...outputGroups.visible.map((slot, index) => [slot, compact.outputs[index]]),
+      ]);
+      const allSocketElements = [...nodeElement.querySelectorAll('.lg-slot--input, .lg-slot--output')];
+      const slotSignature = (slot, kind, visible) => [slot?.name, slot?.type, socketDisplayLabel(slot, kind === "input" ? this.inputDefs : this.outputDefs), visible, socketConnected(kind, slot, this.node)];
       const signature = JSON.stringify([
-        showLabels,
-        inputSlots.map((slot, index) => [index, slot?.name || "", inputGroups.visibleSet.has(slot), slot?.link ?? null]),
-        outputSlots.map((slot, index) => [index, slot?.name || "", outputGroups.visibleSet.has(slot), Array.isArray(slot?.links) ? slot.links.length : 0]),
+        showLabels, width, !!this.node.flags?.collapsed, allSocketElements.length,
+        inputSlots.map(slot => slotSignature(slot, "input", inputGroups.visibleSet.has(slot))),
+        widgetSocketEntries.map(({ inputIndex }) => {
+          const slot = this.node?.inputs?.[inputIndex];
+          return [inputIndex, slotSignature(slot, "input", inputGroups.visibleSet.has(slot))];
+        }),
+        outputSlots.map(slot => slotSignature(slot, "output", outputGroups.visibleSet.has(slot))),
         rail.inputElements.length, widgetSocketEntries.length, rail.outputElements.length,
         rail.inputElements.map((element) => renderedLabelText(element)),
         widgetSocketEntries.map((entry) => renderedLabelText(entry.element)),
@@ -329,47 +407,91 @@ export class Nodes2RendererAdapter extends RendererAdapter {
       // Vue can replace slot/widget rows without replacing the outer node, and
       // with exactly the same labels/counts. Those new elements still need our
       // visibility state; a value-only signature cannot identify a remount.
-      const elements = [rail.root, rail.inputGroup, rail.outputGroup, ...rail.inputElements,
-        ...widgetSocketEntries.flatMap(entry => [entry.element, entry.row]), ...rail.outputElements];
+      const elements = [rail.body, rail.root, rail.inputGroup, rail.outputGroup, ...rail.inputElements,
+        ...widgetSocketEntries.flatMap(entry => [entry.element, entry.row]), ...rail.outputElements, ...allSocketElements];
       const sameElements = elements.length === this.lastSyncedElements.length
         && elements.every((element, index) => element === this.lastSyncedElements[index]);
       if (this.lastSyncedVueNode === nodeElement && sameElements && this.signature === signature) return false;
       this.lastSyncedElements = elements;
       this.lastSyncedVueNode = nodeElement;
       this.signature = signature;
+      for (const element of [nodeElement, ...elements]) this.remember(element);
+      if (this.hoverHost !== nodeElement) {
+        this.hoverHost = nodeElement;
+        nodeElement.addEventListener("pointermove", this.hoverMove);
+        nodeElement.addEventListener("pointerleave", this.hoverLeave);
+      }
+      const presented = new Set(), touched = new Set();
+      const present = (element, slot, kind, hidden, widget = false) => {
+        hidden ||= presented.has(slot);
+        if (!hidden) presented.add(slot);
+        touched.add(element);
+        this.socketElements.set(element, { slot, kind });
+        setVueSocketState(element, { hidden, widget,
+          showLabels,
+          label: socketDisplayLabel(slot, kind === "input" ? this.inputDefs : this.outputDefs) });
+        const position = positions.get(slot);
+        if (position) {
+          element.style.setProperty("--pp-socket-x", `${position[0]}px`);
+          element.style.setProperty("--pp-socket-y", `${position[1]}px`);
+        }
+        return hidden;
+      };
       let visibleCount = 0;
       rail.inputElements.forEach((element, index) => {
-        const slot = inputSlots[index];
+        const keyedIndex = slotIndexFromVueSocket(element, this.node?.id, "input");
+        const slot = keyedIndex >= 0 ? this.node.inputs?.[keyedIndex] : inputSlots[index];
         const hidden = !slot || !inputGroups.visibleSet.has(slot);
         if (!hidden) visibleCount += 1;
-        setVueSocketState(element, { hidden, showLabels, label: socketDisplayLabel(slot, this.inputDefs) });
+        present(element, slot, "input", hidden);
       });
-      widgetSocketEntries.forEach(({ element, row, widget, inputIndex, def }) => {
+      widgetSocketEntries.forEach(({ element, row, widget, inputIndex }) => {
         const slot = this.node?.inputs?.[inputIndex];
-        const hidden = !slot || !inputGroups.visibleSet.has(slot);
-        if (!hidden) visibleCount += 1;
-        hideWidgetRowControl(row);
+        const hidden = present(element, slot, "input", !slot || !inputGroups.visibleSet.has(slot), true);
+        hideWidgetRowControl(row, element => this.remember(element));
         if (row) {
           row.hidden = hidden;
           row.setAttribute('aria-hidden', hidden ? 'true' : 'false');
         }
         widget.__ppSocketOnly = !hidden;
-        const label = def?.label || socketDisplayLabel(slot, this.inputDefs);
-        setWidgetSocketLabel(element, label, !hidden && showLabels);
-        setVueSocketState(element, { hidden, showLabels: false, label });
+        if (!hidden) exposeWidgetSocket(element, element => this.remember(element));
+        // Keep the actual Vue socket in its widget row. Flatten only its wrapper
+        // chain in compact mode so no invisible widget-input rows consume space.
+        const widgetsRoot = element.closest('[data-testid="node-widgets"]');
+        for (let parent = element.parentElement; parent && parent !== rail.body; parent = parent.parentElement) {
+          this.remember(parent);
+          parent.dataset.ppSocketWidgetPath = parent === widgetsRoot ? "root" : "true";
+          if (parent === widgetsRoot) break;
+        }
       });
       rail.outputElements.forEach((element, index) => {
-        const slot = outputSlots[index];
+        const keyedIndex = slotIndexFromVueSocket(element, this.node?.id, "output");
+        const slot = keyedIndex >= 0 ? outputSlots[keyedIndex] : outputSlots[index];
         const hidden = !slot || !outputGroups.visibleSet.has(slot);
         if (!hidden) visibleCount += 1;
-        setVueSocketState(element, { hidden, showLabels, label: socketDisplayLabel(slot, this.outputDefs) });
+        present(element, slot, "output", hidden);
       });
+      // Some host versions briefly mount both widget and NodeSlots versions of
+      // the same index. Present each real socket once, without cloning or moving it.
+      for (const element of allSocketElements) {
+        if (touched.has(element)) continue;
+        const kind = element.classList.contains('lg-slot--input') ? "input" : "output";
+        const index = slotIndexFromVueSocket(element, this.node.id, kind);
+        if (index < 0) continue;
+        const slot = (kind === "input" ? this.node.inputs : this.node.outputs)?.[index];
+        const visible = (kind === "input" ? inputGroups : outputGroups).visibleSet.has(slot);
+        present(element, slot, kind, !slot || !visible);
+      }
       rail.root.dataset.ppSocketRail = "true";
       rail.root.dataset.ppSocketEmpty = visibleCount === 0 ? "true" : "false";
       rail.root.dataset.ppSocketCompact = showLabels ? "false" : "true";
       if (rail.inputGroup) rail.inputGroup.dataset.ppSocketRailGroup = "input";
       if (rail.outputGroup) rail.outputGroup.dataset.ppSocketRailGroup = "output";
       nodeElement.dataset.ppSocketRailBody = "true";
+      nodeElement.dataset.ppSocketCompact = showLabels ? "false" : "true";
+      nodeElement.dataset.ppSocketNativeCollapsed = this.node.flags?.collapsed ? "true" : "false";
+      rail.body.dataset.ppSocketBody = "true";
+      rail.body.style.setProperty("--pp-socket-rail-height", `${compact.height}px`);
       return true;
     } finally {
       this.inSync = false;
@@ -391,18 +513,9 @@ export class Nodes2RendererAdapter extends RendererAdapter {
     this.lastSyncedElements = [];
     this.inSync = false;
     this.mode = null;
-    const vueNode = this.vueNode;
-    if (vueNode?.querySelectorAll) {
-      for (const element of vueNode.querySelectorAll('[data-pp-socket-rail-item="true"]')) {
-        delete element.dataset.ppSocketRailItem; delete element.dataset.ppSocketHidden; delete element.dataset.ppSocketLabels;
-        element.hidden = false; element.removeAttribute("aria-hidden"); element.removeAttribute("inert");
-      }
-      for (const element of vueNode.querySelectorAll('[data-pp-socket-rail="true"], [data-pp-socket-rail-group]')) {
-        delete element.dataset.ppSocketRail; delete element.dataset.ppSocketEmpty; delete element.dataset.ppSocketCompact; delete element.dataset.ppSocketRailGroup;
-      }
-      delete vueNode.dataset.ppSocketRailBody;
-    }
+    this.releaseDom();
     this.vueNode = null;
+    this.lastMissEpoch = -1;
   }
 }
 

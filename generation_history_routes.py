@@ -5,7 +5,7 @@ import time
 from aiohttp import web
 from server import PromptServer
 from .feature_store import user_store, read_json, require_same_origin, FeatureConflict
-from .generation_history import settings, index_history, media_exists, validate_image
+from .generation_history import settings, index_history, media_exists, validate_image, public_record
 
 PREFIX = '/zf-prompt-palette/api/v1/generations'
 
@@ -116,7 +116,7 @@ def register_generation_history_routes(routes):
                 if missing_only and not record['missing']: continue
                 if provenance and record.get('provenance') != provenance: continue
                 if since and record.get('completed_at', 0) < since: continue
-                rows.append(record)
+                rows.append(public_record(record))
             return {**page, 'items': rows}
         return web.json_response(await asyncio.to_thread(read))
 
@@ -125,7 +125,7 @@ def register_generation_history_routes(routes):
         record = await asyncio.to_thread(user_store(request).get, 'generations', request.match_info['media_id'])
         if not record: raise web.HTTPNotFound(text='Generation not found')
         record['missing'] = not media_exists(record['image'], _roots())
-        return web.json_response(record)
+        return web.json_response(public_record(record))
 
     @routes.patch(PREFIX + '/{media_id}')
     async def annotate(request):
@@ -148,7 +148,8 @@ def register_generation_history_routes(routes):
             if not media_exists(image, _roots()): raise web.HTTPBadRequest(text='Relink target does not exist inside ComfyUI output/temp')
             record['image'] = image
             record['provenance'] = 'imported-unlinked'
-        return web.json_response(await asyncio.to_thread(store.put, 'generations', record['id'], record, expected_revision=data.get('revision')))
+        saved = await asyncio.to_thread(store.put, 'generations', record['id'], record, expected_revision=data.get('revision'))
+        return web.json_response(public_record(saved))
 
     @routes.delete(PREFIX + '/{media_id}')
     async def remove(request):

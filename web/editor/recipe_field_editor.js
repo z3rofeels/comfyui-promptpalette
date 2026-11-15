@@ -34,7 +34,7 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
   editor.__ppSaveSelectionAsList = (start, end) => saveEditorSelection(editor, start, end, { list: true, onSaved: onLibrarySaved });
   const cleanupContext = attachEditorContextMenu(editor, {
     render: change, beforeOpen: closeInjectMenu,
-    promptTools: { node, getSeed, getMode, project: projectPrompt, apply: (text, start, end) => { atomicEdit(text); editor.value = text; editor.setSelectionRange(start, end); paint(); } },
+    promptTools: { node, getSeed, getMode, project: projectPrompt, apply: (text, start, end) => { atomicEdit(text); if (!disposed) { editor.value = text; editor.setSelectionRange(start, end); paint(); } } },
     syntaxEnabled: () => loadTheme().syntaxInjectorEnabled !== false,
     syntaxAction: (event, selection) => openInjectMenuAtPoint(event.clientX, event.clientY, "", editor, change, selection.start === selection.end ? null : selection),
   });
@@ -47,7 +47,7 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
     openInjectMenuAtPoint(rect.left, rect.bottom, hit?.name || "", editor, change, hit || null);
   };
   const refinement = createRefinementController({ node, root, textarea: editor, render: change,
-    atomicEdit: (text, start, end) => { atomicEdit(text); editor.value = text; editor.setSelectionRange(start, end); paint(); },
+    atomicEdit: (text, start, end) => { atomicEdit(text); if (!disposed) { editor.value = text; editor.setSelectionRange(start, end); paint(); } },
     getSeed, getMode, getLibrary, host, openHost, allowBatch, fieldOnly: true, mapBatchPrompt, getBatchSource, variationGuard, prepareBatchPrompts });
   const historyKey = event => {
     const action = historyShortcut(event);

@@ -89,6 +89,60 @@ export function setPerformanceDiagnosticsEnabled(enabled) {
   return !!enabled;
 }
 
+// Portaled windows follow the existing DOM-widget geometry. Changes to that
+// geometry arrive through its ancestry, resize and scroll events; an idle window
+// does not need to measure the node every animation frame.
+export function observePanelAnchor(anchor, onChange, { content = null } = {}) {
+  let disposed = false, frame = null, ancestry = [];
+  const raf = globalThis.requestAnimationFrame || (fn => setTimeout(fn, 0));
+  const cancel = globalThis.cancelAnimationFrame || clearTimeout;
+  const mutation = typeof MutationObserver === "function" ? new MutationObserver(schedule) : null;
+  const resize = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
+  function bind() {
+    const next = [];
+    for (let element = anchor; element; element = element.parentElement) next.push(element);
+    if (next.length === ancestry.length && next.every((element, i) => element === ancestry[i])) return;
+    mutation?.disconnect(); resize?.disconnect(); ancestry = next;
+    for (const element of ancestry) {
+      mutation?.observe(element, { attributes: true, attributeFilter: ["style", "class", "hidden", "aria-hidden"], childList: true });
+      resize?.observe(element);
+    }
+    if (content) {
+      mutation?.observe(content, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["style", "class", "hidden", "open"] });
+      resize?.observe(content);
+    }
+  }
+  function schedule() {
+    if (disposed || frame !== null) return;
+    frame = raf(() => {
+      frame = null;
+      if (disposed || document.hidden) return;
+      bind(); onChange();
+      // Follow a CSS transition smoothly, stopping as soon as it finishes.
+      if (ancestry.some(element => element.getAnimations?.().some(animation => animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming?.().endTime)))) schedule();
+    });
+  }
+  const visibility = () => { if (!document.hidden) schedule(); };
+  const transition = event => { if (ancestry.includes(event.target)) schedule(); };
+  window.addEventListener("resize", schedule, { passive: true });
+  window.addEventListener("scroll", schedule, { passive: true, capture: true });
+  document.addEventListener("visibilitychange", visibility);
+  document.addEventListener("transitionrun", transition, true);
+  document.addEventListener("transitionend", transition, true);
+  bind(); schedule();
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    if (frame !== null) cancel(frame);
+    frame = null; mutation?.disconnect(); resize?.disconnect(); ancestry = [];
+    window.removeEventListener("resize", schedule);
+    window.removeEventListener("scroll", schedule, true);
+    document.removeEventListener("visibilitychange", visibility);
+    document.removeEventListener("transitionrun", transition, true);
+    document.removeEventListener("transitionend", transition, true);
+  };
+}
+
 export function createPerformanceRuntime({ node, root }) {
   const profiler = new PromptPaletteProfiler(node, performanceDiagnosticsEnabled());
   const frames = new Map();
@@ -98,8 +152,9 @@ export function createPerformanceRuntime({ node, root }) {
   let viewportObserver = null;
   let onWake = null;
   let lastVisualActive = true;
+  let disposed = false;
 
-  const active = () => !node?._ppLifecycle?.signal?.aborted;
+  const active = () => !disposed && !node?._ppLifecycle?.signal?.aborted;
   const rootDisplayed = () => {
     if (!root || root.isConnected === false) return false;
     const rects = root.getClientRects?.();
@@ -139,9 +194,11 @@ export function createPerformanceRuntime({ node, root }) {
   lastVisualActive = visualActive();
 
   function scheduleFrame(key, fn, { visual = true } = {}) {
+    if (!active()) return null;
     if (frames.has(key)) return frames.get(key);
     const callback = () => {
       frames.delete(key);
+      profiler.gauge("scheduledFrames", frames.size);
       if (!active()) return;
       if (visual && !visualActive()) {
         profiler.count("framesSkippedInactive");
@@ -158,6 +215,7 @@ export function createPerformanceRuntime({ node, root }) {
   }
 
   function debounce(key, delay, fn, { visual = false } = {}) {
+    if (!active()) return null;
     const existing = timers.get(key);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
@@ -186,6 +244,7 @@ export function createPerformanceRuntime({ node, root }) {
   function beginRequest(key) {
     requests.get(key)?.abort?.();
     const controller = new AbortController();
+    if (!active()) { controller.abort(); return controller; }
     requests.set(key, controller);
     profiler.gauge("outstandingRequests", requests.size);
     return controller;
@@ -217,6 +276,8 @@ export function createPerformanceRuntime({ node, root }) {
   }
 
   function cleanup() {
+    if (disposed) return;
+    disposed = true; onWake = null;
     if (typeof document !== "undefined") document.removeEventListener?.("visibilitychange", handleVisibilityChange);
     viewportObserver?.disconnect();
     viewportObserver = null;

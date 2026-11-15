@@ -24,7 +24,7 @@
 .ppwc-title-wrap > div { min-width:0; display:grid; gap:1px; }
 .ppwc-title-wrap strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text,#f1eee8); font-size:calc(10px * var(--wg-ui-font-scale,1)); font-weight:700; letter-spacing:.015em; }
 .ppwc-title-wrap small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text-faint,#8f887e); font-size: max(9px, calc(8px * var(--wg-ui-font-scale,1))); }
-.ppwc-title-mark { width:6px; height:22px; flex:none; border-radius:999px; background:var(--wg-accent,#d77768); box-shadow:0 0 12px color-mix(in srgb,var(--wg-accent,#d77768) 35%,transparent); }
+.ppwc-title-mark { width:6px; height:22px; flex:none; border-radius:999px; background:var(--wg-accent,#d77768); }
 .ppwc-row-actions { flex:none; display:flex; align-items:center; gap:4px; }
 .ppwc-settings-row .wg-icon-btn { width:26px; height:26px; }
 .ppwc-settings-row .wg-io-toggle-btn { width:auto; min-width:48px; }

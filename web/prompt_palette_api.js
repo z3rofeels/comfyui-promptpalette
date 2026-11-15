@@ -283,16 +283,16 @@ const API = {
     }));
   },
   async resolve(text, seed, mode, { signal, positiveAntonyms = false, resolve = true, workspaceRuntime = "", varsIn = "" } = {}) {
+    let runtimePayload = null;
     if (resolve && workspaceRuntime) {
       const runtime = typeof workspaceRuntime === "string" ? JSON.parse(workspaceRuntime) : workspaceRuntime;
-      if (runtime.positive === text) {
-        const [item] = await API.resolveWorkspace(runtime, seed, mode, 1, { signal });
-        return API.resolve(item.positive, seed, mode, { signal, positiveAntonyms, resolve: false, varsIn });
-      }
+      if (runtime && runtime.positive === text) runtimePayload = runtime;
     }
+    const body = { text, seed, mode, positive_antonyms: positiveAntonyms, resolve, vars_in: varsIn };
+    if (runtimePayload) body.workspace_runtime = runtimePayload;
     const data = await readApiJson(await api.fetchApi("/prompt_palette/resolve", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, seed, mode, positive_antonyms: positiveAntonyms, resolve, vars_in: varsIn }),
+      body: JSON.stringify(body),
       ...(signal ? { signal } : {}),
     }));
     return {
@@ -386,6 +386,13 @@ const API = {
       ...(signal ? { signal } : {}),
     }));
     return { count: data.count || 0, truncated: !!data.truncated, cap: data.cap || 5000 };
+  },
+  async evalInput({ prompt, targetNode, outputIndex = 0, signal } = {}) {
+    return readApiJson(await api.fetchApi("/prompt_palette/eval_input", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, target_node: String(targetNode ?? ""), output_index: Number(outputIndex) || 0 }),
+      ...(signal ? { signal } : {}),
+    }));
   },
 };
 

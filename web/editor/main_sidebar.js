@@ -1,4 +1,6 @@
+import { createLoraSidebar } from "./lora_sidebar.js";
 import { mountLibraryFeatures } from "./library_features.js";
+import { createSidebarGenerations } from "./sidebar_generations.js";
 import { reviewHistoryRestore, applyHistoryText, historyTargetEditor } from "./history_restore.js";
 import { SidebarHoverPreview } from "./sidebar_hover_preview.js";
 import { SidebarDisplayControls } from "./sidebar_display_controls.js";
@@ -6,7 +8,7 @@ import { sidebarLayoutMetrics, snapSidebarSize } from "./sidebar_layout.js";
 import { sidebarTargets, sidebarTextNeedsResolution } from "./sidebar_targets.js";
 import { app } from "../../../scripts/app.js";
 import { API } from "../prompt_palette_api.js";
-import { onPromptPaletteCommandTargetsChanged } from "../prompt_palette_command_bus.js";
+import { activePromptPaletteCommandTarget, onPromptPaletteCommandTargetsChanged } from "../prompt_palette_command_bus.js";
 import { onPromptPaletteAppearanceChanged, navigatePromptPaletteTabs, svgIcon } from "../prompt_palette_shared.js";
 import { readSuiteAppearanceSnapshot } from "./suite_appearance.js";
 import { loadPinned, savePinned, onLibraryPinsChanged, loadSidebarDisplay, saveSidebarDisplay } from "./preferences.js";
@@ -31,7 +33,7 @@ import { styleInsertionAtSelection } from "./style_library_model.js";
 import { SidebarPresentation, captureSidebarFocus, restoreSidebarFocus } from "./sidebar_presentation.js";
 
 const TAB_ID = "prompt-palette-library";
-const session = { tab: "library", search: "", folder: "", filter: "all", code: "{+a|b|c}", entry: null, entryOpen: false, syntaxWorkshop: false, guideIndex: null, guideSearch: "", targetNode: null, targetWidget: null };
+const session = { tab: "library", search: "", folder: "", filter: "all", code: "{+a|b|c}", entry: null, entryOpen: false, syntaxWorkshop: false, guideIndex: null, guideSearch: "", targetNode: null, targetWidget: null, manualTarget: false };
 const make = (tag, className = "", text = "") => { const el = document.createElement(tag); el.className = className; el.textContent = text; return el; };
 function button(text, fn, className = "") { const el = make("button", className, text); el.type = "button"; el.addEventListener("click", fn); return el; }
 function select(label, options) { const el = make("select"); el.setAttribute("aria-label", label); for (const [value, label] of options) { const opt = make("option", "", label); opt.value = value; el.append(opt); } return el; }
@@ -42,9 +44,9 @@ export function createPromptPaletteSidebar(container) {
   container.append(root);
   const presentation = new SidebarPresentation(root, container);
   const cleanups = [() => container.classList.remove("pp-sidebar-host")];
-  let libraryFeatures = null;
+  let libraryFeatures = null, sidebarGenerations = null, sidebarGenerationsTab = null;
   let disposed = false, libraryVersion = 0, previewVersion = 0, previewAbort = null;
-  let currentNode = session.targetNode, currentWidget = session.targetWidget, lockedSelection = null, templateRange = session.code === "{+a|b|c}" ? [2, 7] : null, items = [], thumbnails = {};
+  let currentNode = session.targetNode, currentWidget = session.targetWidget, manualTarget = session.manualTarget, lockedSelection = null, templateRange = session.code === "{+a|b|c}" ? [2, 7] : null, items = [], thumbnails = {};
   let appearance = readSuiteAppearanceSnapshot();
   const model = new PromptLibraryModel(), usage = createPromptUsageStore();
   let renderedTargets = [];
@@ -58,12 +60,13 @@ export function createPromptPaletteSidebar(container) {
   const preset = select("Sidebar presentation preset", [["custom", "Custom presentation"], ["studio", "Studio · balanced"], ["showcase", "Showcase · image focused"], ["minimal", "Minimal · library only"]]);
   appearanceBody.append(preset);
   const chromeControls = new Map();
-  for (const [key, title] of [["fillRows", "Fill gallery rows"], ["hoverImages", "Thumbnail hover previews"], ["hoverText", "Hover prompt samples"], ["displayControls", "Keep size controls in toolbar"], ["ratioControls", "Keep aspect ratios in toolbar"], ["images", "Preview images"], ["prompt", "Prompt text on cards"], ["descriptions", "Descriptions on cards"], ["styles", "Explore tab"], ["syntax", "Syntax tab"], ["tools", "Tools tab"], ["intro", "Collection introductions"], ["modelHelp", "Model prompting guide"], ["artists", "Artists collection"], ["tags", "Booru tags collection"], ["favorites", "Favorites collection"], ["previews", "My previews collection"], ["custom", "My words collection"]]) {
+  for (const [key, title] of [["fillRows", "Fill gallery rows"], ["hoverImages", "Thumbnail hover previews"], ["hoverText", "Hover prompt samples"], ["displayControls", "Keep size controls in toolbar"], ["ratioControls", "Keep aspect ratios in toolbar"], ["images", "Preview images"], ["prompt", "Prompt text on cards"], ["descriptions", "Descriptions on cards"], ["recentGenerations", "Recent Generations"], ["generationsTab", "Recent Generations tab"], ["styles", "Explore tab"], ["loras", "LoRAs tab"], ["syntax", "Syntax tab"], ["tools", "Tools tab"], ["intro", "Collection introductions"], ["modelHelp", "Model prompting guide"], ["artists", "Artists collection"], ["tags", "Booru tags collection"], ["favorites", "Favorites collection"], ["previews", "My previews collection"], ["custom", "My words collection"]]) {
     if (key === "fillRows") appearanceBody.append(make("strong", "", "Gallery layout"));
     if (key === "hoverImages") appearanceBody.append(make("strong", "", "Hover previews"));
     if (key === "displayControls") appearanceBody.append(make("strong", "", "Toolbar"));
     if (key === "images") appearanceBody.append(make("strong", "", "Cards"));
-    if (key === "styles") appearanceBody.append(make("strong", "", "Sidebar tabs"));
+    if (key === "recentGenerations") appearanceBody.append(make("strong", "", "Sidebar sections"));
+    if (key === "generationsTab") appearanceBody.append(make("strong", "", "Sidebar tabs"));
     if (key === "intro") appearanceBody.append(make("strong", "", "Guidance"));
     if (key === "artists") appearanceBody.append(make("strong", "", "Explore collections"));
     const label = make("label", "pp-sidebar-toggle"), input = make("input"); input.type = "checkbox";
@@ -72,17 +75,17 @@ export function createPromptPaletteSidebar(container) {
     input.addEventListener("change", () => { saveSidebarDisplay({ chrome: { [key]: input.checked } }); preset.value = "custom"; applySidebarChrome(); updateDisplay(); });
   }
   appearanceBody.append(button("Show all sections", () => {
-    saveSidebarDisplay({ chrome: Object.fromEntries(["styles", "syntax", "tools", "intro", "modelHelp", "artists", "tags", "favorites", "previews", "custom"].map(key => [key, true])) });
+    saveSidebarDisplay({ chrome: Object.fromEntries(["recentGenerations", "styles", "loras", "syntax", "tools", "intro", "modelHelp", "artists", "tags", "favorites", "previews", "custom"].map(key => [key, true])) });
     preset.value = "custom"; applySidebarChrome(); updateDisplay();
   }));
   const fit = select("Preview image fit", [["contain", "Full image · no cropping"], ["cover", "Fill frame · crop edges"]]); appearanceBody.append(fit);
-  fit.addEventListener("change", () => { saveSidebarDisplay({ chrome: { fit: fit.value } }); applySidebarChrome(); });
+  fit.addEventListener("change", () => { saveSidebarDisplay({ chrome: { fit: fit.value } }); applySidebarChrome(); updateDisplay(); });
   appearanceBody.append(make("small", "pp-sidebar-note", "Appearance only. Hidden tools and saved data remain available in your node. Themes follow Prompt Palette settings."));
   appearanceMenu.append(appearanceSummary, appearanceBody); header.append(appearanceMenu);
   preset.addEventListener("change", () => {
     if (preset.value === "custom") return;
     const minimal = preset.value === "minimal";
-    saveSidebarDisplay({ chrome: { images: !minimal, prompt: preset.value === "studio", descriptions: false, styles: !minimal, syntax: !minimal, tools: !minimal }, layouts: Object.fromEntries(Object.keys(loadSidebarDisplay().layouts).map(key => [key, minimal ? "list" : "gallery"])) });
+    saveSidebarDisplay({ chrome: { images: !minimal, prompt: preset.value === "studio", descriptions: false, styles: !minimal, loras: !minimal, syntax: !minimal, tools: !minimal }, layouts: Object.fromEntries(Object.keys(loadSidebarDisplay().layouts).map(key => [key, minimal ? "list" : "gallery"])) });
     applySidebarChrome(); syncDisplayControls(); updateDisplay();
   });
   function applySidebarChrome() {
@@ -91,13 +94,17 @@ export function createPromptPaletteSidebar(container) {
     fit.value = state.chrome.fit;
     root.dataset.images = String(state.chrome.images); root.dataset.prompt = String(state.chrome.prompt);
     root.dataset.descriptions = String(state.chrome.descriptions); root.dataset.imageFit = state.chrome.fit;
-    for (const key of ["styles", "syntax", "tools"]) { const tab = tabButtons.get(key); if (tab) tab.hidden = !state.chrome[key]; }
+    root.dataset.recentGenerations = String(state.chrome.recentGenerations);
+    sidebarGenerations?.setVisible(state.chrome.recentGenerations);
+    const genTab = tabButtons.get("generations");
+    if (genTab) genTab.hidden = !state.chrome.generationsTab;
+    for (const key of ["styles", "loras", "syntax", "tools"]) { const tab = tabButtons.get(key); if (tab) tab.hidden = !state.chrome[key]; }
     root.dataset.intro = String(state.chrome.intro); root.dataset.modelHelp = String(state.chrome.modelHelp);
     hoverPreview.dismiss();
     quickPreview.hide();
     styleExplorer.refreshVisibility();
     syncDisplayControls();
-    if (["styles", "syntax", "tools"].includes(session.tab) && !state.chrome[session.tab]) activate("library");
+    if ((session.tab === "generations" && !state.chrome.generationsTab) || (["styles", "loras", "syntax", "tools"].includes(session.tab) && !state.chrome[session.tab])) activate("library");
   }
   root.addEventListener("keydown", event => { if (event.key === "Escape" && appearanceMenu.open) { appearanceMenu.open = false; appearanceSummary.focus(); event.preventDefault(); event.stopPropagation(); } });
   const targetLabel = make("label", "pp-sidebar-target"); targetLabel.append(make("span", "", "Insert into"));
@@ -110,15 +117,22 @@ export function createPromptPaletteSidebar(container) {
   const quickPreview = createSidebarQuickPreview(root, announce); cleanups.push(() => quickPreview.cleanup());
   const hoverPreview = new SidebarHoverPreview(root, presentation); cleanups.push(() => hoverPreview.cleanup());
   let displayFrame = 0;
-  function displayKey() { return session.tab === "styles" ? styleExplorer.displayKey() : "library"; }
+  function displayKey() { return session.tab === "styles" ? styleExplorer.displayKey() : session.tab === "loras" ? "loras" : session.tab === "generations" ? "generations" : "library"; }
   const displayControls = new SidebarDisplayControls({ presentation, tabs, settingsHost: appearanceBody, settingsAnchor: preset,
     getKey: displayKey, onChange: updateDisplay, onDismiss: () => { quickPreview.hide(); hoverPreview.dismiss(); } });
   function syncDisplayControls() {
-    displayControls.sync(["library", "styles"].includes(session.tab) && !(session.tab === "library" && session.entryOpen) && (session.tab !== "styles" || styleExplorer.isBrowsing()));
+    displayControls.sync(["library", "generations", "styles", "loras"].includes(session.tab) && !(session.tab === "library" && session.entryOpen) && (session.tab !== "styles" || styleExplorer.isBrowsing()));
   }
   function updateDisplay() {
     if (displayFrame) return;
-    displayFrame = requestAnimationFrame(() => { displayFrame = 0; if (disposed) return; if (session.tab === "styles") styleExplorer.refreshAppearance(); else if (session.tab === "library") paintLibraryCollection(); });
+    displayFrame = requestAnimationFrame(() => {
+      displayFrame = 0;
+      if (disposed) return;
+      if (session.tab === "styles") styleExplorer.refreshAppearance();
+      else if (session.tab === "library") { paintLibraryCollection(); sidebarGenerations?.refreshAppearance(); }
+      else if (session.tab === "generations") sidebarGenerationsTab?.refreshAppearance();
+      else if (session.tab === "loras") loraSidebar.refreshAppearance();
+    });
   }
   cleanups.push(() => { if (displayFrame) cancelAnimationFrame(displayFrame); displayControls.cleanup(); });
   function target() { return sidebarTargets(app.graph).find(t => t.node === currentNode && (t.widget || null) === currentWidget); }
@@ -180,16 +194,21 @@ export function createPromptPaletteSidebar(container) {
       b.classList.toggle("active", active); b.setAttribute("aria-selected", String(active)); b.tabIndex = active ? 0 : -1;
     }
     libraryFeatures?.setActive(session.tab === "library");
+    sidebarGenerations?.setActive(session.tab === "library");
+    sidebarGenerationsTab?.setActive(session.tab === "generations");
+    loraSidebar.activate(session.tab === "loras");
     quickPreview.hide(); syncDisplayControls();
     appearanceMenu.open = false;
-    if (session.tab === "library") renderLibrary();
+    if (session.tab === "library") { renderLibrary(); sidebarGenerations?.refreshAppearance(); }
+    if (session.tab === "generations") sidebarGenerationsTab?.refreshAppearance();
     if (session.tab === "tools") refreshToolCards();
     if (session.tab === "styles") styleExplorer.activate();
   }
   let sidebarSequence = ++createPromptPaletteSidebar.sequence;
-  for (const [key, label] of [["library", "Library"], ["styles", "Explore"], ["syntax", "Syntax"], ["tools", "Tools"]]) {
+  for (const [key, label] of [["library", "Library"], ["generations", "Generations"], ["loras", "LoRAs"], ["styles", "Explore"], ["syntax", "Syntax"], ["tools", "Tools"]]) {
     const pane = make("div", `pp-sidebar-pane pp-sidebar-${key}`); pane.id = `pp-sidebar-${sidebarSequence}-${key}`; pane.setAttribute("role", "tabpanel"); pane.tabIndex = 0;
     const tab = button(label, () => activate(key)); tab.id = `${pane.id}-tab`; tab.setAttribute("role", "tab"); tab.setAttribute("aria-controls", pane.id); pane.setAttribute("aria-labelledby", tab.id);
+    if (key === "generations") tab.hidden = !loadSidebarDisplay().chrome.generationsTab;
     tab.addEventListener("keydown", event => navigatePromptPaletteTabs(event, [...tabButtons.values()].filter(item => !item.hidden), item => { item.click(); item.focus(); }));
     tabs.append(tab); panes.set(key, pane); tabButtons.set(key, tab); root.append(pane);
   }
@@ -202,6 +221,11 @@ export function createPromptPaletteSidebar(container) {
     } catch (error) { announce(error.message, true); return false; }
   } });
   cleanups.push(() => styleExplorer.cleanup());
+
+  const loraSidebar = createLoraSidebar(panes.get("loras"), {
+    target, selection, presentation, uiScale: () => appearance.theme.uiFontScale, announce,
+  });
+  cleanups.push(() => loraSidebar.cleanup());
 
   // Search and filter the same disk library. Virtual rows keep large libraries responsive.
   const libraryPane = panes.get("library"), browse = make("div", "pp-sidebar-browse"); libraryPane.append(browse);
@@ -369,7 +393,44 @@ export function createPromptPaletteSidebar(container) {
     count.textContent = `${matches.length.toLocaleString()} of ${items.length.toLocaleString()} entries`; categoryPreview.disabled = !matches.length;
     paintLibraryCollection();
   }
-  libraryFeatures = mountLibraryFeatures({ host: browse, settingsHost: libraryActions, getNode: () => currentNode, getItems: () => items, getPinned: () => loadPinned(), getThumbnails: () => thumbnails, onFilter: () => renderLibrary(), onView: view => { saveSidebarDisplay({layouts:{library:view==="grid"?"gallery":view}}); updateDisplay(); }, onOpenEntry: (path, options) => editEntry(path, options), announce, content: [list, search, controls, actions, libraryHint, count], restore: ({text,channel="positive"}) => { const snap = selection(); const fieldChannel=snap.editor?.closest?.(".pp-recipe-field")?.querySelector("[data-channel]")?.dataset.channel; const editor=fieldChannel===channel?snap.editor:historyTargetEditor(currentNode,channel==="positive"?target()?.handlers.sidebarEditor?.():null,channel); return reviewHistoryRestore(editor,text,applyHistoryText,channel); } });
+  const restoreHistoryPrompt = ({ text, channel = "positive" }) => {
+    const snap = selection();
+    const fieldChannel = snap.editor?.closest?.(".pp-recipe-field")?.querySelector("[data-channel]")?.dataset.channel;
+    const editor = fieldChannel === channel
+      ? snap.editor
+      : historyTargetEditor(currentNode, channel === "positive" ? target()?.handlers.sidebarEditor?.() : null, channel);
+    return reviewHistoryRestore(editor, text, applyHistoryText, channel);
+  };
+  sidebarGenerations = createSidebarGenerations(browse, {
+    mode: "split",
+    presentation,
+    hoverPreview,
+    uiScale: () => appearance.theme.uiFontScale,
+    getNode: () => currentNode,
+    insertPrompt: text => insert(text),
+    restore: restoreHistoryPrompt,
+    onOpenTab: () => {
+      saveSidebarDisplay({ chrome: { generationsTab: true } });
+      preset.value = "custom";
+      applySidebarChrome();
+      activate("generations");
+      updateDisplay();
+    },
+    announce,
+  });
+  cleanups.push(() => sidebarGenerations.cleanup());
+  sidebarGenerationsTab = createSidebarGenerations(panes.get("generations"), {
+    mode: "tab",
+    presentation,
+    hoverPreview,
+    uiScale: () => appearance.theme.uiFontScale,
+    getNode: () => currentNode,
+    insertPrompt: text => insert(text),
+    restore: restoreHistoryPrompt,
+    announce,
+  });
+  cleanups.push(() => sidebarGenerationsTab.cleanup());
+  libraryFeatures = mountLibraryFeatures({ host: browse, settingsHost: libraryActions, getNode: () => currentNode, getItems: () => items, getPinned: () => loadPinned(), getThumbnails: () => thumbnails, onFilter: () => renderLibrary(), onView: view => { saveSidebarDisplay({layouts:{library:view==="grid"?"gallery":view}}); updateDisplay(); }, onOpenEntry: (path, options) => editEntry(path, options), announce, content: [list, search, controls, actions, libraryHint, count], restore: restoreHistoryPrompt, includeHistory: false });
   cleanups.push(() => libraryFeatures.cleanup());
 
   async function refreshLibrary() {
@@ -529,7 +590,7 @@ export function createPromptPaletteSidebar(container) {
       const off = preference && !prefs[preference]; b.dataset.toolState = off ? "off" : "ready";
       const supported = typeof t?.handlers[command] === "function";
       b.disabled = !supported;
-      action.textContent = !supported ? (currentNode ? "Not available on this node" : "Choose a target above") : off ? "Off · Enable & open →" : "Open →";
+      action.textContent = !supported ? (currentNode ? "Not available on this node" : "Select a target prompt") : off ? "Off · Enable & open →" : "Open →";
     }
     toolList.querySelectorAll("[data-sidebar-prompt-tool]").forEach(b => {
       const editor = t?.handlers.sidebarEditor?.();
@@ -543,11 +604,15 @@ export function createPromptPaletteSidebar(container) {
     if (disposed) return;
     const live = sidebarTargets(app.graph);
     const previous = currentNode, previousWidget = currentWidget;
-    if (!live.some(t => t.node === currentNode && (t.widget || null) === currentWidget)) {
-      currentNode = live.length === 1 ? live[0].node : null; currentWidget = live.length === 1 ? (live[0].widget || null) : null;
+    const valid = currentNode ? live.some(t => t.node === currentNode && (t.widget || null) === currentWidget) : false;
+    if (currentNode && !valid) {
+      currentNode = null; currentWidget = null; manualTarget = false;
     }
-    session.targetNode = currentNode; session.targetWidget = currentWidget;
-    // Keep the target explicit when multiple nodes exist; never silently change it on focus.
+    if (!manualTarget) {
+      const preferred = activePromptPaletteCommandTarget(app.graph) || (live.length === 1 ? live[0] : null);
+      currentNode = preferred?.node || null; currentWidget = preferred ? (preferred.widget || null) : null;
+    }
+    session.targetNode = currentNode; session.targetWidget = currentWidget; session.manualTarget = manualTarget;
     const entries = live.map(t => ({ node: t.node, widget: t.widget || null, label: t.label?.() || `${t.node.title || t.node.comfyClass || "Prompt node"} · #${t.node.id}` }));
     const changed = entries.length !== renderedTargets.length || entries.some((entry, i) => entry.node !== renderedTargets[i]?.node || entry.widget !== renderedTargets[i]?.widget || entry.label !== renderedTargets[i]?.label);
     if (changed || !targets.options.length) {
@@ -557,22 +622,30 @@ export function createPromptPaletteSidebar(container) {
     }
     targets.value = currentNode ? String(live.findIndex(t => t.node === currentNode && (t.widget || null) === currentWidget)) : "";
     targets.title = targets.selectedOptions[0]?.textContent || "Choose a target";
-    if (previous !== currentNode || previousWidget !== currentWidget) { lockedSelection = null; invalidatePreview(); paintCode(); }
+    if (previous !== currentNode || previousWidget !== currentWidget) { lockedSelection = null; invalidatePreview(); paintCode(); libraryFeatures?.refresh(); sidebarGenerations?.refreshTarget(); sidebarGenerationsTab?.refreshTarget(); }
     targetHint.textContent = target()?.handlers.sidebarRequiresResolvedText ? "Inserts resolved text into this field." : currentNode ? "Inserts at your cursor or active field." : "Choose a target to insert. You can browse and edit without one.";
-    refreshToolCards();
+    refreshToolCards(); loraSidebar.refresh();
   }
   targets.addEventListener("change", () => {
+    manualTarget = true;
     const selected = targets.value === "" ? null : sidebarTargets(app.graph)[Number(targets.value)];
     currentNode = selected?.node || null; currentWidget = selected?.widget || null;
-    libraryFeatures?.refresh();
+    selected?.activate?.();
+    libraryFeatures?.refresh(); sidebarGenerations?.refreshTarget(); sidebarGenerationsTab?.refreshTarget();
     lockedSelection = null; invalidatePreview(); refreshTargets(); paintCode();
   });
   targets.addEventListener("pointerdown", refreshTargets);
   targets.addEventListener("focus", refreshTargets);
   const themeApply = () => {
     appearance = readSuiteAppearanceSnapshot(); presentation.applyTheme(appearance);
-    styleExplorer.refreshAppearance();
-    if (items.length) renderLibrary();
+    if (session.tab === "styles") styleExplorer.refreshAppearance();
+    else if (session.tab === "loras") loraSidebar.refreshAppearance();
+    else if (session.tab === "library") {
+      if (items.length) paintLibraryCollection();
+      sidebarGenerations?.refreshAppearance();
+    } else if (session.tab === "generations") {
+      sidebarGenerationsTab?.refreshAppearance();
+    }
   };
   cleanups.push(onPromptPaletteAppearanceChanged(themeApply), API.onLibraryChanged(refreshLibrary), onLibraryPinsChanged(renderLibrary), onPromptPaletteCommandTargetsChanged(refreshTargets));
   applySidebarChrome(); themeApply(); refreshTargets(); activate(session.tab); refreshLibrary();
@@ -591,7 +664,7 @@ function registerSidebar(enabled) {
   if (!manager?.registerSidebarTab) return;
   if (!enabled) { if (registered) manager.unregisterSidebarTab?.(TAB_ID); mounted?.cleanup(); mounted = null; registered = false; return; }
   if (registered) return;
-  manager.registerSidebarTab({ id: TAB_ID, type: "custom", title: "Prompt Palette", tooltip: "Prompt library, editable syntax and prompting tools", icon: "pi pi-palette",
+  manager.registerSidebarTab({ id: TAB_ID, type: "custom", title: "Prompt Palette", tooltip: "Prompt and LoRA libraries, editable syntax and prompting tools", icon: "pi pi-palette",
     render(container) { mounted?.cleanup(); mounted = createPromptPaletteSidebar(container); },
     destroy() { mounted?.cleanup(); mounted = null; },
   });

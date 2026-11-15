@@ -17,7 +17,7 @@ from .lora_previews import find_preview, find_previews, preview_type, metadata_f
 
 logger = logging.getLogger(__name__)
 NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
-LORA_RE = re.compile(r"<lora:([^:<>\r\n]+):(" + NUMBER + r")(?::(" + NUMBER + r"))?>", re.I)
+LORA_RE = re.compile(r"<lora:([^:<>\r\n]+)(?::(" + NUMBER + r")(?::(" + NUMBER + r"))?)?>", re.I)
 MODES = ("auto", "external", "strip", "bypass")
 
 
@@ -27,7 +27,7 @@ def extract(text, source="positive"):
     records = []
 
     def capture(match):
-        sm = float(match[2])
+        sm = float(match[2]) if match[2] is not None else 1.0
         sc = float(match[3]) if match[3] is not None else sm
         # An invalid number is authored text, never silently turned into weight 1.
         if not math.isfinite(sm) or not math.isfinite(sc) or not match[1].strip():
@@ -88,6 +88,27 @@ def _clean_text(val, max_len=600):
     return text[:max_len]
 
 
+def _clean_multiline(val, max_len=4000):
+    """Like _clean_text, but keeps paragraph/list breaks so descriptions stay readable."""
+    if not val or not isinstance(val, str):
+        return ""
+    text = re.sub(r"(?i)<\s*br\s*/?\s*>", "\n", val)
+    text = re.sub(r"(?i)</\s*(p|div|li|h[1-6]|ul|ol|tr|blockquote)\s*>", "\n", text)
+    text = re.sub(r"(?i)<\s*li[^>]*>", "\u2022 ", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = html.unescape(text)
+    text = re.sub(r"[ \t\f\v\u00a0]+", " ", text)
+    text = re.sub(r" ?\n ?", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()[:max_len]
+
+
+def _safe_count(val):
+    if isinstance(val, bool) or not isinstance(val, (int, float)) or not math.isfinite(val) or val < 0:
+        return None
+    return int(val)
+
+
 def _normalize_base_model(val):
     if not val or not isinstance(val, str):
         return ""
@@ -123,6 +144,7 @@ def get_lora_metadata(filename, full_path=None):
             "description": "",
             "civitai_id": None,
             "tags": [],
+            "size_bytes": None,
             "has_preview": False,
         }
     p = Path(full_path).resolve()
@@ -155,6 +177,7 @@ def get_lora_metadata(filename, full_path=None):
     tags = []
     title = version = author = ""
     recommended_strength = recommended_clip_strength = None
+    civitai_version_id = download_count = thumbs_up = None
     sources = []
 
     # 1. Check sidecar JSON files (Civitai helper, LoRA manager, etc.)
@@ -206,7 +229,7 @@ def get_lora_metadata(filename, full_path=None):
                             if isinstance(word, str) and word.strip():
                                 triggers.append(_clean_text(word, 600))
                     base_model = base_model or _normalize_base_model(layer.get("baseModel") or layer.get("base_model"))
-                    description = description or _clean_text(layer.get("description") or layer.get("modelDescription"))
+                    description = description or _clean_multiline(layer.get("description") or layer.get("modelDescription"))
                     title = title or _clean_text(layer.get("model_name") or layer.get("modelName") or layer.get("name"), 160)
                     version = version or _clean_text(layer.get("versionName"), 100)
                     creator = layer.get("creator")
@@ -217,6 +240,15 @@ def get_lora_metadata(filename, full_path=None):
                             civitai_id = cid
                     if isinstance(layer.get("tags"), list):
                         tags.extend(_clean_text(t, 80) for t in layer["tags"][:16] if isinstance(t, str))
+                    vid = layer.get("modelVersionId")
+                    if civitai_version_id is None and isinstance(vid, int) and not isinstance(vid, bool) and vid > 0:
+                        civitai_version_id = vid
+                    layer_stats = layer.get("stats")
+                    if isinstance(layer_stats, dict):
+                        if download_count is None:
+                            download_count = _safe_count(layer_stats.get("downloadCount"))
+                        if thumbs_up is None:
+                            thumbs_up = _safe_count(layer_stats.get("thumbsUpCount", layer_stats.get("rating")))
                     strength = layer.get("preferred weight", layer.get("recommended_strength", layer.get("strength")))
                     if recommended_strength is None and isinstance(strength, (int, float)) and not isinstance(strength, bool) and math.isfinite(strength) and abs(strength) <= 100:
                         recommended_strength = strength
@@ -224,6 +256,9 @@ def get_lora_metadata(filename, full_path=None):
                     if recommended_clip_strength is None and isinstance(clip_strength, (int, float)) and not isinstance(clip_strength, bool) and math.isfinite(clip_strength) and abs(clip_strength) <= 100:
                         recommended_clip_strength = clip_strength
                 if isinstance(nested, dict):
+                    nested_id = nested.get("id")
+                    if civitai_version_id is None and isinstance(nested_id, int) and not isinstance(nested_id, bool) and nested_id > 0:
+                        civitai_version_id = nested_id
                     version = version or _clean_text(nested.get("name"), 100)
                 elif isinstance(model_data, dict):
                     version = version or _clean_text(data.get("name"), 100)
@@ -250,7 +285,7 @@ def get_lora_metadata(filename, full_path=None):
             if not base_model:
                 base_model = _normalize_base_model(meta.get("ss_base_model_version") or meta.get("modelspec.architecture"))
             if not description:
-                description = _clean_text(meta.get("modelspec.description"))
+                description = _clean_multiline(meta.get("modelspec.description"))
             tp = meta.get("modelspec.trigger_phrase") or meta.get("modelspec.trigger_word")
             if tp and isinstance(tp, str):
                 for t in re.split(r"[,;\n]+", tp):
@@ -271,6 +306,15 @@ def get_lora_metadata(filename, full_path=None):
             deduped_triggers.append(t)
 
     has_preview = preview is not None
+    try:
+        size_bytes = p.stat().st_size
+    except OSError:
+        size_bytes = None
+    civitai_url = ""
+    if civitai_id:
+        civitai_url = f"https://civitai.com/models/{civitai_id}"
+        if civitai_version_id:
+            civitai_url += f"?modelVersionId={civitai_version_id}"
 
     result = {
         "name": filename,
@@ -280,13 +324,17 @@ def get_lora_metadata(filename, full_path=None):
         "base_model": base_model,
         "description": description,
         "civitai_id": civitai_id,
-        "tags": list(dict.fromkeys(t for t in tags if t))[:8],
+        "tags": list(dict.fromkeys(t for t in tags if t))[:16],
         "title": title,
         "version": version,
         "author": author,
         "recommended_strength": recommended_strength,
         "recommended_clip_strength": recommended_clip_strength,
         "metadata_sources": sources,
+        "size_bytes": size_bytes,
+        "civitai_url": civitai_url,
+        "download_count": download_count,
+        "thumbs_up": thumbs_up,
         "has_preview": has_preview,
         "preview_type": preview_type(preview) if has_preview else None,
         "preview_name": preview.name if preview else "",

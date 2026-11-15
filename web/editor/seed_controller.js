@@ -60,7 +60,7 @@ export function installSeedController({
   function positionHub(reset = false) {
     if (!hubPopover || hubPopover.hidden) return;
     copyPromptPaletteThemeScope(root, portal);
-    const anchor = seedbar.getBoundingClientRect();
+    const anchor = seedAnchorRect();
     const rect = hubPopover.getBoundingClientRect();
     if (reset || !hubPosition) hubPosition = { x: anchor.right - rect.width, y: anchor.bottom + 6 };
     hubPosition.x = Math.max(8, Math.min(hubPosition.x, innerWidth - rect.width - 8));
@@ -100,6 +100,145 @@ export function installSeedController({
   const resizeHub = () => positionHub();
   window.addEventListener("resize", resizeHub);
 
+  // ---------------------------------------------------------
+  // Toolbar Seed module + anchored Seed panel
+  // The seed controls no longer occupy a row of node height: the toolbar's Seed
+  // module (wheel + live seed) opens them in a small panel portaled beside it,
+  // escaping the canvas transform and node overflow like the Seed Lab does.
+  // ---------------------------------------------------------
+  const panelBtn = root.querySelector('[data-act="seedPanel"]');
+  const panelValue = root.querySelector('[data-el="seedToolbarValue"]');
+  const panelModeTag = root.querySelector('[data-el="seedToolbarMode"]');
+  // No control_after_generate widget: hide the empty "After run" row.
+  const seedModeField = seedbar.querySelector('[data-el="seedModeSelect"]')?.closest(".wg-seed-panel-field");
+  if (seedModeField) seedModeField.hidden = !controlWidget;
+  const panelPlaceholder = document.createComment("prompt-palette-seed-panel");
+  seedbar.before(panelPlaceholder);
+  const panelPortal = document.createElement("div");
+  panelPortal.className = "wg-root wg-seed-panel-portal";
+  const panelFrame = document.createElement("div");
+  panelFrame.className = "wg-seed-panel-frame";
+  panelPortal.append(panelFrame);
+  for (const type of ["pointerdown", "pointermove", "pointerup", "mousedown", "mouseup", "click", "dblclick", "wheel", "contextmenu"]) {
+    panelPortal.addEventListener(type, e => e.stopPropagation());
+  }
+  const cleanupPanelKeyboard = installPromptPaletteKeyboardBoundary(panelPortal);
+  let panelFollowFrame = null;
+  let panelAnchorKey = "";
+
+  function visibleRect(element) {
+    if (!element?.isConnected) return null;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 ? rect : null;
+  }
+  function seedAnchorRect() {
+    return (!seedbar.hidden && visibleRect(panelFrame)) || visibleRect(panelBtn) || root.getBoundingClientRect();
+  }
+  function isPanelOpen() { return !seedbar.hidden; }
+  function positionPanel() {
+    if (!isPanelOpen()) return;
+    const anchor = visibleRect(panelBtn) || root.getBoundingClientRect();
+    const rect = panelFrame.getBoundingClientRect();
+    let x = anchor.right - rect.width;
+    let y = anchor.bottom + 6;
+    if (y + rect.height > innerHeight - 8 && anchor.top - rect.height - 6 >= 8) y = anchor.top - rect.height - 6;
+    x = Math.max(8, Math.min(x, innerWidth - rect.width - 8));
+    y = Math.max(8, Math.min(y, innerHeight - rect.height - 8));
+    panelFrame.style.setProperty("--pp-seed-panel-left", `${Math.round(x)}px`);
+    panelFrame.style.setProperty("--pp-seed-panel-top", `${Math.round(y)}px`);
+  }
+  // Follow the node while the canvas pans/zooms; close if the module disappears
+  // (toolbar collapsed, Seed module hidden, node removed).
+  function followPanel() {
+    panelFollowFrame = null;
+    if (disposed || !isPanelOpen()) return;
+    const anchor = visibleRect(panelBtn);
+    if (!anchor || !root.isConnected) { closePanel(); return; }
+    const key = `${anchor.left}|${anchor.top}|${anchor.right}|${anchor.bottom}|${innerWidth}|${innerHeight}`;
+    if (key !== panelAnchorKey) { panelAnchorKey = key; positionPanel(); }
+    panelFollowFrame = requestAnimationFrame(followPanel);
+  }
+  function openPanel() {
+    if (disposed || isPanelOpen() || !panelBtn) return;
+    closeHub({ restoreFocus: false });
+    copyPromptPaletteThemeScope(root, panelPortal);
+    panelFrame.append(seedbar);
+    document.body.append(panelPortal);
+    seedbar.hidden = false;
+    seedbar.removeAttribute("inert");
+    panelBtn.setAttribute("aria-expanded", "true");
+    document.addEventListener("pointerdown", handlePanelDocumentPointerDown);
+    sync();
+    panelAnchorKey = "";
+    positionPanel();
+    seedInput?.focus({ preventScroll: true });
+    if (panelFollowFrame == null) panelFollowFrame = requestAnimationFrame(followPanel);
+  }
+  function closePanel({ restoreFocus = false } = {}) {
+    document.removeEventListener("pointerdown", handlePanelDocumentPointerDown);
+    if (!isPanelOpen()) return;
+    const hadFocus = seedbar.contains(document.activeElement);
+    seedbar.hidden = true;
+    seedbar.setAttribute("inert", "");
+    panelPlaceholder.after(seedbar);
+    panelPortal.remove();
+    panelBtn?.setAttribute("aria-expanded", "false");
+    if (panelFollowFrame != null) cancelAnimationFrame(panelFollowFrame);
+    panelFollowFrame = null;
+    if (restoreFocus && hadFocus && !disposed) panelBtn?.focus({ preventScroll: true });
+  }
+  function handlePanelButtonClick(e) {
+    if (e.shiftKey) {
+      if (hubPopover && !hubPopover.hidden && activeHubTab === "wheel") closeHub();
+      else openHub("wheel");
+      return;
+    }
+    if (isPanelOpen()) closePanel({ restoreFocus: false });
+    else openPanel();
+  }
+  panelBtn?.addEventListener("click", handlePanelButtonClick);
+  function handlePanelDocumentPointerDown(e) {
+    if (isPanelOpen() && !panelFrame.contains(e.target) && !panelBtn?.contains(e.target)) closePanel();
+  }
+  function handlePanelKeyDown(e) {
+    if (e.key !== "Escape" || !isPanelOpen()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closePanel({ restoreFocus: true });
+  }
+  seedbar.addEventListener("keydown", handlePanelKeyDown);
+  const handleExternalPanelClose = () => closePanel();
+  root.addEventListener("pp-seed-panel-close", handleExternalPanelClose);
+
+  const SEED_MODE_TAGS = { fixed: "fix", increment: "+1", decrement: "−1", randomize: "rnd" };
+  function seedInputConnected() {
+    return !!node?.inputs?.some(input => ["seed", "external_seed"].includes(input.name) && input.link != null);
+  }
+  function formatToolbarSeed(text) {
+    return text.length > 10 ? `${text.slice(0, 4)}…${text.slice(-4)}` : text;
+  }
+  function updateToolbarModule(seedVal, fortune) {
+    if (!panelBtn) return;
+    const text = String(seedVal ?? 0);
+    const mode = String(controlWidget?.value || "");
+    const connected = seedInputConnected();
+    const showFortunes = theme?.seedFortuneEnabled !== false;
+    if (panelValue && panelValue.textContent !== formatToolbarSeed(text)) panelValue.textContent = formatToolbarSeed(text);
+    if (panelModeTag) {
+      const tag = connected ? "ext" : (SEED_MODE_TAGS[mode] ?? "");
+      if (panelModeTag.textContent !== tag) panelModeTag.textContent = tag;
+      panelModeTag.hidden = !tag;
+    }
+    panelBtn.dataset.seedMode = connected ? "connected" : mode;
+    if (showFortunes && fortune) panelBtn.style.setProperty("--seed-accent", fortune.accentColor);
+    else panelBtn.style.removeProperty("--seed-accent");
+    const lines = [`Seed ${text}${mode ? ` · ${mode}` : ""}${connected ? " · overridden by connected seed input" : ""}`];
+    if (showFortunes && fortune) lines.push(`Fortune: ${fortune.archetype}`);
+    lines.push("Click: seed controls · Shift+Click: Wheel of Fortune");
+    panelBtn.title = lines.join("\n");
+    panelBtn.setAttribute("aria-label", `Seed ${text}. Open seed controls`);
+  }
+
   let activeHubTab = "fortune"; // "fortune" | "wheel" | "history"
   let isTumbling = false;
   let isSpinningWheel = false;
@@ -126,6 +265,7 @@ export function installSeedController({
     isTumbling = false;
     seedInput?.classList.remove("tumbling");
     spinBtn?.classList.remove("spinning");
+    panelBtn?.classList.remove("rolling");
   }
   function stopWheel() {
     if (wheelFrame != null) cancelAnimationFrame(wheelFrame);
@@ -173,14 +313,18 @@ export function installSeedController({
     const fortune = getSeedFortune(seedVal);
     if (fortuneBadge) {
       const showFortunes = theme?.seedFortuneEnabled !== false;
-      fortuneBadge.style.display = showFortunes ? "inline-flex" : "none";
+      fortuneBadge.hidden = !showFortunes;
       if (fortuneName) fortuneName.textContent = fortune.archetype;
       if (fortuneRating) fortuneRating.textContent = fortune.symbol;
       fortuneBadge.style.setProperty("--seed-accent", fortune.accentColor);
       fortuneBadge.style.setProperty("--seed-glow", fortune.glowColor);
       fortuneBadge.title = `Seed Fortune: ${fortune.archetype} (${fortune.rarityBadge})\nCreative inspiration: "${fortune.omen}"\nClick to open Seed Lab & Wheel of Fortune`;
     }
+    if (openWheelBtn) {
+      openWheelBtn.hidden = theme?.seedFortuneEnabled === false;
+    }
     seedbar?.style?.setProperty?.("--seed-accent", fortune.accentColor);
+    updateToolbarModule(seedVal, fortune);
   }
 
   // ---------------------------------------------------------
@@ -193,6 +337,10 @@ export function installSeedController({
     isTumbling = true;
     spinBtn?.classList.add("spinning");
     seedInput.classList.add("tumbling");
+    panelBtn?.classList.remove("rolling");
+    void panelBtn?.offsetWidth;
+    panelBtn?.classList.add("rolling");
+    later(() => panelBtn?.classList.remove("rolling"), 700);
 
     const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 320;
     const startTime = performance.now();
@@ -252,7 +400,10 @@ export function installSeedController({
       }
     }
     if (fortuneBadge) {
-      fortuneBadge.style.display = theme?.seedFortuneEnabled !== false ? "inline-flex" : "none";
+      fortuneBadge.hidden = theme?.seedFortuneEnabled === false;
+    }
+    if (openWheelBtn) {
+      openWheelBtn.hidden = theme?.seedFortuneEnabled === false;
     }
   }
 
@@ -340,6 +491,8 @@ export function installSeedController({
   // ---------------------------------------------------------
   function openHub(tab = "fortune") {
     if (disposed) return;
+    // The Seed Lab replaces the compact panel rather than stacking on top of it.
+    closePanel();
     activeHubTab = tab;
     if (hubPopover) {
       hubPopover.hidden = false;
@@ -353,15 +506,15 @@ export function installSeedController({
     }
   }
 
-  function closeHub() {
-    const restoreFocus = hubPopover?.contains(document.activeElement);
+  function closeHub({ restoreFocus: allowFocus = true } = {}) {
+    const restoreFocus = allowFocus && hubPopover?.contains(document.activeElement);
     stopWheel();
     if (hubPopover) {
       hubPopover.hidden = true;
       hubPopover.setAttribute("inert", "true");
       hubHome?.append(hubPopover);
       portal.remove();
-      if (restoreFocus && !disposed) menuBtn?.focus({ preventScroll: true });
+      if (restoreFocus && !disposed) (isPanelOpen() ? menuBtn : panelBtn || menuBtn)?.focus({ preventScroll: true });
     }
   }
 
@@ -405,7 +558,8 @@ export function installSeedController({
         !hubPopover.contains(e.target) &&
         !fortuneBadge?.contains(e.target) &&
         !openWheelBtn?.contains(e.target) &&
-        !menuBtn?.contains(e.target)
+        !menuBtn?.contains(e.target) &&
+        !panelBtn?.contains(e.target)
       ) {
         closeHub();
       }
@@ -841,6 +995,13 @@ export function installSeedController({
       document.removeEventListener("pointerdown", handleDocumentPointerDown);
       seedbar.removeEventListener("keydown", handlePopoverKeyDown);
       closeHub();
+      closePanel();
+      panelBtn?.removeEventListener("click", handlePanelButtonClick);
+      document.removeEventListener("pointerdown", handlePanelDocumentPointerDown);
+      seedbar.removeEventListener("keydown", handlePanelKeyDown);
+      root.removeEventListener("pp-seed-panel-close", handleExternalPanelClose);
+      panelPortal.remove();
+      cleanupPanelKeyboard();
       window.removeEventListener("resize", resizeHub);
       portal.remove();
       cleanupKeyboard();

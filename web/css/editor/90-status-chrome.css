@@ -16,7 +16,8 @@
      A previously saved short node scrolls its body rather than losing text. */
   min-height: calc(var(--wg-editor-font-size, 12px) * 3.2 + 20px);
 }
-.wg-root .wg-editor-layer { padding: 10px 12px; }
+.wg-root .wg-editor-layer { padding: 6px 8px; }
+.wg-root .wg-editor-wrap > .wg-resolved { padding: 6px 8px; }
 .wg-root .wg-editor-wrap:focus-within { box-shadow: inset 2px 0 var(--wg-accent, #d49a52); }
 .wg-node:has(.wg-editor-wrap:focus-within) > .wg-toolbar { border-bottom-color: color-mix(in srgb, var(--wg-accent, #d49a52) 38%, var(--wg-border, #2a2e34)); transition: border-color 160ms ease; }
 .wg-node > .wg-toolbar { min-height: 34px; padding: 4px; gap: 4px; }
@@ -29,10 +30,46 @@
 .wg-node > .wg-toolbar .wg-pill-resolve.on {
   background: color-mix(in srgb, var(--wg-accent, #d49a52) 22%, var(--wg-bg, #17191c));
 }
+.wg-root .wg-status-dock { position:relative; flex:0 0 auto; min-width:0; height:0; z-index:8; }
+.wg-root .wg-status-dock[data-presentation="always"],
+.wg-root .wg-status-dock[data-attention="true"] { height:auto; }
+.wg-root .wg-status-dock > .wg-statusbar { position:absolute; inset:auto 0 0; }
+.wg-root .wg-status-dock[data-presentation="auto"] > .wg-statusbar {
+  position: absolute;
+  inset: auto 28px 0 0;
+  transition: clip-path 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wg-root .wg-status-dock[data-presentation="auto"] > .wg-statusbar { transition: none; }
+}
+.wg-root .wg-status-dock[data-presentation="always"] > .wg-statusbar,
+.wg-root .wg-status-dock[data-attention="true"] > .wg-statusbar { position:relative; inset:auto; }
+.wg-root .wg-status-dock[data-presentation="warnings"][data-attention="false"] > .wg-statusbar { display:none !important; }
+.wg-root .wg-status-dock[data-presentation="auto"][data-attention="false"] > .wg-statusbar:not(:hover):not(:focus-within) {
+  clip-path:inset(calc(100% - 6px) 0 0); border-color:transparent;
+}
+.wg-root .wg-status-dock[data-presentation="auto"][data-attention="false"] > .wg-statusbar:not(:hover):not(:focus-within) > * { visibility:hidden; }
+.wg-root .wg-status-dock[data-presentation="auto"][data-attention="false"] > .wg-statusbar:not(:hover):not(:focus-within)::after {
+  content:""; position:absolute; bottom:1px; left:calc(50% - 14px); width:28px; height:2px;
+  border-radius:2px; background:color-mix(in srgb,var(--wg-text-faint,#8f887e) 45%,transparent);
+}
+.wg-root.wg-node-resizing .wg-status-dock[data-presentation="auto"]:not([data-attention="true"]) > .wg-statusbar,
+.wg-root .wg-status-dock[data-presentation="auto"][data-resizing="true"]:not([data-attention="true"]) > .wg-statusbar,
+.wg-root:has(.pp-split-fields.is-resizing) .wg-status-dock[data-presentation="auto"]:not([data-attention="true"]) > .wg-statusbar {
+  pointer-events: none !important;
+  clip-path: inset(calc(100% - 6px) 0 0) !important;
+  border-color: transparent !important;
+  transition: none !important;
+}
+.wg-root.wg-node-resizing .wg-status-dock[data-presentation="auto"]:not([data-attention="true"]) > .wg-statusbar > *,
+.wg-root .wg-status-dock[data-presentation="auto"][data-resizing="true"]:not([data-attention="true"]) > .wg-statusbar > *,
+.wg-root:has(.pp-split-fields.is-resizing) .wg-status-dock[data-presentation="auto"]:not([data-attention="true"]) > .wg-statusbar > * {
+  visibility: hidden !important;
+}
 .wg-root .wg-statusbar {
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center; gap: var(--pp-s-2, 6px); flex: 0 0 auto; min-width: 0;
-  box-sizing: border-box; height: 24px; min-height: 24px; max-height: 26px; margin: 0; padding: 2px var(--pp-s-3, 8px);
+  box-sizing: border-box; height: 22px; min-height: 22px; max-height: 26px; margin: 0; padding: 1px 6px;
   background: var(--wg-surface, #121417);
   border-top: 1px solid color-mix(in srgb, var(--wg-border, #2a2e34) 60%, transparent);
   contain: layout style;
@@ -86,10 +123,12 @@
   position: absolute; top: 0; left: 0; width: max-content; max-width: none;
   grid-template-columns: max-content max-content max-content; visibility: hidden; pointer-events: none;
 }
+.wg-root .wg-statusbar:focus-visible { outline:2px solid var(--wg-accent,#d49a52); outline-offset:-2px; }
+.wg-root .wg-status:empty { display:none; }
 .wg-status-measure .wg-legend { max-width: none; }
 .wg-status-measure .wg-status-metrics { overflow: visible; }
 .wg-root .pp-refine-bar { border-width: 0; border-radius: 0; margin: 0; border-left: 2px solid color-mix(in srgb, var(--wg-accent, #d49a52) 45%, transparent); }
-.wg-root .pp-recipe-workspace { padding: 5px 8px 12px; }
+.wg-root .pp-recipe-workspace { padding: 4px; }
 .wg-root .pp-recipe-workspace .pp-recipe-field { border-top: 0; border-right: 0; border-bottom: 0; border-radius: 3px; }
 .wg-root .pp-recipe-workspace :is(.pp-recipe-preview, .pp-recipe-insights, .pp-recipe-iteration) { border: 0; border-radius: 3px; }
 .pp-node.wg-root .pp-estimate:not(.pp-warning) { border: 0; border-left: 2px solid color-mix(in srgb, var(--wg-accent, #d49a52) 40%, transparent); }
@@ -130,21 +169,20 @@
   transition: color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
 }
 .wg-root :is(.wg-toolbar, .pp-header, .ppwc-settings-row) .wg-icon-btn:hover:not(:disabled) {
-  border-color: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent) 24%, transparent), 0 0 7px color-mix(in srgb, var(--wg-accent) 13%, transparent);
+  border-color: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--wg-accent) 24%, transparent);
   background: color-mix(in srgb, var(--wg-accent) 12%, var(--wg-panel-bg)); color: var(--wg-accent);
 }
 .wg-root :is(.wg-toolbar, .pp-header, .ppwc-settings-row) .wg-icon-btn:is(.active, [aria-expanded="true"], [aria-pressed="true"]):not(:disabled) {
   color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 9%, var(--wg-panel-bg));
-  box-shadow: inset 0 -2px var(--wg-accent), 0 0 7px color-mix(in srgb, var(--wg-accent) 13%, transparent); border-color: transparent;
+  box-shadow: inset 0 -2px var(--wg-accent); border-color: transparent;
 }
 .wg-root .wg-toolbar .wg-pill:is(:hover, :active, .on, .active, [aria-pressed="true"], [aria-expanded="true"]):not(:disabled) {
   color: var(--wg-accent); background: color-mix(in srgb, var(--wg-accent) 16%, var(--wg-panel-bg));
-  box-shadow: inset 0 -2px var(--wg-accent), 0 0 7px color-mix(in srgb, var(--wg-accent) 12%, transparent);
+  box-shadow: inset 0 -2px var(--wg-accent);
 }
 .wg-root .wg-toolbar .wg-pill { transform: none; }
 .wg-root .wg-toolbar :is(.wg-icon-btn, .wg-pill):focus-visible {
   outline: 2px solid var(--wg-accent); outline-offset: 1px;
-  box-shadow: 0 0 7px color-mix(in srgb, var(--wg-accent) 16%, transparent);
 }
 .wg-root .wg-toolbar .wg-icon-btn:active:not(:disabled) { background: color-mix(in srgb, var(--wg-accent) 22%, var(--wg-panel-bg)); }
 @media (prefers-reduced-motion: reduce) { .wg-root .wg-toolbar .wg-icon-btn { transition: none; } }

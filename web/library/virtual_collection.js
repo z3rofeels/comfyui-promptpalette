@@ -10,10 +10,11 @@ function cancelFrame(handle) {
 }
 
 export class VirtualCollection {
-  constructor({ scrollRoot, items = [], renderItem, mode = "list", estimateRowHeight = 32, estimateCardHeight = 132, minCardWidth = 88, imageAspectRatio = 1, fixedCardWidth = false, columnCount = null, inlinePadding = null, cardHeightForWidth = null, overscan = 2, onVisibleCount = null, requestRender = null, captureFocus = null, restoreFocus = null, styleDeclaration = null, releaseStyle = null, gap = 6, strideGrid = 1, preserveViewport = false } = {}) {
+  constructor({ scrollRoot, items = [], renderItem, renderThumbnail = null, mode = "list", estimateRowHeight = 32, estimateCardHeight = 132, minCardWidth = 88, imageAspectRatio = 1, fixedCardWidth = false, columnCount = null, inlinePadding = null, cardHeightForWidth = null, overscan = 2, onVisibleCount = null, requestRender = null, captureFocus = null, restoreFocus = null, styleDeclaration = null, releaseStyle = null, gap = 6, strideGrid = 1, preserveViewport = false } = {}) {
     this.scrollRoot = scrollRoot;
     this.items = Array.isArray(items) ? items : [];
     this.renderItem = renderItem;
+    this.renderThumbnail = renderThumbnail;
     this.mode = mode;
     this.estimateRowHeight = estimateRowHeight;
     this.estimateCardHeight = estimateCardHeight;

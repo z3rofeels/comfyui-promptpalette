@@ -1,9 +1,15 @@
 import logging
+import threading
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
 _tokenizer = None
 _tokenizer_unavailable = False
+_token_cache_lock = threading.Lock()
+_token_count_cache: OrderedDict[str, dict] = OrderedDict()
+_TOKEN_CACHE_LIMIT = 256
+_TOKEN_CACHE_MAX_CHARS = 16384
 
 TOKENS_PER_CHUNK = 75
 
@@ -43,13 +49,31 @@ def clip_counting_applies(clip):
     return any(hasattr(tokenizer, name) for name in ("clip_l", "clip_g", "clip_h"))
 
 
+def _copy_token_stats(stats):
+    return {
+        "tokens": stats["tokens"],
+        "chunks": stats["chunks"],
+        "per_chunk": list(stats["per_chunk"]),
+        "limit_per_chunk": stats["limit_per_chunk"],
+    }
+
+
 def count_clip_tokens(text, *, include_layout=False):
     tok = _get_clip_l_tokenizer()
     if tok is None:
         return None
 
+    source_text = text or ""
+    can_cache = not include_layout and len(source_text) <= _TOKEN_CACHE_MAX_CHARS
+    if can_cache:
+        with _token_cache_lock:
+            cached = _token_count_cache.get(source_text)
+            if cached is not None:
+                _token_count_cache.move_to_end(source_text)
+                return _copy_token_stats(cached)
+
     try:
-        tokenized = tok.tokenize_with_weights(text or "", return_word_ids=True)
+        tokenized = tok.tokenize_with_weights(source_text, return_word_ids=True)
         batches = tokenized.get(getattr(tok, "clip_name", "l"))
         if batches is None:
             batches = next(iter(tokenized.values()))
@@ -73,6 +97,11 @@ def count_clip_tokens(text, *, include_layout=False):
         "per_chunk": per_chunk,
         "limit_per_chunk": TOKENS_PER_CHUNK,
     }
+    if can_cache:
+        with _token_cache_lock:
+            _token_count_cache[source_text] = _copy_token_stats(result)
+            if len(_token_count_cache) > _TOKEN_CACHE_LIMIT:
+                _token_count_cache.popitem(last=False)
     if include_layout:
         layout = []
         decoder = getattr(getattr(tok, "tokenizer", None), "decode", None)

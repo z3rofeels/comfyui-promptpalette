@@ -135,11 +135,19 @@ export function createRefinementController({ node, root, textarea, render, atomi
     else selection = null;
     updateBar();
   }
+  let savedActionsKey = null;
   function updateBar() {
     const valid = selection && selection.source === textarea.value && selection.end > selection.start;
     // The switch only hides the selection actions; Explore, Recipe draft and prepared-batch controls stay available.
-    selectionActions.hidden = !selectionToolsEnabled || !valid;
-    bar.hidden = selectionActions.hidden && !session && !(recipesEnabled && recipeDraft) && !preparedWidget?.value;
+    const hideSelection = !selectionToolsEnabled || !valid;
+    if (selectionActions.hidden !== hideSelection) selectionActions.hidden = hideSelection;
+    const hideBar = selectionActions.hidden && !session && !(recipesEnabled && recipeDraft) && !preparedWidget?.value;
+    if (bar.hidden !== hideBar) bar.hidden = hideBar;
+    // Compare the existing batch string directly. Selection notifications must
+    // not serialize a potentially multi-megabyte batch just to retain its bar.
+    const key = [!!(recipesEnabled && recipeDraft), !!session, preparedWidget?.value || "", node.widgets?.find(w => w.name === "seed_mode")?.value === "fixed"];
+    if (savedActionsKey?.every((value, index) => value === key[index])) return;
+    savedActionsKey = key;
     savedActions.replaceChildren();
     if (recipesEnabled && recipeDraft) savedActions.appendChild(makeButton("Recipe draft", showRecipeBuilder));
     if (session) savedActions.appendChild(makeButton("Explore", () => showExploration()));
@@ -154,13 +162,33 @@ export function createRefinementController({ node, root, textarea, render, atomi
       savedActions.append(tag, makeButton("Clear batch", () => { preparedState.commit(""); node.setDirtyCanvas?.(true, true); updateBar(); render(); }));
     }
   }
+  let lastCheckedState = null;
   function onSourceChanged() {
-    if (selection?.source !== textarea.value) selection = null;
-    if (preparedWidget?.value) {
-      try { if (JSON.parse(preparedWidget.value).source !== textarea.value) preparedState.commit(""); } catch { preparedState.commit(""); }
+    const text = textarea.value;
+    const preparedVal = preparedWidget?.value || "";
+    if (
+      lastCheckedState
+      && lastCheckedState.text === text
+      && lastCheckedState.preparedVal === preparedVal
+      && lastCheckedState.selection === selection
+      && lastCheckedState.session === session
+      && lastCheckedState.recipeDraft === recipeDraft
+      && lastCheckedState.panelHidden === panel.hidden
+    ) return;
+    if (selection?.source !== text) selection = null;
+    if (preparedVal) {
+      try { if (JSON.parse(preparedVal).source !== text) preparedState.commit(""); } catch { preparedState.commit(""); }
     }
-    if (session && !recipeDraft && !filling && textarea.value !== session.source && textarea.value !== session.resolved && !panel.hidden) message("Prompt changed. Recapture a selection before applying these variations.", true);
+    if (session && !recipeDraft && !filling && text !== session.source && text !== session.resolved && !panel.hidden) message("Prompt changed. Recapture a selection before applying these variations.", true);
     updateBar();
+    lastCheckedState = {
+      text,
+      preparedVal: preparedWidget?.value || "",
+      selection,
+      session,
+      recipeDraft,
+      panelHidden: panel.hidden,
+    };
   }
   function openReplace() {
     filling = null;

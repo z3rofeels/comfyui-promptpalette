@@ -1,4 +1,5 @@
 import { escapeHtml } from "../prompt_palette_shared.js";
+import { getPromptPaletteSectionSnapshot } from "../prompt_palette_state.js";
 import { BUILTIN_UI_THEMES, loadUiThemes, loadActiveUiThemeName } from "./preferences.js";
 
 // Keep invalid intermediate typing out of the serialized seed and resolver.
@@ -94,11 +95,21 @@ function hslToHex(h, s, l) {
   const toHex = x => Math.round(255 * x).toString(16).padStart(2, "0");
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
+// Pure color math is memoized: the autocomplete menu and prompt painter ask about the same
+// handful of colors on every keystroke. Bounded so odd custom palettes cannot grow it forever.
+const PURE_COLOR_CACHE_LIMIT = 2048;
+const luminanceCache = new Map();
+const contrastNudgeCache = new Map();
 function relativeLuminance(hex) {
   const value = sanitizeHexColor(hex, "#121417").slice(1);
+  const cached = luminanceCache.get(value);
+  if (cached !== undefined) return cached;
   const channels = [0, 2, 4].map(index => parseInt(value.slice(index, index + 2), 16) / 255)
     .map(channel => channel <= .04045 ? channel / 12.92 : Math.pow((channel + .055) / 1.055, 2.4));
-  return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+  const result = channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+  if (luminanceCache.size >= PURE_COLOR_CACHE_LIMIT) luminanceCache.clear();
+  luminanceCache.set(value, result);
+  return result;
 }
 function contrastRatio(a, b) {
   const first = relativeLuminance(a), second = relativeLuminance(b);
@@ -117,6 +128,15 @@ function rgbToHex(rgb) {
 function nudgeHexForContrast(value, background, minimum = 4.5) {
   const original = sanitizeHexColor(value);
   const bg = sanitizeHexColor(background, "#121417");
+  const cacheKey = `${original}|${bg}|${minimum}`;
+  const cached = contrastNudgeCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const result = computeNudgedHex(original, bg, minimum);
+  if (contrastNudgeCache.size >= PURE_COLOR_CACHE_LIMIT) contrastNudgeCache.clear();
+  contrastNudgeCache.set(cacheKey, result);
+  return result;
+}
+function computeNudgedHex(original, bg, minimum) {
   if (contrastRatio(original, bg) >= minimum) return original;
   const base = hexToRgb(original);
   const candidates = [];
@@ -132,23 +152,43 @@ function nudgeHexForContrast(value, background, minimum = 4.5) {
   candidates.sort((a, b) => b.ratio - a.ratio || a.amount - b.amount);
   return candidates[0]?.color || original;
 }
+const categoryColorCache = new Map();
+const UI_SURFACE_UNSET = Symbol("unset");
+let cachedUiSurfaceEditorRef = UI_SURFACE_UNSET;
+let cachedUiSurfaceHex = "";
 function currentUiSurface() {
+  const editorSnapshot = getPromptPaletteSectionSnapshot("editor");
+  if (editorSnapshot === cachedUiSurfaceEditorRef) {
+    return cachedUiSurfaceHex;
+  }
   const name = loadActiveUiThemeName();
   const colors = loadUiThemes()[name] || BUILTIN_UI_THEMES[name] || BUILTIN_UI_THEMES.Cinder;
-  return sanitizeHexColor(colors?.surface, BUILTIN_UI_THEMES.Cinder.surface);
+  const resolved = sanitizeHexColor(colors?.surface, BUILTIN_UI_THEMES.Cinder.surface);
+  cachedUiSurfaceEditorRef = editorSnapshot;
+  cachedUiSurfaceHex = resolved;
+  return resolved;
 }
 function categoryColorFromHue(hue, saturation, surface = currentUiSurface(), shadeShift = 0) {
   const background = sanitizeHexColor(surface, BUILTIN_UI_THEMES.Cinder.surface);
-  const preferred = relativeLuminance(background) > .45 ? 36 + shadeShift : 68 + shadeShift;
+  const normHue = ((Number(hue) % 360) + 360) % 360;
+  const normSat = Math.max(30, Math.min(90, Number(saturation) || 58));
+  const shift = Number(shadeShift) || 0;
+  const cacheKey = `${normHue}|${normSat}|${background}|${shift}`;
+  const cached = categoryColorCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const preferred = relativeLuminance(background) > .45 ? 36 + shift : 68 + shift;
   let best = null;
   for (let lightness = 15; lightness <= 85; lightness++) {
-    const color = hslToHex(((Number(hue) % 360) + 360) % 360, Math.max(30, Math.min(90, Number(saturation) || 58)), lightness);
+    const color = hslToHex(normHue, normSat, lightness);
     const ratio = contrastRatio(color, background);
     const candidate = { color, ratio, distance: Math.abs(lightness - preferred) };
     if (ratio >= 4.5 && (!best || best.ratio < 4.5 || candidate.distance < best.distance || (candidate.distance === best.distance && ratio > best.ratio))) best = candidate;
     else if ((!best || best.ratio < 4.5) && (!best || ratio > best.ratio)) best = candidate;
   }
-  return best?.color || hslToHex(hue, saturation, preferred);
+  const result = best?.color || hslToHex(normHue, normSat, preferred);
+  if (categoryColorCache.size >= PURE_COLOR_CACHE_LIMIT) categoryColorCache.clear();
+  categoryColorCache.set(cacheKey, result);
+  return result;
 }
 
 

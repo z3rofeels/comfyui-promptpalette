@@ -14,6 +14,25 @@ from pathlib import Path, PurePosixPath
 PP_TYPES = frozenset(('PromptPaletteEditor', 'PromptPaletteCombinatorial'))
 DEFAULT_SETTINGS = {'enabled': False, 'capture_prompts': False, 'max_entries': 10000, 'enabled_since': 0}
 
+def public_record(record):
+    """Keep decimal seed text exact across JSON's browser-number boundary.
+
+    Numeric fields and persisted records remain compatible with older clients.
+    The text fields are read-only projections, not a second source of truth.
+    """
+    result = dict(record)
+    seed = _seed(record.get('effective_seed'))
+    result['effective_seed_text'] = str(seed) if seed is not None else None
+    result['contexts'] = []
+    contexts = record.get('contexts')
+    for context in contexts if isinstance(contexts, list) else []:
+        if not isinstance(context, dict): continue
+        item = dict(context)
+        seed = _seed(context.get('seed'))
+        item['seed_text'] = str(seed) if seed is not None else None
+        result['contexts'].append(item)
+    return result
+
 def _seed(value):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -23,6 +42,47 @@ def _seed(value):
 
 def _wildcards(value):
     return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
+
+def _refinement_context(meta, workflow_node, inputs, capture_prompts, role):
+    """Retain execution evidence in the existing record, never read live editors.
+
+    Fields are authored context. The client also checks their execution projection
+    before offering restoration. Batch rows are deliberately not mapped to images.
+    """
+    result = {'schema_version': 1, 'verified_channels': [], 'batch': bool(meta.get('batch')),
+              'seed_source': 'execution' if _seed(meta.get('seed')) is not None else 'literal-input'}
+    if not meta:
+        return result
+    if not meta.get('batch'):
+        result['verified_channels'] = [c for c in ('positive', 'negative') if role in (c, 'both') and isinstance(meta.get(c + '_prompt'), str)]
+        for key in ('positive_prompt', 'negative_prompt', 'encoded_prompt', 'encoded_negative_prompt'):
+            if isinstance(meta.get(key), str) and len(meta[key]) <= 100000:
+                result[key] = meta[key]
+        loras = meta.get('loras')
+        if isinstance(loras, list) and len(loras) <= 256:
+            result['loras'] = []
+            for item in loras:
+                if not isinstance(item, dict): continue
+                sm, sc = item.get('model_strength'), item.get('clip_strength')
+                if not isinstance(item.get('name'), str) or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in (sm, sc)): continue
+                result['loras'].append({k: item[k] for k in ('name', 'filename', 'model_strength', 'clip_strength', 'effective_model_strength', 'effective_clip_strength', 'source', 'status') if k in item})
+        if meta.get('lora_mode') in ('auto', 'external', 'strip', 'bypass'):
+            result['lora_mode'] = meta['lora_mode']
+    if capture_prompts:
+        for key in ('source_text', 'source_negative_text', 'workspace_runtime', 'workspace_fields'):
+            value = meta.get(key)
+            if isinstance(value, (str, dict)) and len(json.dumps(value, ensure_ascii=False)) <= 400000:
+                result[key] = value
+        properties = workflow_node.get('properties', {}) if isinstance(workflow_node, dict) else {}
+        snapshot = properties.get('prompt_palette_recipe_workspace_v2') if isinstance(properties, dict) else None
+        # A connected runtime/body or stale workflow cannot establish Fields ownership.
+        if (isinstance(snapshot, dict) and isinstance(meta.get('workspace_runtime'), str)
+                and meta.get('workspace_runtime') == inputs.get('workspace_runtime')
+                and meta.get('source_text') == inputs.get('text')
+                and meta.get('source_negative_text') == inputs.get('negative_text', '')
+                and len(json.dumps(snapshot, ensure_ascii=False)) <= 400000):
+            result['workspace'] = snapshot
+    return result
 
 def settings(store):
     return {**DEFAULT_SETTINGS, **(store.get('settings', 'generation-history') or {})}
@@ -172,8 +232,11 @@ def build_records(prompt_id, history, *, capture_prompts=False, roots=None):
     extra_pnginfo = extra_data.get('extra_pnginfo', {}) if isinstance(extra_data, dict) else {}
     workflow = extra_pnginfo.get('workflow', {}) if isinstance(extra_pnginfo, dict) else {}
     workflow_titles = {}
+    workflow_nodes = {}
     if isinstance(workflow, dict) and isinstance(workflow.get('nodes'), list):
         for wn in workflow['nodes']:
+            if isinstance(wn, dict) and 'id' in wn:
+                workflow_nodes[str(wn['id'])] = wn
             if isinstance(wn, dict) and 'id' in wn and 'title' in wn and wn['title']:
                 workflow_titles[str(wn['id'])] = str(wn['title'])
 
@@ -198,6 +261,10 @@ def build_records(prompt_id, history, *, capture_prompts=False, roots=None):
             inputs = node.get('inputs', {}) if isinstance(node.get('inputs'), dict) else {}
             meta = palette_nodes.get(node_id, {}) if isinstance(palette_nodes, dict) else {}
             meta = meta if isinstance(meta, dict) else {}
+            if not meta and isinstance(extra_pnginfo.get('prompt_palette_metadata'), dict):
+                primary = extra_pnginfo['prompt_palette_metadata']
+                if str(primary.get('node_id', '')) == node_id or (not primary.get('node_id') and len(palette) == 1):
+                    meta = primary
             title = workflow_titles.get(node_id) or f"{node['class_type']} #{node_id}"
             channel_role = node_roles.get(node_id, '')
             seed = _seed(meta.get('seed'))
@@ -215,12 +282,14 @@ def build_records(prompt_id, history, *, capture_prompts=False, roots=None):
                 'seed': seed,
                 'wildcards_used': wildcards_used,
                 'resolved_prompt': resolved_prompt,
+                'refinement': _refinement_context(meta, workflow_nodes.get(node_id), inputs, capture_prompts,
+                    source_roles.get(node_id, '') if upstream_pps == {node_id} else ''),
             }
             if capture_prompts:
                 for key, target in [('text', 'authored_positive'), ('negative_text', 'authored_negative')]:
                     value = inputs.get(key)
-                    if isinstance(value, str):
-                        context[target] = value[:100000]
+                    if isinstance(value, str) and len(value) <= 100000:
+                        context[target] = value
             contexts.append(context)
 
         for index, descriptor in enumerate(images[:1000]):
@@ -246,7 +315,7 @@ def build_records(prompt_id, history, *, capture_prompts=False, roots=None):
                 meta = meta if isinstance(meta, dict) else None
                 if not meta and isinstance(extra_pnginfo.get('prompt_palette_metadata'), dict):
                     primary = extra_pnginfo['prompt_palette_metadata']
-                    if str(primary.get('node_id', '')) == matched_pp_id or len(palette) == 1:
+                    if str(primary.get('node_id', '')) == matched_pp_id or (not primary.get('node_id') and len(palette) == 1):
                         meta = primary
 
                 if meta and source_roles.get(matched_pp_id) in ('positive', 'both'):
@@ -271,6 +340,13 @@ def build_records(prompt_id, history, *, capture_prompts=False, roots=None):
                 'pp_node_id': matched_pp_id, 'branch_index': branch_index,
                 'favorite': False, 'tags': [], 'notes': '', 'missing': False,
             }
+            # Optional context must not prevent an otherwise valid image from
+            # fitting the existing store's 1 MiB record limit. Omit whole values;
+            # never present a truncated prompt or recipe as recoverable state.
+            if len(json.dumps(record, ensure_ascii=False).encode()) > 950000:
+                for context in contexts:
+                    context['refinement'] = {k: v for k, v in context['refinement'].items()
+                        if k in ('schema_version', 'verified_channels', 'seed_source', 'batch', 'lora_mode', 'loras')}
             result.append(record)
             if len(result) >= 1000:
                 return result

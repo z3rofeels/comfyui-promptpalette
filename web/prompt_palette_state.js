@@ -291,6 +291,11 @@ export function replaceWorkspacePreferences(value) {
   return { ...normalized };
 }
 
+export function getPromptPaletteSectionSnapshot(section) {
+  const current = state();
+  return current && typeof current === "object" ? current[section] || null : null;
+}
+
 export function exportPromptPaletteState() {
   return clone(state());
 }

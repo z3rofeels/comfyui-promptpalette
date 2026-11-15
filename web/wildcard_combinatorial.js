@@ -1,8 +1,9 @@
 import { installLoraSidecar } from "./editor/lora_sidecar.js";
+import { installWorkspaceConfigureHook } from "./editor/workspace_generation.js";
 import { bindPromptQueueSync } from "./prompt_palette_compat.js";
 import { addSeedHistory } from "./editor/seed_fortune.js";
 import { mountLibraryFeatures } from "./editor/library_features.js";
-import { reviewHistoryRestore, applyHistoryText, historyTargetEditor } from "./editor/history_restore.js";
+import { reviewHistoryRestore, applyHistoryText, historyTargetEditor, installHistoryRefinement } from "./editor/history_restore.js";
 import "./editor/styles.js";
 import { VirtualCollectionManager } from "./library/virtual_collection.js";
 import { libraryVirtualLayout } from "./editor/library_display.js";
@@ -34,7 +35,7 @@ import {
 } from "./prompt_palette_shared.js";
 import { bindSuiteAppearance } from "./editor/suite_appearance.js";
 import { applyToolbarVisibility } from "./editor/toolbar.js";
-import { bindPromptSeedInput, isRecipeCategory } from "./editor/text_utils.js";
+import { bindPromptSeedInput, isRecipeCategory, wildcardInsertionText } from "./editor/text_utils.js";
 import { saveTheme } from "./editor/preferences.js";
 import { readCombinatorialPreference, writeCombinatorialPreference } from "./prompt_palette_state.js";
 import { upgradeEditorSurface } from "./editor/editor_surface.js";
@@ -56,6 +57,7 @@ import { createTagPainter, onTagColorsChanged } from "./editor/booru_tag_colors.
 import { createStatusBar, statusBarMarkup, wildcardStatusText } from "./editor/status_bar.js";
 import { installPromptSlots } from "./editor/prompt_slots.js";
 import { attachEditorFindReplace } from "./editor/editor_find_replace.js";
+import { FIELD_EDITOR_DEFAULTS, normalizeFieldEditorPreferences } from "./editor/field_editor_preferences.js";
 import {
   API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
   editorStylesReady,
@@ -115,7 +117,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       <div class="pp-header-actions">
         <button type="button" class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="My Library \u2014 browse and insert reusable entries" aria-label="Open My Library">${svgIcon("gallery")}</button>
         <button type="button" class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Rescan My Library files" aria-label="Rescan My Library">${svgIcon("refresh")}</button>
-        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Manage inputs, outputs, and socket labels" aria-label="Manage inputs, outputs, and socket labels">${svgIcon("io", 13)}<span class="wg-io-button-label">I/O</span><span data-io-count></span></button>
+        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Open Ports manager" aria-label="Open Ports manager">${svgIcon("io", 13)}<span class="wg-io-button-label">Ports</span><span data-io-count></span></button>
         <button type="button" class="wg-icon-btn wg-settings-anchor" data-act="settings" title="Combinatorial settings" aria-label="Open Combinatorial settings">${svgIcon("settings")}</button>
       </div>
     </div>
@@ -220,7 +222,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   textarea.value = promptState.restore();
   const highlight = el("highlight");
   const syntaxHighlighter = createSyntaxHighlighter(textarea, highlight);
-  const statusBar = createStatusBar(root);
+  const statusBar = createStatusBar(root, { node });
   const hintRight = el("hintRight");
   const charCount = el("charCount");
   const pickerDrawer = root.querySelector('[data-drawer="picker"]');
@@ -267,8 +269,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   ];
 
   function inputSocketLinked(key) {
-    const slot = (node.inputs || []).find((candidate) => candidate?.name === key);
-    return slot?.link != null;
+    const index = (node.inputs || []).findIndex((candidate) => candidate?.name === key);
+    return index >= 0 && (typeof node.isInputConnected === "function" ? node.isInputConnected(index) : node.inputs[index].link != null);
   }
 
   function syncExternalControlState() {
@@ -303,6 +305,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       const info = SEED_MODE_INFO[v] || { label: v, desc: "" };
       return `<option value="${escapeHtml(v)}" title="${escapeHtml(info.desc)}">${escapeHtml(info.label)}</option>`;
     }).join("");
+    settingsSeedModeSelect.innerHTML = seedModeSelect.innerHTML;
     seedModeSelect.title = Object.values(SEED_MODE_INFO).map(v => `${v.label}: ${v.desc}`).join("  \u2022  ");
   }
   buildSeedModeOptions();
@@ -448,21 +451,28 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   const ioRail = setupIoRail(node, root, IO_INPUT_DEFS, IO_OUTPUT_DEFS);
 
+  node._wgBaseInputDefs = IO_INPUT_DEFS;
+  node._wgBaseOutputDefs = IO_OUTPUT_DEFS;
+
   scheduleNodeTimer(node, () => {
-    canonicalizeOutputs(node, IO_OUTPUT_DEFS);
-    migrateIoState(node, "input", IO_INPUT_DEFS);
-    migrateIoState(node, "output", IO_OUTPUT_DEFS);
-    IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
-    IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    const inputDefs = node._wgInputDefs || IO_INPUT_DEFS;
+    const outputDefs = node._wgOutputDefs || IO_OUTPUT_DEFS;
+    canonicalizeOutputs(node, outputDefs);
+    migrateIoState(node, "input", inputDefs);
+    migrateIoState(node, "output", outputDefs);
+    inputDefs.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+    outputDefs.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
     syncExternalControlState();
     ioRail.render();
   }, 0);
   node._wgRefreshIoToggles = function () {
-    canonicalizeOutputs(node, IO_OUTPUT_DEFS);
-    migrateIoState(node, "input", IO_INPUT_DEFS);
-    migrateIoState(node, "output", IO_OUTPUT_DEFS);
-    IO_INPUT_DEFS.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
-    IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
+    const inputDefs = node._wgInputDefs || IO_INPUT_DEFS;
+    const outputDefs = node._wgOutputDefs || IO_OUTPUT_DEFS;
+    canonicalizeOutputs(node, outputDefs);
+    migrateIoState(node, "input", inputDefs);
+    migrateIoState(node, "output", outputDefs);
+    inputDefs.forEach((def) => syncIoSocket(node, "input", def, ioEnabled(node, "input", def)));
+    outputDefs.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
     syncExternalControlState();
     ioRail.render();
   };
@@ -534,7 +544,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const handleWorkspaceEscape = (event) => {
     if (event.key !== "Escape" || event.defaultPrevented || isDialogOpen() || !root.contains(event.target)) return;
     if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
-    else if (node._wgIoRailOpen) ioRail.close();
+    else if (node._wgIoRailOpen) ioRail.close({ force: true });
     else if (node._ppLoraSidecar?.isOpen()) { node._ppLoraSidecar.close({ restoreFocus: true }); }
     else if (pickerDrawer.classList.contains("open")) { closePickerDrawer(); root.querySelector('[data-act="picker"]')?.focus({ preventScroll: true }); }
     else return;
@@ -543,8 +553,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   root.addEventListener("keydown", handleWorkspaceEscape);
   document.addEventListener("keydown", handleWorkspaceEscape);
 
-  // Reuse suite toolbar preferences. Themes and full toolbar controls remain in
-  // main Settings; the import shortcut can also be toggled here.
+  // Share presentation preferences; prompt, batch, and workspace content remain
+  // owned by this node. Keep Fields controls on the current shared contract.
   const appearanceBinding = bindSuiteAppearance({
     node,
     targets: [root, settingsPopup],
@@ -553,10 +563,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       applyToolbarVisibility(root, theme);
       el("toggleLorasBtn").checked = theme.showLorasBtn !== false;
       el("toggleImportImageBtn").checked = theme.showImportImageBtn !== false;
+      const fieldPreferences = normalizeFieldEditorPreferences(theme);
+      settingsPopup.querySelectorAll("[data-field-preference]").forEach(control => {
+        const value = fieldPreferences[control.dataset.fieldPreference];
+        if (control.type === "checkbox") control.checked = value;
+        else control.value = String(value);
+      });
       if (el("toggleRecipesBtn")) el("toggleRecipesBtn").checked = theme.showRecipesBtn !== false;
       if (el("toggleSlotsBtn")) el("toggleSlotsBtn").checked = theme.showSlotsBtn !== false;
-      if (el("toggleLayoutsShortcut")) el("toggleLayoutsShortcut").checked = theme.showLayoutsShortcut !== false;
-      if (el("toggleWorkspaceSnapGrid")) el("toggleWorkspaceSnapGrid").checked = theme.workspaceSnapGrid === true;
       node._ppRecipeWorkspace?.refreshChrome?.();
       if (!initial) render();
     },
@@ -572,13 +586,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   el("toggleSlotsBtn")?.addEventListener("change", event => {
     saveTheme({ ...loadTheme(), showSlotsBtn: event.target.checked, layoutPreset: "custom" });
   });
-  el("toggleLayoutsShortcut")?.addEventListener("change", event => {
-    saveTheme({ ...loadTheme(), showLayoutsShortcut: event.target.checked, layoutPreset: "custom" });
-    node._ppRecipeWorkspace?.refreshChrome?.();
+  settingsPopup.querySelectorAll("[data-field-preference]").forEach(control => {
+    control.addEventListener("change", () => {
+      const key = control.dataset.fieldPreference;
+      const value = control.type === "checkbox" ? control.checked : key === "fieldEditorMinHeight" ? Number(control.value) : control.value;
+      saveTheme({ ...loadTheme(), [key]: value });
+    });
   });
-  el("toggleWorkspaceSnapGrid")?.addEventListener("change", event => {
-    saveTheme({ ...loadTheme(), workspaceSnapGrid: event.target.checked });
-  });
+  settingsPopup.querySelector('[data-act="resetFieldEditorUi"]')?.addEventListener("click", () => saveTheme({ ...loadTheme(), ...FIELD_EDITOR_DEFAULTS }));
 
   let estimateDebounceTimer = null;
   let estimateSeq = 0;
@@ -729,8 +744,12 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function syncHiddenWidget() {
-    if (promptState.current() !== textarea.value || promptState.isEstablished()) {
+    const changed = promptState.current() !== textarea.value;
+    if (changed || promptState.isEstablished()) {
       promptState.commit(textarea.value);
+    }
+    if (changed) {
+      textarea.dispatchEvent(new CustomEvent("pp-workspace-sync"));
     }
   }
 
@@ -744,15 +763,20 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   function restoreHistory(value) {
     const active = document.activeElement;
     const fieldId = root.contains(active) ? active.closest?.('[data-field-id]')?.dataset.fieldId : null;
+    const editingMain = active === textarea;
+    const workspaceView = recipeWorkspace?.snapshot()?.view;
     const saved = JSON.parse(value);
-    if (saved.workspace) saved.workspace.view = fieldId ? "workspace" : "editor";
+    if (saved.workspace && editingMain) saved.workspace.view = "editor";
+    else if (saved.workspace && fieldId) saved.workspace.view = "workspace";
+    else if (saved.workspace && workspaceView) saved.workspace.view = workspaceView;
     textarea.value = saved.text;
     node._ppNegativePromptState?.commit(saved.negative || "");
     preparedState?.commit(saved.prepared || "");
     recipeWorkspace?.restore(saved.workspace, { commit: false });
-    render();
+    render({ recordHistory: false });
     if (fieldId && saved.workspace) recipeWorkspace.focusField(fieldId);
     else { textarea.focus({ preventScroll: true }); textarea.setSelectionRange(textarea.value.length, textarea.value.length); }
+    refinementUndo.rebase(historyValue());
   }
   function performUndo() { const value = refinementUndo.undo(historyValue()); if (value !== null) restoreHistory(value); }
   function performRedo() { const value = refinementUndo.redo(historyValue()); if (value !== null) restoreHistory(value); }
@@ -774,9 +798,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     textarea.setSelectionRange(positive.length, positive.length);
     refinementUndo.note(historyValue()); refinementUndo.flush();
   } });
-  function render() {
-    recipeWorkspace?.reconcile(); recipeWorkspace?.contextChanged();
-    refinementController?.sourceChanged();
+  function renderVisuals() {
     const { html, names, categoriesInUse, decorations, ranges } = highlightText(textarea.value);
     tokenRanges = ranges;
     if (!syntaxHighlighter.render(decorations, textarea.value)) highlight.innerHTML = html + "\n";
@@ -790,19 +812,30 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const len = textarea.value.length;
     charCount.textContent = `${len.toLocaleString()} char${len === 1 ? "" : "s"}`;
     statusBar.refresh();
+  }
+
+  function render({ recordHistory = true } = {}) {
+    recipeWorkspace?.reconcile(); recipeWorkspace?.contextChanged();
+    refinementController?.sourceChanged();
+    findReplaceController?.refreshSource?.();
+    renderVisuals();
     syncHiddenWidget();
-    refinementUndo?.note(historyValue());
+    if (recordHistory) refinementUndo?.note(historyValue());
     powerTools?.refresh();
     updateEstimate();
   }
 
   function refreshFromHidden() {
     recipeWorkspace?.refresh();
-    const restored = recipeWorkspace?.snapshot() ? textarea.value : promptState.restore();
+    const hasWorkspace = Boolean(recipeWorkspace?.snapshot());
+    const restored = hasWorkspace ? textarea.value : promptState.restore();
     if (restored !== textarea.value) {
       textarea.value = restored;
       render();
       refinementUndo?.reset(historyValue());
+    } else if (hasWorkspace) {
+      syncHiddenWidget();
+      render();
     }
     syncControlsFromWidgets();
   }
@@ -983,6 +1016,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     getWorkspace: () => recipeWorkspace?.snapshot?.() || null,
     setWorkspace: (ws) => recipeWorkspace?.restore?.(ws, { commit: true }),
     onSlotSwitched: (slotKey, _slot, { duplicated }) => {
+      findReplaceController?.closeFind({ restoreFocus: false });
       refinementUndo.note(historyValue());
       refinementUndo.flush();
       render();
@@ -994,6 +1028,15 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     },
   });
   node._ppPromptSlots = promptSlotsController;
+
+  // Install after Slots so teardown can unwind configure hooks in reverse order.
+  const cleanupHistoryRefinement = installHistoryRefinement({ node, root, textarea, getState: historyValue,
+    history: refinementUndo, restoreState: restoreHistory,
+    openVariations: () => powerTools.openVariations(),
+    beginEdit: () => { refinementUndo.note(historyValue()); refinementUndo.flush(); },
+    endEdit: () => { refinementUndo.note(historyValue()); refinementUndo.flush(); }, render,
+    syncControls: syncControlsFromWidgets, clearPrepared: () => preparedState?.commit(""),
+    onFocus: () => { powerTools.closeAllPowerPopups(); closeSettings(); closePickerDrawer(); powerTools.showEditor(); } });
 
   const cleanupEditorContext = attachEditorContextMenu(textarea, {
     render, beforeOpen: () => { hideTip(); closeInjectMenu(); },
@@ -1023,15 +1066,19 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function insertWildcard(path) {
-    if (node._ppInsertAdjustableRecipe?.(path)) return;
-    const start = textarea.selectionStart, end = textarea.selectionEnd;
-    const tag = `__${path}__`;
-    textarea.value = textarea.value.slice(0, start) + tag + textarea.value.slice(end);
+    const editor = recipeWorkspace?.editingSurface() || textarea;
+    if (editor.readOnly || editor.disabled || editor.getAttribute("aria-readonly") === "true") {
+      notify("info", "Prompt is read-only", "Choose an editable prompt field before inserting."); return;
+    }
+    if (node._ppInsertAdjustableRecipe?.(path, { fallback: wildcardInsertionText(path, editor.value.slice(editor.selectionEnd)) })) return;
+    const start = editor.selectionStart, end = editor.selectionEnd;
+    const tag = wildcardInsertionText(path, editor.value.slice(end));
+    editor.value = editor.value.slice(0, start) + tag + editor.value.slice(end);
     const caret = start + tag.length;
-    textarea.selectionStart = textarea.selectionEnd = caret;
-    textarea.focus();
+    editor.selectionStart = editor.selectionEnd = caret;
+    editor.focus();
     usageStore.recordLibrary(path);
-    render();
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
     renderPickerList(searchInput.value);
   }
 
@@ -1703,7 +1750,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   // The customize panel is portaled outside the drawer while open; retain the
   // authoritative view control instead of querying only the old DOM ancestry.
   const collectionViewSelect = pickerDrawer.querySelector("[data-library-view]");
-  libraryFeatures = mountLibraryFeatures({ host: pickerDrawer.querySelector(".wg-drawer-inner"), settingsHost: pickerDrawer.querySelector("[data-library-customize-panel]") || pickerDrawer, node, getItems: () => libraryCache, getPinned: () => pinned, getThumbnails: () => thumbMap, onFilter: () => renderPickerList(searchInput.value), onView: view => { if(collectionViewSelect){collectionViewSelect.value=view==="gallery"?"grid":view;collectionViewSelect.dispatchEvent(new Event("change",{bubbles:true}));} }, onOpenEntry: (path, options) => powerTools.openEditForItem?.(path, options), content: [pickerList], restore: ({text,channel="positive"}) => reviewHistoryRestore(historyTargetEditor(node,textarea,channel),text,applyHistoryText,channel) });
+  libraryFeatures = mountLibraryFeatures({ host: pickerDrawer.querySelector(".wg-drawer-inner"), settingsHost: pickerDrawer.querySelector("[data-library-customize-panel]") || pickerDrawer, node, getItems: () => libraryCache, getPinned: () => pinned, getThumbnails: () => thumbMap, onFilter: () => renderPickerList(searchInput.value), onView: view => { if(collectionViewSelect){collectionViewSelect.value=view==="gallery"?"grid":view;collectionViewSelect.dispatchEvent(new Event("change",{bubbles:true}));} }, onOpenEntry: (path, options) => powerTools.openEditForItem?.(path, options), announce: (message, error) => notify(error ? "error" : "info", "Prompt Library", message), content: [pickerList], restore: ({text,channel="positive"}) => reviewHistoryRestore(historyTargetEditor(node,textarea,channel),text,applyHistoryText,channel) });
 
   let libraryRequestVersion = 0;
   let libraryDisposed = false;
@@ -1767,7 +1814,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
     raf(() => {
       if (!nodeIsActive(node) || !textarea.isConnected) return;
-      render();
+      renderVisuals();
     });
   };
   textarea.addEventListener("focus", repaintEditorHighlights);
@@ -1781,6 +1828,8 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   const commandTarget = registerPromptPaletteCommandTarget(node, {
     ...sidebarEditingHandlers({
+      node,
+      mainEditor: textarea,
       getEditor: () => recipeWorkspace?.editingSurface() || textarea,
       useLibraryEntry: insertWildcard,
       openLibraryItem: path => { searchInput.value = path; openPickerDrawer(); renderPickerList(path); },
@@ -1805,7 +1854,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   // intrinsic content measurements back into Nodes 2.
   node._wgInstallSocketRailWhenReady = () => {
     delete node._wgInstallSocketRailWhenReady;
-    installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, frame);
+    installSocketRailLayout(node, node._wgInputDefs || IO_INPUT_DEFS, node._wgOutputDefs || IO_OUTPUT_DEFS, frame);
   };
 
   const cleanupQueueSync = bindPromptQueueSync(node, () => {
@@ -1825,6 +1874,13 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     reassertHiddenWidgets,
     reapplyTheme: appearanceBinding.apply,
     cleanup: () => {
+      if (libraryDisposed) return;
+      cleanupHistoryRefinement();
+      libraryDisposed = true;
+      findReplaceController?.cleanup();
+      delete node._ppFindReplace;
+      promptSlotsController?.cleanup();
+      delete node._ppPromptSlots;
       commandTarget.cleanup();
       root.removeEventListener("pointerdown", commandTarget.activate, true);
       root.removeEventListener("focusin", commandTarget.activate, true);
@@ -1845,6 +1901,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       textarea.removeEventListener("input", noteRefinementInput); textarea.removeEventListener("keydown", undoRefinementKey, true);
       textarea.removeEventListener("compositionstart", holdRefinementComposition); textarea.removeEventListener("compositionend", releaseRefinementComposition);
       delete node._wgBeforeIoRailOpen;
+      delete node._wgRefreshIoToggles;
+      delete node._wgSyncExternalControlState;
+      delete node._wgAcceptPromptMetadata;
+      delete node._wgInstallSocketRailWhenReady;
       ioRail.cleanup();
       syntaxHighlighter.clear();
       textarea.removeEventListener("focus", repaintEditorHighlights);
@@ -1878,6 +1938,15 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 app.registerExtension({
   name: "comfyui.promptpalette.combinatorial",
 
+  async beforeRegisterNodeDef(nodeType, nodeData) {
+    if (nodeData?.name !== "PromptPaletteCombinatorial") return;
+    const onNodeCreated = nodeType.prototype.onNodeCreated;
+    nodeType.prototype.onNodeCreated = function () {
+      installWorkspaceConfigureHook(this);
+      return onNodeCreated?.apply(this, arguments);
+    };
+  },
+
   async nodeCreated(node) {
     if (node.comfyClass !== "PromptPaletteCombinatorial") return;
     if (node.__promptPaletteCombinatorialInitialized || node.__promptPaletteCombinatorialInitializing) return;
@@ -1890,6 +1959,7 @@ app.registerExtension({
     }
 
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
+    installWorkspaceConfigureHook(node);
     installPromptStateGuard(node, hiddenWidget);
     installPromptMetadataCapture(node);
     preparePromptBackingWidgets(node);
@@ -1909,7 +1979,8 @@ app.registerExtension({
         cleanup,
       } = built;
 
-      const domWidget = node.addDOMWidget("prompt_palette_combinatorial_ui", "div", container, {
+      let domWidget;
+      domWidget = node.addDOMWidget("prompt_palette_combinatorial_ui", "div", container, {
         getValue: () => node._ppPromptStateGuard?.current() ?? hiddenWidget.value,
         setValue: (value) => {
           node._ppPromptStateGuard?.acceptRendererValue(value);
