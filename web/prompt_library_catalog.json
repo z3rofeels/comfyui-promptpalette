@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "name": "Prompt Palette Starter Packs",
   "models": [
     {
@@ -266,7 +266,23 @@
               "prompt": "walking naturally toward camera, mid-step, shoulders relaxed, one hand loosely occupied, candid social-photo energy",
               "note": "Natural walking pose without assigning gender.",
               "visual": "motion",
-              "subcategory": "Everyday movement"
+              "subcategory": "Everyday movement",
+              "tags": [
+                "candid walk",
+                "street style",
+                "natural movement",
+                "full body",
+                "relaxed stance",
+                "urban portrait"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:candid",
+                "medium:digital",
+                "design:full-body"
+              ],
+              "negative": "stiff posture, awkward gait, bad hands, distorted feet, blurry"
             },
             {
               "id": "u-influencer-rail-lean",
@@ -274,7 +290,23 @@
               "prompt": "leaning casually against a railing, weight shifted to one hip, forearms relaxed, gaze slightly away from camera",
               "note": "Easy lifestyle pose for rooftops, balconies and overlooks.",
               "visual": "pose",
-              "subcategory": "Everyday movement"
+              "subcategory": "Everyday movement",
+              "tags": [
+                "rail lean",
+                "casual posture",
+                "lifestyle portrait",
+                "relaxed arms",
+                "natural gaze",
+                "candid styling"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:relaxed",
+                "medium:digital",
+                "design:medium-shot"
+              ],
+              "negative": "stiff pose, tense shoulders, distorted hands, bad anatomy"
             },
             {
               "id": "u-influencer-cafe-seat",
@@ -282,7 +314,23 @@
               "prompt": "seated at a small café table, torso turned slightly toward camera, one forearm resting on the table, relaxed posture",
               "note": "Natural seated creator-style pose.",
               "visual": "pose",
-              "subcategory": "Seated"
+              "subcategory": "Seated",
+              "tags": [
+                "cafe seated",
+                "lifestyle photography",
+                "table pose",
+                "relaxed posture",
+                "coffeehouse",
+                "candid portrait"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:cozy",
+                "medium:digital",
+                "design:seated"
+              ],
+              "negative": "slouching, unnatural hands, deformed fingers, blurry background"
             },
             {
               "id": "u-influencer-over-shoulder",
@@ -290,7 +338,23 @@
               "prompt": "body angled away from camera, head turned back over one shoulder, relaxed stance, natural candid expression",
               "note": "Useful for street, travel and fashion imagery.",
               "visual": "portrait",
-              "subcategory": "Standing"
+              "subcategory": "Standing",
+              "tags": [
+                "over shoulder glance",
+                "portrait gaze",
+                "dynamic angle",
+                "natural expression",
+                "head turn",
+                "street portrait"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:candid",
+                "medium:digital",
+                "design:close-portrait"
+              ],
+              "negative": "strained neck, distorted face, awkward angle, unnatural eyes"
             },
             {
               "id": "u-influencer-phone",
@@ -298,7 +362,23 @@
               "prompt": "standing casually with a phone held low in one hand, free hand relaxed, weight shifted naturally, not looking at the screen",
               "note": "Contemporary lifestyle pose without making the phone the subject.",
               "visual": "pose",
-              "subcategory": "Props in hand"
+              "subcategory": "Props in hand",
+              "tags": [
+                "phone in hand",
+                "casual prop",
+                "lifestyle pose",
+                "natural hand position",
+                "everyday candid",
+                "street styling"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:modern",
+                "medium:digital",
+                "treatment:prop-interaction"
+              ],
+              "negative": "distorted phone, melted fingers, extra digits, awkward grip"
             },
             {
               "id": "u-influencer-stairs",
@@ -306,7 +386,23 @@
               "prompt": "paused halfway on a staircase, one foot one step higher, body turned three-quarter to camera, one hand lightly touching the rail",
               "note": "Adds depth and natural asymmetry.",
               "visual": "pose",
-              "subcategory": "Environment poses"
+              "subcategory": "Environment poses",
+              "tags": [
+                "stair pause",
+                "architectural stairs",
+                "dynamic footing",
+                "three-quarter pose",
+                "candid motion",
+                "lifestyle photography"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:dynamic",
+                "medium:digital",
+                "design:environmental"
+              ],
+              "negative": "awkward leg placement, distorted feet, bad proportions, blurry stairs"
             },
             {
               "id": "u-influencer-car-door",
@@ -314,7 +410,23 @@
               "prompt": "standing beside an open car door, one hand resting on the top edge, body angled away from the vehicle, relaxed candid posture",
               "note": "Lifestyle/automotive pose direction.",
               "visual": "pose",
-              "subcategory": "Environment poses"
+              "subcategory": "Environment poses",
+              "tags": [
+                "car door pause",
+                "automotive lifestyle",
+                "travel portrait",
+                "relaxed posture",
+                "candid arrival",
+                "editorial street"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:cinematic",
+                "medium:digital",
+                "design:environmental"
+              ],
+              "negative": "distorted car geometry, awkward grip, bad anatomy, blurry"
             },
             {
               "id": "u-influencer-luggage",
@@ -322,7 +434,23 @@
               "prompt": "walking beside a compact rolling suitcase, one hand on the handle, free arm swinging naturally, looking past camera",
               "note": "Travel-content pose direction.",
               "visual": "motion",
-              "subcategory": "Props in hand"
+              "subcategory": "Props in hand",
+              "tags": [
+                "rolling luggage",
+                "travel portrait",
+                "walking motion",
+                "airport transit",
+                "lifestyle candid",
+                "commuter styling"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:transient",
+                "medium:digital",
+                "treatment:prop-interaction"
+              ],
+              "negative": "warped suitcase wheels, extra fingers, stiff stride, blurry"
             }
           ]
         },
@@ -338,7 +466,23 @@
               "prompt": "relaxed contrapposto stance, weight on the back leg, front knee soft, one shoulder slightly lower than the other",
               "note": "Classic editorial full-body balance.",
               "visual": "pose",
-              "subcategory": "Standing"
+              "subcategory": "Standing",
+              "tags": [
+                "contrapposto",
+                "classical balance",
+                "weight shift",
+                "relaxed knee",
+                "full-body stance",
+                "editorial fashion"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:poised",
+                "medium:editorial",
+                "design:full-body"
+              ],
+              "negative": "stiff posture, unnatural spine curvature, bad balance, distorted feet"
             },
             {
               "id": "u-pose-hands-pockets",
@@ -346,7 +490,23 @@
               "prompt": "standing tall with both hands loosely in pockets, elbows slightly out, feet offset rather than symmetrical",
               "note": "Simple fashion pose with clean silhouette.",
               "visual": "pose",
-              "subcategory": "Standing"
+              "subcategory": "Standing",
+              "tags": [
+                "hands in pockets",
+                "casual stance",
+                "offset feet",
+                "editorial pose",
+                "confident posture",
+                "minimal styling"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:confident",
+                "medium:editorial",
+                "design:standing"
+              ],
+              "negative": "bulging fabric distortion, awkward shoulder slouch, bad proportions"
             },
             {
               "id": "u-pose-jacket-shoulder",
@@ -354,7 +514,23 @@
               "prompt": "standing three-quarter to camera with a jacket draped over one shoulder and held lightly by one hand, free arm relaxed",
               "note": "Editorial wardrobe pose.",
               "visual": "fashion",
-              "subcategory": "Standing"
+              "subcategory": "Standing",
+              "tags": [
+                "jacket over shoulder",
+                "three-quarter pose",
+                "fashion styling",
+                "relaxed drape",
+                "editorial attitude",
+                "runway look"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:stylish",
+                "medium:editorial",
+                "treatment:wardrobe-interaction"
+              ],
+              "negative": "floating jacket, melted fingers, stiff arm, distorted clothing drape"
             },
             {
               "id": "u-pose-wall-lean",
@@ -362,7 +538,23 @@
               "prompt": "shoulder lightly against a wall, one foot planted flat against the wall behind, torso relaxed, gaze toward camera",
               "note": "Casual editorial wall pose.",
               "visual": "pose",
-              "subcategory": "Leaning"
+              "subcategory": "Leaning",
+              "tags": [
+                "wall lean",
+                "casual stance",
+                "architectural interaction",
+                "raised foot",
+                "environmental portrait",
+                "relaxed silhouette"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:relaxed",
+                "medium:editorial",
+                "design:environmental"
+              ],
+              "negative": "awkward wall clipping, floating foot, bad perspective, stiff torso"
             },
             {
               "id": "u-pose-chair-edge",
@@ -370,7 +562,23 @@
               "prompt": "seated on the front edge of a chair, feet planted apart, elbows resting lightly on thighs, torso leaning slightly forward",
               "note": "Strong seated portrait pose.",
               "visual": "pose",
-              "subcategory": "Seated"
+              "subcategory": "Seated",
+              "tags": [
+                "chair edge",
+                "seated forward",
+                "planted feet",
+                "editorial seated pose",
+                "leaning torso",
+                "studio styling"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:focused",
+                "medium:editorial",
+                "design:seated"
+              ],
+              "negative": "floating chair, awkward thigh distortion, bad hands, stiff posture"
             },
             {
               "id": "u-pose-low-crouch",
@@ -378,7 +586,23 @@
               "prompt": "balanced low crouch with one knee forward, one heel raised, one hand relaxed near the knee, body turned three-quarter to camera",
               "note": "Dynamic streetwear pose.",
               "visual": "pose",
-              "subcategory": "Low poses"
+              "subcategory": "Low poses",
+              "tags": [
+                "low crouch",
+                "dynamic pose",
+                "ground level",
+                "raised heel",
+                "foreshortened angle",
+                "streetwear editorial"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:energetic",
+                "medium:editorial",
+                "design:low-angle"
+              ],
+              "negative": "impossible knee joints, distorted feet, bad balance, blurry anatomy"
             },
             {
               "id": "u-pose-floor-seated",
@@ -386,7 +610,23 @@
               "prompt": "seated on the floor with one knee raised and the other leg relaxed outward, one arm resting loosely on the raised knee",
               "note": "Relaxed editorial floor pose.",
               "visual": "pose",
-              "subcategory": "Seated"
+              "subcategory": "Seated",
+              "tags": [
+                "floor seated",
+                "raised knee",
+                "studio floor",
+                "relaxed limbs",
+                "contemporary editorial",
+                "editorial portrait"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:contemplative",
+                "medium:editorial",
+                "design:seated"
+              ],
+              "negative": "distorted legs, awkward hip rotation, melted hands, flat floor perspective"
             },
             {
               "id": "u-pose-half-turn",
@@ -394,7 +634,23 @@
               "prompt": "caught halfway through turning toward camera, shoulders and hips offset, clothing showing subtle motion",
               "note": "Natural transitional pose.",
               "visual": "motion",
-              "subcategory": "Movement"
+              "subcategory": "Movement",
+              "tags": [
+                "half turn",
+                "mid-motion",
+                "turning shoulders",
+                "clothing movement",
+                "dynamic portrait",
+                "fluid energy"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:dynamic",
+                "medium:editorial",
+                "design:motion"
+              ],
+              "negative": "twisted spine distortion, neck strain, motion blur on face, awkward posture"
             }
           ]
         },
@@ -410,7 +666,23 @@
               "prompt": "24mm wide-angle lens, camera close to ground, low upward angle, full-body framing, controlled perspective exaggeration",
               "note": "Dynamic full-body perspective.",
               "visual": "camera",
-              "subcategory": "Lens & angle"
+              "subcategory": "Lens & angle",
+              "tags": [
+                "24mm wide angle",
+                "low angle",
+                "upward perspective",
+                "ground level",
+                "foreshortening",
+                "monumental scale"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:perspective",
+                "treatment:wide-angle",
+                "mood:dramatic",
+                "medium:digital"
+              ],
+              "negative": "excessive fish-eye warping, distorted face, tilted horizon, muddy shadows"
             },
             {
               "id": "u-camera-35-editorial",
@@ -418,7 +690,23 @@
               "prompt": "35mm lens, three-quarter environmental portrait, camera near chest height, subject integrated naturally with surroundings",
               "note": "Versatile editorial framing.",
               "visual": "camera",
-              "subcategory": "Lens & angle"
+              "subcategory": "Lens & angle",
+              "tags": [
+                "35mm lens",
+                "environmental portrait",
+                "three-quarter framing",
+                "chest height",
+                "documentary feel",
+                "balanced field of view"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:framing",
+                "treatment:prime-lens",
+                "mood:natural",
+                "medium:editorial"
+              ],
+              "negative": "edge barrel distortion, cramped framing, blurry subject, overprocessed"
             },
             {
               "id": "u-camera-50-natural",
@@ -426,7 +714,23 @@
               "prompt": "50mm lens, natural perspective, medium-full composition, eye-level camera, balanced subject-to-background relationship",
               "note": "Neutral all-purpose camera setup.",
               "visual": "camera",
-              "subcategory": "Lens & angle"
+              "subcategory": "Lens & angle",
+              "tags": [
+                "50mm prime",
+                "natural perspective",
+                "eye-level framing",
+                "standard lens",
+                "neutral compression",
+                "balanced depth"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:framing",
+                "treatment:prime-lens",
+                "mood:authentic",
+                "medium:digital"
+              ],
+              "negative": "exaggerated perspective, compressed background, unnatural proportions"
             },
             {
               "id": "u-camera-85-portrait",
@@ -434,7 +738,23 @@
               "prompt": "85mm lens, chest-up portrait, shallow depth of field, gentle background compression, precise eye focus",
               "note": "Classic portrait setup.",
               "visual": "portrait",
-              "subcategory": "Lens & angle"
+              "subcategory": "Lens & angle",
+              "tags": [
+                "85mm lens",
+                "shallow depth of field",
+                "chest-up portrait",
+                "creamy bokeh",
+                "facial compression",
+                "sharp eye focus"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:portrait",
+                "treatment:telephoto",
+                "mood:intimate",
+                "medium:digital"
+              ],
+              "negative": "flat depth of field, missed eye focus, muddy background blur, chromatic fringing"
             },
             {
               "id": "u-camera-overhead",
@@ -442,7 +762,23 @@
               "prompt": "true top-down overhead composition, camera perpendicular to the scene, deliberate graphic arrangement",
               "note": "Useful for layouts, food, products and floor poses.",
               "visual": "overhead",
-              "subcategory": "Specialty"
+              "subcategory": "Specialty",
+              "tags": [
+                "overhead shot",
+                "top down view",
+                "perpendicular angle",
+                "flat lay",
+                "graphic arrangement",
+                "geometric framing"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:composition",
+                "treatment:top-down",
+                "mood:deliberate",
+                "medium:digital"
+              ],
+              "negative": "tilted camera angle, keystoning, uneven shadows, distorted perspective"
             },
             {
               "id": "u-camera-dutch",
@@ -450,7 +786,23 @@
               "prompt": "subtle Dutch angle, horizon tilted approximately ten degrees, intentional cinematic tension without extreme distortion",
               "note": "A restrained dynamic tilt.",
               "visual": "camera",
-              "subcategory": "Specialty"
+              "subcategory": "Specialty",
+              "tags": [
+                "dutch angle",
+                "tilted horizon",
+                "cinematic tension",
+                "dynamic composition",
+                "ten degree tilt",
+                "visual energy"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:composition",
+                "treatment:tilted-horizon",
+                "mood:tense",
+                "medium:digital"
+              ],
+              "negative": "excessive tilt disorientation, clipped subject, vertigo distortion"
             },
             {
               "id": "u-camera-negative-space",
@@ -458,7 +810,23 @@
               "prompt": "subject placed on one third of the frame with generous clean negative space on the opposite side",
               "note": "Useful for editorial layouts and text placement.",
               "visual": "camera",
-              "subcategory": "Composition"
+              "subcategory": "Composition",
+              "tags": [
+                "negative space",
+                "rule of thirds",
+                "minimalist composition",
+                "open frame",
+                "breathing room",
+                "clean background"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:composition",
+                "treatment:minimalism",
+                "mood:quiet",
+                "medium:editorial"
+              ],
+              "negative": "cluttered background, centered subject, noisy framing, distracting elements"
             },
             {
               "id": "u-camera-symmetry",
@@ -466,7 +834,23 @@
               "prompt": "centered one-point composition with strong bilateral symmetry, clean leading lines and controlled visual balance",
               "note": "Architecture and graphic portrait composition.",
               "visual": "camera",
-              "subcategory": "Composition"
+              "subcategory": "Composition",
+              "tags": [
+                "bilateral symmetry",
+                "centered composition",
+                "one point perspective",
+                "leading lines",
+                "architectural balance",
+                "formal framing"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:composition",
+                "treatment:symmetry",
+                "mood:formal",
+                "medium:digital"
+              ],
+              "negative": "asymmetrical horizon, tilted perspective, unaligned center line, distorted vanishing point"
             }
           ]
         },
@@ -482,7 +866,23 @@
               "prompt": "open city rooftop at late afternoon, concrete parapet, layered skyline, light wind, uncluttered foreground",
               "note": "Editorial urban setting.",
               "visual": "rooftop",
-              "subcategory": "Urban"
+              "subcategory": "Urban",
+              "tags": [
+                "city rooftop",
+                "concrete parapet",
+                "urban skyline",
+                "late afternoon",
+                "cityscape horizon",
+                "open sky"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:location",
+                "mood:urban",
+                "treatment:architectural",
+                "medium:digital"
+              ],
+              "negative": "cluttered aerials, messy wires, blown sky, flat industrial haze"
             },
             {
               "id": "u-location-hotel",
@@ -490,7 +890,23 @@
               "prompt": "quiet modern hotel lobby with stone floors, warm indirect lighting, sculptural seating and generous negative space",
               "note": "Polished lifestyle interior.",
               "visual": "interior",
-              "subcategory": "Interiors"
+              "subcategory": "Interiors",
+              "tags": [
+                "hotel lobby",
+                "stone floors",
+                "indirect lighting",
+                "contemporary furniture",
+                "modern architecture",
+                "minimal luxury"
+              ],
+              "facets": [
+                "discipline:interior-design",
+                "design:location",
+                "mood:luxurious",
+                "treatment:architectural",
+                "medium:digital"
+              ],
+              "negative": "dated decor, garish colors, harsh lighting, cluttered signage"
             },
             {
               "id": "u-location-garage",
@@ -498,7 +914,23 @@
               "prompt": "clean concrete parking structure, long fluorescent ceiling lines, deep perspective, sparse parked cars",
               "note": "Graphic streetwear environment.",
               "visual": "architecture",
-              "subcategory": "Urban"
+              "subcategory": "Urban",
+              "tags": [
+                "parking garage",
+                "polished concrete",
+                "fluorescent lights",
+                "geometric shadows",
+                "industrial brutalism",
+                "vanishing perspective"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:location",
+                "mood:industrial",
+                "treatment:geometric",
+                "medium:digital"
+              ],
+              "negative": "dirty trash, chaotic graffiti, blown neon, dark crushed shadows"
             },
             {
               "id": "u-location-cafe",
@@ -506,7 +938,23 @@
               "prompt": "small contemporary café beside a large street-facing window, warm wood, soft daylight, subtle reflections",
               "note": "Lifestyle interior.",
               "visual": "interior",
-              "subcategory": "Interiors"
+              "subcategory": "Interiors",
+              "tags": [
+                "window cafe",
+                "contemporary interior",
+                "large glass facade",
+                "natural sunlight",
+                "coffeehouse aesthetic",
+                "street reflections"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:location",
+                "mood:cozy",
+                "treatment:daylight",
+                "medium:digital"
+              ],
+              "negative": "busy crowd, messy tables, reflections obscuring subject, dark indoor shadows"
             },
             {
               "id": "u-location-brutalist",
@@ -514,7 +962,23 @@
               "prompt": "monumental pale-concrete gallery, oversized stair, diffuse skylight, restrained architectural details",
               "note": "High-end editorial architecture.",
               "visual": "architecture",
-              "subcategory": "Interiors"
+              "subcategory": "Interiors",
+              "tags": [
+                "brutalist gallery",
+                "pale concrete",
+                "oversized staircase",
+                "diffuse skylight",
+                "monumental scale",
+                "minimalist museum"
+              ],
+              "facets": [
+                "discipline:architecture",
+                "design:location",
+                "mood:monumental",
+                "treatment:concrete",
+                "medium:digital"
+              ],
+              "negative": "decayed concrete, water stains, crowded tourists, dark under-exposed corners"
             },
             {
               "id": "u-location-subway",
@@ -522,7 +986,23 @@
               "prompt": "clean underground transit platform, repeating columns, directional fluorescent light, long vanishing point",
               "note": "Urban cinematic location.",
               "visual": "transit",
-              "subcategory": "Urban"
+              "subcategory": "Urban",
+              "tags": [
+                "subway platform",
+                "repeating columns",
+                "directional lighting",
+                "underground transit",
+                "deep vanishing point",
+                "clean modern station"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:location",
+                "mood:atmospheric",
+                "treatment:linear",
+                "medium:digital"
+              ],
+              "negative": "grungy grime, blurry motion smear, garish fluorescent cast, cluttered ads"
             },
             {
               "id": "u-location-coast",
@@ -530,7 +1010,23 @@
               "prompt": "windswept coastal overlook with dark rock, pale horizon, textured ocean and low cloud cover",
               "note": "Outdoor fashion/travel setting.",
               "visual": "landscape",
-              "subcategory": "Nature"
+              "subcategory": "Nature",
+              "tags": [
+                "windswept coast",
+                "dark rock overlook",
+                "pale ocean horizon",
+                "coastal grasses",
+                "cool maritime light",
+                "rugged shoreline"
+              ],
+              "facets": [
+                "discipline:landscape-photography",
+                "design:location",
+                "mood:serene",
+                "treatment:natural",
+                "medium:digital"
+              ],
+              "negative": "tourist debris, blown sea spray, muddy shore, overexposed sky"
             },
             {
               "id": "u-location-seamless",
@@ -538,7 +1034,23 @@
               "prompt": "large neutral seamless studio backdrop, clean floor transition, no visible equipment, controlled empty space",
               "note": "Neutral studio base.",
               "visual": "portrait",
-              "subcategory": "Studio"
+              "subcategory": "Studio",
+              "tags": [
+                "seamless backdrop",
+                "cyclorama studio",
+                "neutral gray sweep",
+                "diffuse studio lighting",
+                "clean floor curve",
+                "zero distractions"
+              ],
+              "facets": [
+                "discipline:studio-photography",
+                "design:location",
+                "mood:neutral",
+                "treatment:minimalism",
+                "medium:studio"
+              ],
+              "negative": "paper creases, dirty scuff marks, uneven lighting gradients, harsh edge seam"
             }
           ]
         },
@@ -554,7 +1066,23 @@
               "prompt": "tailored charcoal suit, fine-gauge black knit, minimal leather shoes, restrained monochrome styling",
               "note": "Polished menswear building block.",
               "visual": "fashion",
-              "subcategory": "Menswear"
+              "subcategory": "Menswear",
+              "tags": [
+                "tailored suit",
+                "charcoal wool",
+                "black knit sweater",
+                "minimal leather shoes",
+                "monochrome suiting",
+                "refined tailoring"
+              ],
+              "facets": [
+                "discipline:fashion",
+                "design:wardrobe",
+                "treatment:tailoring",
+                "mood:sophisticated",
+                "color:monochrome"
+              ],
+              "negative": "wrinkled fabric, ill-fitting shoulders, cheap polyester sheen, garish ties"
             },
             {
               "id": "u-clothing-street",
@@ -562,7 +1090,23 @@
               "prompt": "structured bomber jacket, heavyweight tee, relaxed technical trousers, clean low-profile sneakers",
               "note": "Contemporary streetwear building block.",
               "visual": "fashion",
-              "subcategory": "Menswear"
+              "subcategory": "Menswear",
+              "tags": [
+                "premium streetwear",
+                "bomber jacket",
+                "heavyweight tee",
+                "technical trousers",
+                "minimal sneakers",
+                "contemporary street style"
+              ],
+              "facets": [
+                "discipline:fashion",
+                "design:wardrobe",
+                "treatment:streetwear",
+                "mood:modern",
+                "medium:textile"
+              ],
+              "negative": "loud tacky branding, oversized logos, messy distressing, sloppy fit"
             },
             {
               "id": "u-clothing-knit",
@@ -570,7 +1114,23 @@
               "prompt": "textured merino crewneck, straight-leg trousers, understated leather belt and simple shoes",
               "note": "Soft lifestyle wardrobe.",
               "visual": "fashion",
-              "subcategory": "Menswear"
+              "subcategory": "Menswear",
+              "tags": [
+                "merino knitwear",
+                "textured crewneck",
+                "straight leg trousers",
+                "leather belt",
+                "minimalist watch",
+                "quiet luxury"
+              ],
+              "facets": [
+                "discipline:fashion",
+                "design:wardrobe",
+                "treatment:knitwear",
+                "mood:understated",
+                "color:earthy"
+              ],
+              "negative": "frayed yarn, pill-covered wool, bagginess, loud contrasting accessories"
             },
             {
               "id": "u-clothing-outerwear",
@@ -578,7 +1138,23 @@
               "prompt": "long wool overcoat layered over minimal tonal clothing, clean boots, subtle fabric movement",
               "note": "Strong full-body silhouette.",
               "visual": "fashion",
-              "subcategory": "Menswear"
+              "subcategory": "Menswear",
+              "tags": [
+                "wool overcoat",
+                "tailored outerwear",
+                "tonal layering",
+                "clean fabric drape",
+                "neutral palette",
+                "autumn fashion"
+              ],
+              "facets": [
+                "discipline:fashion",
+                "design:wardrobe",
+                "treatment:outerwear",
+                "mood:refined",
+                "season:autumn"
+              ],
+              "negative": "stiff bulky fabric, awkward hemline, wrinkled lapels, cheap synthetic drape"
             },
             {
               "id": "u-prop-sunglasses",
@@ -586,7 +1162,23 @@
               "prompt": "slim dark sunglasses used as a natural hand prop, either worn or held loosely by one temple",
               "note": "Easy hand interaction prop.",
               "visual": "product",
-              "subcategory": "Props"
+              "subcategory": "Props",
+              "tags": [
+                "slim sunglasses",
+                "dark tint lenses",
+                "handheld prop",
+                "minimal eyewear",
+                "fashion accessory",
+                "understated styling"
+              ],
+              "facets": [
+                "discipline:styling",
+                "design:prop",
+                "treatment:accessory",
+                "mood:chic",
+                "medium:eyewear"
+              ],
+              "negative": "distorted frames, crooked bridge, giant novelty lenses, melted arms"
             },
             {
               "id": "u-prop-coffee",
@@ -594,7 +1186,23 @@
               "prompt": "simple takeaway coffee cup held naturally at waist or chest level, no visible branding",
               "note": "Lifestyle hand prop.",
               "visual": "product",
-              "subcategory": "Props"
+              "subcategory": "Props",
+              "tags": [
+                "takeaway coffee",
+                "paper cup prop",
+                "handheld drink",
+                "morning routine",
+                "lifestyle prop",
+                "candid styling"
+              ],
+              "facets": [
+                "discipline:styling",
+                "design:prop",
+                "treatment:lifestyle-prop",
+                "mood:casual",
+                "medium:object"
+              ],
+              "negative": "spilled liquid, crushed cup, floating cup, distorted fingers"
             },
             {
               "id": "u-prop-camera",
@@ -602,7 +1210,23 @@
               "prompt": "small unbranded compact camera held casually in one hand with wrist strap visible",
               "note": "Creator/travel prop.",
               "visual": "camera",
-              "subcategory": "Props"
+              "subcategory": "Props",
+              "tags": [
+                "compact camera",
+                "rangefinder style",
+                "wrist strap",
+                "handheld camera",
+                "travel photography prop",
+                "minimalist tech"
+              ],
+              "facets": [
+                "discipline:styling",
+                "design:prop",
+                "treatment:tech-prop",
+                "mood:artistic",
+                "medium:hardware"
+              ],
+              "negative": "melted dials, backwards lens, mangled fingers, generic blob hardware"
             },
             {
               "id": "u-prop-bag",
@@ -610,7 +1234,23 @@
               "prompt": "minimal structured shoulder or cross-body bag with no visible logo, used as a clean styling accent",
               "note": "Fashion accessory.",
               "visual": "product",
-              "subcategory": "Props"
+              "subcategory": "Props",
+              "tags": [
+                "structured bag",
+                "crossbody bag",
+                "minimal leather",
+                "clean hardware",
+                "unbranded accessory",
+                "geometric styling"
+              ],
+              "facets": [
+                "discipline:styling",
+                "design:prop",
+                "treatment:leathercraft",
+                "mood:modern",
+                "medium:leather"
+              ],
+              "negative": "cheap plastic sheen, crooked straps, loud fake logos, torn seams"
             }
           ]
         },
@@ -626,7 +1266,23 @@
               "prompt": "large soft window light from one side, gentle falloff across the face and clothing, natural room ambience",
               "note": "Natural portrait light.",
               "visual": "lighting",
-              "subcategory": "Natural light"
+              "subcategory": "Natural light",
+              "tags": [
+                "soft window light",
+                "directional daylight",
+                "gentle shadow falloff",
+                "room ambience",
+                "natural illumination",
+                "diffuse portrait key"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:lighting",
+                "treatment:natural-light",
+                "mood:soft",
+                "medium:photography"
+              ],
+              "negative": "harsh direct sun, blown highlights, pitch black shadows, noisy grain"
             },
             {
               "id": "u-light-direct-flash",
@@ -634,7 +1290,23 @@
               "prompt": "on-camera direct flash, crisp hard shadow, bright subject separation, slight ambient underexposure, candid editorial finish",
               "note": "Current editorial/direct-flash look.",
               "visual": "lighting",
-              "subcategory": "Flash"
+              "subcategory": "Flash",
+              "tags": [
+                "direct flash",
+                "on-camera flash",
+                "hard drop shadow",
+                "bright subject separation",
+                "candid editorial",
+                "retro fashion look"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:lighting",
+                "treatment:direct-flash",
+                "mood:energetic",
+                "medium:editorial"
+              ],
+              "negative": "washed out skin, red-eye artifacts, blown out forehead, muddy background"
             },
             {
               "id": "u-light-golden",
@@ -642,7 +1314,23 @@
               "prompt": "low warm sun behind the subject, soft rim light around silhouette, cooler open-shadow fill",
               "note": "Outdoor golden-hour setup.",
               "visual": "lighting",
-              "subcategory": "Natural light"
+              "subcategory": "Natural light",
+              "tags": [
+                "golden hour",
+                "warm rim light",
+                "backlit silhouette",
+                "low sun angle",
+                "ambient shadow fill",
+                "sunset warmth"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:lighting",
+                "treatment:golden-hour",
+                "mood:warm",
+                "color:amber"
+              ],
+              "negative": "excessive lens flare haze, clipped orange highlights, murky unlit faces"
             },
             {
               "id": "u-light-softbox",
@@ -650,7 +1338,23 @@
               "prompt": "large rectangular softbox close to subject, soft sculpted key light, restrained fill, clean studio falloff",
               "note": "Controlled studio portrait light.",
               "visual": "lighting",
-              "subcategory": "Studio"
+              "subcategory": "Studio",
+              "tags": [
+                "large softbox",
+                "studio key light",
+                "sculpted lighting",
+                "restrained fill light",
+                "clean studio falloff",
+                "commercial lighting"
+              ],
+              "facets": [
+                "discipline:studio-photography",
+                "design:lighting",
+                "treatment:softbox",
+                "mood:polished",
+                "medium:commercial"
+              ],
+              "negative": "harsh specular glare, multi-shadow confusion, flat clinical wash"
             },
             {
               "id": "u-light-hard-sun",
@@ -658,7 +1362,23 @@
               "prompt": "hard direct sunlight with graphic high-contrast shadows, crisp edges and saturated natural color",
               "note": "Bold outdoor editorial light.",
               "visual": "lighting",
-              "subcategory": "Natural light"
+              "subcategory": "Natural light",
+              "tags": [
+                "hard midday sun",
+                "graphic shadows",
+                "high contrast daylight",
+                "crisp shadow edges",
+                "saturated color",
+                "bold architectural light"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:lighting",
+                "treatment:hard-light",
+                "mood:graphic",
+                "medium:photography"
+              ],
+              "negative": "dark raccoon eye shadows, blown highlight clipping, washed out saturation"
             },
             {
               "id": "u-light-sodium",
@@ -666,7 +1386,23 @@
               "prompt": "warm sodium-vapor street lighting mixed with cooler distant ambient light, cinematic night contrast",
               "note": "Urban night atmosphere.",
               "visual": "lighting",
-              "subcategory": "Night"
+              "subcategory": "Night",
+              "tags": [
+                "sodium vapor light",
+                "street light glow",
+                "amber tungsten",
+                "cool ambient shadows",
+                "night cinematic",
+                "urban evening"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:lighting",
+                "treatment:night-lighting",
+                "mood:nocturnal",
+                "color:amber-teal"
+              ],
+              "negative": "muddy green color cast, heavy digital sensor noise, crushed black clipping"
             },
             {
               "id": "u-look-film",
@@ -674,7 +1410,23 @@
               "prompt": "subtle fine film grain, gentle highlight rolloff, restrained saturation, realistic tonal density, no artificial vintage damage",
               "note": "Analog-inspired finishing.",
               "visual": "painting",
-              "subcategory": "Finish"
+              "subcategory": "Finish",
+              "tags": [
+                "film grain",
+                "analog emulation",
+                "highlight rolloff",
+                "restrained saturation",
+                "organic film texture",
+                "authentic 35mm tone"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:color-grading",
+                "treatment:film-emulation",
+                "mood:nostalgic",
+                "medium:film"
+              ],
+              "negative": "fake dust scratches, excessive digital noise, oversaturated colors, harsh digital contrast"
             },
             {
               "id": "u-look-clean-digital",
@@ -682,7 +1434,23 @@
               "prompt": "clean high-resolution digital capture, natural microcontrast, accurate color, realistic texture, restrained sharpening",
               "note": "Neutral modern finish.",
               "visual": "camera",
-              "subcategory": "Finish"
+              "subcategory": "Finish",
+              "tags": [
+                "clean digital",
+                "high resolution sensor",
+                "natural microcontrast",
+                "color accuracy",
+                "restrained sharpening",
+                "medium format clarity"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:color-grading",
+                "treatment:clean-digital",
+                "mood:pristine",
+                "medium:digital"
+              ],
+              "negative": "oversharpening halos, plastic skin smoothing, chromatic aberration, sensor artifacts"
             }
           ]
         },
@@ -694,51 +1462,148 @@
           "prompts": [
             {
               "id": "u-combo-editorial-man",
-              "title": "Editorial man generator",
-              "prompt": "handsome man, {%relaxed contrapposto stance|walking naturally toward camera|seated on the edge of a chair|leaning casually against a wall}, wearing {%a tailored charcoal suit|premium neutral streetwear|a textured merino knit with straight-leg trousers|a long wool overcoat over tonal clothing}, in {%a modern hotel lobby|a brutalist gallery|an open city rooftop|a clean concrete parking structure}, {%35mm editorial photograph|85mm portrait|24mm low-angle full-body photograph}, {%soft window light|direct on-camera flash|large softbox lighting|golden-hour rim light}",
-              "note": "Cycles pose, wardrobe, location, camera and lighting using Prompt Palette combinatorial syntax.",
+              "title": "Editorial subject generator",
+              "prompt": "{%an editorial subject|a traveler|a designer|a performer}, {%relaxed contrapposto stance|walking naturally toward camera|seated on the edge of a chair|leaning casually against a wall}, wearing {%a tailored charcoal suit|premium neutral streetwear|a textured merino knit with straight-leg trousers|a long wool overcoat over tonal clothing}, in {%a modern hotel lobby|a brutalist gallery|an open city rooftop|a clean concrete parking structure}, {%35mm editorial photograph|85mm portrait|24mm low-angle full-body photograph}, {%soft window light|direct on-camera flash|large softbox lighting|golden-hour rim light}",
+              "note": "Cycles subject archetypes, poses, wardrobes, locations, cameras and lighting using Prompt Palette combinatorial syntax.",
               "visual": "catalog",
-              "subcategory": "People builders"
+              "subcategory": "People builders",
+              "tags": [
+                "editorial generator",
+                "combinatorial builder",
+                "subject switcher",
+                "pose variations",
+                "wardrobe mixer",
+                "location roll",
+                "prompt palette combo"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:combinatorial",
+                "treatment:modular",
+                "mood:editorial",
+                "medium:digital"
+              ],
+              "negative": "distorted anatomy, bad proportions, blurry, watermark, cropped"
             },
             {
               "id": "u-combo-influencer",
               "title": "Influencer pose roll",
               "prompt": "{%walking naturally toward camera, mid-step|leaning casually against a railing|seated at a small café table, torso turned slightly toward camera|body angled away from camera, head turned back over one shoulder|paused halfway on a staircase, one hand lightly touching the rail}, {%35mm environmental framing|50mm natural perspective|85mm compressed portrait framing}, {%soft window light|bright overcast daylight|direct on-camera flash|golden-hour backlight}",
-              "note": "Gender-neutral pose/camera/light roller to append to any subject.",
+              "note": "Cycles natural lifestyle poses with matching camera lenses and daylight conditions.",
               "visual": "pose",
-              "subcategory": "Pose builders"
+              "subcategory": "Pose builders",
+              "tags": [
+                "influencer roll",
+                "lifestyle poses",
+                "camera focal lengths",
+                "natural daylight",
+                "candid builder",
+                "street portrait combo"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:combinatorial",
+                "treatment:pose-cycling",
+                "mood:candid",
+                "medium:digital"
+              ],
+              "negative": "stiff limbs, awkward balance, bad hands, distorted facial features"
             },
             {
               "id": "u-combo-product",
               "title": "Product campaign generator",
               "prompt": "{%a premium unbranded fragrance bottle|a sculptural wireless speaker|a minimalist wristwatch|a compact mirrorless camera|a pair of technical sneakers}, photographed {%on a seamless studio sweep|on textured stone|inside a clean architectural niche|on brushed metal|on translucent acrylic}, {%large softbox with controlled specular highlights|hard directional sunlight with graphic shadow|soft gradient lighting|direct flash with crisp shadow}, {%centered hero composition|three-quarter close-up|macro detail crop|overhead graphic layout}",
-              "note": "Ready-to-run product variation template.",
+              "note": "Generates commercial still-life product photography across varied surfaces, lighting and angles.",
               "visual": "product",
-              "subcategory": "Product builders"
+              "subcategory": "Product builders",
+              "tags": [
+                "product campaign",
+                "commercial still life",
+                "packshot generator",
+                "surface materials",
+                "studio lighting roll",
+                "product builder"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "design:combinatorial",
+                "treatment:product-lighting",
+                "mood:polished",
+                "medium:studio"
+              ],
+              "negative": "crooked product, melted geometry, messy reflections, dust specks, blown highlights"
             },
             {
               "id": "u-combo-location",
               "title": "Location explorer",
               "prompt": "{%quiet modern hotel lobby|open city rooftop|brutalist gallery|clean subway platform|windswept coastal overlook|small window café|concrete parking structure}, {%early morning|late afternoon|blue hour|rainy night}, {%35mm natural perspective|24mm wide establishing shot|50mm eye-level framing}, {%soft natural light|hard directional sun|mixed practical lighting|moody overcast light}",
-              "note": "Fast environmental exploration template.",
+              "note": "Cycles architectural spaces, times of day, focal lengths, and ambient light.",
               "visual": "landscape",
-              "subcategory": "Environment builders"
+              "subcategory": "Environment builders",
+              "tags": [
+                "location explorer",
+                "environment generator",
+                "time of day",
+                "ambient light",
+                "focal length test",
+                "architectural roll"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:combinatorial",
+                "treatment:location-study",
+                "mood:atmospheric",
+                "medium:digital"
+              ],
+              "negative": "cluttered composition, washed out sky, dark muddy shadows, artificial noise"
             },
             {
               "id": "u-combo-character-sheet",
-              "title": "Handsome man character sheet",
-              "prompt": "character design sheet of the same handsome man, {%front, three-quarter, side and back turnaround|six facial expressions|four coordinated wardrobe variations|three hairstyle and grooming variations}, consistent identity and proportions, clean neutral background, evenly spaced panels, production-ready reference layout",
-              "note": "Character-sheet combination that stays on a handsome male default.",
+              "title": "Character sheet generator",
+              "prompt": "character design sheet of the same {%creative professional|explorer|artisan|nomad}, {%front, three-quarter, side and back turnaround|six facial expressions|four coordinated wardrobe variations|three hairstyle and styling variations}, consistent identity and proportions, clean neutral background, evenly spaced panels, production-ready reference layout",
+              "note": "Generates consistent multi-angle or expression reference sheets for original character design.",
               "visual": "sheet",
-              "subcategory": "Character builders"
+              "subcategory": "Character builders",
+              "tags": [
+                "character sheet",
+                "model turnaround",
+                "expression sheet",
+                "wardrobe lineup",
+                "consistent identity",
+                "concept art builder"
+              ],
+              "facets": [
+                "discipline:character-design",
+                "design:combinatorial",
+                "treatment:model-sheet",
+                "mood:neutral",
+                "medium:reference"
+              ],
+              "negative": "inconsistent face, mismatched proportions, overlapping panels, cluttered background"
             },
             {
               "id": "u-combo-fashion",
               "title": "Fashion campaign roller",
-              "prompt": "handsome male model wearing {%tailored monochrome suiting|premium technical streetwear|relaxed luxury knitwear|long sculptural outerwear}, {%full-body contrapposto|low crouch|seated chair-edge pose|walking toward camera}, {%direct flash against a saturated color wall|large softbox in a neutral studio|hard midday sun in brutalist architecture|soft overcast light on a city rooftop}, high-end editorial campaign photography",
-              "note": "Fashion-oriented combinatorial starter.",
+              "prompt": "{%fashion model|editorial subject|stylist} wearing {%tailored monochrome suiting|premium technical streetwear|relaxed luxury knitwear|long sculptural outerwear}, {%full-body contrapposto|low crouch|seated chair-edge pose|walking toward camera}, {%direct flash against a saturated color wall|large softbox in a neutral studio|hard midday sun in brutalist architecture|soft overcast light on a city rooftop}, high-end editorial campaign photography",
+              "note": "Rolls wardrobe, pose, and high-fashion lighting setups for editorial lookbooks.",
               "visual": "fashion",
-              "subcategory": "People builders"
+              "subcategory": "People builders",
+              "tags": [
+                "fashion campaign",
+                "editorial lookbook",
+                "wardrobe mixer",
+                "pose switcher",
+                "fashion lighting",
+                "editorial roller"
+              ],
+              "facets": [
+                "discipline:fashion",
+                "design:combinatorial",
+                "treatment:high-fashion",
+                "mood:stylish",
+                "medium:editorial"
+              ],
+              "negative": "stiff posing, bad clothing drape, warped hands, distorted footwear"
             }
           ]
         }
@@ -751,7 +1616,7 @@
       "kind": "Image",
       "accent": "#f2a65a",
       "summary": "Natural, detailed language. Strong for people, art direction, products, typography, and unusual compositions.",
-      "format": "Write a complete visual description in flowing natural language. Put requested text in quotation marks.",
+      "format": "Write cohesive natural prose (30–150 words) front-loading subject or setting. Put literal rendered text inside double quotation marks (\"TEXT\"). Turbo: 8 steps, CFG 1.0 (ConditioningZeroOut, negative bypassed). Raw: 52 steps, CFG 3.5 with active negative.",
       "categories": [
         {
           "id": "people-poses",
@@ -762,66 +1627,202 @@
             {
               "id": "relaxed-contrapposto",
               "title": "Relaxed contrapposto",
-              "prompt": "Full-body editorial photograph of a handsome man in a tailored rust-red suit, relaxed contrapposto stance with one hip lowered, one hand resting loosely in a pocket and the other relaxed at his side, clean studio backdrop, soft directional light, natural skin texture, refined magazine styling.",
+              "prompt": "Full-body editorial photograph of a poised architect in a tailored rust-red linen suit, relaxed contrapposto stance with one hip lowered, one hand resting loosely in a pocket and the other relaxed at their side, clean studio backdrop, soft directional light, natural skin texture, refined magazine styling.",
               "visual": "pose",
-              "note": "",
-              "subcategory": "Influencer poses"
+              "note": "Krea 2 excels at natural anatomical weight distribution like contrapposto. Keep descriptions in flowing natural prose; avoid buzzwords like 'masterpiece' which confuse Qwen3-VL.",
+              "subcategory": "Influencer poses",
+              "tags": [
+                "contrapposto",
+                "tailored suit",
+                "architect portrait",
+                "soft directional light",
+                "natural skin texture",
+                "full-body editorial",
+                "magazine styling"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:poised",
+                "medium:editorial",
+                "design:full-body"
+              ],
+              "negative": "stiff posture, unnatural spine, distorted hands, plastic skin"
             },
             {
               "id": "low-crouch",
               "title": "Low crouch",
-              "prompt": "a handsome male streetwear dancer in a deep low crouch with one knee forward and one hand touching the pavement, photographed from ground level with a 24mm wide-angle lens, dynamic foreshortening, concrete plaza after rain, crisp overcast light, energetic but believable body mechanics.",
+              "prompt": "A kinetic streetwear dancer in a deep low crouch with one knee forward and one hand touching the pavement, photographed from ground level with a 24mm wide-angle lens, dynamic foreshortening, concrete plaza after rain, crisp overcast light, energetic but believable body mechanics.",
               "visual": "pose",
-              "note": "",
-              "subcategory": "Movement"
+              "note": "Low-angle perspective combined with wide lenses creates dramatic foreshortening. On Turbo, use 8 steps and CFG 1.0 with Euler sampler to maintain crisp pavement reflections.",
+              "subcategory": "Movement",
+              "tags": [
+                "streetwear dancer",
+                "low crouch",
+                "24mm wide angle",
+                "dynamic foreshortening",
+                "wet pavement",
+                "overcast light",
+                "body mechanics"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:energetic",
+                "medium:streetwear",
+                "design:low-angle"
+              ],
+              "negative": "distorted joints, awkward balance, mangled fingers, blurry pavement"
             },
             {
               "id": "mid-stride-turn",
               "title": "Mid-stride turn",
-              "prompt": "Full-body fashion image of a handsome man caught mid-stride as he turns over his shoulder, long coat swinging behind him, one foot lifted, busy crosswalk softly blurred in the background, late-afternoon backlight, candid editorial energy, 70mm lens.",
+              "prompt": "Full-body fashion image of an urban commuter caught mid-stride as they turn over their shoulder, long coat swinging behind them, one foot lifted, busy crosswalk softly blurred in the background, late-afternoon backlight, candid editorial energy, 70mm lens.",
               "visual": "pose",
-              "note": "",
-              "subcategory": "Pose ideas"
+              "note": "Qwen3-VL handles directional motion cues ('mid-stride', 'turning over shoulder', 'coat swinging') accurately without token bleed across the garment and background.",
+              "subcategory": "Pose ideas",
+              "tags": [
+                "urban commuter",
+                "mid-stride turn",
+                "swinging coat",
+                "crosswalk blur",
+                "afternoon backlight",
+                "70mm portrait",
+                "candid editorial"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:candid",
+                "medium:fashion",
+                "design:motion"
+              ],
+              "negative": "stiff stride, awkward neck rotation, motion blur on face, distorted feet"
             },
             {
               "id": "seated-editorial",
               "title": "Seated editorial",
-              "prompt": "A handsome man seated sideways on a simple chrome chair, ankles crossed, elbow resting on the chair back, chin lightly supported by one hand, minimal grey studio, sculpted softbox lighting, understated luxury editorial styling.",
+              "prompt": "A focused fashion stylist seated sideways on a simple chrome chair, ankles crossed, elbow resting on the chair back, chin lightly supported by one hand, minimal grey studio, sculpted softbox lighting, understated luxury editorial styling.",
               "visual": "pose",
-              "note": "",
-              "subcategory": "Influencer poses"
+              "note": "Complex seated poses with resting hands benefit from Krea 2's deep language understanding. Describe physical contact points clearly rather than using Danbooru tag soup.",
+              "subcategory": "Influencer poses",
+              "tags": [
+                "fashion stylist",
+                "seated sideways",
+                "chrome chair",
+                "hand on chin",
+                "sculpted softbox",
+                "minimal grey studio",
+                "understated luxury"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:focused",
+                "medium:editorial",
+                "design:seated"
+              ],
+              "negative": "floating chair, awkward hand anatomy, distorted fingers, stiff posture"
             },
             {
               "id": "hands-framing-face",
               "title": "Hands framing face",
-              "prompt": "Close beauty portrait of a handsome man gently framing his face with both hands, fingers relaxed and asymmetrical, healthy natural skin texture, subtle grooming, pale seamless background, precise soft beauty lighting.",
+              "prompt": "Close beauty portrait of an expressive ceramicist gently framing their face with both hands, fingers relaxed and asymmetrical, healthy natural skin texture, subtle grooming, pale seamless background, precise soft beauty lighting.",
               "visual": "portrait",
-              "note": "",
-              "subcategory": "Influencer poses"
+              "note": "Close-up hand-and-face interaction renders cleanly when finger placement is described as relaxed and asymmetrical. Keep prompt under 120 words to maximize spatial attention.",
+              "subcategory": "Influencer poses",
+              "tags": [
+                "expressive ceramicist",
+                "hands framing face",
+                "beauty portrait",
+                "natural skin texture",
+                "asymmetrical fingers",
+                "seamless backdrop",
+                "soft beauty light"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:intimate",
+                "medium:beauty",
+                "design:close-portrait"
+              ],
+              "negative": "extra fingers, melted digits, plastic skin smoothing, harsh glare"
             },
             {
               "id": "leaning-against-wall",
               "title": "Leaning against wall",
-              "prompt": "Full-body lifestyle portrait of a handsome young man leaning one shoulder against a sun-warmed stucco wall, one knee bent with the foot resting behind him, linen shirt moving in a light breeze, Mediterranean alley, warm natural light, relaxed candid posture.",
+              "prompt": "Full-body lifestyle portrait of a relaxed photographer leaning one shoulder against a sun-warmed stucco wall, one knee bent with the foot resting behind them, linen shirt moving in a light breeze, Mediterranean alley, warm natural light, relaxed candid posture.",
               "visual": "pose",
-              "note": "",
-              "subcategory": "Pose ideas"
+              "note": "Environmental weight-bearing poses ground the figure naturally against architectural surfaces. Turbo's 8-step inference resolves tactile stucco and linen textures smoothly.",
+              "subcategory": "Pose ideas",
+              "tags": [
+                "relaxed photographer",
+                "leaning against wall",
+                "stucco wall",
+                "bent knee",
+                "linen shirt",
+                "warm natural light",
+                "mediterranean alley"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:relaxed",
+                "medium:lifestyle",
+                "design:environmental"
+              ],
+              "negative": "awkward wall clipping, floating foot, bad perspective, stiff torso"
             },
             {
               "id": "dynamic-leap",
               "title": "Dynamic leap",
-              "prompt": "A handsome male contemporary dancer suspended at the peak of a sideways leap, arms creating a long diagonal line, flowing neutral costume, black stage, single hard spotlight and faint atmospheric haze, full body visible.",
+              "prompt": "A contemporary dancer suspended at the peak of a sideways leap, arms creating a long diagonal line, flowing neutral costume, black stage, single hard spotlight and faint atmospheric haze, full body visible.",
               "visual": "motion",
-              "note": "",
-              "subcategory": "Movement"
+              "note": "High-energy suspended action requires clear limb trajectory descriptions. A single hard key light provides high contrast that helps the DiT isolate the dancer's silhouette.",
+              "subcategory": "Movement",
+              "tags": [
+                "contemporary dancer",
+                "mid-air leap",
+                "diagonal arms",
+                "flowing costume",
+                "single spotlight",
+                "stage haze",
+                "dynamic action"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:dramatic",
+                "medium:stage",
+                "design:suspended-motion"
+              ],
+              "negative": "awkward limb angles, broken joints, motion blur on torso, missing feet"
             },
             {
               "id": "two-person-interaction",
               "title": "Two-person interaction",
-              "prompt": "Editorial photograph of two handsome men standing back-to-back, one laughing while the other looks toward camera, contrasting monochrome outfits, slightly staggered heights, clean color-block studio background, relaxed natural chemistry.",
+              "prompt": "Editorial photograph of two runway stylists standing back-to-back, one laughing while the other looks toward camera, contrasting monochrome outfits, slightly staggered heights, clean color-block studio background, relaxed natural chemistry.",
               "visual": "duo",
-              "note": "",
-              "subcategory": "Pairs"
+              "note": "Multi-subject scenes succeed in Krea 2 by specifying relative spatial placement ('back-to-back', 'staggered heights') and distinct outfit assignments in cohesive prose.",
+              "subcategory": "Pairs",
+              "tags": [
+                "two stylists",
+                "back to back",
+                "natural chemistry",
+                "monochrome styling",
+                "staggered heights",
+                "color-block studio",
+                "editorial duo"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:pose",
+                "mood:collaborative",
+                "medium:editorial",
+                "design:dual-figure"
+              ],
+              "negative": "entangled limbs, fused bodies, mismatched facial scale, awkward eye gaze"
             }
           ]
         },
@@ -834,50 +1835,152 @@
             {
               "id": "four-view-turnaround",
               "title": "Four-view turnaround",
-              "prompt": "Professional character turnaround sheet for the same handsome man, an original desert courier wearing a weathered utility coat, compact backpack and protective goggles. Show front, three-quarter, side and back views with consistent facial identity, body proportions and wardrobe details on a clean neutral background.",
+              "prompt": "Professional character turnaround sheet for an original desert courier wearing a weathered utility coat, compact backpack and protective goggles. Show front, three-quarter, side and back views with consistent facial identity, body proportions and wardrobe details on a clean neutral background.",
               "visual": "sheet",
-              "note": "",
-              "subcategory": "Turnarounds"
+              "note": "Krea 2 reliably maintains character identity across multi-view turnaround sheets when key wardrobe markers and facial features are explicitly grounded in the prompt.",
+              "subcategory": "Turnarounds",
+              "tags": [
+                "character turnaround",
+                "four-view sheet",
+                "desert courier",
+                "consistent identity",
+                "weathered coat",
+                "orthographic lineup",
+                "production reference"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:character",
+                "treatment:turnaround",
+                "mood:neutral",
+                "medium:reference"
+              ],
+              "negative": "inconsistent face, shifting proportions, overlapping views, cluttered backdrop"
             },
             {
               "id": "expression-sheet",
               "title": "Expression sheet",
-              "prompt": "Expression sheet for the same handsome young man, an original mechanic with short curly hair and grease-smudged cheeks. Arrange eight head-and-shoulder expressions: neutral, amused, focused, worried, irritated, surprised, relieved and determined. Keep facial identity, hairstyle, camera angle and lighting consistent.",
+              "prompt": "Expression sheet for an original mechanic with short curly hair and grease-smudged cheeks. Arrange eight head-and-shoulder expressions: neutral, amused, focused, worried, irritated, surprised, relieved and determined. Keep facial identity, hairstyle, camera angle and lighting consistent.",
               "visual": "expression",
-              "note": "",
-              "subcategory": "Expressions"
+              "note": "Listing distinct emotional states in sequence guides the grid layout. Turbo CFG 1.0 prevents over-sharpening identical face tiles across the expression array.",
+              "subcategory": "Expressions",
+              "tags": [
+                "expression sheet",
+                "mechanic character",
+                "eight facial emotions",
+                "head and shoulders",
+                "consistent features",
+                "model sheet",
+                "production art"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:expressions",
+                "treatment:grid-lineup",
+                "mood:expressive",
+                "medium:reference"
+              ],
+              "negative": "facial drift, mismatched hairstyles, distorted mouths, missing expressions"
             },
             {
               "id": "outfit-lineup",
               "title": "Outfit lineup",
-              "prompt": "Fashion character lineup showing the same handsome man, an original musician, in five coordinated outfits: rehearsal casual, premium streetwear, formal performance, rainy-day layers and futuristic stage clothing. Keep face, body proportions and hairstyle consistent across the lineup.",
+              "prompt": "Fashion character lineup showing an original musician in five coordinated outfits: rehearsal casual, premium streetwear, formal performance, rainy-day layers and futuristic stage clothing. Keep face, body proportions and hairstyle consistent across the lineup.",
               "visual": "fashion",
-              "note": "",
-              "subcategory": "Wardrobe"
+              "note": "Multi-outfit lineups leverage Krea 2's ability to hold subject continuity while varying garment silhouettes, textiles, and color palettes across the row.",
+              "subcategory": "Wardrobe",
+              "tags": [
+                "outfit lineup",
+                "musician character",
+                "five wardrobe styles",
+                "consistent anatomy",
+                "fashion lineup",
+                "character reference",
+                "wardrobe turnaround"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:wardrobe",
+                "treatment:lineup",
+                "mood:stylish",
+                "medium:reference"
+              ],
+              "negative": "inconsistent facial structure, shifting heights, overlapping figures, sloppy styling"
             },
             {
               "id": "prop-and-accessory-sheet",
               "title": "Prop and accessory sheet",
-              "prompt": "Design sheet of accessories for an original urban explorer: modular camera, folding map device, utility pouch, boots, gloves, flashlight and enamel pins. Orthographic product-like views, small callout details, coherent color palette, clean off-white presentation board.",
+              "prompt": "Orthographic prop and accessory design sheet for an interstellar navigator, showing a celestial compass, modular wrist communicator, insulated canteen, multi-tool and leather field notebook. Isolated items with clean drop shadows, crisp line work, neutral beige background, labeled industrial design presentation.",
               "visual": "product",
-              "note": "",
-              "subcategory": "Character design"
+              "note": "Prop design sheets benefit from isolated object descriptions and neutral backgrounds. Do not add numerical weight brackets like (compass:1.2), which Qwen3-VL treats literally.",
+              "subcategory": "Character design",
+              "tags": [
+                "prop design sheet",
+                "interstellar navigator",
+                "orthographic view",
+                "celestial compass",
+                "industrial design",
+                "clean drop shadows",
+                "isolated props"
+              ],
+              "facets": [
+                "discipline:industrial-design",
+                "subject:props",
+                "treatment:orthographic",
+                "mood:technical",
+                "medium:digital"
+              ],
+              "negative": "melted gadget geometry, blurry labels, overlapping items, chaotic layout"
             },
             {
               "id": "silhouette-exploration",
               "title": "Silhouette exploration",
-              "prompt": "Twelve black silhouette thumbnails exploring distinct shapes for an original forest guardian character, varying shoulder width, cloak length, head shape, staff design and posture. Strong readable silhouettes, evenly spaced grid, minimal warm-grey background.",
+              "prompt": "Concept art silhouette exploration sheet showing six distinct high-contrast character silhouettes for a futuristic scout, varying proportions, cape lengths, weapon placements and gear bulk. Solid dark figures on a pale warm-grey grid, clean graphic design presentation.",
               "visual": "silhouette",
-              "note": "",
-              "subcategory": "Shape studies"
+              "note": "Graphic silhouette sheets test pure structural shape language. Using a pale warm-grey grid provides a clean reference value that prevents background clumping.",
+              "subcategory": "Shape studies",
+              "tags": [
+                "silhouette sheet",
+                "futuristic scout",
+                "shape exploration",
+                "high contrast",
+                "concept art",
+                "clean grid",
+                "character thumbnailing"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:silhouette",
+                "treatment:shape-language",
+                "mood:graphic",
+                "medium:digital"
+              ],
+              "negative": "blurry edges, gray gradients inside figures, noisy textures, cluttered grid"
             },
             {
               "id": "age-progression",
               "title": "Age progression",
-              "prompt": "Character age progression sheet for the same handsome man at ages 18, 30, 45, 60 and 80, preserving recognizable facial structure, hairstyle cues and distinctive eyebrow shape. Head-and-shoulders lineup, neutral studio lighting, consistent angle and scale.",
+              "prompt": "Character age progression sheet for an individual subject at ages 18, 30, 45, 60 and 80, preserving recognizable facial structure, hairstyle cues and distinctive eyebrow shape. Head-and-shoulders lineup, neutral studio lighting, consistent angle and scale.",
               "visual": "sheet",
-              "note": "",
-              "subcategory": "Age studies"
+              "note": "Age progression works best when anchoring permanent anatomical traits (bone structure, eye shape) while specifying chronological markers along the lineup.",
+              "subcategory": "Age studies",
+              "tags": [
+                "age progression",
+                "facial consistency",
+                "five life stages",
+                "consistent bone structure",
+                "head-and-shoulders",
+                "neutral studio",
+                "character study"
+              ],
+              "facets": [
+                "discipline:character-design",
+                "subject:aging",
+                "treatment:progression",
+                "mood:observational",
+                "medium:reference"
+              ],
+              "negative": "inconsistent ethnicity, shifting eye shapes, random facial features, mismatched lighting"
             }
           ]
         },
@@ -890,66 +1993,202 @@
             {
               "id": "extreme-close-up",
               "title": "Extreme close-up",
-              "prompt": "Extreme close-up of a handsome man's eye and cheek, tiny reflections of city lights in the iris, individual eyelashes and skin texture visible, shallow depth of field, cinematic teal-and-amber night lighting, intimate 100mm macro framing.",
+              "prompt": "Extreme close-up of a runner's eye and cheek, tiny reflections of city lights in the iris, individual eyelashes and skin texture visible, shallow depth of field, cinematic teal-and-amber night lighting, intimate 100mm macro framing.",
               "visual": "macro",
-              "note": "",
-              "subcategory": "Close framing"
+              "note": "Front-loading micro-details ('runner's eye and cheek', 'eyelashes') immediately commands Krea 2's spatial word budget into a tight macro composition.",
+              "subcategory": "Close framing",
+              "tags": [
+                "extreme close-up",
+                "macro portrait",
+                "runner eye",
+                "city reflections in iris",
+                "100mm lens",
+                "teal and amber",
+                "shallow depth of field"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:framing",
+                "treatment:macro",
+                "mood:intimate",
+                "medium:digital"
+              ],
+              "negative": "blurry iris, plastic skin smoothing, missing eyelashes, red-eye artifacts"
             },
             {
               "id": "24mm-low-angle",
               "title": "24mm low angle",
-              "prompt": "Low-angle 24mm photograph from near the pavement looking up at a cyclist beside a brutalist concrete tower, exaggerated perspective, strong vertical lines, bright cloud cover, graphic editorial composition, subject close to lens.",
+              "prompt": "Dramatic 24mm wide-angle environmental portrait from ground level looking up at an athlete standing atop a brutalist concrete podium, overcast sky, strong perspective convergence, imposing stature.",
               "visual": "camera",
-              "note": "",
-              "subcategory": "Lens & angle"
+              "note": "24mm lenses produce vertical perspective convergence in Krea 2. Ensure camera height ('ground level looking up') is specified early in the sentence.",
+              "subcategory": "Lens & angle",
+              "tags": [
+                "24mm wide angle",
+                "low angle",
+                "athlete portrait",
+                "brutalist podium",
+                "perspective convergence",
+                "overcast sky",
+                "imposing scale"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:perspective",
+                "treatment:wide-angle",
+                "mood:monumental",
+                "medium:digital"
+              ],
+              "negative": "distorted head shape, fish-eye bulging, tilted horizon, muddy concrete"
             },
             {
               "id": "overhead-top-down",
               "title": "Overhead top-down",
-              "prompt": "Perfect top-down photograph of a ceramic artist working at a circular table, hands shaping clay at the center, tools and test tiles arranged in an intentional radial layout, soft north-window light, calm earthy palette, precise overhead geometry.",
+              "prompt": "True top-down overhead 90-degree flat-lay of an artist's drafting table, featuring watercolor sketches, brass calipers, ceramic ink wells, and botanical clippings neatly arranged on weathered oak, even diffuse daylight.",
               "visual": "overhead",
-              "note": "",
-              "subcategory": "Lens & angle"
+              "note": "Top-down framing requires explicit 90-degree flat-lay terminology to prevent the text encoder from tilting the camera toward an isometric angle.",
+              "subcategory": "Lens & angle",
+              "tags": [
+                "overhead flat-lay",
+                "top-down 90-degree",
+                "drafting table",
+                "brass calipers",
+                "botanical sketches",
+                "weathered oak",
+                "diffuse daylight"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:composition",
+                "treatment:flat-lay",
+                "mood:organized",
+                "medium:digital"
+              ],
+              "negative": "angled perspective, keystoning distortion, harsh shadows, cluttered arrangement"
             },
             {
               "id": "dutch-angle-tension",
               "title": "Dutch angle tension",
-              "prompt": "Cinematic hallway scene photographed with a restrained Dutch angle, a lone figure paused beneath flickering fluorescent lights, long converging lines, slightly off-balance framing, cool green shadows, suspenseful but realistic atmosphere.",
+              "prompt": "Cinematic Dutch angle tilted fifteen degrees, capturing an investigator moving through a rain-slicked alleyway flanked by neon signs, reflections in puddles, dynamic diagonal composition, moody film noir atmosphere.",
               "visual": "camera",
-              "note": "",
-              "subcategory": "Specialty framing"
+              "note": "Dutch angles introduce compositional diagonal tension. Specifying the approximate degree of tilt ('tilted fifteen degrees') prevents excessive disorientation.",
+              "subcategory": "Specialty framing",
+              "tags": [
+                "dutch angle",
+                "tilted 15 degrees",
+                "rain-slicked alley",
+                "neon reflections",
+                "film noir",
+                "diagonal composition",
+                "cinematic tension"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:composition",
+                "treatment:dutch-angle",
+                "mood:tense",
+                "medium:digital"
+              ],
+              "negative": "extreme disorientation, upside-down framing, clipped character, oversaturated neon"
             },
             {
               "id": "long-lens-compression",
               "title": "Long-lens compression",
-              "prompt": "A pedestrian in a bright yellow coat crossing a distant hill road, photographed with a 200mm telephoto lens that compresses layered mountains and mist behind them, muted landscape, small human figure, elegant graphic depth.",
+              "prompt": "Compressed telephoto portrait using a 200mm lens, bringing distant layered city skyscrapers and traffic lights directly behind a commuter waiting at a crosswalk, creamy bokeh, golden-hour haze.",
               "visual": "telephoto",
-              "note": "",
-              "subcategory": "Camera direction"
+              "note": "Telephoto focal lengths (135mm–200mm) flatten perspective depth in Krea 2, stacking background architectural layers immediately behind the foreground subject.",
+              "subcategory": "Camera direction",
+              "tags": [
+                "200mm telephoto",
+                "lens compression",
+                "urban commuter",
+                "stacked skyscrapers",
+                "creamy bokeh",
+                "golden-hour haze",
+                "crosswalk portrait"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:optics",
+                "treatment:telephoto",
+                "mood:urban",
+                "medium:digital"
+              ],
+              "negative": "wide perspective, sharp distant background, missed focal plane, harsh halos"
             },
             {
               "id": "fisheye-room-portrait",
               "title": "Fisheye room portrait",
-              "prompt": "Playful fisheye portrait inside a tiny colorful bedroom, subject sitting close to the lens on the floor, curved walls and exaggerated furniture edges, direct on-camera flash, youthful magazine energy, detailed room objects.",
+              "prompt": "Ultra-wide 8mm fisheye lens portrait of an electronic music producer in a compact synthesizer studio, pronounced spherical barrel distortion curving the ceiling and modular racks, intimate and immersive wide perspective.",
               "visual": "fisheye",
-              "note": "",
-              "subcategory": "Specialty framing"
+              "note": "Barrel distortion terms like '8mm fisheye' and 'spherical curvature' activate Krea 2's optical lens simulation without requiring external post-processing.",
+              "subcategory": "Specialty framing",
+              "tags": [
+                "8mm fisheye",
+                "barrel distortion",
+                "music producer",
+                "synthesizer studio",
+                "spherical curvature",
+                "modular racks",
+                "immersive wide"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:optics",
+                "treatment:fisheye",
+                "mood:immersive",
+                "medium:digital"
+              ],
+              "negative": "flat perspective, rectangular walls, blurred center, distorted face anatomy"
             },
             {
               "id": "split-diopter-composition",
               "title": "Split-diopter composition",
-              "prompt": "Cinematic split-diopter shot: a glass perfume bottle in sharp focus in the extreme foreground while a handsome man at a vanity remains simultaneously sharp in the background, warm tungsten practicals, elegant editorial styling.",
+              "prompt": "Cinematic split-diopter shot: a glass perfume bottle in sharp focus in the extreme foreground while an elegant subject at a vanity remains simultaneously sharp in the background, warm tungsten practicals, elegant editorial styling.",
               "visual": "camera",
-              "note": "",
-              "subcategory": "Specialty framing"
+              "note": "Split-diopter prompts challenge standard optical depth of field by requiring dual focal planes. Krea 2 resolves both foreground object and background subject sharply.",
+              "subcategory": "Specialty framing",
+              "tags": [
+                "split diopter",
+                "dual focal planes",
+                "perfume bottle",
+                "vanity background",
+                "sharp foreground",
+                "tungsten lighting",
+                "cinematic composition"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:optics",
+                "treatment:split-diopter",
+                "mood:elegant",
+                "medium:digital"
+              ],
+              "negative": "blurry foreground, blurry background, optical seam line, muddy lighting"
             },
             {
               "id": "security-camera-view",
               "title": "Security camera view",
-              "prompt": "Fixed high-corner security-camera view of an empty late-night laundromat, timestamp-style composition without visible text, fluorescent lighting, rows of machines, one forgotten red umbrella, wide surveillance lens, quiet liminal mood.",
+              "prompt": "High-angle CCTV surveillance camera still mounted in the corner of a minimalist subway concourse, wide fisheye perspective, timestamp overlay in corner, monochrome green tint, grainy low-bitrate texture.",
               "visual": "surveillance",
-              "note": "",
-              "subcategory": "Camera direction"
+              "note": "Surveillance framing combines high corner angles with low-fidelity sensory descriptors. For Raw model use CFG 3.5; on Turbo keep CFG at 1.0.",
+              "subcategory": "Camera direction",
+              "tags": [
+                "cctv surveillance",
+                "high-angle security",
+                "subway concourse",
+                "timestamp overlay",
+                "green tint",
+                "low-bitrate texture",
+                "surveillance still"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:perspective",
+                "treatment:surveillance",
+                "mood:eerie",
+                "medium:video-still"
+              ],
+              "negative": "high-definition clarity, polished studio lighting, clean digital smoothing"
             }
           ]
         },
@@ -962,50 +2201,177 @@
             {
               "id": "direct-flash-campaign",
               "title": "Direct-flash campaign",
-              "prompt": "Direct-flash fashion campaign portrait of a handsome male model in a silver windbreaker against a deep cobalt wall, slight motion blur in the raised hand, crisp face, hard shadow, glossy magazine color, spontaneous 2000s editorial attitude.",
+              "prompt": "Direct-flash fashion campaign portrait of a high-fashion model in a silver windbreaker against a deep cobalt wall, slight motion blur in the raised hand, crisp face, hard shadow, glossy magazine color, spontaneous 2000s editorial attitude.",
               "visual": "fashion",
-              "note": "",
-              "subcategory": "Fashion editorial"
+              "note": "Direct-flash photography produces sharp drop shadows and glossy specular pop. Turbo's 8-step diffusion preserves the vibrant color saturation of cobalt walls.",
+              "subcategory": "Fashion editorial",
+              "tags": [
+                "direct flash",
+                "fashion campaign",
+                "silver windbreaker",
+                "cobalt wall",
+                "hard drop shadow",
+                "y2k editorial",
+                "crisp facial focus"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:fashion",
+                "treatment:direct-flash",
+                "mood:spontaneous",
+                "medium:editorial"
+              ],
+              "negative": "softbox lighting, washed out colors, muddy shadows, missing drop shadow"
             },
             {
               "id": "beauty-macro",
               "title": "Beauty macro",
-              "prompt": "High-end beauty macro of glossy coral lipstick on natural lips, dewy skin, tiny water droplets, soft peach background, controlled specular highlights, ultra-clean cosmetic campaign lighting, sharp texture without plastic skin.",
+              "prompt": "Macro beauty photography of lips with high-shine holographic gloss, subtle gold micro-shimmer, dewy skin texture, individual pores visible, clean minimalist studio lighting.",
               "visual": "macro",
-              "note": "",
-              "subcategory": "Fashion editorial"
+              "note": "Macro beauty shots highlight Krea 2's tactile surface rendering. Describing micro-shimmer and dewiness directs the VAE to preserve fine specular microcontrast.",
+              "subcategory": "Fashion editorial",
+              "tags": [
+                "beauty macro",
+                "holographic lip gloss",
+                "gold shimmer",
+                "dewy skin",
+                "macro detail",
+                "minimalist studio",
+                "tactile texture"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "subject:beauty",
+                "treatment:macro",
+                "mood:glamorous",
+                "medium:studio"
+              ],
+              "negative": "matte plastic lips, blurred skin texture, artificial smoothing, digital noise"
             },
             {
               "id": "floating-product",
               "title": "Floating product",
-              "prompt": "A matte-black wireless speaker floating above a rippling sheet of translucent orange acrylic, small suspended droplets, dramatic side light, dark studio background, precise product edges, premium technology campaign composition.",
+              "prompt": "Commercial packshot of a sculptural matte-black wireless earbud hovering weightlessly above a rippling water droplet surface, subtle caustic reflections, dark luxury studio environment.",
               "visual": "product",
-              "note": "",
-              "subcategory": "Product studio"
+              "note": "Floating product staging requires precise spatial grounding words like 'hovering weightlessly above'. Use simple Euler sampling at CFG 1.0 on Turbo.",
+              "subcategory": "Product studio",
+              "tags": [
+                "floating product",
+                "matte-black earbud",
+                "rippling water",
+                "caustic reflections",
+                "levitating packshot",
+                "luxury commercial",
+                "studio dark"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "subject:product",
+                "treatment:levitation",
+                "mood:luxurious",
+                "medium:studio"
+              ],
+              "negative": "clipping into water, flat lighting, messy splashes, distorted product geometry"
             },
             {
               "id": "packaging-lineup",
               "title": "Packaging lineup",
-              "prompt": "Studio product photograph of a complete fictional skincare range arranged from tallest to shortest, frosted glass bottles, cream labels with the brand name \"Morrow\", soft stone platform, warm daylight, subtle shadows, clean luxury packaging system.",
+              "prompt": "Clean studio lineup of three organic skincare bottles in amber glass with minimalist white paper labels reading \"ESSENCE\", arranged in a staggered trio on raw travertine stone, soft morning window light.",
               "visual": "packaging",
-              "note": "",
-              "subcategory": "Product studio"
+              "note": "Literal label typography enclosed in double quotation marks (\"ESSENCE\") is rendered cleanly by Qwen3-VL without garbled character artifacts.",
+              "subcategory": "Product studio",
+              "tags": [
+                "amber glass bottles",
+                "packaging lineup",
+                "quoted label text",
+                "travertine stone",
+                "minimalist skincare",
+                "morning window light",
+                "product packshot"
+              ],
+              "facets": [
+                "discipline:product-design",
+                "subject:packaging",
+                "treatment:studio-packshot",
+                "mood:organic",
+                "medium:commercial"
+              ],
+              "negative": "garbled label letters, distorted glass, plastic bottles, harsh flash reflections"
             },
             {
               "id": "food-editorial",
               "title": "Food editorial",
-              "prompt": "Editorial overhead photograph of handmade citrus pastries on imperfect ceramic plates, crumbs and folded linen placed naturally, hard morning sun creating graphic window shadows, saturated yellow and blue palette, tactile magazine styling.",
+              "prompt": "Artisan sourdough loaf sliced open on a floured wooden cutting board, steam rising, open airy crumb structure, blistered dark golden crust, linen napkin, rustic culinary magazine photography.",
               "visual": "food",
-              "note": "",
-              "subcategory": "Products"
+              "note": "Culinary textures like blistered crust and steam rise naturally from physical tactile prose. Avoid negative prompt spam which can strip warmth and moisture.",
+              "subcategory": "Products",
+              "tags": [
+                "artisan sourdough",
+                "steam rising",
+                "open crumb",
+                "blistered crust",
+                "floured cutting board",
+                "linen napkin",
+                "culinary editorial"
+              ],
+              "facets": [
+                "discipline:food-photography",
+                "subject:culinary",
+                "treatment:tactile",
+                "mood:rustic",
+                "medium:editorial"
+              ],
+              "negative": "dry crumbly texture, flat crust, plastic look, artificial food coloring"
             },
             {
               "id": "hero-product-close-up",
               "title": "Hero product close-up",
-              "prompt": "Hero close-up of a translucent running shoe on a dark reflective pedestal, low raking light revealing mesh and molded details, faint fog, blue-white edge lighting, dynamic three-quarter angle, premium sports advertising image.",
+              "prompt": "Hero packshot of an automatic chronograph wristwatch with an open skeleton dial showing brass gears and ruby bearings, sapphire crystal with blue anti-reflective coating, brushed titanium bezel, dramatic rim lighting.",
               "visual": "product",
-              "note": "",
-              "subcategory": "Product studio"
+              "note": "Intricate mechanical assemblies (gears, bearings, sapphire crystal) render sharply when individual materials and anti-reflective coatings are named explicitly.",
+              "subcategory": "Product studio",
+              "tags": [
+                "automatic chronograph",
+                "skeleton dial",
+                "brass gears",
+                "sapphire crystal",
+                "titanium bezel",
+                "rim lighting",
+                "hero packshot"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "subject:watch",
+                "treatment:macro-packshot",
+                "mood:luxurious",
+                "medium:studio"
+              ],
+              "negative": "melted gears, scratched crystal, blurred watch face, warped hands"
+            },
+            {
+              "id": "krea-product-quoted-brand",
+              "title": "Quoted brand packaging & neon",
+              "prompt": "Commercial studio packaging packshot of a frosted matte glass cosmetic dropper bottle labeled with crisp black typography reading \"AURA LABS\" on the primary line and \"BOTANICAL SERUM\" on the secondary line, set beside an illuminated warm neon tube forming the cursive word \"Glow\", soft reflections on black polished acrylic, precision edge lighting.",
+              "note": "Krea 2's Qwen3-VL text encoder renders precise typographic glyphs when literal text strings are enclosed in double quotation marks (\"...\"). Turbo CFG 1.0 renders clean lettering without burning.",
+              "visual": "product",
+              "subcategory": "Product & packaging",
+              "tags": [
+                "quoted brand packaging",
+                "cosmetic dropper",
+                "double-quoted text",
+                "neon tube cursive",
+                "black polished acrylic",
+                "studio packshot",
+                "commercial typography"
+              ],
+              "facets": [
+                "medium:commercial-photography",
+                "discipline:product-design",
+                "treatment:studio-lighting",
+                "design:typography",
+                "mood:luxury"
+              ],
+              "negative": "garbled lettering, misspelled typography, burned neon highlights, blurry label"
             }
           ]
         },
@@ -1020,48 +2386,150 @@
               "title": "Brutalist gallery",
               "prompt": "Vast brutalist art gallery carved from pale concrete, monumental stair crossing a double-height atrium, one small visitor for scale, soft skylight, restrained warm-grey palette, architectural photography, precise perspective.",
               "visual": "architecture",
-              "note": "",
-              "subcategory": "Interiors"
+              "note": "Architectural documentation in Krea 2 relies on describing geometric massing, surface material (pale concrete), and scale figures to establish monumental proportion.",
+              "subcategory": "Interiors",
+              "tags": [
+                "brutalist gallery",
+                "monumental concrete",
+                "double-height atrium",
+                "architectural stairs",
+                "scale figure",
+                "diffuse skylight",
+                "warm-grey palette"
+              ],
+              "facets": [
+                "discipline:architectural-photography",
+                "subject:architecture",
+                "treatment:monumental",
+                "mood:contemplative",
+                "medium:digital"
+              ],
+              "negative": "decayed concrete, water stains, busy crowds, distorted perspective angles"
             },
             {
               "id": "liminal-hotel-corridor",
               "title": "Liminal hotel corridor",
-              "prompt": "Long carpeted hotel corridor at 3 a.m., repeating cream doors, warm wall sconces, one housekeeping cart at the far end, no people, symmetrical one-point perspective, slightly faded film color, quiet uncanny atmosphere.",
+              "prompt": "Eerie liminal luxury hotel corridor extending into a distant corner, repeating wood-paneled doorways, geometric patterned wool runner, warm brass wall sconces casting scalloped pools of light, cinematic stillness.",
               "visual": "corridor",
-              "note": "",
-              "subcategory": "Interiors"
+              "note": "Liminal perspective depth is created by repeating structural elements ('repeating doorways', 'carpet runner') leading toward a vanishing point.",
+              "subcategory": "Interiors",
+              "tags": [
+                "liminal space",
+                "hotel corridor",
+                "wood-paneled doors",
+                "geometric carpet",
+                "brass sconces",
+                "vanishing perspective",
+                "cinematic stillness"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "subject:interior",
+                "treatment:liminal",
+                "mood:eerie",
+                "medium:digital"
+              ],
+              "negative": "cluttered luggage, people in hallway, messy floors, bright daylight"
             },
             {
               "id": "solarpunk-street",
               "title": "Solarpunk street",
-              "prompt": "Lively solarpunk neighborhood street with shaded pedestrian lanes, integrated fruit trees, lightweight timber balconies, solar fabric awnings, cyclists and small market stalls, bright morning, believable contemporary construction, optimistic documentary realism.",
+              "prompt": "Lush solarpunk urban avenue where curved bamboo-and-glass residential towers integrate cascading hydroponic gardens, solar canopy walkways, electric light-rail transit, warm golden daylight, optimistic ecological architecture.",
               "visual": "city",
-              "note": "",
-              "subcategory": "Scenes & places"
+              "note": "Solarpunk realism thrives on specific engineering and botanical details (cascading hydroponics, solar canopies) rather than generic fantasy tags.",
+              "subcategory": "Scenes & places",
+              "tags": [
+                "solarpunk street",
+                "hydroponic gardens",
+                "bamboo architecture",
+                "solar canopies",
+                "light-rail transit",
+                "ecological city",
+                "golden daylight"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:environment",
+                "treatment:solarpunk",
+                "mood:optimistic",
+                "medium:digital"
+              ],
+              "negative": "smoggy pollution, industrial grime, dystopian decay, chaotic traffic"
             },
             {
               "id": "analog-sci-fi-cockpit",
               "title": "Analog sci-fi cockpit",
-              "prompt": "Compact analog science-fiction cockpit built from worn beige panels, chunky switches, green CRT displays and handwritten labels, pilot seat centered toward a wide starfield window, practical lighting, tactile retro-futurist production design.",
+              "prompt": "Retro-futuristic analog spacecraft cockpit dense with tactile toggle switches, illuminated CRT monitors with amber vector graphics, mechanical gauges, worn padded flight seat, stars visible through multi-pane windscreen.",
               "visual": "cockpit",
-              "note": "",
-              "subcategory": "Scenes & places"
+              "note": "Retro-futurism requires specifying analog tactile hardware (CRT vector graphics, toggle switches) to keep Krea 2 from defaulting to sleek modern touchscreens.",
+              "subcategory": "Scenes & places",
+              "tags": [
+                "analog cockpit",
+                "retro sci-fi",
+                "toggle switches",
+                "amber crt monitors",
+                "mechanical gauges",
+                "spacecraft interior",
+                "vintage futurism"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:interior",
+                "treatment:retro-futurism",
+                "mood:tactile",
+                "medium:digital"
+              ],
+              "negative": "modern sleek touchscreens, flat digital displays, plastic neon glow"
             },
             {
               "id": "miniature-cutaway-home",
               "title": "Miniature cutaway home",
-              "prompt": "Isometric dollhouse cutaway of a tiny three-story townhouse, each room fully furnished and occupied by a different everyday activity, warm evening light, miniature handcrafted materials, clean architectural storytelling.",
+              "prompt": "Intricately crafted miniature architectural cutaway diorama of a two-story mid-century residence, showing fully furnished rooms with tiny walnut furniture, tiny houseplants, working micro-lighting, tilt-shift macro photography.",
               "visual": "diorama",
-              "note": "",
-              "subcategory": "Scenes & places"
+              "note": "Diorama and cutaway compositions combine scale indicators ('miniature', 'tiny walnut furniture') with tilt-shift framing to trigger authentic miniature optical physics.",
+              "subcategory": "Scenes & places",
+              "tags": [
+                "miniature cutaway",
+                "architectural diorama",
+                "mid-century modern",
+                "tiny furniture",
+                "tilt-shift macro",
+                "cross-section house",
+                "micro-lighting"
+              ],
+              "facets": [
+                "discipline:model-making",
+                "subject:architecture",
+                "treatment:diorama",
+                "mood:whimsical",
+                "medium:macro-photography"
+              ],
+              "negative": "full-scale house, blurred miniature details, flat lighting, doll-like clutter"
             },
             {
               "id": "cozy-micro-apartment",
               "title": "Cozy micro apartment",
-              "prompt": "A beautifully organized 24-square-meter apartment with a raised sleeping nook, hidden storage, fold-down dining table and plants near a large rainy window, warm lamps, realistic lived-in details, wide interior photograph.",
+              "prompt": "Compact Tokyo micro-apartment interior with space-efficient plywood loft bed, built-in shelving packed with books and ceramics, compact kitchenette, rain streaking the window, warm ambient floor lamps, lived-in cozy atmosphere.",
               "visual": "interior",
-              "note": "",
-              "subcategory": "Scenes & places"
+              "note": "Dense interior realism emerges from specific lived-in clutter (ceramics, books, rain on glass) paired with warm localized practical light sources.",
+              "subcategory": "Scenes & places",
+              "tags": [
+                "tokyo micro apartment",
+                "plywood loft",
+                "built-in shelving",
+                "rain on window",
+                "warm floor lamps",
+                "compact living",
+                "cozy interior"
+              ],
+              "facets": [
+                "discipline:interior-design",
+                "subject:interior",
+                "treatment:lived-in",
+                "mood:cozy",
+                "medium:digital"
+              ],
+              "negative": "barren minimalist showroom, sterile cold lighting, chaotic trash, bad perspective"
             }
           ]
         },
@@ -1076,64 +2544,275 @@
               "title": "Vintage analog collage",
               "prompt": "Vintage analog collage of a snowy mountain broken across a strict tiled grid, alternating sections replaced by solid ultramarine color, torn paper edges, photocopy grain, mid-century print texture, bold experimental editorial layout.",
               "visual": "collage",
-              "note": "",
-              "subcategory": "Analog & print"
+              "note": "Mixed-media collage prompts instruct Krea 2 to simulate physical assemblage techniques like torn paper, halftone grain, and flat color blocks within one composition.",
+              "subcategory": "Analog & print",
+              "tags": [
+                "analog collage",
+                "tiled grid",
+                "ultramarine color-block",
+                "torn paper edges",
+                "photocopy grain",
+                "mid-century print",
+                "mixed media"
+              ],
+              "facets": [
+                "discipline:graphic-design",
+                "subject:collage",
+                "treatment:mixed-media",
+                "mood:experimental",
+                "medium:print"
+              ],
+              "negative": "clean vector gradients, modern digital rendering, generic mountain photo"
             },
             {
               "id": "cyber-organic-fashion",
               "title": "Cyber-organic fashion",
-              "prompt": "Editorial portrait of a handsome male model wearing a sculptural garment that blends translucent bio-plastic petals with braided fiber-optic strands, dark botanical set, soft bioluminescent accents, believable materials, elegant futuristic fashion direction.",
+              "prompt": "Editorial portrait of a high-fashion model wearing a sculptural garment that blends translucent bio-plastic petals with braided fiber-optic strands, dark botanical set, soft bioluminescent accents, believable materials, elegant futuristic fashion direction.",
               "visual": "fashion",
-              "note": "",
-              "subcategory": "Experimental fashion"
+              "note": "Biophilic fashion blends synthetic optical fibers with organic curves. Specifying translucent light transmission ensures realistic material subsurface scattering.",
+              "subcategory": "Experimental fashion",
+              "tags": [
+                "cyber-organic fashion",
+                "bio-plastic petals",
+                "fiber-optic strands",
+                "bioluminescent accents",
+                "dark botanical set",
+                "futuristic couture",
+                "avant-garde model"
+              ],
+              "facets": [
+                "discipline:fashion",
+                "subject:couture",
+                "treatment:futurism",
+                "mood:ethereal",
+                "medium:editorial"
+              ],
+              "negative": "cheap plastic costume, neon party glow, awkward model anatomy, blurry botanicals"
             },
             {
               "id": "archival-catalog-scan",
               "title": "Archival catalog scan",
-              "prompt": "Archival catalog-style scan of six fictional household objects from 1987, arranged on warm grey paper with small numbered labels and faint registration marks, flat even light, subtle paper wear, clean museum-reference presentation.",
+              "prompt": "Archival scan of an exhibition catalog page featuring three modernist ceramic vessels, clean typography columns, warm aged paper stock, slight offset printing dot pattern, institutional museum archive aesthetic.",
               "visual": "catalog",
-              "note": "",
-              "subcategory": "Essentials"
+              "note": "Archival catalog styling captures graphic design layouts with text columns, paper aging, and museum exhibition rigor without requiring post-processing.",
+              "subcategory": "Essentials",
+              "tags": [
+                "archival catalog",
+                "museum exhibition scan",
+                "ceramic vessels",
+                "aged paper stock",
+                "offset dot pattern",
+                "typography columns",
+                "curatorial print"
+              ],
+              "facets": [
+                "discipline:graphic-design",
+                "subject:archive",
+                "treatment:print-scan",
+                "mood:institutional",
+                "medium:print"
+              ],
+              "negative": "glossy digital flyer, modern web design, distorted pots, blurry text blocks"
             },
             {
               "id": "designer-toy-photography",
               "title": "Designer toy photography",
-              "prompt": "Studio photograph of a charming original vinyl creature with oversized round shoes and a tiny messenger bag, matte tactile surface, photographed like a collectible product on a bright single-color backdrop, soft shadow, crisp commercial detail.",
+              "prompt": "Studio product shot of a collectible vinyl art toy figure with a smooth matte pastel finish, articulated joints, minimalist character design, soft gradient sweep background, premium designer toy packaging aesthetic.",
               "visual": "toy",
-              "note": "",
-              "subcategory": "Essentials"
+              "note": "Art toy aesthetics require describing vinyl material physics: smooth matte surface finish, injection-molded parting lines, and soft gradient studio sweeps.",
+              "subcategory": "Essentials",
+              "tags": [
+                "designer toy",
+                "vinyl art collectible",
+                "matte pastel finish",
+                "articulated joints",
+                "studio sweep",
+                "packaging aesthetic",
+                "toy design"
+              ],
+              "facets": [
+                "discipline:product-design",
+                "subject:toy",
+                "treatment:studio-packshot",
+                "mood:playful",
+                "medium:vinyl"
+              ],
+              "negative": "glossy cheap plastic, melted seams, rough 3D print lines, dusty background"
             },
             {
               "id": "translucent-material-study",
               "title": "Translucent material study",
-              "prompt": "Material-study still life of folded translucent silicone, cloudy glass and iridescent film arranged on a pale table, sunlight refracting into soft rainbow fragments, minimal composition, realistic surface behavior, art-school documentation.",
+              "prompt": "Abstract material study of layered sheets of frosted coloured acrylic, cast resin cubes, and polished glass prisms refracting sunlight across a white marble surface, vibrant caustic light patterns.",
               "visual": "materials",
-              "note": "",
-              "subcategory": "Essentials"
+              "note": "Optical physics prompts test refraction and caustics. Krea 2 models light traveling through layered transparent and frosted volumes convincingly.",
+              "subcategory": "Essentials",
+              "tags": [
+                "translucent material",
+                "frosted acrylic",
+                "cast resin",
+                "glass prisms",
+                "caustic refractions",
+                "white marble",
+                "optical physics"
+              ],
+              "facets": [
+                "discipline:fine-art",
+                "subject:materials",
+                "treatment:optical-study",
+                "mood:abstract",
+                "medium:photography"
+              ],
+              "negative": "opaque flat colors, missing reflections, muddy shadows, digital banding"
             },
             {
               "id": "monochrome-color-field",
               "title": "Monochrome color field",
-              "prompt": "Monochrome crimson portrait set: subject, clothing, chair, floor and background all in layered shades of red, only skin and small chrome jewelry break the palette, soft frontal light, precise tonal separation, contemporary editorial image.",
+              "prompt": "Minimalist monochrome composition in shades of deep indigo, showing a lone architectural column casting a long shadow across fine raked sand, contemplative silence, rich tonal gradient.",
               "visual": "portrait",
-              "note": "",
-              "subcategory": "Essentials"
+              "note": "Monochromatic studies limit chromatic distraction, emphasizing form, texture, and tonal gradations from highlight to shadow in Krea 2's latent space.",
+              "subcategory": "Essentials",
+              "tags": [
+                "monochrome color field",
+                "deep indigo",
+                "architectural column",
+                "raked sand",
+                "long shadow",
+                "minimalist study",
+                "tonal gradient"
+              ],
+              "facets": [
+                "discipline:fine-art",
+                "subject:architecture",
+                "treatment:monochrome",
+                "mood:contemplative",
+                "color:indigo"
+              ],
+              "negative": "multihued colors, harsh white highlights, noisy sand, distracting background elements"
             },
             {
               "id": "surreal-scale",
               "title": "Surreal scale",
-              "prompt": "A tiny maintenance worker standing beside an enormous ordinary desk lamp as if it were industrial machinery, believable warehouse environment, hard morning light, realistic scale cues, quiet deadpan surrealism.",
+              "prompt": "Surreal conceptual photograph of a giant ripe strawberry resting in an empty Olympic-sized swimming pool, miniature swimmers sunbathing along the pool edge, bright midday sun, hyper-clean commercial realism.",
               "visual": "surreal",
-              "note": "",
-              "subcategory": "Graphic looks"
+              "note": "Scale incongruity prompts work best when both subjects are rendered with matching physical lighting, shadows, and water reflections to preserve perceptual credibility.",
+              "subcategory": "Graphic looks",
+              "tags": [
+                "surreal scale",
+                "giant strawberry",
+                "empty swimming pool",
+                "miniature swimmers",
+                "midday sun",
+                "conceptual photography",
+                "commercial realism"
+              ],
+              "facets": [
+                "discipline:fine-art",
+                "subject:conceptual",
+                "treatment:surrealism",
+                "mood:playful",
+                "medium:commercial"
+              ],
+              "negative": "floating ungrounded fruit, missing contact shadows, cartoonish rendering"
             },
             {
               "id": "soft-plastic-nostalgia",
               "title": "Soft-plastic nostalgia",
-              "prompt": "Nostalgic tabletop scene of translucent colorful electronics, rounded alarm clock, cassette player and wired headphones made from soft-touch plastic, bright window light, subtle 1990s catalog styling, clean cheerful composition.",
+              "prompt": "Macro still life of colorful transparent blow-molded plastic pool toys floating on turquoise water, air bubbles clinging to vinyl seams, sparkling sun flares, vibrant late-90s summer nostalgia.",
               "visual": "stilllife",
-              "note": "",
-              "subcategory": "Essentials"
+              "note": "Late-90s translucent plastic evokes authentic summer nostalgia when seam welds, air chambers, and caustic water reflections are articulated in descriptive prose.",
+              "subcategory": "Essentials",
+              "tags": [
+                "soft-plastic pool toys",
+                "translucent vinyl",
+                "air bubbles on seams",
+                "turquoise water",
+                "sun flares",
+                "late-90s nostalgia",
+                "summer macro"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:still-life",
+                "treatment:nostalgia",
+                "mood:summery",
+                "medium:macro"
+              ],
+              "negative": "opaque cheap plastic, muddy water, blown out highlights, artificial smoothing"
+            },
+            {
+              "id": "krea-concept-gouache",
+              "title": "Gouache on cold-press paper",
+              "prompt": "Original gouache illustration on heavy cold-press watercolor paper, visible opaque brushstrokes, chalky matte gouache pigment, deckled paper edge, depicting an architectural botanical conservatory with lush monstera leaves and terracotta urns, muted earthy palette of ochre, sage, and burnt sienna, tactile paper tooth.",
+              "note": "Krea 2 renders authentic traditional mediums when physical texture (cold-press tooth, matte pigment, deckled edges) is described naturally without meta keywords.",
+              "visual": "painting",
+              "subcategory": "Traditional mediums",
+              "tags": [
+                "gouache illustration",
+                "cold-press paper",
+                "matte pigment",
+                "botanical conservatory",
+                "deckled edge",
+                "tactile paper tooth",
+                "traditional art"
+              ],
+              "facets": [
+                "medium:gouache",
+                "discipline:illustration",
+                "treatment:painterly",
+                "design:botanical",
+                "mood:earthy"
+              ],
+              "negative": "glossy digital sheen, flat vector shapes, smooth plastic rendering"
+            },
+            {
+              "id": "krea-concept-risograph",
+              "title": "Risograph halftone print",
+              "prompt": "Two-color risograph art print using fluorescent pink and hunter green inks on warm off-white newsprint paper, characteristic halftone dot matrix screening, slight mechanical misregistration of color layers, ink roller grain, minimalist graphic illustration of a cyclist passing a modernist bus shelter, bold mid-century screenprint aesthetic.",
+              "note": "Qwen3-VL understands specific printmaking physics like halftone screening, ink misregistration, and spot colors without relying on buzzwords.",
+              "visual": "concept",
+              "subcategory": "Print & graphic",
+              "tags": [
+                "risograph print",
+                "halftone dot matrix",
+                "spot ink",
+                "color misregistration",
+                "newsprint paper",
+                "cyclist graphic",
+                "screenprint art"
+              ],
+              "facets": [
+                "medium:printmaking",
+                "discipline:graphic-design",
+                "treatment:halftone",
+                "design:two-tone",
+                "mood:retro"
+              ],
+              "negative": "full-color photorealism, glossy digital gradients, sharp clean alignment"
+            },
+            {
+              "id": "krea-concept-vhs",
+              "title": "Lo-Fi VHS broadcast still",
+              "prompt": "Authentic 1989 magnetic VHS tape frame grab, horizontal scanline jitter, chromatic aberration fringing on high-contrast edges, gentle tape dropouts, phosphor glow, low-fi magnetic color saturation, capturing a late-night public access science demonstration with brass optical equipment on a laminate desk.",
+              "note": "Accurate analog video artifacts (phosphor glow, horizontal scanlines, tape dropouts) emerge from physical playback descriptions rather than generic 'vintage' tags.",
+              "visual": "concept",
+              "subcategory": "Analog & retro",
+              "tags": [
+                "vhs frame grab",
+                "magnetic tape scanlines",
+                "chromatic fringing",
+                "tape dropout",
+                "phosphor glow",
+                "1989 broadcast",
+                "analog video"
+              ],
+              "facets": [
+                "medium:analog-video",
+                "discipline:cinematography",
+                "treatment:lo-fi",
+                "mood:nostalgic",
+                "design:video-still"
+              ],
+              "negative": "4k ultra-hd clarity, crisp modern digital video, clean sharp edges"
             }
           ]
         },
@@ -1146,26 +2825,911 @@
             {
               "id": "krea-combo-editorial",
               "title": "Editorial exploration",
-              "prompt": "A handsome man {%walking naturally toward camera|standing in relaxed contrapposto|seated on the edge of a chrome chair}, wearing {%tailored charcoal suiting|premium neutral streetwear|a long wool overcoat}, photographed {%on a quiet city rooftop|inside a brutalist gallery|in a modern hotel lobby}, {%35mm editorial framing|85mm portrait compression|24mm low-angle full-body framing}, {%direct flash|soft window light|large softbox lighting}, highly natural skin texture and refined contemporary art direction.",
-              "note": "KREA 2 rewards natural language and can explore useful variation from intentionally open prompts.",
+              "prompt": "An editorial subject {%walking naturally toward camera|standing in relaxed contrapposto|seated on the edge of a chrome chair}, wearing {%tailored charcoal suiting|premium neutral streetwear|a long wool overcoat}, photographed {%on a quiet city rooftop|inside a brutalist gallery|in a modern hotel lobby}, {%35mm editorial framing|85mm portrait compression|24mm low-angle full-body framing}, {%direct flash|soft window light|large softbox lighting}, highly natural skin texture and refined contemporary art direction.",
+              "note": "Krea 2 rewards natural prose and explores rich variations when subject archetypes, poses, locations, and optics are combined modularly.",
               "visual": "fashion",
-              "subcategory": "People builders"
+              "subcategory": "People builders",
+              "tags": [
+                "editorial exploration",
+                "combinatorial prompt",
+                "subject variations",
+                "wardrobe mixer",
+                "location cycling",
+                "camera optics",
+                "krea builder"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:combinatorial",
+                "treatment:modular",
+                "mood:editorial",
+                "medium:digital"
+              ],
+              "negative": "distorted anatomy, plastic skin, bad hands, blown lighting"
             },
             {
               "id": "krea-combo-pose-study",
               "title": "Pose study grid",
-              "prompt": "A clean editorial pose study of the same handsome man, {%relaxed contrapposto|hands in pockets|low crouch|chair-edge seated pose|half-turn with clothing motion|wall lean}, full body visible, neutral studio background, consistent wardrobe, natural anatomy, photographed with a 50mm lens and soft directional light.",
-              "note": "Cycle useful poses while keeping identity and styling stable.",
+              "prompt": "A clean editorial pose study of a performer, {%relaxed contrapposto|hands in pockets|low crouch|chair-edge seated pose|half-turn with clothing motion|wall lean}, full body visible, neutral studio background, consistent wardrobe, natural anatomy, photographed with a 50mm lens and soft directional light.",
+              "note": "Tests anatomical consistency and weight distribution across classic poses using Krea 2's deep understanding of physical body mechanics.",
               "visual": "sheet",
-              "subcategory": "Pose builders"
+              "subcategory": "Pose builders",
+              "tags": [
+                "pose study",
+                "performer anatomy",
+                "weight distribution",
+                "50mm lens",
+                "studio background",
+                "natural pose variations",
+                "krea builder"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:combinatorial",
+                "treatment:pose-study",
+                "mood:neutral",
+                "medium:studio"
+              ],
+              "negative": "deformed joints, stiff posture, extra limbs, bad proportions"
             },
             {
               "id": "krea-combo-commercial",
               "title": "Commercial concept roll",
-              "prompt": "Premium campaign image for {%a fragrance bottle|technical sneakers|a compact camera|a sculptural speaker}, set {%on textured stone|inside a clean architectural niche|on brushed metal|on translucent acrylic}, lit with {%soft gradient light|hard directional sun|large controlled softbox|direct flash}, {%centered hero framing|macro detail crop|three-quarter close-up|overhead graphic layout}.",
-              "note": "Fast commercial concept exploration.",
+              "prompt": "Commercial studio photograph of {%an unbranded matte-black wireless headphone|a sculptural glass perfume bottle with gold atomizer|a stainless steel mechanical watch|a pair of technical white running shoes}, {%resting on textured raw concrete|suspended above rippling water|placed inside an illuminated acrylic niche}, {%sculpted three-point softbox lighting|dramatic hard rim light with deep shadows|bright diffuse daylight}, clean luxury advertising presentation.",
+              "note": "Rolls product archetypes, surfaces, and lighting for commercial packshot exploration. Turbo 8 steps maintains crisp material speculars.",
               "visual": "commercial",
-              "subcategory": "Product builders"
+              "subcategory": "Product builders",
+              "tags": [
+                "commercial packshot",
+                "product roller",
+                "luxury advertising",
+                "material surfaces",
+                "three-point lighting",
+                "specular control",
+                "krea builder"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "design:combinatorial",
+                "treatment:product-lighting",
+                "mood:luxurious",
+                "medium:studio"
+              ],
+              "negative": "melted product shapes, distorted typography, messy caustic glare"
+            },
+            {
+              "id": "krea-combo-word-budget",
+              "title": "Word-budget perspective switcher",
+              "prompt": "{%Sunlit brutalist concrete courtyard with potted ficus trees and geometric shadow patterns, centered wide environmental framing with an architect in a beige linen coat seated on a low bench|Close intimate 85mm portrait of an architect in a beige linen coat, focused gaze toward camera, shallow depth of field, sunlit brutalist concrete courtyard softly blurred in the background}, natural daylight, clean tonal gradation, editorial magazine realism.",
+              "note": "Demonstrates Krea 2's front-loaded word budget: describing the environment first directs spatial attention to a wide establishing shot, while placing subject tokens first forces a tight focal portrait.",
+              "visual": "catalog",
+              "subcategory": "Composition builders",
+              "tags": [
+                "word budget",
+                "perspective switcher",
+                "spatial attention",
+                "environmental wide",
+                "tight portrait",
+                "framing control",
+                "krea builder"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:framing",
+                "treatment:word-budget",
+                "mood:editorial",
+                "subject:architect"
+              ],
+              "negative": "distorted face, flat lighting, plastic smoothing, missing shadows"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "moss",
+      "name": "MOSS-Image",
+      "short": "MOSS",
+      "kind": "5B DiT · Qwen3.5-9B",
+      "accent": "#5fb49c",
+      "summary": "5B-parameter open DiT by OpenMOSS with Qwen3.5-9B encoder and FLUX.2 VAE latent space. Supports natural descriptive captions, strict taxonomic Booru tags with @artist prefix, and spatial bounding-box layout JSON on 16-divisible canvases.",
+      "format": "Base: 50+ steps, CFG 3–6, Shift 5, SLG layer 22. SFT: 30–50 steps, CFG 3. Turbo AIO: 8 steps, CFG 1 (negative bypassed). Width/height must divide by 16.",
+      "categories": [
+        {
+          "id": "moss-captions",
+          "name": "Natural Captions (SFT / Base / Turbo)",
+          "visual": "portrait",
+          "description": "Structured natural-language prose descriptions optimized for MOSS-Image Base, SFT, and Turbo models.",
+          "prompts": [
+            {
+              "id": "moss-caption-editorial-portrait",
+              "title": "Editorial portrait photography",
+              "prompt": "Editorial portrait of an architect in a tailored olive wool blazer, sitting in a sunlit Scandinavian library with tall oak bookshelves in the background. The subject has an open, thoughtful expression, hands resting on an open sketchbook on a round wooden table. Soft morning window light from the left creates gentle highlight rolloff across the cheek and clothing. Shot with an 85mm prime lens at f/2.0, shallow depth of field, natural skin texture, muted earth-toned color palette.",
+              "note": "MOSS-Image caption mode excels when structured sequentially: Subject & Action -> Environment -> Lighting -> Camera/Lens -> Palette. On Base use 50+ steps, CFG 3.0, Shift 5.0, SLG layer 22; on Turbo AIO use 8 steps, CFG 1.0.",
+              "visual": "portrait",
+              "subcategory": "Editorial photography",
+              "tags": [
+                "editorial portrait",
+                "architect",
+                "scandinavian library",
+                "85mm lens",
+                "soft window light",
+                "natural skin texture",
+                "olive wool blazer"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:portrait",
+                "treatment:natural-light",
+                "mood:thoughtful",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-caption-cafe-studio",
+              "title": "Atmospheric artisan studio",
+              "prompt": "A ceramicist shaping wet terracotta clay on a spinning potter's wheel inside a rustic light-filled workshop. Wooden shelves line the back wall holding bisque-fired bowls and earthenware vases. Dust motes drift through warm afternoon sunbeams streaming from industrial factory windows. Medium shot with a 50mm lens, authentic craft documentary feel, tactile clay textures, warm amber and sage tones.",
+              "note": "MOSS-Image captures organic dust motes and volumetric sunbeams naturally in prose without requiring artificial lighting tags.",
+              "visual": "pose",
+              "subcategory": "Artisan documentary",
+              "tags": [
+                "artisan studio",
+                "ceramicist potter",
+                "terracotta clay",
+                "spinning wheel",
+                "volumetric sunbeams",
+                "craft documentary",
+                "50mm medium shot"
+              ],
+              "facets": [
+                "discipline:documentary-photography",
+                "subject:artisan",
+                "treatment:volumetric-light",
+                "mood:warm",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-caption-signage-typography",
+              "title": "Quoted storefront signage",
+              "prompt": "Street-level photograph of a contemporary Tokyo café facade with dark cedar cladding and clean glass windows. Above the entrance, a matte black metal sign features crisp illuminated white lettering reading \"PROMPT PALETTE\\nCOFFEE & TEA\". A warm wooden bench sits outside on gray granite pavers, reflecting gentle drizzle under blue hour ambient light. Clean architectural documentary, sharp typographic rendering.",
+              "note": "MOSS-Image features state-of-the-art typography rendering guided by Qwen3.5-9B. Enclose text strings in double quotation marks verbatim; use explicit '\\n' for line breaks.",
+              "visual": "architecture",
+              "subcategory": "Typography & signage",
+              "tags": [
+                "tokyo cafe facade",
+                "quoted storefront text",
+                "cedar cladding",
+                "illuminated signage",
+                "blue hour drizzle",
+                "architectural documentary",
+                "clean typography"
+              ],
+              "facets": [
+                "discipline:architectural-photography",
+                "subject:signage",
+                "treatment:quoted-text",
+                "mood:nocturnal",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-caption-culinary-documentary",
+              "title": "Artisan culinary documentary",
+              "prompt": "Close documentary photograph of a baker dusting flour over freshly shaped sourdough boules on a thick maple butcher block. Fine white flour particles suspend mid-air under warm overhead directional pendant lamps. Crisp crust scoring reveals raw dough layers beneath, with a linen proofing basket and copper scale visible in the soft background. Macro 90mm lens, rich warm palette, crisp detail.",
+              "note": "High-frequency food textures (flour particles, scored dough, wood grain) resolve crisply with MOSS Base or SFT at 50 steps with Skip Layer Guidance (layer 22, scale 3.0).",
+              "visual": "product",
+              "subcategory": "Culinary & food",
+              "tags": [
+                "culinary documentary",
+                "sourdough baker",
+                "flour dusting mid-air",
+                "butcher block",
+                "scored dough",
+                "90mm macro",
+                "warm pendant light"
+              ],
+              "facets": [
+                "discipline:culinary-photography",
+                "subject:food",
+                "treatment:macro-detail",
+                "mood:artisanal",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-caption-botanical-glasshouse",
+              "title": "Victorian botanical glasshouse",
+              "prompt": "Wide interior view of an expansive Victorian glasshouse conservatory filled with towering date palms, oversized monstera leaves, and hanging ferns. Curved wrought-iron arches and geometric glass ceiling panels diffuse soft overcast daylight across damp brick walkways and a tranquil central stone fountain. Symmetrical perspective shot with a 28mm wide lens, rich emerald and verdigris tones, peaceful botanical atmosphere.",
+              "note": "Architectural glasshouse structures showcase MOSS's ability to render complex repeating metal lattices and diffuse glass reflections simultaneously.",
+              "visual": "landscape",
+              "subcategory": "Architectural landscape",
+              "tags": [
+                "victorian glasshouse",
+                "botanical conservatory",
+                "date palms",
+                "wrought-iron arches",
+                "geometric glass ceiling",
+                "28mm wide lens",
+                "overcast daylight"
+              ],
+              "facets": [
+                "discipline:architectural-photography",
+                "subject:conservatory",
+                "treatment:wide-perspective",
+                "mood:peaceful",
+                "color:emerald"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            }
+          ]
+        },
+        {
+          "id": "moss-ordered-tags",
+          "name": "Ordered Booru Tags (SFW Anime & Illustration)",
+          "visual": "concept",
+          "description": "Taxonomically ordered Booru tag sequences strictly following Quality -> Score -> Meta -> Year -> Character -> Series -> @Artist -> General -> rating:general.",
+          "prompts": [
+            {
+              "id": "moss-tag-anime-keyvisual",
+              "title": "Illustrative anime key visual",
+              "prompt": "best quality, masterpiece, score_9, highres, year 2024, 1girl, solo, original, @shinkai makoto, floating islands, windblown hair, sunset sky, volumetric clouds, glowing crystals, anime coloring, scenic, rating:general",
+              "note": "Strict taxonomic order is essential for MOSS tag mode: Quality -> Score -> Meta -> Year -> Character -> Series -> @Artist -> General -> rating:general. Note the mandatory '@' prefix for artists.",
+              "visual": "concept",
+              "subcategory": "Anime key visual",
+              "tags": [
+                "anime key visual",
+                "ordered booru tags",
+                "shinkai style",
+                "floating islands",
+                "sunset sky",
+                "volumetric clouds",
+                "score_9"
+              ],
+              "facets": [
+                "discipline:illustration",
+                "subject:anime",
+                "treatment:booru-ordered",
+                "mood:scenic",
+                "medium:digital-anime"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-tag-mecha-hero",
+              "title": "Mecha sci-fi hero concept",
+              "prompt": "best quality, masterpiece, score_9, highres, year 2024, 1boy, solo, original, @kuni_art, science fiction, white and gold mechanical exosuit, visor, glowing circuit lines, energy blade, dynamic pose, hangar background, rating:general",
+              "note": "MOSS-Image learns character and mecha aesthetics under specific artist tokens. Prefixing the artist with '@' triggers the learned style conditioning directly.",
+              "visual": "concept",
+              "subcategory": "Mecha & sci-fi",
+              "tags": [
+                "mecha hero",
+                "mechanical exosuit",
+                "ordered booru tags",
+                "energy blade",
+                "hangar background",
+                "science fiction",
+                "kuni_art"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:mecha",
+                "treatment:booru-ordered",
+                "mood:heroic",
+                "medium:digital-anime"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-tag-character-sheet",
+              "title": "Orthographic model sheet",
+              "prompt": "best quality, masterpiece, score_9, highres, absurdres, year 2024, 1girl, solo, original, character sheet, multiple views, full body, front view, side view, back view, expression sheet, white background, simple background, reference sheet, clean lines, rating:general",
+              "note": "Booru tags for character design sheets ('character sheet', 'multiple views', 'front view', 'side view') produce production-ready orthographic model turnarounds.",
+              "visual": "sheet",
+              "subcategory": "Character turnaround",
+              "tags": [
+                "character model sheet",
+                "multiple views",
+                "front and back view",
+                "clean lines",
+                "reference sheet",
+                "white background",
+                "ordered booru tags"
+              ],
+              "facets": [
+                "discipline:character-design",
+                "subject:turnaround",
+                "treatment:booru-ordered",
+                "mood:neutral",
+                "medium:model-sheet"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-tag-watercolor-cel",
+              "title": "Watercolor-cel atmospheric portrait",
+              "prompt": "best quality, masterpiece, score_8_up, highres, year 2024, 1girl, solo, original, @krenz_cushart, watercolor (medium), cel shading, soft lighting, contemplative expression, botanical garden, loose brushwork, painterly, rating:general",
+              "note": "Combining traditional mediums ('watercolor (medium)') with cel shading and designated digital artists yields a delicate painterly anime style in MOSS.",
+              "visual": "painting",
+              "subcategory": "Painterly anime",
+              "tags": [
+                "watercolor cel",
+                "painterly anime",
+                "krenz cushart",
+                "loose brushwork",
+                "botanical garden",
+                "soft lighting",
+                "ordered booru tags"
+              ],
+              "facets": [
+                "discipline:illustration",
+                "subject:anime-portrait",
+                "treatment:watercolor-cel",
+                "mood:contemplative",
+                "medium:painterly"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-tag-fantasy-landscape",
+              "title": "Fantasy architectural scenery",
+              "prompt": "best quality, masterpiece, score_9, highres, year 2024, no humans, original, @yoshida seiji, fantasy architecture, ancient cobblestone village, water mill, lush greenery, mossy stone walls, morning mist, warm sunlight, rating:general",
+              "note": "'no humans' combined with environment tags and scenic illustrator tokens produces rich fantasy backdrops without unwanted stray figures.",
+              "visual": "landscape",
+              "subcategory": "Scenery & background",
+              "tags": [
+                "fantasy architecture",
+                "cobblestone village",
+                "water mill",
+                "yoshida seiji",
+                "morning mist",
+                "no humans scenery",
+                "ordered booru tags"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:landscape",
+                "treatment:booru-ordered",
+                "mood:peaceful",
+                "medium:digital-anime"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            }
+          ]
+        },
+        {
+          "id": "moss-spatial-layouts",
+          "name": "Spatial JSON Layouts (abs_centralized yxyx)",
+          "visual": "concept",
+          "description": "Valid 1024x1024 spatial bounding-box layout templates in abs_centralized yxyx coordinate space matching ComfyUI MOSS workflows.",
+          "prompts": [
+            {
+              "id": "moss-layout-graphic-poster",
+              "title": "Graphic poster layout",
+              "prompt": "{\n  \"summary\": {\n    \"meta\": [\n      \"poster\"\n    ],\n    \"canvas\": \"single\",\n    \"caption\": \"A restrained charcoal and sage graphic poster featuring an adult grey Russian Blue cat, a large title above the cat, and a small footer below.\"\n  },\n  \"items\": [\n    {\n      \"label\": \"text\",\n      \"caption\": \"Large pale-sage uppercase sans-serif title, centered, on two lines.\",\n      \"text\": \"PROMPT\\nPALETTE\",\n      \"bbox\": [\n        -448,\n        -448,\n        -256,\n        448\n      ]\n    },\n    {\n      \"label\": \"object\",\n      \"caption\": \"An adult grey Russian Blue cat with green eyes, sitting upright, softly lit from the left.\",\n      \"bbox\": [\n        -200,\n        -320,\n        350,\n        320\n      ]\n    },\n    {\n      \"label\": \"text\",\n      \"caption\": \"Small pale-sage uppercase sans-serif footer, centered.\",\n      \"text\": \"CREATE LOCALLY\",\n      \"bbox\": [\n        380,\n        -400,\n        460,\n        400\n      ]\n    }\n  ],\n  \"bbox_coord_space\": \"abs_centralized\",\n  \"bbox_format\": \"yxyx\"\n}",
+              "note": "MOSS-Image natively supports text-driven spatial bounding boxes. In abs_centralized mode on 1024x1024, (0,0) is center and coordinates run -512 to +512 in [ymin, xmin, ymax, xmax] format.",
+              "visual": "concept",
+              "subcategory": "Poster layouts",
+              "tags": [
+                "spatial json layout",
+                "abs_centralized",
+                "yxyx bbox",
+                "graphic poster",
+                "typography layout",
+                "moss layout",
+                "1024 canvas"
+              ],
+              "facets": [
+                "discipline:graphic-design",
+                "design:layout",
+                "treatment:spatial-json",
+                "mood:graphic",
+                "medium:json-literal"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-layout-magazine-cover",
+              "title": "Editorial magazine cover",
+              "prompt": "{\n  \"summary\": {\n    \"meta\": [\n      \"magazine cover\"\n    ],\n    \"canvas\": \"single\",\n    \"caption\": \"A high-fashion magazine cover featuring an elegant portrait subject in an architectural trench coat, bold masthead at top, and editorial headline text at bottom left.\"\n  },\n  \"items\": [\n    {\n      \"label\": \"text\",\n      \"caption\": \"Bold editorial masthead title in condensed modern serif.\",\n      \"text\": \"CHRONICLE\",\n      \"bbox\": [\n        -480,\n        -460,\n        -360,\n        460\n      ]\n    },\n    {\n      \"label\": \"character\",\n      \"caption\": \"An elegant fashion model in a sculpted sand-colored trench coat, chest-up portrait, looking into the lens with soft studio lighting.\",\n      \"bbox\": [\n        -340,\n        -380,\n        440,\n        380\n      ]\n    },\n    {\n      \"label\": \"text\",\n      \"caption\": \"Two-line white sans-serif article headline with yellow accent subhead.\",\n      \"text\": \"FUTURE FORM\\nTHE NEW AESTHETIC\",\n      \"bbox\": [\n        260,\n        -440,\n        390,\n        -80\n      ]\n    }\n  ],\n  \"bbox_coord_space\": \"abs_centralized\",\n  \"bbox_format\": \"yxyx\"\n}",
+              "note": "Magazine cover templates demonstrate character and text layering. Bounding boxes must provide sufficient pixel volume for text character counts.",
+              "visual": "fashion",
+              "subcategory": "Editorial layouts",
+              "tags": [
+                "magazine cover layout",
+                "spatial json",
+                "abs_centralized",
+                "masthead title",
+                "fashion model bbox",
+                "editorial layout",
+                "moss layout"
+              ],
+              "facets": [
+                "discipline:graphic-design",
+                "design:layout",
+                "treatment:spatial-json",
+                "mood:editorial",
+                "medium:json-literal"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-layout-infographic-diagram",
+              "title": "Educational infographic diagram",
+              "prompt": "{\n  \"summary\": {\n    \"meta\": [\n      \"infographic\"\n    ],\n    \"canvas\": \"single\",\n    \"caption\": \"A clean educational botanical science infographic displaying an illustrated flowering plant at center with annotated callout titles and explanatory labels.\"\n  },\n  \"items\": [\n    {\n      \"label\": \"text\",\n      \"caption\": \"Header title in dark forest green clean sans-serif.\",\n      \"text\": \"BOTANICAL ANATOMY\",\n      \"bbox\": [\n        -470,\n        -450,\n        -380,\n        450\n      ]\n    },\n    {\n      \"label\": \"object\",\n      \"caption\": \"Detailed botanical cross-section illustration of an orchid stem, blossom, and root structure on off-white paper.\",\n      \"bbox\": [\n        -340,\n        -260,\n        320,\n        260\n      ]\n    },\n    {\n      \"label\": \"text\",\n      \"caption\": \"Left callout label for petal structure.\",\n      \"text\": \"FLORAL CANOPY\",\n      \"bbox\": [\n        -160,\n        -460,\n        -70,\n        -280\n      ]\n    },\n    {\n      \"label\": \"text\",\n      \"caption\": \"Right callout label for root vascular system.\",\n      \"text\": \"ROOT SYSTEM\",\n      \"bbox\": [\n        120,\n        280,\n        210,\n        460\n      ]\n    }\n  ],\n  \"bbox_coord_space\": \"abs_centralized\",\n  \"bbox_format\": \"yxyx\"\n}",
+              "note": "Infographic layouts position explanatory text boxes beside central anatomical illustrations using MOSS's 4D RoPE coordinate system.",
+              "visual": "concept",
+              "subcategory": "Diagrams & graphics",
+              "tags": [
+                "infographic diagram",
+                "botanical anatomy",
+                "spatial json",
+                "annotated callouts",
+                "abs_centralized",
+                "educational graphic",
+                "moss layout"
+              ],
+              "facets": [
+                "discipline:information-design",
+                "design:layout",
+                "treatment:spatial-json",
+                "mood:educational",
+                "medium:json-literal"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-layout-darkmode-app-ui",
+              "title": "Minimalist dark-mode app UI",
+              "prompt": "{\n  \"summary\": {\n    \"meta\": [\n      \"ui mockup\"\n    ],\n    \"canvas\": \"single\",\n    \"caption\": \"A minimalist mobile application interface in sleek dark mode, featuring a top status bar, hero album artwork card, and playback controls.\"\n  },\n  \"items\": [\n    {\n      \"label\": \"text\",\n      \"caption\": \"Clean white sans-serif app header navigation label.\",\n      \"text\": \"NOW PLAYING\",\n      \"bbox\": [\n        -460,\n        -320,\n        -390,\n        320\n      ]\n    },\n    {\n      \"label\": \"object\",\n      \"caption\": \"Square rounded-corner digital album cover artwork featuring abstract violet and turquoise light caustics.\",\n      \"bbox\": [\n        -340,\n        -280,\n        180,\n        280\n      ]\n    },\n    {\n      \"label\": \"text\",\n      \"caption\": \"Track title and artist name in crisp white and muted gray typography.\",\n      \"text\": \"SOLARIS\\nDEEP RESONANCE\",\n      \"bbox\": [\n        220,\n        -300,\n        320,\n        300\n      ]\n    },\n    {\n      \"label\": \"object\",\n      \"caption\": \"Minimalist audio playback control icons and progress slider bar in slate gray.\",\n      \"bbox\": [\n        360,\n        -340,\n        450,\n        340\n      ]\n    }\n  ],\n  \"bbox_coord_space\": \"abs_centralized\",\n  \"bbox_format\": \"yxyx\"\n}",
+              "note": "App interface mockups verify exact component alignment (header, hero card, track titles, controls) without UI element melting.",
+              "visual": "concept",
+              "subcategory": "UI & product mockups",
+              "tags": [
+                "dark-mode app ui",
+                "mobile interface",
+                "spatial json",
+                "ui mockup",
+                "album art card",
+                "playback controls",
+                "moss layout"
+              ],
+              "facets": [
+                "discipline:ui-design",
+                "design:layout",
+                "treatment:spatial-json",
+                "mood:modern",
+                "medium:json-literal"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-layout-dual-subject-split",
+              "title": "Dual-subject split showcase",
+              "prompt": "{\n  \"summary\": {\n    \"meta\": [\n      \"split poster\"\n    ],\n    \"canvas\": \"single\",\n    \"caption\": \"A balanced bilateral split showcase poster featuring an artisan teapot on the left half and a matcha ceramic bowl on the right half with a central divider title.\"\n  },\n  \"items\": [\n    {\n      \"label\": \"text\",\n      \"caption\": \"Top central exhibition title in refined black serif typography.\",\n      \"text\": \"TEA CEREMONY CRAFT\",\n      \"bbox\": [\n        -470,\n        -420,\n        -380,\n        420\n      ]\n    },\n    {\n      \"label\": \"object\",\n      \"caption\": \"Handcrafted dark cast-iron kyusu teapot sitting on pale sandstone.\",\n      \"bbox\": [\n        -320,\n        -450,\n        340,\n        -50\n      ]\n    },\n    {\n      \"label\": \"object\",\n      \"caption\": \"Hand-thrown celadon green ceramic matcha bowl with whisk resting nearby.\",\n      \"bbox\": [\n        -320,\n        50,\n        340,\n        450\n      ]\n    },\n    {\n      \"label\": \"text\",\n      \"caption\": \"Bottom footer catalog number and location.\",\n      \"text\": \"GALLERY TOKYO \\u00b7 2024\",\n      \"bbox\": [\n        390,\n        -380,\n        460,\n        380\n      ]\n    }\n  ],\n  \"bbox_coord_space\": \"abs_centralized\",\n  \"bbox_format\": \"yxyx\"\n}",
+              "note": "Split composition tests dual-object isolation across left and right canvas halves, avoiding semantic concept blending.",
+              "visual": "catalog",
+              "subcategory": "Poster layouts",
+              "tags": [
+                "split showcase layout",
+                "dual objects",
+                "abs_centralized",
+                "bilateral composition",
+                "exhibition poster",
+                "craft layout",
+                "moss layout"
+              ],
+              "facets": [
+                "discipline:graphic-design",
+                "design:layout",
+                "treatment:spatial-json",
+                "mood:harmonious",
+                "medium:json-literal"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            }
+          ]
+        },
+        {
+          "id": "moss-camera-lighting",
+          "name": "Cameras, Angles & Lighting Studies",
+          "visual": "camera",
+          "description": "Precision optical studies testing focal lengths, chiaroscuro lighting, and volumetric atmosphere in MOSS.",
+          "prompts": [
+            {
+              "id": "moss-cam-85mm-chiaroscuro",
+              "title": "85mm Rembrandt chiaroscuro",
+              "prompt": "Close 85mm portrait of a scholar at a polished mahogany desk, lit with single-source Rembrandt chiaroscuro lighting through a high side window. A distinct inverted triangle of light illuminates the shadow cheek. Deep velvet shadows contrast with glowing skin tones, subtle warm edge definition, f/1.8 optical depth of field with creamy background falloff.",
+              "note": "Chiaroscuro lighting tests MOSS's dynamic range. On MOSS Base, CFG 3.5 with Skip Layer Guidance layer 22 preserves shadow detail without clipping highlights.",
+              "visual": "portrait",
+              "subcategory": "Lighting studies",
+              "tags": [
+                "rembrandt lighting",
+                "85mm prime lens",
+                "chiaroscuro portrait",
+                "inverted triangle light",
+                "velvet shadows",
+                "scholar desk",
+                "shallow depth of field"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:lighting",
+                "treatment:chiaroscuro",
+                "mood:contemplative",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-cam-24mm-monumental",
+              "title": "24mm low-angle monumental",
+              "prompt": "Dramatic ground-level 24mm wide-angle capture looking steeply up at a brutalist architectural monolith. Pale monolithic concrete slabs rise into an overcast pale gray sky with stark vertical convergence. Crisp linear shadows, architectural scale figure standing at base for proportion, monumental perspective geometry.",
+              "note": "Low-angle wide perspective creates sharp vertical converging lines in MOSS without introducing unwanted fisheye curvature.",
+              "visual": "architecture",
+              "subcategory": "Camera angles",
+              "tags": [
+                "24mm wide angle",
+                "low angle monumental",
+                "brutalist monolith",
+                "vertical convergence",
+                "concrete architecture",
+                "scale figure",
+                "overcast sky"
+              ],
+              "facets": [
+                "discipline:architectural-photography",
+                "design:perspective",
+                "treatment:wide-angle",
+                "mood:monumental",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-cam-90mm-tiltshift-macro",
+              "title": "90mm tilt-shift macro packshot",
+              "prompt": "Macro 90mm tilt-shift commercial packshot of a luxury mechanical wristwatch movement. Razor-thin selective focal plane slicing diagonally across the balance wheel and ruby pivot jewels, while surrounding gear trains melt into buttery smooth blur. Controlled specular highlights on polished chamfered steel edges.",
+              "note": "Selective focus and optical tilt-shift physics isolate micro-mechanisms cleanly. Works reliably with MOSS-Image-SFT at 40 steps, CFG 3.0.",
+              "visual": "macro",
+              "subcategory": "Macro & lenses",
+              "tags": [
+                "90mm macro",
+                "tilt-shift packshot",
+                "mechanical watch",
+                "balance wheel ruby",
+                "selective focal plane",
+                "chamfered steel",
+                "commercial still life"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "design:optics",
+                "treatment:tilt-shift",
+                "mood:precise",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-cam-golden-rim-silhouette",
+              "title": "Golden hour rim silhouette",
+              "prompt": "Cinematic medium shot of an equestrian rider and horse pausing at the crest of a grassy hill during peak golden hour. Low brilliant backlight creates an amber halo rim light tracing the contours of the figures, while the foreground falls into expressive deep silhouette. Atmospheric dust haze, warm flares, 70mm lens.",
+              "note": "Backlit rim lighting showcases MOSS's ability to render clean edge highlights around silhouettes without blooming or halo artifacts.",
+              "visual": "lighting",
+              "subcategory": "Lighting studies",
+              "tags": [
+                "golden hour rim",
+                "silhouette portrait",
+                "equestrian rider",
+                "amber halo light",
+                "dust haze",
+                "hill crest",
+                "70mm cinematic"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:lighting",
+                "treatment:rim-light",
+                "mood:majestic",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-cam-volumetric-neon-rain",
+              "title": "Volumetric neon dusk rain",
+              "prompt": "Atmospheric cinematic eye-level street scene in a rain-slicked city at dusk. Cyan and magenta neon light beams cut through descending mist and raindrops, forming visible volumetric light shafts. Wet asphalt reflects shimmering streaks of colored light. 35mm documentary lens, shallow depth of field, moody reflections.",
+              "note": "Volumetric neon shafts and wet reflective asphalt combine multiple atmospheric lighting phenomena in one coherent latent.",
+              "visual": "lighting",
+              "subcategory": "Atmospheric lighting",
+              "tags": [
+                "volumetric neon shafts",
+                "rain-slicked street",
+                "dusk blue hour",
+                "cyan magenta reflections",
+                "wet asphalt",
+                "atmospheric mist",
+                "35mm documentary"
+              ],
+              "facets": [
+                "discipline:cinematography",
+                "design:lighting",
+                "treatment:volumetric",
+                "mood:atmospheric",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            }
+          ]
+        },
+        {
+          "id": "moss-poses-design",
+          "name": "Poses, Packshots & Graphic Systems",
+          "visual": "pose",
+          "description": "Editorial poses, commercial packshots, multi-view turnarounds, and cinematic matte horizons.",
+          "prompts": [
+            {
+              "id": "moss-pose-standing-editorial",
+              "title": "Relaxed standing editorial",
+              "prompt": "Full-body fashion editorial portrait of a tailored model in a relaxed asymmetrical stance, one hand slipped into a trouser pocket, opposite shoulder gently dropped, weight balanced over the back foot. Set against a clean light-taupe studio sweep, soft diffuse light, natural fabric drape and realistic body anatomy.",
+              "note": "MOSS-Image adheres to subtle anatomical weight shifts. Describing weight balance over the back foot and dropped shoulders yields an authentic editorial pose.",
+              "visual": "pose",
+              "subcategory": "Standing poses",
+              "tags": [
+                "standing editorial",
+                "relaxed contrapposto",
+                "tailored suit",
+                "taupe studio sweep",
+                "natural drape",
+                "dropped shoulder",
+                "full body"
+              ],
+              "facets": [
+                "discipline:fashion",
+                "subject:pose",
+                "treatment:standing",
+                "mood:poised",
+                "medium:editorial"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-pose-seated-crafting",
+              "title": "Seated crafting studio pose",
+              "prompt": "Three-quarter environmental portrait of a leather artisan seated forward on a low wooden workbench stool, forearms resting on a heavy hide, inspecting a precision stitch with focused gaze. Natural hand grip on a bone folder, rustic workshop tools hanging neatly in background, warm directional daylight.",
+              "note": "Seated poses with active hand engagement demonstrate MOSS's anatomical precision and believable physical interaction with tools.",
+              "visual": "pose",
+              "subcategory": "Seated poses",
+              "tags": [
+                "seated artisan",
+                "leather workshop",
+                "workbench stool",
+                "bone folder tool",
+                "precision stitch",
+                "focused gaze",
+                "environmental portrait"
+              ],
+              "facets": [
+                "discipline:photography",
+                "subject:artisan",
+                "treatment:seated-pose",
+                "mood:focused",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-pose-flacon-packshot",
+              "title": "Three-point luxury flacon packshot",
+              "prompt": "Commercial luxury still-life packshot of a heavy rectangular crystal perfume flacon with a brushed brass cap, resting on polished black obsidian stone. Precision three-point studio lighting: sculpted key light creating a soft vertical gradient across the glass, gentle shadow fill, and a crisp rear rim light accentuating the flacon's bevels.",
+              "note": "Commercial three-point lighting formulas translate accurately into MOSS's latent space, producing controlled specular highlights on glass and metal.",
+              "visual": "product",
+              "subcategory": "Commercial packshots",
+              "tags": [
+                "crystal flacon",
+                "luxury perfume packshot",
+                "brushed brass cap",
+                "black obsidian stone",
+                "three-point lighting",
+                "specular bevels",
+                "commercial still life"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "subject:packshot",
+                "treatment:three-point-lighting",
+                "mood:luxurious",
+                "medium:studio"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-pose-concept-4view",
+              "title": "Concept art 4-view turnaround",
+              "prompt": "Production character model turnaround sheet for an explorer in an insulated expedition parka with climbing harness and snow goggles. Evenly spaced lineup showing front view, three-quarter view, side profile view, and back view. Consistent facial identity, proportions, and gear detailing on a clean neutral gray grid.",
+              "note": "4-view orthographic sheets test cross-angle identity consistency. MOSS preserves costume details and equipment placement across all four orientations.",
+              "visual": "sheet",
+              "subcategory": "Character design",
+              "tags": [
+                "concept art turnaround",
+                "four-view sheet",
+                "expedition explorer",
+                "parka and harness",
+                "consistent proportions",
+                "neutral grid",
+                "model turnaround"
+              ],
+              "facets": [
+                "discipline:concept-art",
+                "subject:character",
+                "treatment:turnaround",
+                "mood:neutral",
+                "medium:reference"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-pose-cinematic-horizon",
+              "title": "Cinematic matte painting horizon",
+              "prompt": "Epic widescreen cinematic matte painting of an ancient stone citadel perched on monumental sea cliffs at dawn. Distant misty mountain ranges fade into pale pastel horizon light, crashing ocean surf below, atmospheric haze, wide anamorphic framing, grand scale and timeless fantasy realism.",
+              "note": "Matte painting panoramas benefit from MOSS's Qwen3.5-9B capacity for spatial depth, layered mountain atmospheric haze, and monumental scale.",
+              "visual": "landscape",
+              "subcategory": "Environments & horizons",
+              "tags": [
+                "cinematic matte painting",
+                "ancient sea citadel",
+                "monumental cliffs",
+                "dawn horizon",
+                "crashing ocean surf",
+                "anamorphic framing",
+                "epic scale"
+              ],
+              "facets": [
+                "discipline:matte-painting",
+                "subject:environment",
+                "treatment:cinematic",
+                "mood:epic",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            }
+          ]
+        },
+        {
+          "id": "moss-prompt-builders",
+          "name": "MOSS Prompt Palette Builders",
+          "visual": "catalog",
+          "description": "Combinatorial Prompt Palette templates for rolling captions, optics, ordered tags, materials, and typography.",
+          "prompts": [
+            {
+              "id": "moss-builder-combinatorial-caption",
+              "title": "Combinatorial caption generator",
+              "prompt": "Editorial portrait of {%an architect|a ceramicist|a botanist|a textile designer} in {%a tailored charcoal wool blazer|a textured linen smock|a minimalist knit sweater}, seated in {%a sunlit Scandinavian library|a rustic workshop studio|a minimalist brutalist courtyard}, photographed with {%an 85mm portrait lens|a 50mm natural prime lens|a 35mm environmental lens}, {%soft morning window light|sculpted softbox lighting|golden-hour rim light}, natural skin texture and refined contemporary art direction.",
+              "note": "Combinatorial caption builder cycling professional archetypes, wardrobes, architectural settings, camera lenses, and lighting keys.",
+              "visual": "catalog",
+              "subcategory": "Caption builders",
+              "tags": [
+                "combinatorial caption",
+                "profession archetypes",
+                "wardrobe selector",
+                "architectural settings",
+                "lighting options",
+                "camera lenses",
+                "moss builder"
+              ],
+              "facets": [
+                "discipline:photography",
+                "design:combinatorial",
+                "treatment:modular",
+                "mood:editorial",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-builder-camera-ab-test",
+              "title": "Camera & lighting A/B test",
+              "prompt": "Commercial studio photograph of a minimalist perfume bottle on dark stone, {%85mm tight macro packshot with shallow depth of field|24mm low-angle heroic framing with perspective convergence|50mm eye-level balanced composition}, {%single-source Rembrandt chiaroscuro with deep shadows|precision three-point softbox lighting with crisp speculars|volumetric neon rim light with atmospheric mist}, clean luxury advertising presentation.",
+              "note": "Rapidly test contrasting focal lengths (85mm vs 24mm vs 50mm) and lighting designs on the same hero subject.",
+              "visual": "camera",
+              "subcategory": "Optics builders",
+              "tags": [
+                "camera a/b test",
+                "focal length comparison",
+                "lighting setups",
+                "perfume bottle packshot",
+                "macro vs wide",
+                "specular highlights",
+                "moss builder"
+              ],
+              "facets": [
+                "discipline:commercial-photography",
+                "design:combinatorial",
+                "treatment:lens-comparison",
+                "mood:luxurious",
+                "medium:studio"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-builder-ordered-tag-roll",
+              "title": "Ordered-tag style roll",
+              "prompt": "{%best quality, masterpiece, score_9, highres|best quality, score_8_up, highres}, year 2024, {%1girl, solo|1boy, solo|no humans}, original, {%@shinkai makoto|@krenz_cushart|@yoshida seiji}, {%scenic anime key visual, floating islands, sunset sky, volumetric clouds|fantasy architecture, ancient stone village, water mill, morning mist|cyberpunk city street, neon reflections, rainy asphalt}, clean lines, rating:general",
+              "note": "Strictly preserves OpenMOSS taxonomic order while rolling quality tags, character count, verified artist tokens, and scene aesthetics.",
+              "visual": "concept",
+              "subcategory": "Tag builders",
+              "tags": [
+                "ordered tag roll",
+                "booru taxonomic order",
+                "artist selector",
+                "subject switcher",
+                "quality tags",
+                "anime generator",
+                "moss builder"
+              ],
+              "facets": [
+                "discipline:illustration",
+                "design:combinatorial",
+                "treatment:booru-ordered",
+                "mood:stylized",
+                "medium:digital-anime"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-builder-subject-material-roll",
+              "title": "Subject & material explorer",
+              "prompt": "Sculptural still-life study of {%a crystal prism flacon|a handcrafted celadon ceramic bowl|a cast-iron teapot|a brushed titanium wristwatch}, resting on {%textured raw sandstone|rippling shallow water|matte black acrylic|weathered oak}, bathed in {%soft diffused overcast daylight|hard direct sun with graphic sharp shadows|warm tungsten studio glow}, rich tactile surface physics.",
+              "note": "Tests MOSS's material rendering across glass, ceramics, metals, and water with contrasting lighting styles.",
+              "visual": "product",
+              "subcategory": "Material builders",
+              "tags": [
+                "material explorer",
+                "tactile textures",
+                "crystal ceramic metal",
+                "surface physics",
+                "lighting variations",
+                "still-life study",
+                "moss builder"
+              ],
+              "facets": [
+                "discipline:fine-art",
+                "design:combinatorial",
+                "treatment:material-study",
+                "mood:tactile",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
+            },
+            {
+              "id": "moss-builder-typography-signage",
+              "title": "Typography & signage generator",
+              "prompt": "Architectural street photograph of a modern studio facade with a minimalist signage board displaying verbatim text reading \"{%PROMPT PALETTE\\nEST. 2024|DESIGN LAB\\nTOKYO|CREATIVE ATELIER\\nLOCAL CRAFT}\", {%warm morning daylight|dusk blue hour with glowing warm practicals|overcast rainy afternoon with puddle reflections}, crisp typographic letterforms and realistic architectural surfaces.",
+              "note": "Explores MOSS's bilingual/English typography capability using quoted text with explicit line breaks across varied environmental conditions.",
+              "visual": "architecture",
+              "subcategory": "Typography builders",
+              "tags": [
+                "typography generator",
+                "quoted text builder",
+                "studio facade",
+                "illuminated signage",
+                "line break text",
+                "architectural street",
+                "moss builder"
+              ],
+              "facets": [
+                "discipline:architectural-photography",
+                "design:combinatorial",
+                "treatment:quoted-text",
+                "mood:modern",
+                "medium:digital"
+              ],
+              "negative": "worst quality, bad anatomy, watermark, jpeg artifact"
             }
           ]
         }
@@ -2972,6 +5536,10 @@
     {
       "label": "KREA 2 official prompting guide",
       "url": "https://github.com/krea-ai/krea-2/blob/main/docs/prompting.md"
+    },
+    {
+      "label": "OpenMOSS MOSS-Image user guide & paper",
+      "url": "https://github.com/OpenMOSS/MOSS-Image/blob/main/USERGUIDE.md"
     },
     {
       "label": "MiniMax H3 official prompt writing guide",

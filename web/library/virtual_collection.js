@@ -1,4 +1,15 @@
-import { renderVisualCollection, resetVisualCollection } from "./visual_collection.js";
+import {
+  clampAspectRatio,
+  renderVisualCollection,
+  resetVisualCollection,
+  updateVisualItems,
+  reportVisualMediaDimensions,
+  reportVisualMediaError,
+  captureVisualAnchor,
+  restoreVisualAnchor,
+} from "./visual_collection.js";
+
+const defaultItemKey = (item, i) => item?.path || (item?.id != null && item.id !== "" ? item.id : "") || item?.tag || item?.name || i;
 
 function frame(callback) {
   const raf = globalThis.requestAnimationFrame;
@@ -10,20 +21,26 @@ function cancelFrame(handle) {
 }
 
 export class VirtualCollection {
-  constructor({ scrollRoot, items = [], renderItem, renderThumbnail = null, mode = "list", estimateRowHeight = 32, estimateCardHeight = 132, minCardWidth = 88, imageAspectRatio = 1, fixedCardWidth = false, columnCount = null, inlinePadding = null, cardHeightForWidth = null, overscan = 2, onVisibleCount = null, requestRender = null, captureFocus = null, restoreFocus = null, styleDeclaration = null, releaseStyle = null, gap = 6, strideGrid = 1, preserveViewport = false } = {}) {
+  constructor({ scrollRoot, items = [], renderItem, renderThumbnail = null, thumbnailUrl = null, itemKey = defaultItemKey, getItemRatio = null, mode = "list", estimateRowHeight = 32, estimateCardHeight = 132, estimateChromeHeight = null, minCardWidth = 88, imageAspectRatio = 1, fixedCardWidth = false, columnCount = null, inlinePadding = null, cardHeightForWidth = null, overscan = 2, onVisibleCount = null, requestRender = null, captureFocus = null, restoreFocus = null, styleDeclaration = null, releaseStyle = null, gap = 6, strideGrid = 1, preserveViewport = false } = {}) {
     this.scrollRoot = scrollRoot;
     this.items = Array.isArray(items) ? items : [];
     this.renderItem = renderItem;
     this.renderThumbnail = renderThumbnail;
+    this.thumbnailUrl = thumbnailUrl;
+    this.itemKey = typeof itemKey === "function" ? itemKey : defaultItemKey;
+    this.getItemRatio = getItemRatio;
     this.mode = mode;
     this.estimateRowHeight = estimateRowHeight;
     this.estimateCardHeight = estimateCardHeight;
+    this.estimateChromeHeight = estimateChromeHeight;
     this.minCardWidth = minCardWidth;
     this.fixedCardWidth = fixedCardWidth;
     this.columnCount = columnCount;
     this.inlinePadding = inlinePadding;
     this.cardHeightForWidth = cardHeightForWidth;
-    this.imageAspectRatio = Number.isFinite(imageAspectRatio) && imageAspectRatio > 0 ? imageAspectRatio : 1;
+    this.imageAspectRatio = imageAspectRatio === 0 || imageAspectRatio === null
+      ? 0
+      : (Number.isFinite(Number(imageAspectRatio)) && Number(imageAspectRatio) > 0 ? Number(imageAspectRatio) : 1);
     this.overscan = overscan;
     this.onVisibleCount = onVisibleCount;
     this.requestRender = requestRender;
@@ -41,6 +58,7 @@ export class VirtualCollection {
     this.layoutStride = estimateRowHeight;
     this.renderErrors = new Set();
     this.mountedItems = new Map();
+    this.styledMediaNodes = new Set();
     this.host = document.createElement("div");
     this.host.className = `wg-virtual-collection ${mode === "grid" ? "wg-virtual-grid" : "wg-virtual-list"}`;
     this.window = document.createElement("div");
@@ -49,13 +67,32 @@ export class VirtualCollection {
     this.lastStart = -1;
     this.lastEnd = -1;
     this.lastColumns = -1;
-    this.updateGeometry();
+  }
+  hasWidth() {
+    const exact = this.cardHeightForWidth && typeof getComputedStyle === "function" ? parseFloat(getComputedStyle(this.host).width) : 0;
+    const exactWidth = Number.isFinite(exact) && exact > 0 ? exact : 0;
+    return (exactWidth || this.host.clientWidth || this.scrollRoot?.clientWidth || 0) > 0;
+  }
+  isHidden() {
+    if (!this.host.isConnected) return true;
+    for (let el = this.host; el && el.nodeType === 1; el = el.parentElement) {
+      if (el.hidden || el.hasAttribute?.("hidden")) return true;
+      if (typeof getComputedStyle === "function" && getComputedStyle(el)?.display === "none") return true;
+    }
+    if (this.hasWidth()) return false;
+    const doc = this.host.ownerDocument || globalThis.document;
+    const hasLayoutEngine = (doc?.documentElement?.clientWidth > 0) || (doc?.body?.getClientRects?.().length > 0);
+    if (hasLayoutEngine && typeof this.host.getClientRects === "function" && this.host.getClientRects().length === 0) {
+      return true;
+    }
+    return false;
   }
   hostWidth() {
     // CSS widths retain fractional pixels and are independent of canvas zoom.
     // Existing callers keep their original integer geometry unless opting in.
     const exact = this.cardHeightForWidth && typeof getComputedStyle === "function" ? parseFloat(getComputedStyle(this.host).width) : 0;
-    return Math.max(1, exact || this.host.clientWidth || this.scrollRoot?.clientWidth || 300);
+    const exactWidth = Number.isFinite(exact) && exact > 0 ? exact : 0;
+    return Math.max(1, exactWidth || this.host.clientWidth || this.scrollRoot?.clientWidth || 300);
   }
   viewportScale(rect = this.scrollRoot?.getBoundingClientRect?.()) {
     // Canvas nodes can be transformed by zoom. Scroll offsets and row strides
@@ -78,10 +115,15 @@ export class VirtualCollection {
       ? (this.columnCount ? this.minCardWidth : Math.min(this.minCardWidth, Math.max(1, width - (this.inlinePadding ?? 2))))
       : Math.max(1, (width - Math.max(0, columns - 1) * gap) / Math.max(1, columns));
     if (this.cardHeightForWidth) return this.cardHeightForWidth(cardWidth);
+    const imageRatio = Number(this.imageAspectRatio);
+    if (!(imageRatio > 0 && imageRatio < 100)) {
+      return this.fixedCardWidth ? this.estimateCardHeight : Math.ceil(this.estimateCardHeight / this.strideGrid) * this.strideGrid;
+    }
     // Preserve the caller’s label/border/gap allowance while deriving the image
     // height from its frame ratio. Existing callers retain square geometry.
-    const labelAllowance = Math.max(this.styleDeclaration ? 0 : 24, this.estimateCardHeight - this.minCardWidth / this.imageAspectRatio);
-    const stride = cardWidth / this.imageAspectRatio + labelAllowance;
+    const baseImage = this.minCardWidth / imageRatio;
+    const labelAllowance = Math.max(this.styleDeclaration ? 0 : 24, this.estimateCardHeight - baseImage);
+    const stride = cardWidth / imageRatio + labelAllowance;
     return this.fixedCardWidth ? stride : Math.ceil(stride / this.strideGrid) * this.strideGrid;
   }
   totalHeight(columns = this.columns()) {
@@ -133,12 +175,21 @@ export class VirtualCollection {
     }
     return row;
   }
+  pruneDetachedMediaStyles() {
+    if (!this.releaseStyle || !this.styledMediaNodes.size) return;
+    for (const el of this.styledMediaNodes) {
+      if (!el.isConnected) {
+        this.releaseStyle(el);
+        this.styledMediaNodes.delete(el);
+      }
+    }
+  }
   render() {
-    if (!this.host.isConnected) return 0;
+    if (!this.host.isConnected || this.isHidden()) return 0;
     if (["masonry", "filmstrip"].includes(this.mode)) return renderVisualCollection(this);
     const width = this.cardHeightForWidth ? this.hostWidth() : this.host.clientWidth;
     let anchor = null;
-    if (this.preserveViewport && this.layoutWidth && width !== this.layoutWidth) {
+    if (this.preserveViewport && this.scrollRoot && this.layoutWidth && width !== this.layoutWidth) {
       const top = (this.scrollRoot.getBoundingClientRect().top - this.host.getBoundingClientRect().top) / this.viewportScale();
       if (top >= 0) anchor = { index: Math.floor(top / this.layoutStride) * this.layoutColumns, fraction: (top % this.layoutStride) / this.layoutStride };
     }
@@ -146,7 +197,7 @@ export class VirtualCollection {
     this.layoutWidth = width;
     this.layoutColumns = this.columns();
     this.layoutStride = this.mode === "grid" ? this.effectiveCardHeight(this.layoutColumns) : this.estimateRowHeight;
-    if (anchor) {
+    if (anchor && this.scrollRoot) {
       const top = (this.host.getBoundingClientRect().top - this.scrollRoot.getBoundingClientRect().top) / this.viewportScale();
       this.scrollRoot.scrollTop += top + (Math.floor(anchor.index / this.layoutColumns) + anchor.fraction) * this.layoutStride;
     }
@@ -162,8 +213,13 @@ export class VirtualCollection {
     // Retain overlapping rows in place: scrolling should not reload thumbnails
     // or detach the focused button. Cache only the current virtual window.
     for (const [index, element] of this.mountedItems) {
-      if (index < start || index >= end) { element.remove(); this.mountedItems.delete(index); }
+      if (index < start || index >= end) {
+        this.releaseStyle?.(element);
+        element.remove();
+        this.mountedItems.delete(index);
+      }
     }
+    this.pruneDetachedMediaStyles();
     const retained = new Set(this.mountedItems.values());
     for (const element of [...this.window.children]) {
       if (!retained.has(element)) element.remove();
@@ -192,8 +248,17 @@ export class VirtualCollection {
   schedule() { this.requestRender?.(); }
   updateLayout(options = {}) {
     const modeChanged = options.mode != null && options.mode !== this.mode;
-    for (const key of ["mode", "estimateRowHeight", "estimateCardHeight", "minCardWidth", "imageAspectRatio", "fixedCardWidth", "columnCount", "inlinePadding", "cardHeightForWidth", "gap", "strideGrid"]) {
+    for (const key of ["mode", "estimateRowHeight", "estimateCardHeight", "minCardWidth", "fixedCardWidth", "gap", "strideGrid"]) {
       if (options[key] != null) this[key] = options[key];
+    }
+    if (options.itemKey != null && typeof options.itemKey === "function") this.itemKey = options.itemKey;
+    if (Object.hasOwn(options, "imageAspectRatio") && options.imageAspectRatio !== undefined) {
+      this.imageAspectRatio = options.imageAspectRatio === 0 || options.imageAspectRatio === null
+        ? 0
+        : (Number.isFinite(Number(options.imageAspectRatio)) && Number(options.imageAspectRatio) > 0 ? Number(options.imageAspectRatio) : this.imageAspectRatio);
+    }
+    for (const key of ["columnCount", "inlinePadding", "cardHeightForWidth", "getItemRatio", "thumbnailUrl", "estimateChromeHeight", "renderThumbnail"]) {
+      if (Object.hasOwn(options, key) && options[key] !== undefined) this[key] = options[key];
     }
     if (modeChanged) {
       resetVisualCollection(this);
@@ -206,23 +271,95 @@ export class VirtualCollection {
       this.window.className = this.mode === "grid" ? "wg-thumb-grid wg-virtual-window" : "wg-virtual-window";
       this.invalidateItems();
     }
-    this.updateGeometry();
+    if (this.host.isConnected) this.updateGeometry();
     this.schedule();
   }
   invalidateItems() {
     resetVisualCollection(this);
+    for (const element of this.mountedItems.values()) this.releaseStyle?.(element);
     this.mountedItems.clear();
+    this.pruneDetachedMediaStyles();
     this.lastStart = this.lastEnd = this.lastColumns = -1;
   }
   setItems(items) {
     this.items = Array.isArray(items) ? items : [];
     this.invalidateItems();
-    this.updateGeometry();
+    if (this.host.isConnected) this.updateGeometry();
     this.schedule();
+  }
+  updateItems(items, { patchNode = null } = {}) {
+    if (["masonry", "filmstrip"].includes(this.mode)) {
+      updateVisualItems(this, items, { patchNode });
+      return;
+    }
+    const oldItems = this.items;
+    const nextItems = Array.isArray(items) ? items : [];
+    const byKey = new Map();
+    for (const [oldIndex, element] of this.mountedItems) {
+      const key = this.itemKey(oldItems[oldIndex], oldIndex);
+      if (key != null && key !== "" && !byKey.has(key)) byKey.set(key, element);
+      else {
+        this.releaseStyle?.(element);
+        element.remove();
+      }
+    }
+    this.mountedItems.clear();
+    this.items = nextItems;
+    if (byKey.size > 0) {
+      for (let i = 0; i < nextItems.length; i++) {
+        const item = nextItems[i];
+        const key = this.itemKey(item, i);
+        const element = byKey.get(key);
+        if (!element) continue;
+        byKey.delete(key);
+        this.mountedItems.set(i, element);
+        if (typeof patchNode === "function") patchNode(element, item, i);
+        if (byKey.size === 0) break;
+      }
+      for (const orphan of byKey.values()) {
+        this.releaseStyle?.(orphan);
+        orphan.remove();
+      }
+    }
+    this.pruneDetachedMediaStyles();
+    this.lastStart = this.lastEnd = this.lastColumns = -1;
+    if (this.host.isConnected) this.updateGeometry();
+    this.schedule();
+  }
+  notifyMediaDimensions(node, width, height) {
+    if (!node) return null;
+    if (["masonry", "filmstrip"].includes(this.mode)) {
+      return reportVisualMediaDimensions(this, node, width, height);
+    }
+    const ratio = clampAspectRatio(width, height);
+    if (ratio == null) return null;
+    const targetStyle = this.styleDeclaration?.(node) || node.style;
+    targetStyle.setProperty("--pp-natural-ratio", String(ratio));
+    if (this.styleDeclaration) this.styledMediaNodes.add(node);
+    node.classList?.add("pp-media-loaded");
+    node.classList?.remove("pp-media-broken");
+    return ratio;
+  }
+  notifyMediaError(node) {
+    if (!node) return;
+    if (["masonry", "filmstrip"].includes(this.mode)) {
+      reportVisualMediaError(this, node);
+      return;
+    }
+    const targetStyle = this.styleDeclaration?.(node) || node.style;
+    if (!targetStyle.getPropertyValue("--pp-natural-ratio")) {
+      targetStyle.setProperty("--pp-natural-ratio", "1");
+      if (this.styleDeclaration) this.styledMediaNodes.add(node);
+    }
+    node.classList?.add("pp-media-broken");
+    node.classList?.remove("pp-media-loaded");
   }
   cleanup() {
     resetVisualCollection(this);
+    for (const element of this.mountedItems.values()) this.releaseStyle?.(element);
     this.mountedItems.clear();
+    for (const element of this.styledMediaNodes) this.releaseStyle?.(element);
+    this.styledMediaNodes.clear();
     this.onVisibleCount?.(0);
     this.releaseStyle?.(this.window);
     this.releaseStyle?.(this.host);
@@ -240,6 +377,9 @@ export class VirtualCollectionManager {
     this.boundSchedule = () => this.schedule();
     this.scrollRoot?.addEventListener?.("scroll", this.boundSchedule, { passive: true });
     this.resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(this.boundSchedule) : null;
+    if (this.scrollRoot && typeof this.scrollRoot.nodeType === "number") {
+      this.resizeObserver?.observe?.(this.scrollRoot);
+    }
   }
   mount(container, options) {
     let collection = null;
@@ -254,6 +394,7 @@ export class VirtualCollectionManager {
     });
     this.collections.add(collection);
     container.appendChild(collection.host);
+    collection.updateGeometry();
     this.resizeObserver?.observe(collection.host);
     // Paint the currently visible window immediately. The scheduled pass still
     // handles geometry changes after the rest of the library tree is mounted.
@@ -273,7 +414,9 @@ export class VirtualCollectionManager {
   // Keep the logical item near the top when density/columns change.
   captureViewportAnchor(itemSpan = 1) {
     const collection = this.collections.values().next().value;
-    if (!collection || ["masonry", "filmstrip"].includes(collection.mode)) return null;
+    if (!collection || !this.scrollRoot) return null;
+    if (collection.mode === "masonry") return captureVisualAnchor(collection);
+    if (collection.mode === "filmstrip") return null;
     const root = this.scrollRoot.getBoundingClientRect(), host = collection.host.getBoundingClientRect();
     const top = (root.top - host.top) / collection.viewportScale(root);
     if (top < 0) return null;
@@ -283,11 +426,17 @@ export class VirtualCollectionManager {
   }
   restoreViewportAnchor(anchor, itemSpan = 1) {
     const collection = this.collections.values().next().value;
-    if (!anchor || !collection || ["masonry", "filmstrip"].includes(collection.mode)) return;
+    if (!anchor || !collection || !this.scrollRoot) return;
+    if (collection.mode === "masonry") {
+      restoreVisualAnchor(collection, anchor);
+      this.schedule();
+      return;
+    }
+    if (collection.mode === "filmstrip") return;
     const root = this.scrollRoot.getBoundingClientRect(), host = collection.host.getBoundingClientRect();
     const columns = collection.columns(), stride = collection.mode === "grid" ? collection.effectiveCardHeight(columns) : collection.estimateRowHeight;
     const row = Math.floor(anchor.index / itemSpan / columns);
-    this.scrollRoot.scrollTop += (host.top - root.top) / collection.viewportScale(root) + (row + anchor.fraction) * stride;
+    this.scrollRoot.scrollTop += (host.top - root.top) / collection.viewportScale(root) + (row + (anchor.fraction || 0)) * stride;
     // The caller has already restored the old logical item into the new layout.
     // Mark that geometry current so render() does not apply a second anchor.
     collection.layoutWidth = collection.cardHeightForWidth ? collection.hostWidth() : collection.host.clientWidth;

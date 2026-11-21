@@ -203,6 +203,24 @@ class WildcardResolver:
 
         return rng.choice(lines)
 
+    # Generation evidence only: which library line a wildcard produced in this run.
+    # Consumers filter selections by kind, so "wildcard" never disturbs brace or
+    # conditional inspection. Bounded so huge nested libraries cannot bloat metadata.
+    MAX_WILDCARD_PICK_RECORDS = 256
+
+    def _record_wildcard_pick(self, name, mode, picked):
+        if not self._record_branches or not isinstance(picked, str):
+            return
+        recorded = sum(1 for item in self.branch_selections if item.get("kind") == "wildcard")
+        if recorded >= self.MAX_WILDCARD_PICK_RECORDS:
+            return
+        self.branch_selections.append({
+            "kind": "wildcard",
+            "name": name,
+            "mode": mode or "",
+            "chosen": picked[:2000],
+        })
+
     def _prepare_combinatorial(self, text):
 
         groups = []
@@ -269,10 +287,15 @@ class WildcardResolver:
 
         def repl(m):
             whole = m.group(0)
-            if whole in combo_map:
-                return combo_map[whole]
             mode, name = m.group(1), m.group(2)
-            return self._pick_wildcard_line(name, mode, rng)
+            if whole in combo_map:
+                picked = combo_map[whole]
+                self._record_wildcard_pick(name, mode, picked)
+                return picked
+            picked = self._pick_wildcard_line(name, mode, rng)
+            if picked != f"__{mode}{name}__":
+                self._record_wildcard_pick(name, mode, picked)
+            return picked
         prev = None
         out = text
         for _ in range(MAX_PASSES):

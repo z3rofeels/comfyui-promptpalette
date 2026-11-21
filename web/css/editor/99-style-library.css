@@ -25,6 +25,7 @@
 .pp-style-count, .pp-style-source { color: var(--pps-muted); font-size: var(--pps-font-small); }
 .pp-style-image-scope { display: flex; align-items: center; gap: var(--pps-space-2); color: var(--pps-muted); font-size: var(--pps-font-small); }
 .pp-main-sidebar .pp-style-cards { display: block; min-inline-size: 0; font-size: calc(1em * var(--pp-library-font-scale, 1)); overflow-anchor: none; }
+.pp-main-sidebar .pp-style-cards .wg-virtual-grid > .wg-virtual-window { display: grid; grid-template-columns: repeat(var(--pp-style-columns, var(--pp-virtual-columns, 1)), var(--pp-library-card-width)); grid-auto-rows: calc(var(--pp-virtual-card-height, var(--pp-style-row-height)) - var(--pps-space-2)); gap: var(--pps-space-2); padding: 0; }
 .pp-style-card-row { display: grid; grid-template-columns: repeat(var(--pp-style-columns, 1), var(--pp-library-card-width)); gap: var(--pps-space-2); block-size: var(--pp-style-row-height); padding-block-end: var(--pps-space-2); }
 .pp-style-card { position: relative; display: flex; flex-direction: column; gap: var(--pps-space-1); min-inline-size: 0; block-size: calc(var(--pp-style-row-height) - var(--pps-space-2)); padding: var(--pps-space-2); overflow: hidden; border: var(--pps-stroke) solid var(--pps-border); border-radius: var(--pps-radius-lg); background: var(--pps-panel); container: pp-style-card / inline-size; }
 .pp-style-card:is(:hover, :focus-within) { border-color: var(--pps-accent-border); }
@@ -32,7 +33,10 @@
 .pp-main-sidebar .pp-style-card-add:hover { background: var(--pps-clear); }
 .pp-main-sidebar .pp-style-card-add:active:not(:disabled) { transform: none; }
 .pp-style-preview, .pp-style-no-preview { display: block; inline-size: 100%; border-radius: var(--pps-radius); background: var(--pps-surface); object-fit: var(--pp-image-fit, contain); }
-.pp-style-card:not(.pp-style-row) :is(.pp-style-preview, .pp-style-no-preview) { block-size: var(--pp-style-image-height); min-block-size: 0; flex: none; transition: transform var(--pps-motion) var(--pps-ease), opacity var(--pps-motion) var(--pps-ease); }
+.pp-style-card:not(.pp-style-row):not(.pp-visual-card) :is(.pp-style-preview, .pp-style-no-preview) { block-size: var(--pp-style-image-height); min-block-size: 0; flex: none; transition: transform var(--pps-motion) var(--pps-ease), opacity var(--pps-motion) var(--pps-ease); }
+.pp-main-sidebar[data-aspect="natural"] .pp-style-cards:not(.is-list) .pp-style-card:not(.pp-style-row):not(.pp-visual-card) .pp-style-preview,
+.pp-style-cards[data-aspect="natural"]:not(.is-list) .pp-style-card:not(.pp-style-row):not(.pp-visual-card) .pp-style-preview { object-fit: contain; }
+.pp-style-cards :is(.pp-view-masonry, .pp-view-filmstrip) .pp-visual-card .pp-style-no-preview { block-size: auto; aspect-ratio: var(--pp-natural-ratio, 1); min-block-size: 48px; }
 .pp-style-card:not(.pp-style-row) .pp-style-card-add:hover > .pp-style-preview { transform: scale(var(--pps-hover-scale)); }
 .pp-style-no-preview { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--pps-space-2); padding: var(--pps-space-2); overflow: hidden; color: var(--pps-muted); }
 .pp-style-monogram { color: var(--pps-accent); font-size: var(--pps-font-hero); font-weight: var(--pps-weight-medium); letter-spacing: var(--pps-tracking); }
@@ -136,7 +140,8 @@
 .pp-sidebar-image-hover::backdrop { pointer-events: none; background: transparent; }
 @keyframes pp-sidebar-hover-enter { from { opacity: 0; transform: translate3d(0, var(--pps-space-1), 0); } to { opacity: 1; transform: none; } }
 
-.pp-main-sidebar[data-images="false"] .pp-style-cards[data-density="tiny"]:not(.is-list) .pp-style-title { display: block; min-block-size: 0; max-block-size: 1.5em; line-height: var(--pps-line); white-space: nowrap; text-overflow: ellipsis; }
+.pp-main-sidebar[data-images="false"] .pp-style-cards[data-density="tiny"]:not(.is-list) .pp-style-title,
+.pp-main-sidebar[data-images="false"] .pp-style-cards[data-density="tiny"]:not(.is-list) :is(.pp-view-masonry, .pp-view-filmstrip) .pp-style-title { display: block; min-block-size: 0; max-block-size: 1.5em; line-height: var(--pps-line); white-space: nowrap; text-overflow: ellipsis; }
 
 /* Hover/quick previews follow menu size; collection cards keep their own sizing. */
 .pp-main-sidebar :is(.pp-sidebar-image-hover, .pp-sidebar-quickview) {

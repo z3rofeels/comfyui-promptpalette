@@ -77,6 +77,7 @@ function getMetadataChannel() {
     const channel = new BroadcastChannel(`comfyui.prompt-palette.metadata:${endpoint}`);
     channel.addEventListener("message", event => {
       if (event.data?.type !== "metadata-changed" || event.data.version !== 1) return;
+      if (event.data.action === "thumbnail") globalThis[previewRevisionKey] += 1;
       metadataEvents.dispatchEvent(new CustomEvent("change", { detail: { ...event.data, remote: true } }));
     });
     globalThis[metadataChannelKey] = { endpoint, channel };
@@ -110,11 +111,13 @@ let booruTagsAbort = null;
 let animaTagsAbort = null;
 
 const API = {
-  async loras({ signal } = {}) {
-    return readApiJson(await api.fetchApi("/prompt_palette/loras?refresh=1", { signal }));
+  async loras({ signal, refresh = false } = {}) {
+    const url = refresh === true ? "/prompt_palette/loras?refresh=1" : "/prompt_palette/loras";
+    return readApiJson(await api.fetchApi(url, { signal }));
   },
-  loraPreviewUrl(name, { source = "auto", index = 0, poster = false } = {}) {
-    return promptPaletteUrl(`/prompt_palette/lora_preview?name=${encodeURIComponent(name)}&source=${source}&index=${index}${poster ? "&poster=1" : ""}`);
+  loraPreviewUrl(name, { source = "auto", index = 0, poster = false, v = null } = {}) {
+    const rev = v ?? API.previewRevision();
+    return promptPaletteUrl(`/prompt_palette/lora_preview?name=${encodeURIComponent(name)}&source=${encodeURIComponent(source)}&index=${encodeURIComponent(index)}${poster ? "&poster=1" : ""}&v=${encodeURIComponent(rev)}`);
   },
   async loraPreviewProbe(name, { signal } = {}) {
     const response = await api.fetchApi(`/prompt_palette/lora_preview?name=${encodeURIComponent(name)}`, { method: "HEAD", signal });
@@ -133,12 +136,22 @@ const API = {
   async setLoraThumbnail(name, file) {
     const form = new FormData();
     form.append("name", name); form.append("file", file);
-    return readApiJson(await api.fetchApi("/prompt_palette/lora_thumbnail", { method: "POST", body: form }));
+    const result = await readApiJson(await api.fetchApi("/prompt_palette/lora_thumbnail", { method: "POST", body: form }));
+    if (result && !result.error && result.ok !== false) {
+      API.bumpPreviewRevision();
+      publishMetadataChange({ namespace: "loras", action: "thumbnail", name });
+    }
+    return result;
   },
   async removeLoraThumbnail(name) {
-    return readApiJson(await api.fetchApi("/prompt_palette/remove_lora_thumbnail", {
+    const result = await readApiJson(await api.fetchApi("/prompt_palette/remove_lora_thumbnail", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
     }));
+    if (result && !result.error && result.ok !== false) {
+      API.bumpPreviewRevision();
+      publishMetadataChange({ namespace: "loras", action: "thumbnail", name });
+    }
+    return result;
   },
   async loraInfo(name, { signal } = {}) {
     return readApiJson(await api.fetchApi(`/prompt_palette/lora_info?name=${encodeURIComponent(name)}`, { signal }));
@@ -150,6 +163,10 @@ const API = {
   },
 
   previewRevision() { return globalThis[previewRevisionKey]; },
+  bumpPreviewRevision() {
+    globalThis[previewRevisionKey] += 1;
+    return globalThis[previewRevisionKey];
+  },
   async completionPreviews(items) {
     return readApiJson(await api.fetchApi("/prompt_palette/completion_previews", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }),

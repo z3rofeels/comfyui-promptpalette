@@ -11,7 +11,7 @@ import { FACET_GROUPS, PREVIEW_LABELS, BENCHMARKS, normalizeStyleText, decorateS
 import { captureSidebarFocus, restoreSidebarFocus } from "./sidebar_presentation.js";
 export { filterStyles, styleOutput } from "./style_library_model.js";
 
-const KEY = "prompt_palette_style_explorer_v1", PAGE = 36;
+const KEY = "prompt_palette_style_explorer_v1";
 const make = (tag, cls = "", text = "") => { const el = document.createElement(tag); el.className = cls; el.textContent = text; return el; };
 const button = (text, action, cls = "") => { const el = make("button", cls, text); el.type = "button"; el.addEventListener("click", action); return el; };
 const select = options => { const el = make("select"); options.forEach(([value, text]) => el.append(new Option(text, value))); return el; };
@@ -67,7 +67,7 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
   let indexId = typeof saved.index === "string" ? saved.schema !== 2 && saved.index === "builtin:techniques" ? "builtin:visual" : saved.index : "builtin:visual";
   const artistIds = ["builtin:anima", "booru", "builtin:classic"];
   let artistSource = artistIds.includes(saved.artistSource) ? saved.artistSource : artistIds.includes(indexId) ? indexId : "builtin:anima";
-  let catalog = null, rows = [], edits = Object.create(null), matches = [], page = 0, version = 0, disposed = false, loaded = false, loading = false, timer, editSerial = 0;
+  let catalog = null, rows = [], edits = Object.create(null), matches = [], version = 0, disposed = false, loaded = false, loading = false, timer, editSerial = 0;
   let byKey = new Map(), facetOptions = new Map(), compare = Array.isArray(saved.compare) ? saved.compare.slice(0, 4).filter(r => r?.tag && r.originIndex) : [];
   let view = ["styles", "classic", "artists", "anima", "tags", "favorites", "previews"].includes(saved.view) ? saved.view : "styles", returnFocus = null;
   const identity = row => `${row.originIndex || indexId}\0${row.tag}`;
@@ -103,7 +103,7 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
   const filters = make("details", "pp-style-manage pp-style-filters"); filters.append(make("summary", "", "Refine collection")); browse.append(filters); filters.append(explore, format.parentElement, syntaxHelp);
   const filterGrid = make("div", "pp-style-facet-grid"); filters.append(filterGrid);
   const facetSelects = new Map();
-  for (const [key, title, help] of FACET_GROUPS) { const field = label(title, select([["", `All ${title.toLowerCase()}`]]), filterGrid); field.title = help; facetSelects.set(key, field); field.addEventListener("change", () => { page = 0; render(); }); }
+  for (const [key, title, help] of FACET_GROUPS) { const field = label(title, select([["", `All ${title.toLowerCase()}`]]), filterGrid); field.title = help; facetSelects.set(key, field); field.addEventListener("change", () => { render(); }); }
   const support = label("Model evidence", select([["", "Any evidence status"], ["vocabulary", "Technique vocabulary · unverified"], ["unknown", "Artist / tag support · unknown"]]), filterGrid);
   const facetInput = label("Require all labels (comma separated)", make("input"), filters); facetInput.placeholder = "e.g. linework, limited palette";
   const min = label("Minimum posts (0 includes unknown)", make("input"), filterGrid); min.type = "number"; min.min = "0"; min.step = "1"; min.value = "0";
@@ -119,13 +119,11 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
   const resultBar = make("div", "pp-style-result-bar"); browse.append(resultBar); resultBar.append(count);
   const imageScope = make("label", "pp-style-image-scope"), includeUnillustrated = make("input"); includeUnillustrated.type = "checkbox"; includeUnillustrated.title = "Include entries without preview images"; includeUnillustrated.checked = saved.includeUnillustrated === true;
   imageScope.append(includeUnillustrated, make("span", "", "Show all entries")); resultBar.append(imageScope);
-  includeUnillustrated.addEventListener("change", () => { writeEditorPreference(KEY, { ...readEditorPreference(KEY, {}), includeUnillustrated: includeUnillustrated.checked }); page = 0; render(); });
+  includeUnillustrated.addEventListener("change", () => { writeEditorPreference(KEY, { ...readEditorPreference(KEY, {}), includeUnillustrated: includeUnillustrated.checked }); render(); });
   const cards = make("div", "pp-style-cards"); cards.tabIndex = 0; cards.setAttribute("aria-label", "Collection entries"); browse.append(cards);
   const virtual = new VirtualCollectionManager(host);
-  let columns = 1, pageCollection = null, mountedPresentation = "";
-  const pages = make("div", "pp-sidebar-actions pp-style-pages"), pageLabel = make("span", "pp-sidebar-note");
-  const previous = button("Previous", () => { page--; paintPage(); cards.scrollIntoView({ block: "start" }); });
-  const next = button("Next", () => { page++; paintPage(); cards.scrollIntoView({ block: "start" }); }); pages.append(previous, pageLabel, next); browse.append(pages);
+  let columns = 1, pageCollection = null, mountedMode = null, mountedImages = null, mountedItems = null, mountedOutputKey = "", mountedCompareKey = "";
+  const cardRows = new WeakMap(), cardPreviewUrls = new WeakMap();
   const manage = make("details", "pp-style-manage"); manage.append(make("summary", "", "Local indexes, backups & credits")); browse.append(manage);
   const importInput = make("input"); importInput.type = "file"; importInput.accept = ".json,application/json"; importInput.hidden = true;
   const fileActions = make("div", "pp-sidebar-actions"); manage.append(controls, source, fileActions, importInput);
@@ -151,7 +149,7 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
     const slim = compare.map(r => { const { thumbnail, search, facetTags, ...rest } = r; return rest; });
     writeEditorPreference(KEY, { schema: 2, index: indexId, artistSource, view, includeUnillustrated: includeUnillustrated.checked, format: format.value, prefix: prefix.value, compare: slim, benchmark: benchmark.value, common: sharedFields.size ? Object.fromEntries([...sharedFields].map(([k, f]) => [k, f.value])) : common });
   }
-  function clearFilters() { search.value = ""; min.value = "0"; facetInput.value = ""; support.value = ""; for (const field of facetSelects.values()) field.value = ""; page = 0; render(); }
+  function clearFilters() { search.value = ""; min.value = "0"; facetInput.value = ""; support.value = ""; for (const field of facetSelects.values()) field.value = ""; render(); }
   function updateFacetOptions() {
     facetOptions = new Map(FACET_GROUPS.map(([key]) => [key, new Set()]));
     for (const row of rows) for (const [key, values] of Object.entries(row.facets || {})) for (const value of values) facetOptions.get(key)?.add(value);
@@ -159,7 +157,7 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
     discoveries.replaceChildren();
     if (indexId === "builtin:visual") for (const [discipline, slug] of [["watercolor", "transparent-washes"], ["ink & print", "cross-hatching"], ["graphic design", "art-deco-geometry"], ["botanical & scientific", "herbarium-plate"], ["architecture & worlds", "mediterranean-courtyard"], ["3d & product", "low-poly-scene"]]) {
       const row = catalog?.entries?.find(r => r.id === slug); if (!row) continue;
-      const b = button("", () => { facetSelects.get("discipline").value = discipline; filters.open = true; page = 0; render(); cards.scrollIntoView({ block: "nearest" }); }, "pp-style-discovery-card");
+      const b = button("", () => { facetSelects.get("discipline").value = discipline; filters.open = true; render(); cards.scrollIntoView({ block: "nearest" }); }, "pp-style-discovery-card");
       b.append(preview(row), make("span", "", discipline)); discoveries.append(b);
     }
   }
@@ -168,7 +166,6 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
     const facets = Object.fromEntries([...facetSelects].map(([key, field]) => [key, field.value])); facets.compatibility = support.value;
     const referenceCollection = rows.some(row => row.asset || row.thumbnail); imageScope.hidden = !referenceCollection;
     matches = filterStyles(rows, { query: search.value, tags: facetInput.value.split(",").map(normalizeStyleText).filter(Boolean), facets, previews: referenceCollection && !includeUnillustrated.checked, minCount: Math.max(0, Number(min.value) || 0), sort: sort.value });
-    page = Math.min(page, Math.max(0, Math.ceil(matches.length / PAGE) - 1));
     count.textContent = `${matches.length.toLocaleString()} ${referenceCollection && !includeUnillustrated.checked ? "visual references" : "entries"} · ${rows.length.toLocaleString()} in collection${Object.values(facets).some(Boolean) || search.value || facetInput.value || Number(min.value) ? " · filtered" : ""}`;
     discoveries.hidden = !!(search.value || Object.values(facets).some(Boolean) || facetInput.value);
     explore.hidden = discoveries.hidden || !discoveries.childElementCount;
@@ -177,73 +174,206 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
   }
   function updateLabButton() { labButton.textContent = `Style Lab ${compare.length}/4`; }
   function displayKey() { return indexId === "custom" ? "custom" : view; }
+  function resetMountedCollection() {
+    virtual.clear();
+    pageCollection = null;
+    mountedMode = null;
+    mountedImages = null;
+    mountedItems = null;
+    mountedOutputKey = "";
+    mountedCompareKey = "";
+    displayGeometry = "";
+  }
   let displayGeometry = "";
   function paintPage({ layoutOnly = false } = {}) {
     if (disposed || loading || !loaded) return;
+    if (cards.clientWidth <= 0) {
+      if (!matches.length) {
+        resetMountedCollection();
+        cards.replaceChildren(make("p", "pp-sidebar-empty", indexId === "favorites" ? "No favorites yet. Star a style, artist or tag to collect it here." : indexId === "previews" ? "Your previews will appear here. Use a card’s pencil to attach a local image." : "No matches. Clear filters to include artists with unknown labels and counts."));
+      } else {
+        displayGeometry = "";
+      }
+      return;
+    }
     hoverPreview.dismiss();
     measuredWidth = cards.clientWidth;
     const oldScroll = host.scrollTop;
     const focus = captureSidebarFocus(cards, ".pp-style-card", "styleTag");
-    const positions = layoutOnly ? presentation.captureLayout(cards) : null;
-    const oldAnchor = virtual.captureViewportAnchor(cards.classList.contains("is-list") ? 1 : columns);
     const ui = parseFloat(getComputedStyle(host).getPropertyValue("--wg-ui-font-scale")) || 1;
     const metrics = sidebarLayoutMetrics(displayKey(), ui, cards.clientWidth), isList = metrics.mode === "list";
-    const nextGeometry = `${metrics.mode}|${metrics.scale}|${metrics.ratio}|${ui}|${cards.clientWidth}`;
-    const anchor = nextGeometry !== displayGeometry ? oldAnchor : null;
+    const chrome = loadSidebarDisplay().chrome;
+    const fillRows = chrome.fillRows !== false;
+    const nextGeometry = `${metrics.mode}|${metrics.scale}|${metrics.aspect}|${fillRows}|${ui}|${cards.clientWidth}|${chrome.images}|${chrome.prompt}|${chrome.descriptions}`;
+    const geometryChanged = nextGeometry !== displayGeometry;
+    const positions = layoutOnly && geometryChanged ? presentation.captureLayout(cards) : null;
+    const anchor = geometryChanged ? virtual.captureViewportAnchor() : null;
     displayGeometry = nextGeometry;
     cards.dataset.density = metrics.density;
+    cards.dataset.layout = metrics.mode;
+    cards.dataset.aspect = metrics.aspect;
     cards.classList.remove("is-compact"); cards.classList.toggle("is-list", isList); cards.classList.toggle("is-small", metrics.scale < .85);
     presentation.set(cards, { "--pp-library-scale": metrics.scale, "--pp-library-font-scale": metrics.font });
     columns = isList ? 1 : metrics.columns;
-    const chrome = loadSidebarDisplay().chrome;
     const width = metrics.cardWidth;
     const tiny = metrics.density === "tiny", micro = metrics.density === "micro";
-    const imageHeight = chrome.images ? Math.max(0, width - (tiny ? 10 : 18)) / metrics.ratio : 0;
-    const cardHeight = imageHeight + (tiny ? (chrome.images ? 18 : snapSidebarSize(32 * ui) + 8) : snapSidebarSize((micro ? 72 : 128) * ui) + (chrome.prompt && !micro ? snapSidebarSize(48 * ui) : 0) + (chrome.descriptions && !micro ? snapSidebarSize(40 * ui) : 0));
+    const effectiveRatio = metrics.isNaturalRatio ? 1 : metrics.ratio;
+    const imageHeightFor = w => chrome.images ? Math.max(0, w - (tiny ? 10 : 18)) / effectiveRatio : 0;
+    const chromeHeight = tiny
+      ? (chrome.images ? 18 : snapSidebarSize(32 * ui) + 8)
+      : snapSidebarSize((micro ? 72 : 128) * ui) + (chrome.prompt && !micro ? snapSidebarSize(48 * ui) : 0) + (chrome.descriptions && !micro ? snapSidebarSize(40 * ui) : 0);
+    const cardHeightForWidth = w => imageHeightFor(w) + chromeHeight;
+    const imageHeight = imageHeightFor(width);
+    const cardHeight = cardHeightForWidth(width);
     presentation.set(cards, { "--pp-style-columns": columns, "--pp-library-card-width": `${width}px`, "--pp-style-row-height": `${isList ? metrics.rowHeight : cardHeight}px`, "--pp-style-image-height": `${imageHeight}px` });
-    const slice = isList ? matches : matches.slice(page * PAGE, (page + 1) * PAGE), groups = [];
-    if (!isList) for (let i = 0; i < slice.length; i += columns) groups.push(slice.slice(i, i + columns));
-    const advanced = ["masonry", "filmstrip"].includes(metrics.mode);
-    const nextPresentation = `${metrics.mode}|${columns}|${chrome.images}`;
+    const virtualMode = metrics.mode === "gallery" ? "grid" : metrics.mode;
+    const layoutOptions = {
+      mode: virtualMode,
+      minCardWidth: width,
+      columnCount: virtualMode === "masonry" ? (fillRows ? columns : null) : (virtualMode === "grid" ? columns : 1),
+      fixedCardWidth: virtualMode === "masonry" ? !fillRows : virtualMode === "grid",
+      imageAspectRatio: chrome.images ? effectiveRatio : 0,
+      estimateRowHeight: metrics.rowHeight,
+      estimateCardHeight: cardHeight,
+      estimateChromeHeight: tiny ? 10 : chromeHeight,
+      cardHeightForWidth,
+      gap: 8,
+      overscan: 2,
+      itemKey: row => identity(row),
+      getItemRatio: row => (Number(row.width) > 0 && Number(row.height) > 0) ? { width: Number(row.width), height: Number(row.height) } : null,
+      thumbnailUrl: row => chrome.images ? stylePreviewUrl(row) : "",
+    };
+    const outputKey = `${format.value}|${prefix.value}`;
+    const compareKey = compare.map(identity).join("\n");
     if (!matches.length) {
-      virtual.clear(); pageCollection = null;
+      resetMountedCollection();
       cards.replaceChildren(make("p", "pp-sidebar-empty", indexId === "favorites" ? "No favorites yet. Star a style, artist or tag to collect it here." : indexId === "previews" ? "Your previews will appear here. Use a card’s pencil to attach a local image." : "No matches. Clear filters to include artists with unknown labels and counts."));
-    } else if (advanced) {
-      virtual.clear(); cards.replaceChildren();
-      pageCollection = virtual.mount(cards, { items: slice, mode: metrics.mode, minCardWidth: width, columnCount: columns, gap: 8, renderItem: row => card(row), styleDeclaration: presentation.declaration, releaseStyle: element => presentation.release(element) });
-    } else if (pageCollection && layoutOnly && mountedPresentation === nextPresentation) {
-      pageCollection.updateLayout({ estimateRowHeight: isList ? metrics.rowHeight : cardHeight });
-    } else if (pageCollection && mountedPresentation === nextPresentation) {
-      pageCollection.updateLayout({ estimateRowHeight: isList ? metrics.rowHeight : cardHeight });
-      pageCollection.setItems(isList ? slice : groups);
+    } else if (!pageCollection) {
+      cards.replaceChildren();
+      pageCollection = virtual.mount(cards, {
+        ...layoutOptions,
+        items: matches,
+        preserveViewport: true,
+        styleDeclaration: presentation.declaration,
+        releaseStyle: element => presentation.release(element),
+        captureFocus: () => captureSidebarFocus(cards, ".pp-style-card", "styleTag"),
+        restoreFocus: snapshot => restoreSidebarFocus(cards, ".pp-style-card", "styleTag", snapshot),
+        renderItem: row => card(row, isList),
+      });
     } else {
-      virtual.clear(); cards.replaceChildren();
-      pageCollection = virtual.mount(cards, { items: isList ? slice : groups, mode: "list", estimateRowHeight: isList ? metrics.rowHeight : cardHeight, overscan: 1,
-      styleDeclaration: presentation.declaration, releaseStyle: element => presentation.release(element),
-      captureFocus: () => captureSidebarFocus(cards, ".pp-style-card", "styleTag"),
-      restoreFocus: snapshot => restoreSidebarFocus(cards, ".pp-style-card", "styleTag", snapshot),
-      renderItem: isList ? row => card(row, true) : group => { const el = make("div", "pp-style-card-row"); for (const row of group) el.append(card(row)); return el; } });
+      const modeChanged = mountedMode !== null && mountedMode !== virtualMode;
+      const imagesChanged = mountedImages !== null && mountedImages !== chrome.images;
+      const itemsChanged = mountedItems !== matches;
+      const outputChanged = mountedOutputKey !== outputKey;
+      const compareChanged = mountedCompareKey !== compareKey;
+      pageCollection.renderItem = row => card(row, isList);
+      pageCollection.updateLayout(layoutOptions);
+      if (imagesChanged) {
+        pageCollection.setItems(matches);
+      } else if (modeChanged) {
+        if (itemsChanged) pageCollection.setItems(matches);
+      } else if (itemsChanged || (!layoutOnly && (outputChanged || compareChanged))) {
+        pageCollection.updateItems(matches, { patchNode: patchStyleCard });
+      }
     }
-    mountedPresentation = nextPresentation;
-    previous.disabled = page <= 0; next.disabled = (page + 1) * PAGE >= matches.length;
-    pages.hidden = isList; pageLabel.textContent = `Page ${page + 1} / ${Math.max(1, Math.ceil(matches.length / PAGE))}`;
-    host.scrollTop = oldScroll; virtual.restoreViewportAnchor(anchor, isList ? 1 : columns); pageCollection?.render(); virtual.refresh();
+    if (matches.length) {
+      mountedMode = virtualMode;
+      mountedImages = chrome.images;
+      mountedItems = matches;
+      mountedOutputKey = outputKey;
+      mountedCompareKey = compareKey;
+    }
+    host.scrollTop = oldScroll; virtual.restoreViewportAnchor(anchor); pageCollection?.render(); virtual.refresh();
     restoreSidebarFocus(cards, ".pp-style-card", "styleTag", focus);
     presentation.animateLayout(cards, positions);
   }
-  function preview(row, large = false) {
+  function preview(row, large = false, { onLoad = null, onError = null } = {}) {
     const name = String(row.name || row.tag || "Style"), url = stylePreviewUrl(row), fallback = () => { const el = make("div", "pp-style-no-preview"); el.append(make("span", "pp-style-monogram", name.slice(0, 2).toUpperCase()), make("small", "", row.kind === "curated_style" ? "Technique recipe" : `${row.category || "tag"} · no preview`)); return el; };
     if (!url) return fallback();
-    const img = make("img", `pp-style-preview${large ? " is-large" : ""}${row.asset && row.previewKind === "reference" ? " is-reference" : ""}`); img.src = url; img.alt = row.provenance?.title ? `${row.provenance.title} — ${row.provenance.author || "reference image"}` : `${PREVIEW_LABELS[row.previewKind] || "User preview"} for ${row.name}`; img.title = [row.provenance?.title, row.provenance?.author, row.provenance?.license].filter(Boolean).join(" · "); img.loading = "lazy"; img.decoding = "async"; img.width = 512; img.height = 336;
-    img.addEventListener("error", () => { const el = fallback(); el.append(make("small", "", "Preview unavailable")); img.replaceWith(el); }, { once: true }); return img;
+    const img = make("img", `pp-style-preview${large ? " is-large" : ""}${row.asset && row.previewKind === "reference" ? " is-reference" : ""}`); img.alt = row.provenance?.title ? `${row.provenance.title} — ${row.provenance.author || "reference image"}` : `${PREVIEW_LABELS[row.previewKind] || "User preview"} for ${row.name}`; img.title = [row.provenance?.title, row.provenance?.author, row.provenance?.license].filter(Boolean).join(" · "); img.loading = "lazy"; img.decoding = "async";
+    if (Number(row.width) > 0 && Number(row.height) > 0) {
+      img.width = Number(row.width);
+      img.height = Number(row.height);
+    }
+    if (typeof onLoad === "function") {
+      img.addEventListener("load", () => {
+        if (!disposed && img.naturalWidth && img.naturalHeight) onLoad(img.naturalWidth, img.naturalHeight);
+      }, { once: true });
+    }
+    img.addEventListener("error", () => {
+      const el = fallback();
+      el.append(make("small", "", "Preview unavailable"));
+      img.replaceWith(el);
+      if (!disposed && typeof onError === "function") onError();
+    }, { once: true });
+    img.src = url;
+    return img;
   }
   async function add(row, replace = false) { const text = styleOutput(row, outputMode(row), prefix.value); if (await insert(text, { replace })) recordInsertedTags(styleOutput(row, outputMode(row)), row.category); }
   async function copyText(text) { try { await navigator.clipboard.writeText(text); announce("Prompt copied."); } catch { announce("Clipboard unavailable. Select the displayed prompt and copy it.", true); } }
+  function patchStyleCard(el, row) {
+    cardRows.set(el, row);
+    const list = el.classList.contains("pp-style-row");
+    const outputText = styleOutput(row, outputMode(row), prefix.value);
+    const nextUrl = stylePreviewUrl(row);
+    hoverPreview.bind(el, { title: row.name, subtitle: PREVIEW_LABELS[row.previewKind] || row.category, image: nextUrl });
+    const primary = el.querySelector(".pp-style-card-add");
+    if (primary) {
+      primary.setAttribute("aria-label", `Add ${row.name} to prompt`);
+      primary.title = `Will insert: ${outputText}`;
+      const titleEl = primary.querySelector(".pp-style-title");
+      if (titleEl) {
+        titleEl.textContent = row.name;
+        titleEl.title = row.name;
+      }
+      if (loadSidebarDisplay().chrome.images && cardPreviewUrls.get(el) !== nextUrl) {
+        cardPreviewUrls.set(el, nextUrl);
+        const existingMedia = primary.querySelector(".pp-style-preview, .pp-style-no-preview");
+        const nextMedia = preview(row, false, {
+          onLoad: (w, h) => pageCollection?.notifyMediaDimensions(el, w, h),
+          onError: () => pageCollection?.notifyMediaError(el),
+        });
+        if (existingMedia) existingMedia.replaceWith(nextMedia);
+        else primary.prepend(nextMedia);
+      }
+    }
+    if (!list) {
+      const credit = el.querySelector(".pp-style-kind");
+      if (credit) {
+        credit.textContent = row.asset && row.previewKind === "reference" ? `${row.provenance?.model ? "Anima · published reference" : row.category === "artist" ? "Artist reference" : "Visual reference"}` : PREVIEW_LABELS[row.previewKind] || "No preview";
+        credit.title = [row.provenance?.title, row.provenance?.author, row.provenance?.institution].filter(Boolean).join(" · ");
+      }
+      const desc = el.querySelector(".pp-style-description");
+      if (desc) desc.textContent = row.description || (row.count == null ? "Exact catalog tag · model recognition unknown" : `${row.count.toLocaleString()} posts · model recognition unknown`);
+    }
+    const code = el.querySelector(".pp-style-output");
+    if (code) {
+      code.textContent = outputText;
+      code.title = `Will insert: ${outputText}`;
+    }
+    const pin = el.querySelector("[data-style-pin]");
+    if (pin) {
+      pin.title = `Favorite ${row.name}`;
+      pin.setAttribute("aria-label", `Favorite ${row.name}`);
+      pin.setAttribute("aria-pressed", String(!!row.favorite));
+    }
+    const compareButton = el.querySelector("[data-style-compare]");
+    if (compareButton) {
+      compareButton.setAttribute("aria-pressed", String(compare.some(r => identity(r) === identity(row))));
+    }
+  }
   function card(row, list = false) {
     const el = make("article", `pp-style-card${list ? " pp-style-row" : ""}`); el.dataset.styleTag = row.tag;
+    cardRows.set(el, row);
+    cardPreviewUrls.set(el, stylePreviewUrl(row));
     hoverPreview.bind(el, { title: row.name, subtitle: PREVIEW_LABELS[row.previewKind] || row.category, image: stylePreviewUrl(row) });
-    const primary = button("", () => add(row), "pp-style-card-add"); primary.setAttribute("aria-label", `Add ${row.name} to prompt`); primary.title = `Will insert: ${styleOutput(row, outputMode(row), prefix.value)}`;
-    if (loadSidebarDisplay().chrome.images) primary.append(preview(row));
+    const primary = button("", () => add(cardRows.get(el) || row), "pp-style-card-add"); primary.setAttribute("aria-label", `Add ${row.name} to prompt`); primary.title = `Will insert: ${styleOutput(row, outputMode(row), prefix.value)}`;
+    if (loadSidebarDisplay().chrome.images) {
+      primary.append(preview(row, false, {
+        onLoad: (w, h) => pageCollection?.notifyMediaDimensions(el, w, h),
+        onError: () => pageCollection?.notifyMediaError(el),
+      }));
+    }
     primary.append(make("strong", "pp-style-title", row.name)); primary.querySelector(".pp-style-title").title = row.name; el.append(primary);
     if (!list) {
       const credit = make("small", "pp-style-kind", row.asset && row.previewKind === "reference" ? `${row.provenance?.model ? "Anima · published reference" : row.category === "artist" ? "Artist reference" : "Visual reference"}` : PREVIEW_LABELS[row.previewKind] || "No preview"); credit.title = [row.provenance?.title, row.provenance?.author, row.provenance?.institution].filter(Boolean).join(" · "); el.append(credit);
@@ -253,21 +383,22 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
     const code = make("code", "pp-style-output", styleOutput(row, outputMode(row), prefix.value)); code.title = `Will insert: ${code.textContent}`;
     if (list) { primary.append(code); const kind = make("small", "pp-style-kind pp-sr-only", PREVIEW_LABELS[row.previewKind] || "No preview"); el.append(kind); } else el.append(code);
     const bar = make("div", "pp-sidebar-actions pp-style-card-actions");
-    const pin = button(row.favorite ? "★" : "☆", async () => { pin.disabled = true; try { await save(row, { favorite: !row.favorite }); } finally { pin.disabled = false; } }); pin.title = `Favorite ${row.name}`; pin.setAttribute("aria-label", `Favorite ${row.name}`); pin.setAttribute("aria-pressed", String(!!row.favorite));
-    const info = button(list ? "i" : "Info", () => details(row, info)); info.setAttribute("aria-label", `Details for ${row.name}`); info.dataset.styleDetails = "true";
-    const pencil = button("✎", () => edit(row, pencil)); pencil.title = `Edit preview and labels for ${row.name}`; pencil.setAttribute("aria-label", `Edit preview and labels for ${row.name}`);
-    const compareButton = button(compare.some(r => identity(r) === identity(row)) ? "✓ Lab" : "+ Lab", () => toggleCompare(row)); compareButton.title = `Compare ${row.name} in Style Lab`; compareButton.dataset.styleCompare = "true"; compareButton.setAttribute("aria-label", `Compare ${row.name}`); compareButton.setAttribute("aria-pressed", String(compare.some(r => identity(r) === identity(row))));
+    const pin = button(row.favorite ? "★" : "☆", async () => { const cur = cardRows.get(el) || row; pin.disabled = true; try { await save(cur, { favorite: !cur.favorite }); } finally { pin.disabled = false; } }); pin.dataset.stylePin = "true"; pin.title = `Favorite ${row.name}`; pin.setAttribute("aria-label", `Favorite ${row.name}`); pin.setAttribute("aria-pressed", String(!!row.favorite));
+    const info = button(list ? "i" : "Info", () => details(cardRows.get(el) || row, info)); info.setAttribute("aria-label", `Details for ${row.name}`); info.dataset.styleDetails = "true";
+    const pencil = button("✎", () => edit(cardRows.get(el) || row, pencil)); pencil.title = `Edit preview and labels for ${row.name}`; pencil.setAttribute("aria-label", `Edit preview and labels for ${row.name}`);
+    const compareButton = button(compare.some(r => identity(r) === identity(row)) ? "✓ Lab" : "+ Lab", () => toggleCompare(cardRows.get(el) || row)); compareButton.title = `Compare ${row.name} in Style Lab`; compareButton.dataset.styleCompare = "true"; compareButton.setAttribute("aria-label", `Compare ${row.name}`); compareButton.setAttribute("aria-pressed", String(compare.some(r => identity(r) === identity(row))));
     pin.innerHTML = svgIcon("pin", 14); info.innerHTML = svgIcon("eye", 14); pencil.innerHTML = svgIcon("edit", 14); compareButton.innerHTML = svgIcon("select", 14);
     bar.append(pin, info, pencil, compareButton); el.append(bar);
     el.addEventListener("contextmenu", event => {
       event.preventDefault(); event.stopPropagation(); hoverPreview.dismiss();
+      const cur = cardRows.get(el) || row;
       openCtxMenu(event.clientX, event.clientY, [
-        { label: "Insert into selected target", icon: "plus", group: "insert", onSelect: () => add(row) },
-        { label: "Copy prompt text", icon: "copy", group: "clipboard", onSelect: () => copyText(styleOutput(row, outputMode(row), prefix.value)) },
-        { label: "View details", icon: "eye", group: "explore", onSelect: () => details(row, primary) },
-        { label: compare.some(r => identity(r) === identity(row)) ? "Remove from Style Lab" : "Compare in Style Lab", icon: "select", group: "explore", onSelect: () => toggleCompare(row) },
-        { label: row.favorite ? "Remove from favorites" : "Add to favorites", icon: "pin", group: "favorite", onSelect: () => save(row, { favorite: !row.favorite }) },
-        { label: "Edit preview & labels…", icon: "edit", group: "appearance", onSelect: () => edit(row, primary) },
+        { label: "Insert into selected target", icon: "plus", group: "insert", onSelect: () => add(cur) },
+        { label: "Copy prompt text", icon: "copy", group: "clipboard", onSelect: () => copyText(styleOutput(cur, outputMode(cur), prefix.value)) },
+        { label: "View details", icon: "eye", group: "explore", onSelect: () => details(cur, primary) },
+        { label: compare.some(r => identity(r) === identity(cur)) ? "Remove from Style Lab" : "Compare in Style Lab", icon: "select", group: "explore", onSelect: () => toggleCompare(cur) },
+        { label: cur.favorite ? "Remove from favorites" : "Add to favorites", icon: "pin", group: "favorite", onSelect: () => save(cur, { favorite: !cur.favorite }) },
+        { label: "Edit preview & labels…", icon: "edit", group: "appearance", onSelect: () => edit(cur, primary) },
       ]);
 
     });
@@ -401,7 +532,7 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
     intro.querySelector("h3").textContent = ({ "builtin:anima": "The Anima collection", "booru": "Discover artists", "tags": "A visual vocabulary", "builtin:classic": "The masters, up close", "favorites": "Your favorite finds", "previews": "Your own inspiration" })[id] || "Find your next look";
     onViewChanged(displayKey());
     if (!preserve) { editSerial++; inspector.hidden = lab.hidden = true; browse.hidden = false; search.value = ""; min.value = "0"; facetInput.value = ""; support.value = ""; for (const field of facetSelects.values()) field.value = ""; }
-    rows = []; matches = []; catalog = null; virtual.clear(); pageCollection = null; cards.replaceChildren(); count.textContent = "Reading local collection…"; indexes.disabled = true; artistPicker.disabled = true; previous.disabled = next.disabled = surpriseButton.disabled = true; pageLabel.textContent = ""; pages.hidden = true;
+    rows = []; matches = []; catalog = null; resetMountedCollection(); cards.replaceChildren(); count.textContent = "Reading local collection…"; indexes.disabled = true; artistPicker.disabled = true; surpriseButton.disabled = true;
     try {
       let data;
       if (id === "custom") { const words = await loadCustomWords(), grouped = new Map(); for (const word of words) { const entry = grouped.get(word.value) || { tag: word.value, name: word.value, kind: word.category === "artist" ? "artist" : "tag", category: word.category === "artist" ? "artist" : "general", insertKind: "custom", count: word.count || null, tags: [], aliases: [], description: "Imported custom word · literal value", thumbnail: "" }; if (word.text !== word.value) entry.aliases.push(word.text); grouped.set(word.value, entry); } data = { name: "My CSV / custom words", description: "Your existing local custom-word imports. Exact stored values remain literal.", source: "Existing Custom Words sources", entries: [...grouped.values()] }; }
@@ -416,8 +547,8 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
       source.textContent = `${data.description || ""} Source: ${data.source || "Local collection"}`;
       view = id === "builtin:classic" ? "classic" : id === "builtin:anima" ? "anima" : id === "booru" ? "artists" : id === "tags" ? "tags" : id === "favorites" ? "favorites" : id === "previews" ? "previews" : "styles";
       loaded = true; loading = false;
-      if (!preserve) page = 0; updateFacetOptions(); persist(); render(); onViewChanged(displayKey());
-    } catch (error) { if (!disposed && request === version) { loaded = false; catalog = null; rows = []; matches = []; virtual.clear(); cards.replaceChildren(); count.textContent = "Could not read this collection. Reload local data to retry."; announce(error.message, true); } }
+      updateFacetOptions(); persist(); render(); onViewChanged(displayKey());
+    } catch (error) { if (!disposed && request === version) { loaded = false; catalog = null; rows = []; matches = []; resetMountedCollection(); cards.replaceChildren(); count.textContent = "Could not read this collection. Reload local data to retry."; announce(error.message, true); } }
     finally { if (!disposed && request === version) { loading = false; host.setAttribute("aria-busy", "false"); indexes.disabled = false; artistPicker.disabled = false; } }
   }
   async function refreshIndexes(preferred) {
@@ -434,8 +565,8 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
   }
   importInput.addEventListener("change", async () => { const file = importInput.files?.[0]; importInput.value = ""; if (!file) return; try { if (file.size > 32 * 1024 * 1024) throw new Error("Choose a JSON index under 32 MB."); const data = JSON.parse(await file.text()); const result = await API.importStyleIndex(Array.isArray(data) ? { name: file.name.replace(/\.json$/i, ""), entries: data } : data); if (!disposed) { await refreshIndexes(result.id); announce("Index imported locally. Existing defaults and user data were kept."); } } catch (error) { if (!disposed) announce(error.message, true); } });
   indexes.addEventListener("change", () => load(indexes.value));
-  for (const input of [search, facetInput, min]) input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { page = 0; render(); }, 120); });
-  for (const field of [sort, support]) field.addEventListener("change", () => { page = 0; render(); });
+  for (const input of [search, facetInput, min]) input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { render(); }, 120); });
+  for (const field of [sort, support]) field.addEventListener("change", () => { render(); });
   for (const field of [format, prefix]) field.addEventListener(field === prefix ? "input" : "change", () => { persist(); paintPage(); });
   host.addEventListener("keydown", onKey);
   function onKey(event) {
@@ -445,5 +576,5 @@ export function createStyleExplorer(host, { insert, announce, presentation, hove
   }
   refreshVisibility();
   updateLabButton();
-  return { async activate() { if (disposed || loading) return; if (!loaded) await refreshIndexes(indexId); else paintPage(); }, displayKey, isBrowsing: () => !browse.hidden, refreshVisibility, refreshAppearance() { if (loaded && !browse.hidden) paintPage({ layoutOnly: true }); }, cleanup() { disposed = true; version++; editSerial++; clearTimeout(timer); cancelAnimationFrame(resizeFrame); resizeObserver.disconnect(); virtual.cleanup(); host.removeEventListener("keydown", onKey); } };
+  return { async activate() { if (disposed || loading) return; if (!loaded) await refreshIndexes(indexId); else paintPage(); }, displayKey, isBrowsing: () => !browse.hidden, refreshVisibility, refreshAppearance() { if (loaded && !browse.hidden) paintPage({ layoutOnly: true }); }, cleanup() { disposed = true; version++; editSerial++; clearTimeout(timer); cancelAnimationFrame(resizeFrame); resizeObserver.disconnect(); virtual.cleanup(); pageCollection = null; presentation.release(cards); host.removeEventListener("keydown", onKey); } };
 }

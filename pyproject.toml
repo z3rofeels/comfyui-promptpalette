@@ -1,6 +1,6 @@
 [project]
 name = "zf-prompt-palette"
-version = "2.0.9"
+version = "2.1.0"
 description = "Prompt editing for ComfyUI with wildcard libraries, Fields, Keep & Evolve refinement, local generation history and image/prompt comparison, LoRA browsing and strength trials, offline tag autocomplete, combinatorial batches, and model-aware weighting."
 readme = "README.md"
 requires-python = ">=3.10"

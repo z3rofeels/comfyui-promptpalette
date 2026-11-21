@@ -13,6 +13,11 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 
+if __package__:
+    from .lora_previews import read_image_dimensions
+else:
+    from lora_previews import read_image_dimensions
+
 BUNDLE = Path(__file__).resolve().parent / "assets" / "styles"
 MAX_INDEX_BYTES = 32 * 1024 * 1024
 _lock = threading.RLock()
@@ -67,6 +72,13 @@ def _thumbnail(value):
 FACETS = ("medium", "treatment", "design", "color", "mood", "subject", "discipline")
 CATEGORIES = ("artist", "general", "character", "copyright", "meta")
 ASSETS = Path(__file__).resolve().parent / "web" / "assets" / "styles"
+
+
+@lru_cache(maxsize=512)
+def _asset_dimensions(asset):
+    if not asset or asset.endswith(".svg"):
+        return None
+    return read_image_dimensions(ASSETS / asset)
 
 
 def _provenance(data, kind, thumbnail, tag, bundled_reference=False):
@@ -145,14 +157,18 @@ def normalize_index(data, trusted=False):
         provenance = _provenance(row.get("provenance", {}), kind, thumbnail, tag, bundled_reference=trusted and bool(asset))
         if asset:
             provenance["imageSha256"] = hashlib.sha256((ASSETS / asset).read_bytes()).hexdigest()
-        result.append({"id": entry_id, "kind": "curated_style" if row.get("kind") == "curated_style" else "artist" if category == "artist" else "tag",
-                       "tag": tag, "name": _text(row.get("name", tag), 300), "category": category,
-                       "count": count, "tags": _words(row.get("tags", [])), "aliases": _words(row.get("aliases", [])),
-                       "facets": {key: _words(facets[key]) for key in FACETS if facets.get(key)},
-                       "insertion": {key: _text(insertion[key], 2000) for key in ("tags", "natural") if insertion.get(key)},
-                       "compatibility": "Technique vocabulary · checkpoint support unknown" if row.get("kind") == "curated_style" else "Artist / tag support unknown",
-                       "description": _text(row.get("description", ""), 2000), "thumbnail": thumbnail,
-                       "asset": asset, "previewKind": kind, "provenance": provenance})
+        dims = _asset_dimensions(asset) if asset else None
+        entry = {"id": entry_id, "kind": "curated_style" if row.get("kind") == "curated_style" else "artist" if category == "artist" else "tag",
+                 "tag": tag, "name": _text(row.get("name", tag), 300), "category": category,
+                 "count": count, "tags": _words(row.get("tags", [])), "aliases": _words(row.get("aliases", [])),
+                 "facets": {key: _words(facets[key]) for key in FACETS if facets.get(key)},
+                 "insertion": {key: _text(insertion[key], 2000) for key in ("tags", "natural") if insertion.get(key)},
+                 "compatibility": "Technique vocabulary · checkpoint support unknown" if row.get("kind") == "curated_style" else "Artist / tag support unknown",
+                 "description": _text(row.get("description", ""), 2000), "thumbnail": thumbnail,
+                 "asset": asset, "previewKind": kind, "provenance": provenance}
+        if dims:
+            entry["width"], entry["height"] = dims
+        result.append(entry)
     return {"version": 2, "name": _text(data.get("name", "Imported styles"), 120),
             "description": _text(data.get("description", ""), 2000),
             "source": _text(data.get("source", "User supplied local index"), 1000), "entries": result}
@@ -196,7 +212,9 @@ def _booru_index(path, mtime, artists):
     for entry in entries:
         reference = previews.get(entry["tag"].replace("_", " ").casefold())
         if reference:
-            entry.update({key: reference[key] for key in ("asset", "previewKind", "provenance", "description")})
+            for key in ("asset", "previewKind", "provenance", "description", "width", "height"):
+                if key in reference:
+                    entry[key] = reference[key]
     return {"version": 2, "name": "Artists · local Booru directory" if artists else "Tags · local Booru directory",
             "description": "Literal tags from the existing local Booru database. Frequency is not model support. Artists without evidence have no inferred style labels or previews.",
             "source": "Existing bundled Danbooru CSV · PYU224/tagdb-updater", "entries": entries}
@@ -440,6 +458,8 @@ def personal_collection(mode):
             if "thumbnail" in item:
                 row["asset"] = ""
                 row["previewKind"] = item.get("previewKind", "user" if item["thumbnail"] else "none")
+                row.pop("width", None)
+                row.pop("height", None)
             if index_id == "custom":
                 row["insertKind"] = "custom"
             entries.append(row)

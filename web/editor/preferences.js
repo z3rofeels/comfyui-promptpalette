@@ -28,6 +28,14 @@ function buildNormalizedTheme(saved) {
   theme.booruAutocompleteMinChars = Math.max(1, Math.min(12, Math.round(Number(theme.booruAutocompleteMinChars) || 2)));
   theme.booruAutocompleteEnabled = theme.booruAutocompleteMode !== "off" && booruWanted;
   if (!theme.booruAutocompleteEnabled) theme.booruAutocompleteMode = "off";
+  // Style Selector Studio and Style Autocomplete are opt-in (strictly off by default).
+  theme.styleSelectorEnabled = theme.styleSelectorEnabled === true;
+  const styleWanted = theme.styleAutocompleteEnabled === true;
+  if (!["auto", "onDemand", "off"].includes(theme.styleAutocompleteMode)) theme.styleAutocompleteMode = styleWanted ? "auto" : "off";
+  theme.styleAutocompleteEnabled = theme.styleAutocompleteMode !== "off" && styleWanted;
+  if (!theme.styleAutocompleteEnabled) theme.styleAutocompleteMode = "off";
+  if (!["auto", "both", "krea2", "moss"].includes(theme.styleModelFilter)) theme.styleModelFilter = "auto";
+  if (!["caption", "tags", "layout"].includes(theme.styleMossDialect)) theme.styleMossDialect = "caption";
   theme.autocompleteRecentLimit = Math.max(5, Math.min(10, Math.round(Number(theme.autocompleteRecentLimit) || 5)));
   Object.assign(theme, normalizeFieldEditorPreferences(clean));
   return theme;
@@ -119,6 +127,11 @@ function defaultTheme() {
     booruSourceDatabase: true,
     booruSourceCustomWords: true,
     booruPromptColors: true,
+    styleSelectorEnabled: false,
+    styleAutocompleteEnabled: false,
+    styleAutocompleteMode: "off",
+    styleModelFilter: "auto",
+    styleMossDialect: "caption",
     animaArtistFormatting: false,
     showPositiveAntonymsBtn: false,
     ...FIELD_EDITOR_DEFAULTS,
@@ -196,6 +209,7 @@ function saveLibraryDensity(value) {
 
 // One sidebar display preference across library, style and tag collections.
 const SIDEBAR_DISPLAY_KEY = "sidebarDisplayV1";
+const SIDEBAR_DISPLAY_ASPECTS = ["natural", "square", "portrait", "tall", "landscape", "wide"];
 export function loadSidebarDisplay() {
   const saved = readEditorPreference(SIDEBAR_DISPLAY_KEY, {}) || {};
   const old = readEditorPreference("prompt_palette_style_explorer_v1", {}) || {};
@@ -212,11 +226,12 @@ export function loadSidebarDisplay() {
     artists: saved.chrome?.artists !== false, tags: saved.chrome?.tags !== false,
     favorites: saved.chrome?.favorites !== false, previews: saved.chrome?.previews !== false,
     custom: saved.chrome?.custom !== false, fit: saved.chrome?.fit === "contain" ? "contain" : "cover" };
-  return { version: 1, chrome, aspect: ["square", "portrait", "tall", "landscape", "wide"].includes(saved.aspect) ? saved.aspect : "square", scale: Math.max(.1, Math.min(2, Number(saved.scale) || .9)), layouts };
+  return { version: 1, chrome, aspect: SIDEBAR_DISPLAY_ASPECTS.includes(saved.aspect) ? saved.aspect : "square", scale: Math.max(.1, Math.min(2, Number(saved.scale) || .9)), layouts };
 }
 export function saveSidebarDisplay(changes = {}) {
   const current = loadSidebarDisplay();
   const next = { ...current, ...changes, layouts: { ...current.layouts, ...changes.layouts }, chrome: { ...current.chrome, ...changes.chrome } };
+  next.aspect = SIDEBAR_DISPLAY_ASPECTS.includes(next.aspect) ? next.aspect : "square";
   next.scale = Math.max(.1, Math.min(2, Number(next.scale) || .9));
   for (const key of Object.keys(next.layouts)) if (!["gallery", "list", "masonry", "filmstrip"].includes(next.layouts[key])) next.layouts[key] = current.layouts[key] || "list";
   writeEditorPreference(SIDEBAR_DISPLAY_KEY, next); return next;

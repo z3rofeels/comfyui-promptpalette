@@ -8,6 +8,7 @@ import { closeAcMenu } from "./autocomplete.js";
 import { editorOffsetAtPoint } from "./editor_hover.js";
 import { notify } from "./notifications.js";
 import { openPromptTools, closePromptToolsFor, canBuildPromptRules } from "./prompt_tools_panel.js";
+import { loadTheme } from "./preferences.js";
 
 let ctxMenu = null;
 let ctxMenuOpen = false;
@@ -307,6 +308,11 @@ export function attachEditorContextMenu(editor, {
       for (const [mode, label] of [["seeded", "Seeded strength choice"], ["cycle", "Cycle strengths · next each run"], ["previous", "Cycle strengths · previous each run"], ["random", "Random strengths each run"], ["batch", "Test all strengths · Combinatorial"]]) actions.push(action(label, () => replace(expression, loraModeExpression(expression, mode)), { group: "lora-vary", icon: "branch" }));
     }
     actions.push(action("Inspect prompt\u2026", () => openPromptTools(editor, { tab: "inspect" }), { icon: "doctor", group: "tools" }));
+    if (loadTheme().styleSelectorEnabled === true) {
+      actions.push(action("Open Style Studio\u2026", () => {
+        import("./style_selector.js").then(({ openStyleSelector }) => openStyleSelector(editor));
+      }, { icon: "palette", group: "tools" }));
+    }
     const groupOrder = lora ? ["lora", "lora-strength", "lora-vary", "edit", "selection", "source", "tools"] : ["edit", "selection", "source", "tools"];
     actions.sort((a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group));
     openCtxMenu(event.clientX, event.clientY, actions);

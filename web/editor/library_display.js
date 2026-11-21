@@ -1,6 +1,15 @@
 import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary, svgIcon } from "../prompt_palette_shared.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { observePanelAnchor } from "./performance_runtime.js";
+import { PresentationScope } from "./sidebar_presentation.js";
+
+function createDisplayScope(root, attrs) {
+  const doc = root?.ownerDocument || globalThis.document;
+  if (typeof CSSStyleSheet === "function" && doc && "adoptedStyleSheets" in doc) {
+    return new PresentationScope(root, attrs);
+  }
+  return null;
+}
 
 const LIBRARY_VIEWS = { list: "List", grid: "Gallery", tiles: "Tiles", contact: "Contact sheet", masonry: "Masonry", filmstrip: "Filmstrip / detail" };
 
@@ -33,6 +42,7 @@ export function bindLibraryViewControls(drawer, { getView, setView }) {
 }
 
 export const RATIOS = {
+  natural: ["Natural", null],
   square: ["1:1", 1],
   portrait: ["3:4", 3 / 4],
   tall: ["2:3", 2 / 3],
@@ -319,7 +329,7 @@ export function libraryScrollbarMarkup(id = "personal") {
   </div>`;
 }
 
-export function bindLibraryScrollbar(scrollEl, barEl) {
+export function bindLibraryScrollbar(scrollEl, barEl, sharedScope = null) {
   if (!scrollEl || !barEl) return { refresh() {}, cleanup() {} };
   scrollEl.classList.add("has-custom-scrollbar");
   const findInBar = (sel) => barEl.querySelector?.(sel) || barEl.parentElement?.querySelector?.(sel);
@@ -327,6 +337,17 @@ export function bindLibraryScrollbar(scrollEl, barEl) {
   const downBtn = findInBar('[data-lib-scroll-step="1"]');
   const track = findInBar("[data-lib-scroll-track]");
   const thumb = findInBar("[data-lib-scroll-thumb]");
+  const useSharedScope = Boolean(sharedScope && sharedScope.root?.contains?.(barEl) && (!thumb || sharedScope.root?.contains?.(thumb)));
+  const ownedScope = useSharedScope ? null : createDisplayScope(barEl, { scopeAttr: "data-pp-sb-scope", layoutAttr: "data-pp-sb-layout" });
+  const scope = useSharedScope ? sharedScope : ownedScope;
+  const setStyles = (target, props) => {
+    if (!target) return;
+    if (scope) {
+      scope.set(target, props);
+      return;
+    }
+    for (const [key, value] of Object.entries(props)) target.style[key] = String(value);
+  };
   const cleanups = [];
   const on = (el, evt, fn, opts) => {
     if (!el?.addEventListener) return;
@@ -337,9 +358,11 @@ export function bindLibraryScrollbar(scrollEl, barEl) {
   function refresh() {
     if (!scrollEl || !barEl) return;
     if (scrollEl.offsetHeight > 0) {
-      barEl.style.top = `${scrollEl.offsetTop}px`;
-      barEl.style.height = `${scrollEl.offsetHeight}px`;
-      barEl.style.bottom = "auto";
+      setStyles(barEl, {
+        top: `${scrollEl.offsetTop}px`,
+        height: `${scrollEl.offsetHeight}px`,
+        bottom: "auto",
+      });
     }
     const scrollHeight = Math.max(0, Number(scrollEl.scrollHeight) || 0);
     const clientHeight = Math.max(0, Number(scrollEl.clientHeight) || 0);
@@ -352,8 +375,7 @@ export function bindLibraryScrollbar(scrollEl, barEl) {
     if (downBtn) downBtn.disabled = !canScroll || curScroll >= maxScroll - 1;
     if (!thumb) return;
     if (!canScroll) {
-      thumb.style.height = "100%";
-      thumb.style.transform = "translateY(0px)";
+      setStyles(thumb, { height: "100%", transform: "translateY(0px)" });
       thumb.dataset.progress = "0";
       return;
     }
@@ -363,8 +385,7 @@ export function bindLibraryScrollbar(scrollEl, barEl) {
     const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
     const progress = maxScroll > 0 ? curScroll / maxScroll : 0;
     const thumbTop = Math.round(progress * maxThumbTop);
-    thumb.style.height = `${thumbHeight}px`;
-    thumb.style.transform = `translateY(${thumbTop}px)`;
+    setStyles(thumb, { height: `${thumbHeight}px`, transform: `translateY(${thumbTop}px)` });
     thumb.dataset.progress = String(Math.round(progress * 100));
   }
 
@@ -510,6 +531,12 @@ export function bindLibraryScrollbar(scrollEl, barEl) {
       ro?.disconnect();
       mo?.disconnect();
       cleanups.forEach((fn) => fn());
+      if (useSharedScope) {
+        sharedScope.release(barEl);
+        if (thumb) sharedScope.release(thumb);
+      } else {
+        ownedScope?.cleanup();
+      }
     },
   };
 }
@@ -538,9 +565,10 @@ export function libraryDisplayMarkup() {
         <div class="wg-lib-size-row">
           <label class="wg-library-size"><span>Size</span><input type="range" min="64" max="320" step="1" data-library-size aria-label="Library thumbnail size" title="Drag to resize cards · Double-click to reset"><output data-library-size-value></output></label>
           <button type="button" class="wg-library-fit" data-library-fit aria-pressed="false" title="Fit shows the whole image; Fill crops to the frame">Fit</button>
-          <select data-library-aspect aria-label="Thumbnail aspect ratio" hidden tabindex="-1"><option value="square">1:1</option><option value="portrait">3:4</option><option value="tall">2:3</option><option value="landscape">4:3</option><option value="wide">16:9</option></select>
+          <select data-library-aspect aria-label="Thumbnail aspect ratio" hidden tabindex="-1"><option value="natural">Natural</option><option value="square">1:1</option><option value="portrait">3:4</option><option value="tall">2:3</option><option value="landscape">4:3</option><option value="wide">16:9</option></select>
         </div>
         <div class="wg-lib-aspect-pills" role="group" aria-label="Visual aspect ratio presets">
+          <button type="button" class="wg-lib-aspect-pill" data-library-aspect-pill="natural" title="Use each thumbnail's natural aspect ratio"><i class="wg-ratio-box wg-ratio-box--natural"></i><span>Natural</span></button>
           <button type="button" class="wg-lib-aspect-pill" data-library-aspect-pill="square" title="Square (1:1)"><i class="wg-ratio-box wg-ratio-box--square"></i><span>1:1</span></button>
           <button type="button" class="wg-lib-aspect-pill" data-library-aspect-pill="portrait" title="Portrait (3:4)"><i class="wg-ratio-box wg-ratio-box--portrait"></i><span>3:4</span></button>
           <button type="button" class="wg-lib-aspect-pill" data-library-aspect-pill="tall" title="Tall Portrait (2:3)"><i class="wg-ratio-box wg-ratio-box--tall"></i><span>2:3</span></button>
@@ -657,6 +685,7 @@ export function libraryVirtualLayout(drawer) {
     ? () => tileHeight + 2 + gap
     : width => (width - 2) / ratio + (view === "contact" ? 0 : captionHeight) + 2 + gap;
   return { minCardWidth: size, imageAspectRatio: ratio,
+    estimateChromeHeight: view === "contact" ? 4 : captionHeight + 4,
     fixedCardWidth: view === "tiles" || view === "contact" ? false : drawer.dataset.cardStretch !== "true",
     columnCount: view === "tiles" ? 1 : null,
     estimateCardHeight: cardHeightForWidth(size), cardHeightForWidth, inlinePadding: 0, gap };
@@ -670,6 +699,13 @@ export function libraryThumbnailMarkup(url, isRecipe = false) {
 export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
   const state = readLibraryDisplayState();
   drawer.__ppLibraryDisplayState = state;
+  const displayScope = createDisplayScope(drawer, {
+    scopeAttr: "data-pp-display-scope",
+    layoutAttr: "data-pp-display-layout",
+    portalAttr: "data-pp-display-portal-layout",
+    portalScopeAttr: "data-pp-display-portal",
+    entryToneAttr: "data-pp-display-entry-tone",
+  });
   const onOrganizeChange = typeof options?.onOrganizeChange === "function" ? options.onOrganizeChange : null;
 
   const size = drawer.querySelector("[data-library-size]");
@@ -709,7 +745,7 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     const scrollEl = drawer.querySelector(scrollSel);
     const barEl = drawer.querySelector(`[data-lib-scrollbar="${barId}"]`);
     if (scrollEl && barEl) {
-      scrollbarBindings.push(bindLibraryScrollbar(scrollEl, barEl));
+      scrollbarBindings.push(bindLibraryScrollbar(scrollEl, barEl, displayScope));
     }
   }
   const refreshScrollbars = () => {
@@ -751,6 +787,12 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     if (markup !== sectionsMarkup) { secListEl.innerHTML = markup; sectionsMarkup = markup; }
   }
 
+  const styledCategoryChips = new Set();
+  function releaseCategoryChips() {
+    if (!styledCategoryChips.size) return;
+    for (const chip of styledCategoryChips) displayScope?.release(chip);
+    styledCategoryChips.clear();
+  }
   function renderCategoryChips() {
     if (!catChipsEl) return;
     const hiddenSet = new Set(state.hiddenCats || []);
@@ -759,19 +801,39 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
       showAllCatsBtn.textContent = `Show All (${hiddenSet.size} hidden)`;
     }
     if (!knownCategories.length) {
-      if (categoriesMarkup !== "") catChipsEl.innerHTML = `<span class="wg-lib-cust-empty">No folders loaded</span>`;
+      if (categoriesMarkup !== "") {
+        releaseCategoryChips();
+        catChipsEl.innerHTML = `<span class="wg-lib-cust-empty">No folders loaded</span>`;
+      }
       categoriesMarkup = "";
       return;
     }
+    const colorsByCat = [];
     const markup = knownCategories.map((cat) => {
       const isHidden = hiddenSet.has(cat);
       const color = typeof categoryColorFn === "function" ? categoryColorFn(cat) : "";
-      return `<button type="button" class="wg-lib-cat-chip${isHidden ? " is-hidden" : " active"}" data-lib-cat-toggle="${escHtml(cat)}" aria-pressed="${String(!isHidden)}" title="${isHidden ? `Show "${cat}" folder` : `Hide "${cat}" folder`}" style="${color ? `--cat-chip-color:${escHtml(color)};` : ""}">
+      colorsByCat.push(color);
+      return `<button type="button" class="wg-lib-cat-chip${isHidden ? " is-hidden" : " active"}" data-lib-cat-toggle="${escHtml(cat)}" aria-pressed="${String(!isHidden)}" title="${isHidden ? `Show "${cat}" folder` : `Hide "${cat}" folder`}">
         <span class="wg-lib-cat-chip-dot" aria-hidden="true"></span>
         <span class="wg-lib-cat-chip-label">${escHtml(cat)}</span>
       </button>`;
     }).join("");
-    if (markup !== categoriesMarkup) { catChipsEl.innerHTML = markup; categoriesMarkup = markup; }
+    if (markup !== categoriesMarkup) {
+      releaseCategoryChips();
+      catChipsEl.innerHTML = markup;
+      categoriesMarkup = markup;
+      const chips = catChipsEl.querySelectorAll(".wg-lib-cat-chip");
+      chips.forEach((chip, index) => {
+        const color = colorsByCat[index];
+        if (!color) return;
+        if (displayScope) {
+          displayScope.set(chip, { "--cat-chip-color": color });
+          styledCategoryChips.add(chip);
+        } else {
+          chip.style.setProperty("--cat-chip-color", color);
+        }
+      });
+    }
   }
 
   function notifyOrganizeChange() {
@@ -791,10 +853,6 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     drawer.__ppLibraryDisplayState = state;
     drawer.classList.add("wg-library-display-scope");
     drawer.dataset.librarySpacing = state.spacing;
-    drawer.style.setProperty("--wg-library-image-position", state.imagePosition);
-    drawer.style.setProperty("--wg-library-gap", state.spacing === "auto" ? "var(--wg-library-view-gap, 8px)" : `${({ tight: 2, normal: 8, airy: 12 })[state.spacing]}px`);
-    // CSS twin of libraryTileHeight(); stays live when --wg-ui-font-scale changes.
-    drawer.style.setProperty("--wg-tile-height", `max(calc(64px * var(--wg-ui-font-scale, 1)), calc(min(${effectiveSize}px, 120px * var(--wg-ui-font-scale, 1)) + max(0px, ${effectiveSize}px - 120px * var(--wg-ui-font-scale, 1)) * 0.3))`);
     drawer.dataset.cardSize = String(effectiveSize);
     drawer.dataset.cardAspect = state.aspect;
     drawer.dataset.cardFit = state.fit;
@@ -802,13 +860,24 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     drawer.dataset.cardStretch = String(Boolean(state.cardStretch));
     drawer.dataset.listThumbs = String(state.listThumbs !== false);
     drawer.dataset.showCounts = String(state.showCounts !== false);
-    drawer.style.setProperty("--wg-personal-thumb-min", `${effectiveSize}px`);
-    drawer.style.setProperty("--wg-library-image-ratio", String(ratioNum));
-    drawer.style.setProperty("--wg-library-image-height", `${imageHeight}px`);
-    drawer.style.setProperty("--wg-library-image-fit", state.fit);
-    drawer.style.setProperty("--wg-starter-thumb", `${Math.round(effectiveSize * 0.56)}px`);
-    drawer.style.setProperty("--wg-starter-card-height", `${Math.round(effectiveSize * 0.56)}px`);
-    drawer.style.setProperty("--wg-starter-card-min", `${Math.max(138, effectiveSize + 56)}px`);
+    // CSS twin of libraryTileHeight(); stays live when --wg-ui-font-scale changes.
+    const drawerVars = {
+      "--wg-library-image-position": state.imagePosition,
+      "--wg-library-gap": state.spacing === "auto" ? "var(--wg-library-view-gap, 8px)" : `${({ tight: 2, normal: 8, airy: 12 })[state.spacing]}px`,
+      "--wg-tile-height": `max(calc(64px * var(--wg-ui-font-scale, 1)), calc(min(${effectiveSize}px, 120px * var(--wg-ui-font-scale, 1)) + max(0px, ${effectiveSize}px - 120px * var(--wg-ui-font-scale, 1)) * 0.3))`,
+      "--wg-personal-thumb-min": `${effectiveSize}px`,
+      "--wg-library-image-ratio": String(ratioNum),
+      "--wg-library-image-height": `${imageHeight}px`,
+      "--wg-library-image-fit": state.fit,
+      "--wg-starter-thumb": `${Math.round(effectiveSize * 0.56)}px`,
+      "--wg-starter-card-height": `${Math.round(effectiveSize * 0.56)}px`,
+      "--wg-starter-card-min": `${Math.max(138, effectiveSize + 56)}px`,
+    };
+    if (displayScope) {
+      displayScope.set(drawer, drawerVars);
+    } else {
+      for (const [prop, val] of Object.entries(drawerVars)) drawer.style.setProperty(prop, val);
+    }
     if (size) {
       size.max = String(availableMax);
       size.value = effectiveSize;
@@ -948,10 +1017,18 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
   });
   listen(drawer, "error", event => {
     const image = event.target;
-    if (!image.matches?.('.wg-thumb-media > .wg-thumb-img')) return;
-    image.closest(".wg-thumb-item")?.classList.remove("has-thumb");
-    image.hidden = true; const fallback = image.parentElement.querySelector('.wg-thumb-fallback');
-    if (fallback) fallback.hidden = false;
+    if (image.matches?.('.wg-thumb-media > .wg-thumb-img')) {
+      image.closest(".wg-thumb-item")?.classList.remove("has-thumb");
+      image.hidden = true;
+      const fallback = image.parentElement?.querySelector?.('.wg-thumb-fallback');
+      if (fallback) fallback.hidden = false;
+      return;
+    }
+    if (image.matches?.('.wg-item-thumb-wrap > .wg-item-thumb')) {
+      image.hidden = true;
+      if (image.parentElement) image.parentElement.hidden = true;
+      image.closest(".wg-item")?.classList.remove("has-list-thumb");
+    }
   }, true);
 
   listen(size, "input", () => {
@@ -1016,8 +1093,11 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
 
   function syncSidecarTheme() {
     if (!sidecar) return;
+    if (displayScope) {
+      displayScope.syncPortalTheme(sidecar);
+    }
     const scope = drawer.closest?.(".wg-node, .pp-node, .ppwc-surface") || drawer;
-    copyPromptPaletteThemeScope(scope, sidecar);
+    copyPromptPaletteThemeScope(scope, sidecar, displayScope?.declaration(sidecar, { portal: true }) || sidecar.style);
     for (const cls of ["wg-high-contrast", "wg-reduce-motion", "wg-no-animations", "wg-disable-animations", "wg-large-text"]) {
       sidecar.classList.toggle(cls, scope.classList?.contains(cls) === true);
     }
@@ -1121,7 +1201,8 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     const vw = globalThis.innerWidth || document.documentElement.clientWidth;
     const vh = globalThis.innerHeight || document.documentElement.clientHeight;
     const width = Math.min(panelSize.width, Math.max(1, vw - SIDECAR_MARGIN * 2));
-    if (sidecar.style.width !== `${width}px`) sidecar.style.width = `${width}px`;
+    const sidecarDecl = displayScope?.declaration(sidecar, { portal: true }) || sidecar.style;
+    if (sidecarDecl.getPropertyValue("width") !== `${width}px`) sidecarDecl.setProperty("width", `${width}px`);
     const contentHeight = fitSettingsHeight
       ? Math.max(220, customizePanel.scrollHeight + sidecar.querySelector(".wg-library-sidecar-head").offsetHeight + sidecar.querySelector(".wg-library-sidecar-foot").offsetHeight + 2)
       : panelSize.height;
@@ -1129,13 +1210,18 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
     const key = [rect.left, rect.top, rect.width, rect.height, vw, vh, width, height, floatingPosition?.left, floatingPosition?.top].join();
     if (key === sidecarPlacement) return;
     sidecarPlacement = key;
-    sidecar.style.visibility = floatingPosition || (rect.right > 0 && rect.left < vw && rect.bottom > 0 && rect.top < vh) ? "" : "hidden";
+    const visible = floatingPosition || (rect.right > 0 && rect.left < vw && rect.bottom > 0 && rect.top < vh);
+    if (visible) sidecarDecl.removeProperty("visibility");
+    else sidecarDecl.setProperty("visibility", "hidden");
     let left = rect.left - SIDECAR_GAP - width;
     if (left < SIDECAR_MARGIN) left = rect.right + SIDECAR_GAP + width <= vw - SIDECAR_MARGIN ? rect.right + SIDECAR_GAP : rect.left + SIDECAR_GAP;
     left = Math.max(SIDECAR_MARGIN, Math.min(floatingPosition?.left ?? left, vw - width - SIDECAR_MARGIN));
     const top = Math.max(SIDECAR_MARGIN, Math.min(floatingPosition?.top ?? rect.top, vh - height - SIDECAR_MARGIN));
     if (floatingPosition) floatingPosition = { left, top };
-    Object.assign(sidecar.style, { left: `${Math.round(left)}px`, top: `${Math.round(top)}px`, width: `${width}px`, height: `${height}px` });
+    sidecarDecl.setProperty("left", `${Math.round(left)}px`);
+    sidecarDecl.setProperty("top", `${Math.round(top)}px`);
+    sidecarDecl.setProperty("width", `${width}px`);
+    sidecarDecl.setProperty("height", `${height}px`);
     sidecar.querySelector("[data-lib-sidecar-follow]").setAttribute("aria-pressed", String(!floatingPosition));
   }
 
@@ -1464,6 +1550,8 @@ export function bindLibraryDisplay(drawer, onChange = () => {}, options = {}) {
       }
       if (resetFlashTimer !== null && typeof clearTimeout === "function") clearTimeout(resetFlashTimer);
       if (customizePanel) hideSidecar();
+      releaseCategoryChips();
+      displayScope?.cleanup();
       listeners.forEach((remove) => remove());
       sidecar?.remove();
       sidecar = null;

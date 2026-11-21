@@ -22,7 +22,7 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
     if (!highlighter.render(result.decorations, editor.value)) overlay.innerHTML = result.html + "\n";
   }
   const change = () => { onChange(editor.value); paint(); };
-  const acCleanup = attachAutocomplete(editor, { getMatches, onCommit, syntax: true });
+  const acCleanup = attachAutocomplete(editor, { getMatches, onCommit, syntax: true, node });
   const focus = () => { if (injectState?.textarea !== editor) closeInjectMenu(); onFocus?.(editor); paint(); };
   const scroll = () => { overlay.scrollTop = editor.scrollTop; overlay.scrollLeft = editor.scrollLeft; };
   const blur = () => { if (injectState?.textarea === editor) closeInjectMenu(); };

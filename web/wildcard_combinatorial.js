@@ -1,4 +1,5 @@
 import { installLoraSidecar } from "./editor/lora_sidecar.js";
+import { installStyleSelector } from "./editor/style_selector.js";
 import { installWorkspaceConfigureHook } from "./editor/workspace_generation.js";
 import { bindPromptQueueSync } from "./prompt_palette_compat.js";
 import { addSeedHistory } from "./editor/seed_fortune.js";
@@ -6,6 +7,7 @@ import { mountLibraryFeatures } from "./editor/library_features.js";
 import { reviewHistoryRestore, applyHistoryText, historyTargetEditor, installHistoryRefinement } from "./editor/history_restore.js";
 import "./editor/styles.js";
 import { VirtualCollectionManager } from "./library/virtual_collection.js";
+import { PresentationScope } from "./editor/sidebar_presentation.js";
 import { libraryVirtualLayout } from "./editor/library_display.js";
 import { bindLibraryResize } from "./editor/library_resize.js";
 import {
@@ -228,11 +230,29 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const pickerDrawer = root.querySelector('[data-drawer="picker"]');
   const searchInput = el("search");
   const pickerList = el("pickerList");
+  const pickerDoc = pickerList?.ownerDocument || globalThis.document;
+  const listScope = typeof CSSStyleSheet === "function" && pickerDoc && "adoptedStyleSheets" in pickerDoc
+    ? new PresentationScope(pickerList, { scopeAttr: "data-pp-lib-scope", layoutAttr: "data-pp-lib-layout" })
+    : null;
+  const staticStyledNodes = new Set();
+  function setListProp(element, prop, value) {
+    if (!element) return;
+    if (listScope) {
+      listScope.set(element, { [prop]: value });
+      staticStyledNodes.add(element);
+    } else {
+      element.style.setProperty(prop, String(value));
+    }
+  }
+  function clearStaticStyles() {
+    if (!staticStyledNodes.size) return;
+    for (const element of staticStyledNodes) listScope?.release(element);
+    staticStyledNodes.clear();
+  }
   let libraryFeatures = null;
+  let onLibraryDisplayChange = () => {};
   const visualCollections = new VirtualCollectionManager(pickerList);
-  const libraryDisplay = bindLibraryDisplay(pickerDrawer, () => {
-    for (const collection of visualCollections.collections) collection.updateLayout(libraryVirtualLayout(pickerDrawer));
-  });
+  const libraryDisplay = bindLibraryDisplay(pickerDrawer, () => onLibraryDisplayChange());
   const modeButtons = Array.from(root.querySelectorAll(".pp-mode-btn"));
   const countRow = el("countRow");
   const countInput = el("countInput");
@@ -312,8 +332,19 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   function syncControlsFromWidgets() {
     node._ppSyncPositiveAntonyms?.();
+    const curTheme = loadTheme();
     const artistToggle = el("toggleAnimaArtistFormatting");
-    if (artistToggle) artistToggle.checked = loadTheme().animaArtistFormatting === true;
+    if (artistToggle) artistToggle.checked = curTheme.animaArtistFormatting === true;
+    const styleToggle = el("toggleStyleSelector");
+    if (styleToggle) styleToggle.checked = curTheme.styleSelectorEnabled === true;
+    const styleAcToggle = el("toggleStyleAutocomplete");
+    if (styleAcToggle) styleAcToggle.checked = curTheme.styleAutocompleteEnabled === true;
+    const styleAcMode = el("styleAutocompleteMode");
+    if (styleAcMode) styleAcMode.value = ["auto", "onDemand", "off"].includes(curTheme.styleAutocompleteMode) ? curTheme.styleAutocompleteMode : "off";
+    const styleFilter = el("styleModelFilter");
+    if (styleFilter) styleFilter.value = ["auto", "both", "krea2", "moss"].includes(curTheme.styleModelFilter) ? curTheme.styleModelFilter : "auto";
+    const styleDialect = el("styleMossDialect");
+    if (styleDialect) styleDialect.value = ["caption", "tags", "layout"].includes(curTheme.styleMossDialect) ? curTheme.styleMossDialect : "caption";
     if (countWidget) countInput.value = countWidget.value;
     if (maxPromptsWidget) maxPromptsInput.value = maxPromptsWidget.value;
     if (seedWidget) {
@@ -482,6 +513,27 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   el("toggleAnimaArtistFormatting")?.addEventListener("change", event => {
     saveTheme({ ...loadTheme(), animaArtistFormatting: event.target.checked });
   });
+  el("toggleStyleSelector")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), styleSelectorEnabled: event.target.checked });
+  });
+  el("toggleStyleAutocomplete")?.addEventListener("change", event => {
+    const cur = loadTheme();
+    const enabled = event.target.checked;
+    const mode = enabled ? (cur.styleAutocompleteMode === "onDemand" ? "onDemand" : "auto") : "off";
+    saveTheme({ ...cur, styleAutocompleteEnabled: enabled, styleAutocompleteMode: mode });
+  });
+  el("styleAutocompleteMode")?.addEventListener("change", event => {
+    const mode = ["auto", "onDemand", "off"].includes(event.target.value) ? event.target.value : "off";
+    saveTheme({ ...loadTheme(), styleAutocompleteMode: mode, styleAutocompleteEnabled: mode !== "off" });
+  });
+  el("styleModelFilter")?.addEventListener("change", event => {
+    const model = ["auto", "both", "krea2", "moss"].includes(event.target.value) ? event.target.value : "auto";
+    saveTheme({ ...loadTheme(), styleModelFilter: model });
+  });
+  el("styleMossDialect")?.addEventListener("change", event => {
+    const dialect = ["caption", "tags", "layout"].includes(event.target.value) ? event.target.value : "caption";
+    saveTheme({ ...loadTheme(), styleMossDialect: dialect });
+  });
   detachedSettingsPopup = settingsPopup;
   const settingsBtn = action("settings");
   settingsPopup.id = `prompt-palette-combinatorial-${String(node.id ?? "node")}-settings`;
@@ -546,6 +598,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
     else if (node._wgIoRailOpen) ioRail.close({ force: true });
     else if (node._ppLoraSidecar?.isOpen()) { node._ppLoraSidecar.close({ restoreFocus: true }); }
+    else if (node._ppStyleSelector?.isOpen()) { node._ppStyleSelector.close({ restoreFocus: true }); }
     else if (pickerDrawer.classList.contains("open")) { closePickerDrawer(); root.querySelector('[data-act="picker"]')?.focus({ preventScroll: true }); }
     else return;
     event.preventDefault(); event.stopPropagation();
@@ -571,6 +624,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       });
       if (el("toggleRecipesBtn")) el("toggleRecipesBtn").checked = theme.showRecipesBtn !== false;
       if (el("toggleSlotsBtn")) el("toggleSlotsBtn").checked = theme.showSlotsBtn !== false;
+      syncControlsFromWidgets();
       node._ppRecipeWorkspace?.refreshChrome?.();
       if (!initial) render();
     },
@@ -896,6 +950,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     },
     onInput: () => render(),
     syntax: true,
+    node,
   });
   // Tag categories arrive asynchronously (offline database lookup): repaint the overlay when they do.
   const unsubscribeTagColors = onTagColorsChanged(() => {
@@ -1048,7 +1103,15 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       openInjectMenuAtPoint(event.clientX, event.clientY, "", textarea, render, selection.start === selection.end ? null : selection);
     },
   });
-  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); ioRail.close(); } });
+  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); ioRail.close(); node?._ppStyleSelector?.close?.(); } });
+  const styleSelector = installStyleSelector({
+    root,
+    node,
+    editor: textarea,
+    getNegative: () => node._ppNegativePromptState?.current?.() || "",
+    setNegative: (val) => node._ppNegativePromptState?.commit?.(val || ""),
+    beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); ioRail.close(); loraSidecar.close(); },
+  });
 
   let activeQuickFilter = "all";
   let pickerKbIndex = -1;
@@ -1123,26 +1186,92 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     return row;
   }
 
-  function pickerTile(item) {
+  function entryThumbUrl(path) {
+    const thumbRel = thumbMap?.[path];
+    return thumbRel ? API.thumbnailUrl(thumbRel) : "";
+  }
+
+  function wireTileImage(tile, getCollection = null) {
+    const img = tile.querySelector(".wg-thumb-img");
+    if (!img) return;
+    const reportDimensions = () => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      const collection = typeof getCollection === "function" ? getCollection() : getCollection;
+      if (collection && typeof collection.notifyMediaDimensions === "function") {
+        collection.notifyMediaDimensions(tile, img.naturalWidth, img.naturalHeight);
+        return;
+      }
+      if (getCollection) {
+        queueMicrotask(() => {
+          const deferred = typeof getCollection === "function" ? getCollection() : null;
+          if (deferred && typeof deferred.notifyMediaDimensions === "function") {
+            deferred.notifyMediaDimensions(tile, img.naturalWidth, img.naturalHeight);
+          }
+        });
+      }
+      const ratio = Math.max(0.35, Math.min(2.8, img.naturalWidth / img.naturalHeight));
+      setListProp(tile, "--pp-natural-ratio", ratio);
+    };
+    if (img.complete && img.naturalWidth && img.naturalHeight) {
+      reportDimensions();
+    } else {
+      img.addEventListener("load", reportDimensions, { once: true });
+    }
+    img.addEventListener("error", () => {
+      const collection = typeof getCollection === "function" ? getCollection() : getCollection;
+      collection?.notifyMediaError?.(tile);
+    }, { once: true });
+  }
+
+  function pickerTile(item, getCollection = null) {
     const cat = categoryOf(item.path);
     const isRecipe = isRecipeCategory(cat);
     const color = getCategoryColor(cat);
     const isPinned = pinned.has(item.path);
     const name = item.path.split("/").pop();
-    const thumbRel = thumbMap[item.path];
+    const thumbUrl = entryThumbUrl(item.path);
 
-    const thumbHtml = libraryThumbnailMarkup(thumbRel ? API.thumbnailUrl(thumbRel, "") : "", isRecipe);
+    const thumbHtml = libraryThumbnailMarkup(thumbUrl, isRecipe);
 
     const tile = document.createElement("div");
-    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (thumbRel ? " has-thumb" : "");
+    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (thumbUrl ? " has-thumb" : "");
     tile.dataset.path = item.path;
-    tile.style.setProperty("--wg-card-accent", color);
+    tile.dataset.thumbUrl = thumbUrl;
+    setListProp(tile, "--wg-card-accent", color);
     tile.title = isRecipe ? `${item.path} (Palette Recipe)` : item.path;
     const injectHtml = theme.syntaxInjectorEnabled !== false
       ? `<button type="button" class="wg-inject-trigger wg-thumb-inject" title="Insert wildcard syntax for &quot;${escapeHtml(item.path)}&quot;" draggable="false">&#9889;</button>`
       : "";
     tile.innerHTML = `${thumbHtml}${injectHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "\u2605" : "\u2606"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span><span class="wg-thumb-meta">${escapeHtml(item.path.includes("/") ? item.path.slice(0, item.path.lastIndexOf("/")) : "Unfiled")}</span>`;
+    wireTileImage(tile, getCollection);
     return tile;
+  }
+
+  function patchVisualTile(tile, item, getCollection = null) {
+    if (!tile || !item) return;
+    const cat = categoryOf(item.path);
+    const isRecipe = isRecipeCategory(cat);
+    const isPinned = pinned.has(item.path);
+    const pinEl = tile.querySelector(".wg-thumb-pin");
+    if (pinEl) {
+      pinEl.classList.toggle("pinned", isPinned);
+      pinEl.textContent = isPinned ? "\u2605" : "\u2606";
+    }
+    const nextUrl = entryThumbUrl(item.path);
+    if ((tile.dataset.thumbUrl || "") !== nextUrl) {
+      tile.dataset.thumbUrl = nextUrl;
+      tile.classList.toggle("has-thumb", Boolean(nextUrl));
+      const media = tile.querySelector(".wg-thumb-media");
+      if (media) {
+        const temp = document.createElement("div");
+        temp.innerHTML = libraryThumbnailMarkup(nextUrl, isRecipe);
+        const nextMedia = temp.firstElementChild;
+        if (nextMedia) {
+          media.replaceWith(nextMedia);
+          wireTileImage(tile, getCollection);
+        }
+      }
+    }
   }
 
   function moveCategoryByOffset(cat, delta) {
@@ -1201,6 +1330,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     searchCollapsedCats.clear();
     for (const entry of libraryCache) expandedCats.add(categoryOf(entry.path));
     saveExpandedCats(expandedCats);
+    pickerDrawer.__ppLibraryDisplayBinding?.setState?.({ collapsedSections: [] }, { persist: true, notify: false });
     renderPickerList(searchInput.value);
   }
 
@@ -1275,6 +1405,12 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (resetFiltersBtn) {
       event.stopPropagation();
       resetLibraryFilters();
+      return;
+    }
+    const expandAllBtn = event.target.closest('[data-act="libExpandAll"]');
+    if (expandAllBtn) {
+      event.stopPropagation();
+      expandAllCategories();
       return;
     }
     const clearRecent = event.target.closest('[data-act="clearRecent"]');
@@ -1419,16 +1555,104 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     renderPickerList(searchInput.value);
   });
 
-  function appendItems(container, items, filter = "", category = "") {
-    if (["masonry", "filmstrip"].includes(pickerViewMode)) {
-      visualCollections.mount(container, { ...libraryVirtualLayout(pickerDrawer), items, mode: pickerViewMode, renderItem: pickerTile });
-      return;
+  const LARGE_SEARCH_VIRTUAL_THRESHOLD = 1000;
+  let hasRenderedPicker = false;
+  let needsPickerRender = false;
+  let lastRenderedPickerWidth = 0;
+
+  function measurePickerRowHeight(item, filter = "") {
+    if (!item) return 32;
+    const probeHost = document.createElement("div");
+    probeHost.className = "wg-virtual-collection wg-virtual-list wg-library-row-probe-host";
+    const probe = pickerItemRow(item, filter);
+    probe.classList.add("wg-library-row-probe");
+    probeHost.appendChild(probe);
+    pickerList.appendChild(probeHost);
+    const measured = Math.ceil(probe.offsetHeight || probe.getBoundingClientRect?.().height || 0);
+    probeHost.remove();
+    return Math.max(32, (measured || 32) + 1);
+  }
+
+  function mountVirtualItems(container, items, filter = "") {
+    const grid = pickerViewMode !== "list";
+    const geometry = libraryVirtualLayout(pickerDrawer);
+    const rowHeight = grid ? 32 : measurePickerRowHeight(items?.[0], filter);
+    let mounted = null;
+    mounted = visualCollections.mount(container, {
+      items,
+      mode: ["masonry", "filmstrip"].includes(pickerViewMode) ? pickerViewMode : grid ? "grid" : "list",
+      estimateRowHeight: rowHeight,
+      ...geometry,
+      itemKey: (item) => item.path,
+      thumbnailUrl: (item) => entryThumbUrl(item?.path),
+      ...(listScope ? {
+        styleDeclaration: listScope.declaration,
+        releaseStyle: (el) => {
+          staticStyledNodes.delete(el);
+          listScope.release(el);
+        },
+      } : {}),
+      overscan: 2,
+      renderItem: (item) => grid ? pickerTile(item, () => mounted) : pickerItemRow(item, filter),
+    });
+    return mounted;
+  }
+
+  function refreshDisplayGeometry() {
+    const anchor = visualCollections.captureViewportAnchor();
+    const geometry = libraryVirtualLayout(pickerDrawer);
+    for (const collection of visualCollections.collections) {
+      if (collection.mode === "list") continue;
+      collection.updateLayout(geometry);
     }
+    visualCollections.restoreViewportAnchor(anchor);
+    visualCollections.refresh();
+    pickerDrawer.__ppLibraryDisplayBinding?.refreshScrollbars?.();
+  }
+  onLibraryDisplayChange = refreshDisplayGeometry;
+
+  function isPickerHidden() {
+    if (!pickerDrawer.classList.contains("open") || pickerDrawer.hidden || pickerList.hidden) {
+      return true;
+    }
+    const doc = pickerDrawer.ownerDocument || globalThis.document;
+    const hasLayoutEngine = (doc?.documentElement?.clientWidth > 0) || (doc?.body?.getClientRects?.().length > 0);
+    if (hasLayoutEngine && (pickerList.clientWidth || pickerDrawer.clientWidth) <= 0) {
+      return true;
+    }
+    return false;
+  }
+
+  const pickerListResizeObserver = typeof ResizeObserver !== "undefined"
+    ? new ResizeObserver(() => {
+        if (libraryDisposed) return;
+        const width = pickerList.clientWidth || pickerDrawer.clientWidth || 0;
+        if (width <= 0) {
+          if (visualCollections.collections.size > 0) {
+            visualCollections.clear();
+            clearStaticStyles();
+            needsPickerRender = true;
+          }
+          return;
+        }
+        if (needsPickerRender && !isPickerHidden()) {
+          renderPickerList(searchInput.value);
+          return;
+        }
+        if (width !== lastRenderedPickerWidth && pickerDrawer.classList.contains("open")) {
+          lastRenderedPickerWidth = width;
+          if (visualCollections.collections.size > 0) visualCollections.refresh();
+        }
+      })
+    : null;
+  pickerListResizeObserver?.observe(pickerList);
+
+  function appendItems(container, items, filter = "", category = "") {
     const categoryColor = category ? getCategoryColor(category) : "";
     if (pickerViewMode !== "list") {
       const grid = document.createElement("div");
       grid.className = "wg-thumb-grid wg-static-collection" + (category ? " wg-category-content" : "");
-      if (categoryColor) grid.style.setProperty("--wg-category-accent", categoryColor);
+      if (categoryColor) setListProp(grid, "--wg-category-accent", categoryColor);
       items.forEach((item) => grid.appendChild(pickerTile(item)));
       container.appendChild(grid);
     } else {
@@ -1438,7 +1662,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
           row.classList.add("wg-category-entry");
           if (index === 0) row.classList.add("wg-category-first");
           if (index === items.length - 1) row.classList.add("wg-category-last");
-          if (categoryColor) row.style.setProperty("--wg-category-accent", categoryColor);
+          if (categoryColor) setListProp(row, "--wg-category-accent", categoryColor);
         }
         container.appendChild(row);
       });
@@ -1474,9 +1698,17 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function renderPickerList(filter = "") {
-    visualCollections.clear();
     if (ctxMenuOpen) closeCtxMenu();
     if (injectState && injectState.textarea === textarea) closeInjectMenu();
+    if (isPickerHidden()) {
+      needsPickerRender = true;
+      visualCollections.clear();
+      clearStaticStyles();
+      return;
+    }
+    hasRenderedPicker = true;
+    needsPickerRender = false;
+    lastRenderedPickerWidth = pickerList.clientWidth || pickerDrawer.clientWidth || 0;
     pickerKbIndex = -1;
     const q = (filter || "").trim().toLowerCase();
     const org = getLibraryOrganization(pickerDrawer);
@@ -1499,7 +1731,159 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (q) rawItems = rawItems.filter((i) => i.path.toLowerCase().includes(q));
     const items = sortLibraryItems(libraryFeatures?.filter(rawItems) || rawItems, org, pinned, thumbMap);
     const prevScrollTop = pickerList.scrollTop;
-    pickerList.innerHTML = "";
+    const collapsedSecSet = new Set(org.collapsedSections || []);
+    const isUnifiedVisualView = ["masonry", "filmstrip"].includes(pickerViewMode);
+    const existingCollection = visualCollections.collections.size === 1
+      ? visualCollections.collections.values().next().value
+      : null;
+    const canReuseUnified = Boolean(
+      isUnifiedVisualView
+      && !(q && items.length > LARGE_SEARCH_VIRTUAL_THRESHOLD)
+      && existingCollection
+      && existingCollection.mode === pickerViewMode
+      && pickerList.children.length === 1
+      && pickerList.firstElementChild === existingCollection.host
+    );
+
+    if (!canReuseUnified) {
+      visualCollections.clear();
+      clearStaticStyles();
+      pickerList.replaceChildren();
+    }
+
+    const appendEmptyState = (text, resetAct = "libResetFilters", resetLabel = "") => {
+      const empty = document.createElement("div");
+      empty.className = "wg-hint wg-lib-empty-state";
+      const message = document.createElement("span");
+      message.textContent = text;
+      empty.appendChild(message);
+      if (resetLabel) {
+        const resetBtn = document.createElement("button");
+        resetBtn.type = "button";
+        resetBtn.className = "wg-lib-empty-reset";
+        resetBtn.dataset.act = resetAct;
+        resetBtn.textContent = resetLabel;
+        empty.appendChild(resetBtn);
+      }
+      pickerList.appendChild(empty);
+    };
+
+    const finishRender = () => {
+      if (prevScrollTop > 0) {
+        pickerList.scrollTop = Math.min(prevScrollTop, Math.max(0, pickerList.scrollHeight - pickerList.clientHeight));
+      } else if (pickerList.scrollTop !== 0) {
+        pickerList.scrollTop = 0;
+      }
+      visualCollections.refresh();
+      const quickFilterCounts = { all: libraryCache.length };
+      for (const key of ["pinned", "thumbs", "recipes"]) {
+        quickFilterCounts[key] = sortLibraryItems(libraryCache, { quickFilter: key }, pinned, thumbMap).length;
+      }
+      pickerDrawer.__ppLibraryDisplayBinding?.afterListRender?.({ counts: quickFilterCounts });
+    };
+
+    if (q && items.length > LARGE_SEARCH_VIRTUAL_THRESHOLD) {
+      const label = document.createElement("div");
+      label.className = "wg-section-label";
+      label.textContent = `Search results · ${items.length.toLocaleString()}`;
+      pickerList.appendChild(label);
+      mountVirtualItems(pickerList, items, q);
+      finishRender();
+      return;
+    }
+
+    if (isUnifiedVisualView) {
+      const unifiedItems = [];
+      const seenPaths = new Set();
+      const pushUnique = (list) => {
+        for (const entry of list || []) {
+          if (!entry?.path || seenPaths.has(entry.path)) continue;
+          seenPaths.add(entry.path);
+          unifiedItems.push(entry);
+        }
+      };
+      const collectCategoryEntries = (includeAllMatching) => {
+        const grouped = new Map();
+        items.forEach((item) => {
+          const cat = categoryOf(item.path);
+          if (!grouped.has(cat)) grouped.set(cat, []);
+          grouped.get(cat).push(item);
+        });
+        const cats = sortLibraryCategories(
+          Array.from(grouped.keys()),
+          grouped,
+          { ...org, includeHidden: Boolean(q || org.quickFilter) },
+          canonicalCatOrder
+        );
+        for (const cat of cats) {
+          if (includeAllMatching || isCatExpanded(cat, q)) {
+            pushUnique(grouped.get(cat));
+          }
+        }
+      };
+
+      if (!q && !org.quickFilter) {
+        const sectionOrder = Array.isArray(org.sectionOrder) ? org.sectionOrder : ["pinned", "recent", "categories"];
+        const byPath = new Map(libraryCache.map((entry) => [entry.path, entry]));
+        for (const secId of sectionOrder) {
+          if (hiddenSecSet.has(secId)) continue;
+          if (secId === "pinned") {
+            if (!collapsedSecSet.has("pinned")) {
+              pushUnique(sortLibraryItems(
+                libraryCache.filter((i) => pinned.has(i.path)),
+                org,
+                pinned,
+                thumbMap
+              ));
+            }
+          } else if (secId === "recent") {
+            if (!collapsedSecSet.has("recent")) {
+              const recentPaths = usageStore.libraryRecent(12).filter((p) => !pinned.has(p));
+              pushUnique(sortLibraryItems(
+                recentPaths.map((p) => byPath.get(p)).filter(Boolean),
+                org,
+                pinned,
+                thumbMap
+              ));
+            }
+          } else if (secId === "categories") {
+            collectCategoryEntries(false);
+          }
+        }
+      } else {
+        collectCategoryEntries(Boolean(org.quickFilter && !q));
+      }
+
+      if (unifiedItems.length) {
+        if (canReuseUnified) {
+          existingCollection.updateLayout(libraryVirtualLayout(pickerDrawer));
+          existingCollection.updateItems(unifiedItems, {
+            patchNode: (nodeEl, item) => patchVisualTile(nodeEl, item, () => existingCollection),
+          });
+        } else {
+          mountVirtualItems(pickerList, unifiedItems, q);
+        }
+        finishRender();
+        return;
+      }
+
+      if (canReuseUnified) {
+        visualCollections.clear();
+        clearStaticStyles();
+        pickerList.replaceChildren();
+      }
+      if (!items.length) {
+        appendEmptyState(
+          org.quickFilter ? `No ${org.quickFilter} entries match` : "No matching entries",
+          "libResetFilters",
+          q || org.quickFilter ? (q && org.quickFilter ? "Clear search & filter" : q ? "Clear search" : "Show all") : ""
+        );
+      } else {
+        appendEmptyState("No expanded folders or sections visible", "libExpandAll", "Expand all folders");
+      }
+      finishRender();
+      return;
+    }
 
     const renderCategoriesSection = () => {
       const grouped = new Map();
@@ -1523,7 +1907,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
         header.dataset.cat = cat;
         header.draggable = canReorder;
         const categoryColor = getCategoryColor(cat);
-        header.style.setProperty("--wg-category-accent", categoryColor);
+        setListProp(header, "--wg-category-accent", categoryColor);
         const folderLabel = isRecipeCategory(cat) ? `&#128214; ${escapeHtml(cat)}` : escapeHtml(cat);
         const toolsHtml = !q && !org.quickFilter
           ? `<span class="wg-folder-tools">
@@ -1545,7 +1929,6 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       }
     };
 
-    const collapsedSecSet = new Set(org.collapsedSections || []);
     if (!q && !org.quickFilter) {
       const sectionOrder = Array.isArray(org.sectionOrder) ? org.sectionOrder : ["pinned", "recent", "categories"];
       const byPath = new Map(libraryCache.map((entry) => [entry.path, entry]));
@@ -1595,27 +1978,13 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     }
 
     if (!items.length) {
-      const empty = document.createElement("div");
-      empty.className = "wg-hint wg-lib-empty-state";
-      const message = document.createElement("span");
-      message.textContent = org.quickFilter ? `No ${org.quickFilter} entries match` : "No matching entries";
-      empty.appendChild(message);
-      if (q || org.quickFilter) {
-        const resetFilters = document.createElement("button");
-        resetFilters.type = "button";
-        resetFilters.className = "wg-lib-empty-reset";
-        resetFilters.dataset.act = "libResetFilters";
-        resetFilters.textContent = q && org.quickFilter ? "Clear search & filter" : q ? "Clear search" : "Show all";
-        empty.appendChild(resetFilters);
-      }
-      pickerList.appendChild(empty);
+      appendEmptyState(
+        org.quickFilter ? `No ${org.quickFilter} entries match` : "No matching entries",
+        "libResetFilters",
+        q || org.quickFilter ? (q && org.quickFilter ? "Clear search & filter" : q ? "Clear search" : "Show all") : ""
+      );
     }
-    pickerList.scrollTop = Math.min(prevScrollTop, Math.max(0, pickerList.scrollHeight - pickerList.clientHeight));
-    const quickFilterCounts = { all: libraryCache.length };
-    for (const key of ["pinned", "thumbs", "recipes"]) {
-      quickFilterCounts[key] = sortLibraryItems(libraryCache, { quickFilter: key }, pinned, thumbMap).length;
-    }
-    pickerDrawer.__ppLibraryDisplayBinding?.afterListRender?.({ counts: quickFilterCounts });
+    finishRender();
   }
 
   pickerDrawer.addEventListener("pp-library-organize-change", () => {
@@ -1628,6 +1997,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       e.preventDefault();
       const next = btn.dataset.libQuickFilter || "all";
       activeQuickFilter = activeQuickFilter === next && next !== "all" ? "all" : next;
+      if (activeQuickFilter !== "all") {
+        const matchingItems = sortLibraryItems(libraryCache, { quickFilter: activeQuickFilter }, pinned, thumbMap);
+        const matchingCats = Array.from(new Set(matchingItems.map((entry) => categoryOf(entry.path))));
+        if (matchingCats.length && !matchingCats.some((cat) => expandedCats.has(cat))) {
+          matchingCats.forEach((cat) => expandedCats.add(cat));
+          saveExpandedCats(expandedCats);
+        }
+      }
       quickFilterBtns.forEach((candidate) => {
         const active = candidate.dataset.libQuickFilter === activeQuickFilter;
         candidate.classList.toggle("active", active);
@@ -1714,6 +2091,12 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     pickerDrawer.classList.add("open");
     action("picker").classList.add("active");
     libraryResize.apply();
+    const currentWidth = pickerList.clientWidth || pickerDrawer.clientWidth || 0;
+    if (!hasRenderedPicker || needsPickerRender || (currentWidth > 0 && currentWidth !== lastRenderedPickerWidth)) {
+      renderPickerList(searchInput.value);
+    } else {
+      visualCollections.refresh();
+    }
     pickerDrawer.__ppLibraryDisplayBinding?.refreshScrollbars?.();
   }
   function closePickerDrawer() {
@@ -1727,6 +2110,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     // A closed picker must not contribute intrinsic height to Nodes 2.
     // Hide it from layout immediately; opening restores it before painting.
     pickerDrawer.hidden = true;
+    visualCollections.clear();
+    clearStaticStyles();
+    needsPickerRender = true;
+    cancelNodeTimer(node, searchDebounce);
+    searchDebounce = null;
+    cancelNodeTimer(node, delegatedInjectTimer);
+    delegatedInjectTimer = null;
+    hideTip();
   }
   action("picker").addEventListener("click", () => {
     if (pickerDrawer.classList.contains("open")) {
@@ -1889,7 +2280,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       libraryDisposed = true; libraryRequestVersion++;
       cleanupLibrarySubscription();
       cleanupLibraryViewControls();
+      pickerListResizeObserver?.disconnect();
       visualCollections.cleanup();
+      clearStaticStyles();
+      listScope?.cleanup();
       libraryDisplay.cleanup();
       if (node._wgRefreshLibrary === refreshLibrary) delete node._wgRefreshLibrary;
       hideTip(); previewCache.clear();
@@ -1912,6 +2306,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       editorSurface.cleanup();
       statusBar.cleanup();
       loraSidecar?.cleanup();
+      styleSelector?.cleanup();
       cleanupEditorContext();
       cleanupPickerContext?.();
       delete textarea.__ppExtractSelectionToWildcard;

@@ -21,7 +21,7 @@ export function mountCombinatorialTools(root, settingsPopup) {
   const primary = document.createElement("div"); primary.className = "wg-toolbar-group left";
   primary.setAttribute("aria-label", "Prompt tools");
   primary.appendChild(root.querySelector('[data-el="btnGallery"]'));
-  for (const name of ["btnLoras", "btnEdit", "btnImportImage", "btnRecipes", "btnSlots"]) primary.appendChild(take(name));
+  for (const name of ["btnLoras", "btnStyles", "btnEdit", "btnImportImage", "btnRecipes", "btnSlots"]) primary.appendChild(take(name));
   toolbar.appendChild(primary);
   toolbar.appendChild(shell.querySelector(".wg-toolbar-center"));
   const actions = document.createElement("div"); actions.className = "wg-toolbar-group right";
@@ -61,6 +61,10 @@ export function mountCombinatorialTools(root, settingsPopup) {
   // Fields settings replaced the legacy layout/snap toggles in the shared shell.
   settingsPopup.querySelector('[data-settings-panel="behavior"]').insertAdjacentHTML("beforeend", fieldEditorSettingsMarkup());
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleAnimaArtistFormatting").closest(".wg-toggle-card"));
+  for (const styleControl of ["toggleStyleSelector", "toggleStyleAutocomplete", "styleAutocompleteMode", "styleModelFilter", "styleMossDialect"]) {
+    const nodeControl = take(styleControl);
+    if (nodeControl) settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(nodeControl.closest(".wg-toggle-card"));
+  }
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toolbarDesigner"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("statusBarSettings"));
 }

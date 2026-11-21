@@ -258,6 +258,7 @@ function setupSettingsUI(node) {
   });
   const cleanupAutocompleteBinding = attachAutocomplete(textInput, {
     getMatches: getAcMatches,
+    node,
   });
 
   textInput.addEventListener("input", () => commitWidget(textWidget, textInput.value));

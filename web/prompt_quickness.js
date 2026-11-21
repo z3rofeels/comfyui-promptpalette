@@ -29,6 +29,8 @@ export function createPromptUsageStore() {
   let usage = readJson("usage", {});
   let starterFavorites = new Set(readJson("starter-favorites", []));
   let autocompleteFavorites = readJson("autocomplete-favorites", []);
+  let styleRecent = readJson("style-recent", []);
+  let styleFavorites = new Set(readJson("style-favorites", []));
 
   const TAG_CATEGORIES = ["general", "artist", "copyright", "character", "meta", "custom"];
   const normalizeTagFavorite = (item) => {
@@ -61,6 +63,10 @@ export function createPromptUsageStore() {
     starterFavorites = new Set(Array.isArray(nextFavorites) ? nextFavorites.map(String).filter(Boolean) : []);
     const nextTagFavorites = readJson("autocomplete-favorites", []);
     autocompleteFavorites = Array.isArray(nextTagFavorites) ? nextTagFavorites.map(normalizeTagFavorite).filter(Boolean) : [];
+    const nextStyleRecent = readJson("style-recent", []);
+    styleRecent = Array.isArray(nextStyleRecent) ? nextStyleRecent.map(String).filter(Boolean) : [];
+    const nextStyleFav = readJson("style-favorites", []);
+    styleFavorites = new Set(Array.isArray(nextStyleFav) ? nextStyleFav.map(String).filter(Boolean) : []);
   };
 
   const persist = () => {
@@ -70,6 +76,8 @@ export function createPromptUsageStore() {
     writeJson("usage", usage);
     writeJson("starter-favorites", [...starterFavorites]);
     writeJson("autocomplete-favorites", autocompleteFavorites.slice(0, 200));
+    writeJson("style-recent", styleRecent.slice(0, 24));
+    writeJson("style-favorites", [...styleFavorites].slice(0, 200));
     lastSectionRef = getPromptPaletteSectionSnapshot("quickness");
     hasLoaded = true;
   };
@@ -213,6 +221,26 @@ export function createPromptUsageStore() {
       persist();
       return !exists;
     },
+    recordStyleUsage(styleId) {
+      refresh();
+      const key = String(styleId || "").trim();
+      if (!key) return;
+      styleRecent = [key, ...styleRecent.filter((item) => item !== key)].slice(0, 24);
+      usage[`style:${key}`] = (Number(usage[`style:${key}`]) || 0) + 1;
+      persist();
+    },
+    styleRecentIds(limit = 12) { refresh(); return styleRecent.slice(0, Math.max(0, limit)); },
+    isStyleFavorite(styleId) { refresh(); return styleFavorites.has(String(styleId || "")); },
+    toggleStyleFavorite(styleId) {
+      refresh();
+      const key = String(styleId || "").trim();
+      if (!key) return false;
+      if (styleFavorites.has(key)) styleFavorites.delete(key);
+      else styleFavorites.add(key);
+      persist();
+      return styleFavorites.has(key);
+    },
+    styleFavoriteIds() { refresh(); return [...styleFavorites]; },
   };
 }
 
@@ -347,6 +375,7 @@ export function closestPromptEntries(query, candidates, limit = 3) {
 
 const MODEL_ALIASES = [
   ["krea-2", ["krea2", "krea 2", "krea-2", "krea_2"]],
+  ["moss", ["moss_image", "moss-image", "moss image", "moss_sft", "moss_turbo", "moss"]],
   ["minimax-h3", ["minimax h3", "minimax_h3", "minimax-h3", "h3 fl2va", "h3 t2va", "h3 i2va"]],
   ["ltx-2-3", ["ltx 2.3", "ltx-2.3", "ltx_2.3", "ltx2.3", "ltxvideo"]],
   ["qwen-image", ["qwen image", "qwen-image", "qwen_image", "qwen edit", "qwen-image-edit"]],

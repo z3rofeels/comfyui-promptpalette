@@ -85,7 +85,23 @@ export function createPromptPaletteSidebar(container) {
   preset.addEventListener("change", () => {
     if (preset.value === "custom") return;
     const minimal = preset.value === "minimal";
-    saveSidebarDisplay({ chrome: { images: !minimal, prompt: preset.value === "studio", descriptions: false, styles: !minimal, loras: !minimal, syntax: !minimal, tools: !minimal }, layouts: Object.fromEntries(Object.keys(loadSidebarDisplay().layouts).map(key => [key, minimal ? "list" : "gallery"])) });
+    const currentLayouts = loadSidebarDisplay().layouts;
+    const nextLayouts = Object.fromEntries(Object.entries(currentLayouts).map(([key, layout]) => [
+      key,
+      minimal ? "list" : (layout === "masonry" || layout === "filmstrip" ? layout : "gallery"),
+    ]));
+    saveSidebarDisplay({
+      chrome: {
+        images: !minimal,
+        prompt: preset.value === "studio",
+        descriptions: false,
+        styles: !minimal,
+        loras: !minimal,
+        syntax: !minimal,
+        tools: !minimal,
+      },
+      layouts: nextLayouts,
+    });
     applySidebarChrome(); syncDisplayControls(); updateDisplay();
   });
   function applySidebarChrome() {
@@ -250,6 +266,9 @@ export function createPromptPaletteSidebar(container) {
   const list = make("div", "pp-sidebar-list"); list.tabIndex = 0; list.setAttribute("aria-label", "Library entries"); browse.append(list);
   const virtual = new VirtualCollectionManager(list);
   let libraryMatches = [], libraryPins = loadPinned(), libraryGeometry = "", libraryCollection = null;
+  const libraryThumbRatios = new Map();
+  const rowItems = new WeakMap();
+  const rowThumbUrls = new WeakMap();
   const entryHost = make("div", "pp-sidebar-entry"); entryHost.innerHTML = libraryEditShell(); entryHost.hidden = true; libraryPane.append(entryHost);
   const el = key => entryHost.querySelector(`[data-el="${key}"]`);
   let entryEditor = null, hasEntryDraft = !!session.entry, insertEntry = null;
@@ -303,64 +322,177 @@ export function createPromptPaletteSidebar(container) {
     hasEntryDraft = true; announce(""); showEntry();
   }
   syncEntryState();
+  function createLibraryMediaFallback(cat) {
+    const mark = make("div", "pp-sidebar-gallery-fallback");
+    mark.innerHTML = svgIcon("recipe", 24);
+    mark.append(make("span", "", cat));
+    return mark;
+  }
+  function createLibraryThumbImg(row, thumbUrl, gallery, cat) {
+    const img = make("img", "pp-sidebar-thumb");
+    img.alt = ""; img.loading = "lazy"; img.decoding = "async";
+    img.addEventListener("load", () => {
+      if (disposed || !img.naturalWidth || !img.naturalHeight) return;
+      if (libraryThumbRatios.size >= 2048 && !libraryThumbRatios.has(thumbUrl)) {
+        const oldest = libraryThumbRatios.keys().next().value;
+        if (oldest !== undefined) libraryThumbRatios.delete(oldest);
+      }
+      libraryThumbRatios.set(thumbUrl, { width: img.naturalWidth, height: img.naturalHeight });
+      libraryCollection?.notifyMediaDimensions(row, img.naturalWidth, img.naturalHeight);
+    }, { once: true });
+    img.addEventListener("error", () => {
+      libraryCollection?.notifyMediaError(row);
+      if (gallery) img.replaceWith(createLibraryMediaFallback(cat));
+      else img.classList.add("is-unavailable");
+    }, { once: true });
+    img.src = thumbUrl;
+    return img;
+  }
   function renderRow(item) {
     const gallery = list.dataset.layout !== "list";
     const row = make("div", "pp-sidebar-row"); row.dataset.path = item.path; row.classList.toggle("is-editing", hasEntryDraft && entryEditor.snapshot().baseline.path === item.path); row.classList.toggle("pp-sidebar-gallery-card", gallery);
+    rowItems.set(row, item);
     const theme = appearance.theme, cat = categoryOf(item.path);
     presentation.category(row, cat, theme.categoryPins?.[cat] || categoryColorFromHue((hashStr(cat) % 360 + (Number(theme.hueRotate) || 0)) % 360, theme.saturation, appearance.colors.bg));
-    const fallback = () => { const mark = make("div", "pp-sidebar-gallery-fallback"); mark.innerHTML = svgIcon("recipe", 24); mark.append(make("span", "", cat)); return mark; };
     const media = gallery ? make("div", "pp-sidebar-media") : row;
     if (gallery) row.append(media);
-    if (thumbnails[item.path] && loadSidebarDisplay().chrome.images) { const img = make("img", "pp-sidebar-thumb"); img.alt = ""; img.loading = "lazy"; img.decoding = "async"; img.src = API.thumbnailUrl(thumbnails[item.path]); img.addEventListener("error", () => { if (gallery) img.replaceWith(fallback()); else img.classList.add("is-unavailable"); }, { once: true }); media.append(img); }
-    const copy = button("", () => insertLibrary(item.path), "pp-sidebar-row-copy");
+    const thumbFile = thumbnails[item.path];
+    const thumbUrl = thumbFile && loadSidebarDisplay().chrome.images ? API.thumbnailUrl(thumbFile) : "";
+    rowThumbUrls.set(row, thumbUrl);
+    if (thumbUrl) {
+      media.append(createLibraryThumbImg(row, thumbUrl, gallery, cat));
+    }
+    const copy = button("", () => {
+      const cur = rowItems.get(row) || item;
+      insertLibrary(cur.path);
+    }, "pp-sidebar-row-copy");
     copy.setAttribute("aria-label", `Insert ${item.path}`);
     copy.append(make("strong", "", item.path.split("/").pop()), make("small", "", `${cat} · ${Number(item.count) || 0} options`)); copy.title = `Insert ${item.path} into the selected prompt`; row.append(copy);
-    if (gallery && !thumbnails[item.path]) media.append(fallback());
-    quickPreview.bind(copy, item.path, { image: !!thumbnails[item.path] });
-    hoverPreview.bind(row, { title: item.path.split("/").pop(), subtitle: `${cat} · ${Number(item.count) || 0} options`, image: thumbnails[item.path] ? API.thumbnailUrl(thumbnails[item.path]) : "" });
+    if (gallery && !thumbFile) media.append(createLibraryMediaFallback(cat));
+    quickPreview.bind(copy, item.path, { image: !!thumbFile });
+    hoverPreview.bind(row, { title: item.path.split("/").pop(), subtitle: `${cat} · ${Number(item.count) || 0} options`, image: thumbFile ? API.thumbnailUrl(thumbFile) : "" });
     const inspect = button("", () => quickPreview.show(item.path, [item.path], { anchor: inspect }), "pp-sidebar-icon"); inspect.innerHTML = svgIcon("eye", 14); inspect.setAttribute("aria-label", `Quick view ${item.path}`); inspect.title = "Inspect sample lines without editing"; row.append(inspect);
     const pins = libraryPins;
     const pin = button(pins.has(item.path) ? "★" : "☆", () => { const next = loadPinned(); if (next.has(item.path)) next.delete(item.path); else next.add(item.path); savePinned(next); }, "pp-sidebar-icon");
+    pin.dataset.libraryPin = "true";
     pin.title = pins.has(item.path) ? "Unpin entry" : "Pin entry"; pin.setAttribute("aria-label", `${pin.title}: ${item.path}`); pin.setAttribute("aria-pressed", String(pins.has(item.path))); row.append(pin);
     const edit = button("", () => editEntry(item.path), "pp-sidebar-icon pp-sidebar-pencil");
     edit.innerHTML = svgIcon("edit", 16); edit.title = `Edit ${item.path}`;
     edit.setAttribute("aria-label", `Edit ${item.path}`); row.append(edit);
     row.addEventListener("contextmenu", event => {
       event.preventDefault(); event.stopPropagation();
+      const cur = rowItems.get(row) || item;
+      const currentPins = loadPinned();
       openCtxMenu(event.clientX, event.clientY, [
-        { label: "Insert into selected target", icon: "plus", group: "insert", onSelect: () => insertLibrary(item.path) },
-        { label: "Quick view", icon: "eye", group: "item", onSelect: () => quickPreview.show(item.path, [item.path], { anchor: row }) },
-        { label: pins.has(item.path) ? "Unpin entry" : "Pin entry", icon: "pin", group: "item", onSelect: () => pin.click() },
-        { label: "Edit library entry…", icon: "edit", group: "item", onSelect: () => editEntry(item.path) },
-        ...libraryThumbnailActions(item.path, { hasThumbnail: !!thumbnails[item.path], editable: !item.type || item.type === "txt",
+        { label: "Insert into selected target", icon: "plus", group: "insert", onSelect: () => insertLibrary(cur.path) },
+        { label: "Quick view", icon: "eye", group: "item", onSelect: () => quickPreview.show(cur.path, [cur.path], { anchor: row }) },
+        { label: currentPins.has(cur.path) ? "Unpin entry" : "Pin entry", icon: "pin", group: "item", onSelect: () => pin.click() },
+        { label: "Edit library entry…", icon: "edit", group: "item", onSelect: () => editEntry(cur.path) },
+        ...libraryThumbnailActions(cur.path, { hasThumbnail: !!thumbnails[cur.path], editable: !cur.type || cur.type === "txt",
           isActive: () => !disposed }),
       ]);
     });
     return row;
   }
+  function patchLibraryRow(row, item) {
+    rowItems.set(row, item);
+    row.classList.toggle("is-editing", hasEntryDraft && entryEditor.snapshot().baseline.path === item.path);
+    const cat = categoryOf(item.path);
+    const subEl = row.querySelector(".pp-sidebar-row-copy small");
+    if (subEl) subEl.textContent = `${cat} · ${Number(item.count) || 0} options`;
+    const copy = row.querySelector(".pp-sidebar-row-copy");
+    const thumbFile = thumbnails[item.path];
+    if (copy) quickPreview.bind(copy, item.path, { image: !!thumbFile });
+    hoverPreview.bind(row, { title: item.path.split("/").pop(), subtitle: `${cat} · ${Number(item.count) || 0} options`, image: thumbFile ? API.thumbnailUrl(thumbFile) : "" });
+    const pin = row.querySelector("[data-library-pin]");
+    if (pin) {
+      const pinnedNow = libraryPins.has(item.path);
+      pin.textContent = pinnedNow ? "★" : "☆";
+      pin.title = pinnedNow ? "Unpin entry" : "Pin entry";
+      pin.setAttribute("aria-label", `${pin.title}: ${item.path}`);
+      pin.setAttribute("aria-pressed", String(pinnedNow));
+    }
+    const gallery = row.classList.contains("pp-sidebar-gallery-card");
+    const nextThumbUrl = thumbFile && loadSidebarDisplay().chrome.images ? API.thumbnailUrl(thumbFile) : "";
+    if (rowThumbUrls.get(row) !== nextThumbUrl) {
+      rowThumbUrls.set(row, nextThumbUrl);
+      const media = gallery ? row.querySelector(".pp-sidebar-media") : row;
+      if (media) {
+        const existingImg = media.querySelector(".pp-sidebar-thumb");
+        const existingFallback = media.querySelector(".pp-sidebar-gallery-fallback");
+        if (nextThumbUrl) {
+          const nextImg = createLibraryThumbImg(row, nextThumbUrl, gallery, cat);
+          if (existingImg) existingImg.replaceWith(nextImg);
+          else if (existingFallback) existingFallback.replaceWith(nextImg);
+          else media.prepend(nextImg);
+        } else {
+          existingImg?.remove();
+          if (gallery && !existingFallback) media.append(createLibraryMediaFallback(cat));
+        }
+      }
+    }
+  }
   function paintLibraryCollection() {
     if (disposed) return;
-    const oldScroll = list.scrollTop, metrics = sidebarLayoutMetrics("library", appearance.theme.uiFontScale, list.clientWidth);
-    const images = loadSidebarDisplay().chrome.images;
-    const geometry = `${metrics.mode}|${metrics.scale}|${metrics.rowHeight}|${metrics.cardWidth}|${metrics.ratio}|${images}`;
-    const positions = geometry !== libraryGeometry ? presentation.captureLayout(list) : null;
-    const anchor = geometry !== libraryGeometry ? virtual.captureViewportAnchor() : null;
-    const imagesChanged = libraryGeometry.split("|").at(-1) !== String(images);
+    if (list.clientWidth <= 0) {
+      if (!libraryMatches.length) {
+        virtual.clear();
+        libraryCollection = null;
+        list.replaceChildren(make("p", "pp-sidebar-empty", items.length ? "No matching entries." : "No library entries yet. Create an entry here or set your library folder in ComfyUI Settings → Prompt Palette."));
+      }
+      libraryGeometry = "";
+      return;
+    }
+    const oldScroll = list.scrollTop;
+    const metrics = sidebarLayoutMetrics("library", appearance.theme.uiFontScale, list.clientWidth);
+    const displayChrome = loadSidebarDisplay().chrome;
+    const images = displayChrome.images;
+    const fillRows = displayChrome.fillRows !== false;
+    const geometry = `${metrics.mode}|${metrics.scale}|${metrics.rowHeight}|${metrics.cardWidth}|${metrics.ratio}|${metrics.aspect}|${fillRows}|${images}|${list.clientWidth}`;
+    const geometryChanged = geometry !== libraryGeometry;
+    const positions = geometryChanged ? presentation.captureLayout(list) : null;
+    const anchor = geometryChanged ? virtual.captureViewportAnchor() : null;
+    const prevParts = libraryGeometry ? libraryGeometry.split("|") : [];
+    const modeChanged = prevParts.length ? prevParts[0] !== metrics.mode : false;
+    const imagesChanged = prevParts.length ? prevParts[7] !== String(images) : false;
     libraryGeometry = geometry;
     libraryPins = loadPinned();
     list.dataset.density = metrics.density;
     list.dataset.layout = metrics.mode;
+    list.dataset.aspect = metrics.aspect;
     presentation.set(list, { "--pp-library-card-width": `${metrics.cardWidth}px`, "--pp-library-ratio": metrics.ratio, "--pp-library-scale": metrics.scale, "--pp-library-font-scale": metrics.font, "--pp-library-row-height": `${metrics.rowHeight}px` });
     if (!libraryMatches.length) { virtual.clear(); libraryCollection = null; list.replaceChildren(make("p", "pp-sidebar-empty", items.length ? "No matching entries." : "No library entries yet. Create an entry here or set your library folder in ComfyUI Settings → Prompt Palette.")); return; }
     const tiny = metrics.density === "tiny", micro = metrics.density === "micro";
     const ui = Number(appearance.theme.uiFontScale) || 1;
     const caption = tiny ? 0 : snapSidebarSize((micro ? 28 : 44) * ui);
-    const imageHeight = images ? (metrics.cardWidth - (tiny ? 10 : 18)) / metrics.ratio : 0;
+    const effectiveRatio = metrics.isNaturalRatio ? 1 : metrics.ratio;
+    const pad = tiny ? 10 : 18;
+    const imageHeightFor = width => images ? Math.max(0, (width - pad) / effectiveRatio) : 0;
     // Normal cards: 18px padding/borders + 32px actions + 8px row gap,
     // plus two inner gaps with images or one without. Tiny cards omit actions.
-    const cardHeight = imageHeight + (tiny ? (images ? 18 : snapSidebarSize(32 * ui) + 8) : caption + (images ? 74 : 66));
+    const chrome = tiny ? (images ? 18 : snapSidebarSize(32 * ui) + 8) : caption + (images ? 74 : 66);
+    const cardHeightForWidth = width => imageHeightFor(width) + chrome;
+    const imageHeight = imageHeightFor(metrics.cardWidth);
+    const cardHeight = cardHeightForWidth(metrics.cardWidth);
     presentation.set(list, { "--pp-library-caption": `${caption}px`, "--pp-library-image-height": `${imageHeight}px` });
-    const layoutOptions = { estimateRowHeight: metrics.rowHeight, mode: metrics.mode === "gallery" ? "grid" : metrics.mode, minCardWidth: metrics.cardWidth, columnCount: metrics.columns, fixedCardWidth: true, imageAspectRatio: images ? metrics.ratio : 1000, estimateCardHeight: cardHeight };
+    const virtualMode = metrics.mode === "gallery" ? "grid" : metrics.mode;
+    const layoutOptions = {
+      mode: virtualMode,
+      estimateRowHeight: metrics.rowHeight,
+      minCardWidth: metrics.cardWidth,
+      columnCount: virtualMode === "masonry" ? (fillRows ? metrics.columns : null) : (virtualMode === "grid" ? metrics.columns : 1),
+      fixedCardWidth: virtualMode === "masonry" ? !fillRows : virtualMode === "grid",
+      imageAspectRatio: images ? effectiveRatio : 0,
+      estimateCardHeight: cardHeight,
+      estimateChromeHeight: tiny ? 0 : caption + 54,
+      cardHeightForWidth,
+      itemKey: item => item.path,
+      getItemRatio: item => {
+        const thumb = thumbnails[item.path];
+        return (thumb && libraryThumbRatios.get(API.thumbnailUrl(thumb))) || null;
+      },
+      thumbnailUrl: item => (images && thumbnails[item.path]) ? API.thumbnailUrl(thumbnails[item.path]) : "",
+    };
 
     if (!libraryCollection) {
       list.replaceChildren();
@@ -370,7 +502,13 @@ export function createPromptPaletteSidebar(container) {
         restoreFocus: snapshot => restoreSidebarFocus(list, ".pp-sidebar-row", "path", snapshot) });
     } else {
       libraryCollection.updateLayout(layoutOptions);
-      if (libraryCollection.items !== libraryMatches || imagesChanged) libraryCollection.setItems(libraryMatches);
+      if (imagesChanged) {
+        libraryCollection.setItems(libraryMatches);
+      } else if (modeChanged) {
+        if (libraryCollection.items !== libraryMatches) libraryCollection.setItems(libraryMatches);
+      } else if (libraryCollection.items !== libraryMatches) {
+        libraryCollection.updateItems(libraryMatches, { patchNode: patchLibraryRow });
+      }
     }
     list.scrollTop = oldScroll; virtual.restoreViewportAnchor(anchor); libraryCollection.render(); virtual.refresh();
     presentation.animateLayout(list, positions);

@@ -1,11 +1,10 @@
-import { loadExtensionStylesheet } from "../prompt_palette_shared.js";
-loadExtensionStylesheet(new URL("../css/editor/104-generation-history.css", import.meta.url).href, "prompt-palette-history");
 import { api } from "../../../scripts/api.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
 import { API } from "../prompt_palette_api.js";
 import { createHistoryComparison } from "./history_comparison.js";
 import { historyRefinementSources, reviewHistoryRefinement } from "./history_restore.js";
+import { PresentationScope } from "./sidebar_presentation.js";
 
 const BASE = "/zf-prompt-palette/api/v1/generations";
 const subscribers = new Set();
@@ -47,6 +46,7 @@ function select(values, name) { const node = el("select"); node.setAttribute("ar
 
 export function createGenerationHistory(host, { restore, getNode, onBack } = {}) {
   const root = el("section", "pp-generation-history"); host.append(root);
+  const scope = new PresentationScope(root);
 
   if (onBack) {
     const topNav = el("div", "pp-history-top-nav");
@@ -573,6 +573,7 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
 
   function card(record) {
     const node = el("article", "wg-thumb-item pp-history-card");
+    node.dataset.generationId = record.id;
     node.classList.toggle("pp-history-selected", comparisonView.has(record.id));
     const media = el("div", "wg-thumb-media");
     if (!record.missing) {
@@ -581,7 +582,16 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
       img.alt = record.image.filename;
       img.loading = "lazy";
       img.decoding = "async";
-      img.addEventListener("error", () => { img.remove(); media.textContent = "Preview unavailable"; }, { once: true });
+      img.addEventListener("load", () => {
+        if (img.naturalWidth && img.naturalHeight) {
+          collection?.notifyMediaDimensions(node, img.naturalWidth, img.naturalHeight);
+        }
+      }, { once: true });
+      img.addEventListener("error", () => {
+        img.remove();
+        media.textContent = "Preview unavailable";
+        collection?.notifyMediaError(node);
+      }, { once: true });
       media.append(img);
     } else {
       media.append(el("span", "", "Original file missing"));
@@ -604,6 +614,7 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
     detailsBtn.className = "pp-history-btn pp-btn-sm";
     const favBtn = button(record.favorite ? "★" : "☆", () => annotate(record, { favorite: !record.favorite }));
     favBtn.className = "pp-history-btn pp-btn-sm" + (record.favorite ? " pp-btn-fav-active" : "");
+    favBtn.dataset.historyFavorite = record.id;
     const compBtn = compareButton(record, true);
     compBtn.className = "pp-history-btn pp-btn-sm";
     const keepBtn = keeperButton(record); keepBtn.classList.add("pp-btn-sm");
@@ -619,6 +630,14 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
     node.append(actions);
     return node;
   }
+  function patchCard(node, record) {
+    node.classList.toggle("pp-history-selected", comparisonView.has(record.id));
+    const favBtn = node.querySelector("[data-history-favorite]");
+    if (favBtn) {
+      favBtn.textContent = record.favorite ? "★" : "☆";
+      favBtn.className = "pp-history-btn pp-btn-sm" + (record.favorite ? " pp-btn-fav-active" : "");
+    }
+  }
   function emptyHistoryMessage() {
     if (query.value.trim() || favorite.checked || missing.checked || date.value !== "0") return "No matches. Clear the search or relax the filters to see more generations.";
     return prefs?.enabled ? "No indexed images yet. Queue a Prompt Palette generation or import existing ComfyUI history."
@@ -627,15 +646,37 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
   function paint(geometryOnly = false) {
     if (disposed || !active) return;
     list.dataset.historyView = mode.value;
-    list.style.setProperty("--wg-personal-thumb-min", `${Number(size.value)}px`);
+    scope.set(list, { "--wg-personal-thumb-min": `${Number(size.value)}px` });
     if (!rows.length) { manager.clear(); collection = null; const empty = el("p", "pp-history-note", emptyHistoryMessage()); empty.setAttribute("role", "status"); list.replaceChildren(empty); return; }
-    const layout = { mode: mode.value, minCardWidth: Number(size.value), estimateRowHeight: 100, estimateCardHeight: Number(size.value) + 100 };
+    const minCardWidth = Number(size.value);
+    const layout = {
+      mode: mode.value,
+      minCardWidth,
+      estimateRowHeight: 100,
+      estimateChromeHeight: 88,
+      cardHeightForWidth: width => width + 88,
+      estimateCardHeight: minCardWidth + 88,
+      itemKey: record => record.id,
+      getItemRatio: record => (record.width && record.height) ? { width: record.width, height: record.height } : null,
+      thumbnailUrl: record => !record.missing && record.image ? imageUrl(record.image) : "",
+    };
     if (!collection) {
       list.replaceChildren();
-      collection = manager.mount(list, { ...layout, items: rows, renderItem: card });
+      collection = manager.mount(list, {
+        ...layout,
+        items: rows,
+        renderItem: card,
+        styleDeclaration: scope.declaration,
+        releaseStyle: el => scope.release(el),
+      });
     } else {
+      const modeChanged = collection.mode !== layout.mode;
       collection.updateLayout(layout);
-      if (!geometryOnly) collection.setItems(rows);
+      if (!geometryOnly) {
+        if (modeChanged) collection.setItems(rows);
+        else collection.updateItems(rows, { patchNode: patchCard });
+      }
+      manager.refresh();
     }
   }
   async function refresh(append = false) {
@@ -690,7 +731,7 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
       disposed = true; cancelViewRequests(); comparisonActionSequence++; detailSequence++; refineSequence++;
       refineReview?.close(); refineReview = null; importCancelled = true; unsubscribe?.();
       window.removeEventListener("pp-refinement-changed", refinementChanged);
-      unsubMetadata?.(); comparisonView.cleanup(); manager.cleanup(); root.remove();
+      unsubMetadata?.(); comparisonView.cleanup(); manager.cleanup(); scope.cleanup(); root.remove();
     },
   };
 }

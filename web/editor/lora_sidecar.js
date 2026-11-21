@@ -1,5 +1,6 @@
 import { createLoraPicker } from "./lora_picker.js";
 import { compileWorkspace } from "./recipe_workspace_model.js";
+import { PresentationScope } from "./sidebar_presentation.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
 import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary, svgIcon } from "../prompt_palette_shared.js";
 import { scheduleDomWidgetRemeasure } from "../prompt_palette_compat.js";
@@ -67,7 +68,6 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   const persistSize = () => writeEditorPreference("loraSidecarSizeV1", { ...panelSize });
 
   let floatingPosition = null;
-  writeEditorPreference("loraSidecarPositionV1", null);
   const persistPosition = () => writeEditorPreference("loraSidecarPositionV1", floatingPosition ? { ...floatingPosition } : null);
 
   const isInline = !!inlineHost;
@@ -77,11 +77,14 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   sidecar.setAttribute("role", "dialog");
   sidecar.setAttribute("aria-label", "LoraPal");
   sidecar.setAttribute("aria-modal", "false");
+  const presentation = new PresentationScope(sidecar);
 
   if (!isInline) {
     sidecar.addEventListener("pointerdown", (e) => { node?._ppCommandTarget?.activate?.(); e.stopPropagation(); });
     sidecar.addEventListener("mousedown", (e) => e.stopPropagation());
     sidecar.addEventListener("click", (e) => e.stopPropagation());
+    sidecar.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+  } else {
     sidecar.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
   }
 
@@ -89,9 +92,13 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   const header = make("div", "wg-library-sidecar-head pp-lora-window-head");
   const dragHandle = make("button", "wg-library-sidecar-drag pp-lora-sidecar-drag");
   dragHandle.type = "button";
-  dragHandle.setAttribute("data-lora-drag", "");
-  dragHandle.setAttribute("aria-label", "Move LoraPal; use arrow keys. Double-click to toggle Follow Node.");
-  dragHandle.title = "Drag to move · Arrow keys move · Double-click to toggle Follow Node";
+  if (!isInline) {
+    dragHandle.setAttribute("data-lora-drag", "");
+    dragHandle.setAttribute("aria-label", "Move LoraPal; use arrow keys. Double-click to toggle Follow Node.");
+    dragHandle.title = "Drag to move · Arrow keys move · Double-click to toggle Follow Node";
+  } else {
+    dragHandle.setAttribute("aria-label", "LoraPal");
+  }
 
   dragHandle.innerHTML = `<span class="pp-lora-brandmark" aria-hidden="true">${svgIcon("layers", 14)}</span><span class="pp-lora-title-wrap"><strong>LoraPal</strong></span>`;
 
@@ -168,6 +175,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   trigger?.setAttribute("aria-controls", sidecar.id);
 
   let picker = null, activeEditor = editor, lastEditor = editor, disposed = false;
+  let activeSnapshot = null, activeContext = null, activeProjection = "", activeReadOnly = false;
   let gesture = null, stopPlacement = null, sidecarPlacement = "", themeObserver = null;
 
   const setStatus = (text, error = false) => {
@@ -178,10 +186,11 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
   function syncTheme() {
     if (isInline || !sidecar.isConnected) return;
     const scope = root.closest?.(".wg-node, .pp-node, .ppwc-surface") || root;
-    copyPromptPaletteThemeScope(scope, sidecar);
+    copyPromptPaletteThemeScope(scope, sidecar, presentation.declaration(sidecar));
     for (const cls of ["wg-high-contrast", "wg-reduce-motion", "wg-no-animations", "wg-disable-animations", "wg-large-text"]) {
       sidecar.classList.toggle(cls, scope.classList?.contains(cls) === true);
     }
+    picker?.syncTheme?.();
   }
 
   function finishGesture() {
@@ -277,7 +286,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
     if (key === sidecarPlacement) return;
     sidecarPlacement = key;
 
-    Object.assign(sidecar.style, {
+    presentation.set(sidecar, {
       left: `${Math.round(left)}px`,
       top: `${Math.round(top)}px`,
       width: `${Math.round(width)}px`,
@@ -359,7 +368,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       floatingPosition.left = Math.round(Math.max(SIDECAR_MARGIN, Math.min(newLeft, vw - panelSize.width - SIDECAR_MARGIN)));
       floatingPosition.top = Math.round(Math.max(SIDECAR_MARGIN, Math.min(newTop, vh - panelSize.height - SIDECAR_MARGIN)));
 
-      Object.assign(sidecar.style, {
+      presentation.set(sidecar, {
         left: `${floatingPosition.left}px`,
         top: `${floatingPosition.top}px`,
         width: `${panelSize.width}px`,
@@ -374,7 +383,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
         top: Math.round(Math.max(SIDECAR_MARGIN, Math.min(startTop + (e.clientY - startY), vh - height - SIDECAR_MARGIN))),
       };
 
-      Object.assign(sidecar.style, {
+      presentation.set(sidecar, {
         left: `${floatingPosition.left}px`,
         top: `${floatingPosition.top}px`,
       });
@@ -487,16 +496,15 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
 
     for (const { el, edge } of resizers) {
       el.addEventListener("pointerdown", (e) => startResize(e, edge));
-      el.addEventListener("keydown", (e) => onKeyDown(e, true, edge));
     }
+    resizeHandle.addEventListener("keydown", (e) => onKeyDown(e, true, "se"));
 
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", finishGesture);
     window.addEventListener("pointercancel", finishGesture);
     window.addEventListener("resize", onViewportResize, { passive: true });
-
-    installPromptPaletteKeyboardBoundary(sidecar);
   }
+  const releaseKeyboardBoundary = installPromptPaletteKeyboardBoundary(sidecar);
 
   function close({ restoreFocus = false } = {}) {
     finishGesture();
@@ -504,6 +512,10 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
     stopPlacement?.(); stopPlacement = null;
     picker?.cleanup();
     picker = null;
+    activeSnapshot = null;
+    activeContext = null;
+    activeProjection = "";
+    activeReadOnly = false;
     body.replaceChildren();
     sidecar.classList.remove("open");
     sidecar.hidden = true;
@@ -519,6 +531,31 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
     if (node) scheduleDomWidgetRemeasure(node);
   }
 
+  function observeDisconnectTargets() {
+    observer.disconnect();
+    // Watch direct child removals along root's and activeEditor's ancestor chains
+    // without subtree: true so unrelated ComfyUI DOM mutations never fire here.
+    const seen = new Set();
+    for (let el = root?.parentElement; el; el = el.parentElement) {
+      if (!seen.has(el)) {
+        seen.add(el);
+        observer.observe(el, { childList: true, subtree: false });
+      }
+    }
+    if (!seen.size && document.body) {
+      observer.observe(document.body, { childList: true, subtree: false });
+    }
+    for (let el = activeEditor?.parentElement; el && el !== root; el = el.parentElement) {
+      if (!seen.has(el)) {
+        seen.add(el);
+        observer.observe(el, { childList: true, subtree: false });
+      }
+    }
+    if (root && activeEditor && activeEditor !== root && !seen.has(root)) {
+      observer.observe(root, { childList: true, subtree: false });
+    }
+  }
+
   function open(target = lastEditor || editor, { range = null, focus = true, variation = null } = {}) {
     if (disposed) return false;
     const resolved = resolveLoraTarget(node, editor, target, range);
@@ -527,11 +564,11 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
     const draft = picker?.draft?.();
     beforeOpen();
     node?._ppCommandTarget?.activate?.();
-    observer.observe(document.body, { childList: true, subtree: true });
     picker?.cleanup();
     body.replaceChildren();
     lastEditor = surface;
     activeEditor = effectiveTarget;
+    observeDisconnectTargets();
 
     const context = effectiveTarget.__ppPromptTools || {};
     const snapshot = {
@@ -540,11 +577,14 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       end: resolved.end,
       direction: resolved.direction,
     };
-    let projection = context.project?.(snapshot.source) ?? snapshot.source;
+    activeContext = context;
+    activeSnapshot = snapshot;
+    activeReadOnly = readOnly;
+    activeProjection = context.project?.(snapshot.source) ?? snapshot.source;
 
     const guard = () => {
-      if (readOnly) throw new Error("This editor is read-only.");
-      if (!effectiveTarget.isConnected || effectiveTarget.value !== snapshot.source || (context.project?.(snapshot.source) ?? snapshot.source) !== projection) {
+      if (activeReadOnly) throw new Error("This editor is read-only.");
+      if (!effectiveTarget.isConnected || effectiveTarget.value !== activeSnapshot.source || (activeContext.project?.(activeSnapshot.source) ?? activeSnapshot.source) !== activeProjection) {
         const text = "Editor changed · choose Use cursor to retarget active selection.";
         setStatus(text, true);
         throw new Error(text);
@@ -565,9 +605,8 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       themeObserver.observe(el, { attributes: true, attributeFilter: ["style", "class", "data-wg-tone", "data-wg-finish"] });
     }
 
-    // Always start docked/pinned to main node on open
-    floatingPosition = null;
-    writeEditorPreference("loraSidecarPositionV1", null);
+    // Preserve any user-dragged floatingPosition across Use cursor (rebase) and reopens;
+    // when floatingPosition is null, placeSidecar() docks beside the node.
     sidecarPlacement = "";
     placeSidecar();
     stopPlacement?.();
@@ -588,7 +627,7 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       draft,
       applied(next) {
         Object.assign(snapshot, next);
-        projection = context.project?.(snapshot.source) ?? snapshot.source;
+        activeProjection = activeContext.project?.(snapshot.source) ?? snapshot.source;
         setStatus("Applied · keep editing, auditioning or choose Use cursor to insert elsewhere.");
       },
     });
@@ -606,19 +645,42 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
 
   const closeForOtherTool = event => {
     const action = event.target.closest?.("[data-act]")?.dataset.act;
-    if (sidecar.classList.contains("open") && ["picker", "edit", "settings", "stash", "recipesShortcut", "variations", "ioRailToggle", "zenToggle"].includes(action)) {
+    if (sidecar.classList.contains("open") && ["picker", "edit", "settings", "stash", "recipesShortcut", "variations", "ioRailToggle", "zenToggle", "styles", "importImage"].includes(action)) {
       close();
     }
   };
 
   const toggle = () => sidecar.classList.contains("open") ? close({ restoreFocus: true }) : open();
-  const rebase = () => open(lastEditor || activeEditor, { focus: false });
+  const rebase = () => {
+    const resolved = resolveLoraTarget(node, editor, lastEditor || activeEditor, null);
+    if (picker && resolved && resolved.editor === activeEditor && resolved.editor.isConnected && activeSnapshot) {
+      lastEditor = resolved.surface;
+      activeReadOnly = resolved.readOnly;
+      Object.assign(activeSnapshot, {
+        source: resolved.source,
+        start: resolved.start,
+        end: resolved.end,
+        direction: resolved.direction,
+      });
+      activeProjection = activeContext?.project?.(activeSnapshot.source) ?? activeSnapshot.source;
+      picker.syncTarget({ start: resolved.start, end: resolved.end });
+      setStatus(activeReadOnly
+        ? "Target is read-only · choose an editable field and Use cursor."
+        : "Retargeted active cursor / selection.");
+      return true;
+    }
+    return open(lastEditor || activeEditor, { focus: false });
+  };
   const escape = event => {
-    if (event.key === "Escape" && !event.defaultPrevented && sidecar.classList.contains("open")) {
+    if (event.key !== "Escape" || event.defaultPrevented || !sidecar.classList.contains("open")) return;
+    if (picker?.closeFlyout?.({ restoreFocus: true })) {
       event.preventDefault();
       event.stopPropagation();
-      close({ restoreFocus: true });
+      return;
     }
+    event.preventDefault();
+    event.stopPropagation();
+    close({ restoreFocus: true });
   };
 
   trigger?.addEventListener("click", toggle);
@@ -649,6 +711,8 @@ export function installLoraSidecar({ root, node = null, editor, beforeOpen = () 
       trigger?.removeEventListener("click", toggle);
       root.removeEventListener("click", closeForOtherTool, true);
       root.removeEventListener("focusin", remember);
+      releaseKeyboardBoundary();
+      presentation.cleanup();
       sidecar.remove();
       if (root.__ppLoraSidecar === manager) delete root.__ppLoraSidecar;
       if (node?._ppLoraSidecar === manager) delete node._ppLoraSidecar;

@@ -163,6 +163,42 @@ export function parsePngTextChunks(buffer) {
   return parsed;
 }
 
+function composeSourceParts(parts, processingMode = "") {
+  const cleaned = parts.filter(part => typeof part === "string" && part.length > 0);
+  if (!cleaned.length) return null;
+  return cleaned.join(processingMode === "line by line" ? "\n" : " ");
+}
+
+function readSamplerConditioningText(graph, ref, visited = new Set()) {
+  if (!graph || typeof graph !== "object" || !isLink(ref)) return null;
+  const startId = String(ref[0]);
+  const stack = [startId];
+  while (stack.length && visited.size < 64) {
+    const nid = stack.pop();
+    if (visited.has(nid)) continue;
+    visited.add(nid);
+    const node = graph[nid];
+    if (!node || typeof node !== "object") continue;
+    const classType = String(node.class_type || "");
+    const inputs = node.inputs && typeof node.inputs === "object" ? node.inputs : {};
+    // Never read Prompt Palette's raw template text as a resolved prompt.
+    if (classType === "PromptPaletteEditor" || classType === "PromptPaletteCombinatorial") {
+      continue;
+    }
+    if (/CLIPTextEncode/i.test(classType)) {
+      const multi = ["text_g", "text_l", "clip_l", "t5xxl"]
+        .map(k => (typeof inputs[k] === "string" ? inputs[k].trim() : ""))
+        .filter(Boolean);
+      if (multi.length) return [...new Set(multi)].join("\n");
+      if (typeof inputs.text === "string" && inputs.text.trim()) return inputs.text;
+    }
+    for (const key of ["conditioning", "conditioning_1", "conditioning_to", "positive", "negative", "text"]) {
+      if (isLink(inputs[key])) stack.push(String(inputs[key][0]));
+    }
+  }
+  return null;
+}
+
 function parseA1111Parameters(text) {
   if (typeof text !== "string" || !text.trim()) return {};
   const lines = text.trim().split(/\r?\n/);
@@ -191,6 +227,7 @@ function parseA1111Parameters(text) {
       else if (k === "model") result.model = v;
       else if (k === "size") result.resolution = v.replace(/x/i, "×");
       else if (k === "denoising strength" || k === "denoise") result.denoise = Number(v) || v;
+      else if (k === "clip skip") result.clipSkip = v;
     }
     const promptLines = lines.slice(0, paramLineIndex).join("\n");
     const negIdx = promptLines.indexOf("\nNegative prompt:");
@@ -279,11 +316,67 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
 
   const contexts = Array.isArray(safeRecord.contexts) ? safeRecord.contexts.filter(c => c && typeof c === "object") : [];
 
-  // Prompts extraction
+  const matchedPpKey = safeRecord.pp_node_id != null ? String(safeRecord.pp_node_id) : "";
+  const unwrapPaletteUi = (raw) => {
+    if (Array.isArray(raw) && raw.length === 1 && raw[0] && typeof raw[0] === "object") return raw[0];
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : null;
+  };
+  const collectPaletteCandidates = () => {
+    const out = [];
+    const seen = new Set();
+    const pushCandidate = (obj) => {
+      if (!obj || typeof obj !== "object" || seen.has(obj)) return;
+      seen.add(obj);
+      out.push(obj);
+    };
+    const historyOutputs = historyEntry?.outputs && typeof historyEntry.outputs === "object" ? historyEntry.outputs : {};
+    const histPaletteContainer = extraPnginfo.prompt_palette && typeof extraPnginfo.prompt_palette === "object"
+      ? extraPnginfo.prompt_palette : null;
+    const histPaletteNodes = histPaletteContainer?.nodes && typeof histPaletteContainer.nodes === "object"
+      ? histPaletteContainer.nodes : {};
+    const embPaletteContainer = embedded.prompt_palette && typeof embedded.prompt_palette === "object"
+      ? embedded.prompt_palette : null;
+    const embPaletteNodes = embPaletteContainer?.nodes && typeof embPaletteContainer.nodes === "object"
+      ? embPaletteContainer.nodes : {};
+
+    // 1. Exact matched Prompt Palette node first
+    if (matchedPpKey) {
+      pushCandidate(unwrapPaletteUi(historyOutputs[matchedPpKey]?.prompt_palette));
+      pushCandidate(histPaletteNodes[matchedPpKey]);
+      pushCandidate(embPaletteNodes[matchedPpKey]);
+    }
+    // 2. Context node IDs (prefer positive-feeding context when multiple exist)
+    for (const ctx of contexts) {
+      if (ctx.node_id == null) continue;
+      const cid = String(ctx.node_id);
+      if (ctx.channel_role === "negative") continue;
+      pushCandidate(unwrapPaletteUi(historyOutputs[cid]?.prompt_palette));
+      pushCandidate(histPaletteNodes[cid]);
+      pushCandidate(embPaletteNodes[cid]);
+    }
+    // 3. Primary / single-node metadata from history or PNG chunks
+    pushCandidate(unwrapPaletteUi(extraPnginfo.prompt_palette_metadata));
+    pushCandidate(unwrapPaletteUi(histPaletteContainer?.primary));
+    pushCandidate(unwrapPaletteUi(embedded.prompt_palette_metadata));
+    pushCandidate(unwrapPaletteUi(embPaletteContainer?.primary));
+    // 4. Any PromptPalette outputs in history.outputs (when single PP run wasn't strictly matched)
+    const allUiOutputs = Object.values(historyOutputs)
+      .map(o => unwrapPaletteUi(o?.prompt_palette))
+      .filter(Boolean);
+    if (allUiOutputs.length === 1) {
+      pushCandidate(allUiOutputs[0]);
+    }
+    return out;
+  };
+  const paletteSources = collectPaletteCandidates();
+
+  // Prompts extraction: always preserve raw input vs final resolved separately.
   let resolvedPositive = cleanString(safeRecord.resolved_positive);
   let resolvedNegative = cleanString(safeRecord.resolved_negative);
   let authoredPositive = cleanString(safeRecord.authored_positive);
   let authoredNegative = cleanString(safeRecord.authored_negative);
+  let rawInputBody = null;
+  let rawNegativeBody = null;
 
   for (const ctx of contexts) {
     const role = ctx.channel_role || "positive";
@@ -294,39 +387,155 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
     if (!resolvedNegative && (role === "negative" || role === "both" || safeRecord.provenance === "verified")) {
       resolvedNegative = cleanString(ref.negative_prompt) || (role === "negative" ? cleanString(ctx.resolved_prompt) : null);
     }
+    if (!rawInputBody) {
+      rawInputBody = cleanString(ctx.authored_positive) || cleanString(ref.source_text);
+    }
+    if (!rawNegativeBody) {
+      rawNegativeBody = cleanString(ctx.authored_negative) || cleanString(ref.source_negative_text);
+    }
     if (!authoredPositive) {
-      authoredPositive = cleanString(ctx.authored_positive) || cleanString(ref.source_text);
+      authoredPositive = cleanString(ref.source_prompt) || cleanString(ctx.authored_positive) || cleanString(ref.source_text);
     }
     if (!authoredNegative) {
-      authoredNegative = cleanString(ctx.authored_negative) || cleanString(ref.source_negative_text);
+      authoredNegative = cleanString(ref.source_negative_prompt) || cleanString(ctx.authored_negative) || cleanString(ref.source_negative_text);
     }
   }
 
-  // Wildcards and LoRAs from contexts and record
+  let anyMultiBatch = false;
+  for (const pal of paletteSources) {
+    const singleBatchItem = pal.batch && Array.isArray(pal.prompts) && pal.prompts.length === 1 && pal.prompts[0] && typeof pal.prompts[0] === "object"
+      ? pal.prompts[0]
+      : null;
+    if (pal.batch && !singleBatchItem) anyMultiBatch = true;
+    if (!pal.batch || singleBatchItem) {
+      const sourceObj = singleBatchItem || pal;
+      if (!resolvedPositive) {
+        resolvedPositive = cleanString(sourceObj.resolved_prompt) || cleanString(sourceObj.positive_prompt) || cleanString(sourceObj.prompt);
+      }
+      if (!resolvedNegative) {
+        resolvedNegative = cleanString(sourceObj.resolved_negative_prompt) || cleanString(sourceObj.negative_prompt);
+      }
+    }
+    if (!authoredPositive) {
+      authoredPositive = cleanString(pal.source_prompt) || cleanString(pal.raw_prompt) || cleanString(pal.source_text);
+    }
+    if (!authoredNegative) {
+      authoredNegative = cleanString(pal.source_negative_prompt) || cleanString(pal.source_negative_text);
+    }
+    if (!rawInputBody) rawInputBody = cleanString(pal.source_text);
+    if (!rawNegativeBody) rawNegativeBody = cleanString(pal.source_negative_text);
+  }
+  if (!anyMultiBatch) {
+    if (!resolvedPositive) {
+      resolvedPositive = cleanString(extraPnginfo.resolved_prompt) || cleanString(extraPnginfo.positive_prompt)
+        || cleanString(embedded.resolved_prompt) || cleanString(embedded.positive_prompt);
+    }
+    if (!resolvedNegative) {
+      resolvedNegative = cleanString(extraPnginfo.negative_prompt) || cleanString(embedded.negative_prompt);
+    }
+  }
+  if (!authoredPositive) {
+    authoredPositive = cleanString(extraPnginfo.raw_prompt) || cleanString(extraPnginfo.prompt_source)
+      || cleanString(embedded.raw_prompt) || cleanString(embedded.prompt_source);
+  }
+  if (!authoredNegative) {
+    authoredNegative = cleanString(extraPnginfo.negative_prompt_source) || cleanString(embedded.negative_prompt_source);
+  }
+
+  // Wildcards, branch/wildcard selections, variables, and LoRAs
   const wildcardSet = new Set();
   for (const w of Array.isArray(safeRecord.wildcards_used) ? safeRecord.wildcards_used : []) {
     if (typeof w === "string" && w.trim()) wildcardSet.add(w.trim());
   }
+  for (const pal of paletteSources) {
+    for (const w of Array.isArray(pal.wildcards_used) ? pal.wildcards_used : []) {
+      if (typeof w === "string" && w.trim()) wildcardSet.add(w.trim());
+    }
+  }
+
+  const selections = [];
+  const seenSelections = new Set();
+  const pushSelection = (item) => {
+    if (!item || typeof item !== "object" || !item.kind) return;
+    const sig = JSON.stringify(item);
+    if (seenSelections.has(sig)) return;
+    seenSelections.add(sig);
+    selections.push(item);
+    if (item.kind === "wildcard" && typeof item.name === "string" && item.name.trim()) {
+      wildcardSet.add(item.name.trim());
+    }
+  };
+
+  const variables = {};
+  const collectVariables = (obj) => {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof k === "string" && k && v != null && !(k in variables)) {
+        variables[k] = String(v);
+      }
+    }
+  };
+
   const loras = [];
-  const seenLoras = new Set();
-  const addLora = (name, modelStrength = 1, clipStrength = modelStrength, status = "applied") => {
+  const loraIndexByKey = new Map();
+  const addLora = (name, modelStrength = 1, clipStrength = modelStrength, status = "applied", extraLora = {}) => {
     if (typeof name !== "string" || !name.trim()) return;
-    const key = `${name.trim()}|${modelStrength}|${clipStrength}`;
-    if (seenLoras.has(key)) return;
-    seenLoras.add(key);
+    const cleanName = name.trim();
+    const sm = Number.isFinite(Number(modelStrength)) ? Number(modelStrength) : 1;
+    const sc = Number.isFinite(Number(clipStrength)) ? Number(clipStrength) : sm;
+    const key = `${cleanName}|${sm}|${sc}`;
+    const filename = typeof extraLora.filename === "string" && extraLora.filename.trim() ? extraLora.filename.trim() : null;
+    const source = typeof extraLora.source === "string" && extraLora.source ? extraLora.source : (status === "graph" ? "graph" : "positive");
+    const authoredModelStrength = Number.isFinite(Number(extraLora.authoredModelStrength)) && Number(extraLora.authoredModelStrength) !== sm
+      ? Number(extraLora.authoredModelStrength)
+      : null;
+    const authoredClipStrength = Number.isFinite(Number(extraLora.authoredClipStrength)) && Number(extraLora.authoredClipStrength) !== sc
+      ? Number(extraLora.authoredClipStrength)
+      : null;
+
+    const existingIdx = loraIndexByKey.get(key);
+    if (existingIdx !== undefined) {
+      const existing = loras[existingIdx];
+      if (!existing.filename && filename) existing.filename = filename;
+      if (existing.status === "applied" && status && status !== "applied") existing.status = status;
+      if (existing.authoredModelStrength == null && authoredModelStrength != null) existing.authoredModelStrength = authoredModelStrength;
+      if (existing.authoredClipStrength == null && authoredClipStrength != null) existing.authoredClipStrength = authoredClipStrength;
+      return;
+    }
+    loraIndexByKey.set(key, loras.length);
     loras.push({
-      name: name.trim(),
-      modelStrength: Number.isFinite(Number(modelStrength)) ? Number(modelStrength) : 1,
-      clipStrength: Number.isFinite(Number(clipStrength)) ? Number(clipStrength) : 1,
-      status,
+      name: cleanName,
+      filename,
+      modelStrength: sm,
+      clipStrength: sc,
+      authoredModelStrength,
+      authoredClipStrength,
+      source,
+      status: status || "applied",
     });
   };
+
+  let loraMode = null;
+  let processingMode = null;
+  let clipTokenCount = null;
+  let usedEnhancer = false;
+  let positiveAntonyms = false;
 
   for (const ctx of contexts) {
     for (const w of Array.isArray(ctx.wildcards_used) ? ctx.wildcards_used : []) {
       if (typeof w === "string" && w.trim()) wildcardSet.add(w.trim());
     }
-    const refLoras = ctx.refinement?.loras;
+    const ref = ctx.refinement && typeof ctx.refinement === "object" ? ctx.refinement : {};
+    if (typeof ref.lora_mode === "string" && !loraMode) loraMode = ref.lora_mode;
+    if (typeof ref.processing_mode === "string" && !processingMode) processingMode = ref.processing_mode;
+    if (typeof ref.clip_token_count === "number" && ref.clip_token_count >= 0 && clipTokenCount == null) clipTokenCount = ref.clip_token_count;
+    if (ref.used_enhancer === true) usedEnhancer = true;
+    if (ref.positive_antonyms === true) positiveAntonyms = true;
+    collectVariables(ref.variables);
+    for (const sel of Array.isArray(ref.branch_selections) ? ref.branch_selections : []) {
+      pushSelection(sel);
+    }
+    const refLoras = ref.loras;
     if (Array.isArray(refLoras)) {
       for (const item of refLoras) {
         if (item && typeof item.name === "string") {
@@ -334,7 +543,49 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
             item.name,
             item.effective_model_strength ?? item.model_strength ?? 1,
             item.effective_clip_strength ?? item.clip_strength ?? 1,
-            item.status || "applied"
+            item.status || "applied",
+            {
+              filename: item.filename,
+              source: item.source || "positive",
+              authoredModelStrength: item.model_strength,
+              authoredClipStrength: item.clip_strength,
+            }
+          );
+        }
+      }
+    }
+  }
+
+  for (const pal of paletteSources) {
+    const singleBatchItem = pal.batch && Array.isArray(pal.prompts) && pal.prompts.length === 1 && pal.prompts[0] && typeof pal.prompts[0] === "object"
+      ? pal.prompts[0]
+      : null;
+    if (typeof pal.lora_mode === "string" && !loraMode) loraMode = pal.lora_mode;
+    if (typeof pal.processing_mode === "string" && !processingMode) processingMode = pal.processing_mode;
+    if (typeof pal.clip_token_count === "number" && pal.clip_token_count >= 0 && clipTokenCount == null) {
+      clipTokenCount = pal.clip_token_count;
+    }
+    if (pal.used_enhancer === true) usedEnhancer = true;
+    if (pal.positive_antonyms === true) positiveAntonyms = true;
+    collectVariables(pal.variables);
+    for (const sel of Array.isArray(pal.branch_selections) ? pal.branch_selections : []) {
+      pushSelection(sel);
+    }
+    const palLoras = singleBatchItem?.loras || (!pal.batch ? pal.loras : null);
+    if (Array.isArray(palLoras)) {
+      for (const item of palLoras) {
+        if (item && typeof item.name === "string") {
+          addLora(
+            item.name,
+            item.effective_model_strength ?? item.model_strength ?? 1,
+            item.effective_clip_strength ?? item.clip_strength ?? 1,
+            item.status || "applied",
+            {
+              filename: item.filename,
+              source: item.source || "positive",
+              authoredModelStrength: item.model_strength,
+              authoredClipStrength: item.clip_strength,
+            }
           );
         }
       }
@@ -343,8 +594,9 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
 
   // Parameters from record / direct fields first
   const ctxWithSeed = contexts.find(c => c.seed_text != null || c.seed != null);
+  const palWithSeed = paletteSources.find(p => p.seed != null && !p.batch);
   const paletteSeed = cleanScalarText(
-    safeRecord.effective_seed_text ?? safeRecord.effective_seed ?? ctxWithSeed?.seed_text ?? ctxWithSeed?.seed
+    safeRecord.effective_seed_text ?? safeRecord.effective_seed ?? ctxWithSeed?.seed_text ?? ctxWithSeed?.seed ?? palWithSeed?.seed
   );
 
   let samplerSeed = cleanScalarText(safeRecord.sampler_seed ?? safeRecord.noise_seed ?? a1111.samplerSeed);
@@ -380,6 +632,33 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
     const classType = String(node.class_type || "");
     const inputs = node.inputs && typeof node.inputs === "object" ? node.inputs : {};
 
+    if ((classType === "PromptPaletteEditor" || classType === "PromptPaletteCombinatorial") && (!matchedPpKey || nid === matchedPpKey || contexts.length <= 1)) {
+      if (!processingMode && typeof inputs.processing_mode === "string") {
+        processingMode = inputs.processing_mode;
+      }
+      if (!loraMode && typeof inputs.lora_mode === "string") {
+        loraMode = inputs.lora_mode;
+      }
+      if (!rawInputBody && typeof inputs.text === "string") {
+        rawInputBody = cleanString(inputs.text);
+      }
+      if (!rawNegativeBody && typeof inputs.negative_text === "string") {
+        rawNegativeBody = cleanString(inputs.negative_text);
+      }
+      if (!authoredPositive && typeof inputs.text === "string") {
+        authoredPositive = composeSourceParts(
+          [inputs.prompt_prefix, inputs.text, inputs.prompt_suffix],
+          typeof inputs.processing_mode === "string" ? inputs.processing_mode : ""
+        );
+      }
+      if (!authoredNegative && typeof inputs.negative_text === "string") {
+        authoredNegative = composeSourceParts(
+          [inputs.negative_prefix, inputs.negative_text, inputs.negative_suffix],
+          typeof inputs.processing_mode === "string" ? inputs.processing_mode : ""
+        );
+      }
+    }
+
     if (SAMPLER_CLASSES.has(classType) || /Sampler|Scheduler|Guider|Noise|Guidance/i.test(classType)) {
       if (!sampler) sampler = cleanScalarText(resolveInputValue(promptGraph, inputs, ["sampler_name", "sampler"]));
       if (!scheduler) scheduler = cleanScalarText(resolveInputValue(promptGraph, inputs, ["scheduler"]));
@@ -388,13 +667,26 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
       if (!guidance) guidance = cleanScalarText(resolveInputValue(promptGraph, inputs, ["guidance"]));
       if (!denoise) denoise = cleanScalarText(resolveInputValue(promptGraph, inputs, ["denoise"]));
       if (!samplerSeed) samplerSeed = cleanScalarText(resolveInputValue(promptGraph, inputs, ["seed", "noise_seed"]));
+      if (!resolvedPositive && isLink(inputs.positive)) {
+        resolvedPositive = cleanString(readSamplerConditioningText(promptGraph, inputs.positive));
+      }
+      if (!resolvedNegative && isLink(inputs.negative)) {
+        resolvedNegative = cleanString(readSamplerConditioningText(promptGraph, inputs.negative));
+      }
       if (inputs.start_at_step != null) pushExtraParam("start_at_step", "Start step", resolveInputValue(promptGraph, inputs, "start_at_step"));
       if (inputs.end_at_step != null) pushExtraParam("end_at_step", "End step", resolveInputValue(promptGraph, inputs, "end_at_step"));
       if (inputs.max_shift != null) pushExtraParam("max_shift", "Max shift", resolveInputValue(promptGraph, inputs, "max_shift"));
       if (inputs.base_shift != null) pushExtraParam("base_shift", "Base shift", resolveInputValue(promptGraph, inputs, "base_shift"));
+      if (inputs.shift != null) pushExtraParam("shift", "Shift", resolveInputValue(promptGraph, inputs, "shift"));
+      if (inputs.add_noise != null && inputs.add_noise !== "enable" && inputs.add_noise !== true) {
+        pushExtraParam("add_noise", "Add noise", resolveInputValue(promptGraph, inputs, "add_noise"));
+      }
+      if (inputs.return_with_leftover_noise === "enable" || inputs.return_with_leftover_noise === true) {
+        pushExtraParam("leftover_noise", "Leftover noise", resolveInputValue(promptGraph, inputs, "return_with_leftover_noise"));
+      }
     }
 
-    if (MODEL_LOADER_CLASSES.has(classType) || /Loader|Checkpoint|UNET|DiffusionModel/i.test(classType)) {
+    if (MODEL_LOADER_CLASSES.has(classType) || /Loader|Checkpoint|UNET|DiffusionModel|Lora/i.test(classType)) {
       if (!model) {
         model = cleanScalarText(resolveInputValue(promptGraph, inputs, ["ckpt_name", "unet_name", "model_name", "diffusion_model"]));
       }
@@ -408,12 +700,56 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
       if (!vae) {
         vae = cleanScalarText(resolveInputValue(promptGraph, inputs, ["vae_name"]));
       }
-      if (/LoraLoader/i.test(classType) && isScalar(inputs.lora_name)) {
-        addLora(String(inputs.lora_name), inputs.strength_model ?? 1, inputs.strength_clip ?? inputs.strength_model ?? 1, "graph");
+      if (/LoraLoader/i.test(classType) || /Lora/i.test(classType)) {
+        const loraNameVal = resolveInputValue(promptGraph, inputs, ["lora_name"]);
+        if (typeof loraNameVal === "string" && loraNameVal.trim() && loraNameVal !== "None") {
+          const sm = resolveInputValue(promptGraph, inputs, ["strength_model", "strength"]);
+          const sc = resolveInputValue(promptGraph, inputs, ["strength_clip", "strength_model", "strength"]);
+          addLora(loraNameVal, sm ?? 1, sc ?? sm ?? 1, "graph");
+        }
+        // Multi-LoRA loaders (e.g. rgthree Power Lora Loader, LoraLoaderStack, CR LoRA Stack)
+        for (const [k, v] of Object.entries(inputs)) {
+          if (/^lora_\d+$/i.test(k) && v && typeof v === "object" && !Array.isArray(v)) {
+            if (v.on !== false && typeof v.lora === "string" && v.lora.trim() && v.lora !== "None") {
+              const sm = v.strength ?? 1;
+              const sc = v.strengthTwo ?? sm;
+              addLora(v.lora, sm, sc, "graph");
+            }
+          }
+          const stackMatch = /^lora_name_(\d+)$/i.exec(k);
+          if (stackMatch && typeof v === "string" && v.trim() && v !== "None") {
+            const idx = stackMatch[1];
+            const sw = inputs[`switch_${idx}`];
+            if (sw === false || String(sw || "").toLowerCase() === "off") continue;
+            const sm = resolveInputValue(promptGraph, inputs, [`model_weight_${idx}`, `lora_wt_${idx}`, `strength_${idx}`]);
+            const sc = resolveInputValue(promptGraph, inputs, [`clip_weight_${idx}`, `model_weight_${idx}`, `lora_wt_${idx}`, `strength_${idx}`]);
+            addLora(v, sm ?? 1, sc ?? sm ?? 1, "graph");
+          }
+        }
       }
       if (inputs.weight_dtype != null && inputs.weight_dtype !== "default") {
         pushExtraParam("weight_dtype", "Weight dtype", resolveInputValue(promptGraph, inputs, "weight_dtype"));
       }
+    }
+
+    if (classType === "CLIPSetLastLayer" && inputs.stop_at_clip_layer != null) {
+      pushExtraParam("clip_skip", "CLIP skip", resolveInputValue(promptGraph, inputs, "stop_at_clip_layer"));
+    }
+    if (classType === "UpscaleModelLoader" && isScalar(inputs.model_name)) {
+      pushExtraParam("upscaler", "Upscaler", resolveInputValue(promptGraph, inputs, "model_name"));
+    }
+    if (/ImageScaleBy/i.test(classType) && inputs.scale_by != null) {
+      const scaleVal = resolveInputValue(promptGraph, inputs, "scale_by");
+      const methodVal = resolveInputValue(promptGraph, inputs, "upscale_method");
+      if (scaleVal != null) {
+        pushExtraParam("upscale", "Upscale", methodVal ? `${scaleVal}× (${methodVal})` : `${scaleVal}×`);
+      }
+    }
+    if (/ControlNetLoader/i.test(classType) && isScalar(inputs.control_net_name)) {
+      pushExtraParam("controlnet", "ControlNet", resolveInputValue(promptGraph, inputs, "control_net_name"));
+    }
+    if (/ControlNetApply/i.test(classType) && inputs.strength != null) {
+      pushExtraParam("controlnet_strength", "ControlNet str", resolveInputValue(promptGraph, inputs, "strength"));
     }
 
     if (/Empty.*Latent/i.test(classType) || (inputs.width != null && inputs.height != null && inputs.batch_size != null)) {
@@ -466,7 +802,13 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
   }
   if (!resolvedPositive && a1111.positive) resolvedPositive = a1111.positive;
   if (!resolvedNegative && a1111.negative) resolvedNegative = a1111.negative;
+  if (a1111.clipSkip != null) pushExtraParam("clip_skip", "CLIP skip", a1111.clipSkip);
   if (!resolution && width && height) resolution = `${width}×${height}`;
+  if (clipTokenCount != null && clipTokenCount >= 0) pushExtraParam("clip_tokens", "CLIP tokens", String(clipTokenCount));
+  if (loraMode && (loras.length > 0 || loraMode !== "auto")) pushExtraParam("lora_mode", "LoRA mode", loraMode);
+  if (processingMode && processingMode !== "entire text as one") pushExtraParam("processing_mode", "Processing", processingMode);
+  if (positiveAntonyms) pushExtraParam("positive_antonyms", "Positive antonyms", "Enabled");
+  if (usedEnhancer) pushExtraParam("used_enhancer", "Enhancer override", "Active");
 
   const primarySeed = paletteSeed ?? samplerSeed;
 
@@ -582,6 +924,7 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
 
   const positivePrompt = resolvedPositive ?? authoredPositive;
   const negativePrompt = resolvedNegative ?? authoredNegative;
+  const variableEntries = Object.entries(variables).map(([name, value]) => ({ name, value }));
 
   return {
     id: safeRecord.id || null,
@@ -593,11 +936,21 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
     positivePrompt,
     resolvedPositive,
     authoredPositive,
+    rawInputBody,
     negativePrompt,
     resolvedNegative,
     authoredNegative,
+    rawNegativeBody,
     wildcardsUsed: [...wildcardSet],
+    selections,
+    variables,
+    variableEntries,
     loras,
+    loraMode,
+    processingMode,
+    clipTokenCount,
+    usedEnhancer,
+    positiveAntonyms,
     seed: primarySeed,
     paletteSeed,
     samplerSeed,
@@ -619,7 +972,10 @@ export function extractGenerationMetadata(record = {}, extra = {}) {
     promptGraph,
     workflowComponents,
     hasWorkflow: Boolean(workflow || promptGraph),
-    hasPrompts: Boolean(positivePrompt || negativePrompt || wildcardSet.size || loras.length),
+    hasModelsOrLoras: Boolean(model || clip || vae || loras.length),
+    hasPrompts: Boolean(
+      positivePrompt || negativePrompt || wildcardSet.size || selections.length || variableEntries.length || loras.length
+    ),
     hasParameters: parameterEntries.length > 0,
   };
 }
@@ -638,17 +994,21 @@ export function formatParametersSummary(meta) {
 export function formatCompletePromptInfo(meta) {
   if (!meta) return "";
   const sections = [];
-  if (meta.positivePrompt) {
-    sections.push(meta.positivePrompt);
+  if (meta.resolvedPositive) {
+    sections.push(meta.resolvedPositive);
+  } else if (meta.authoredPositive) {
+    sections.push(`Raw positive input: ${meta.authoredPositive}`);
   }
   if (meta.authoredPositive && meta.resolvedPositive && meta.authoredPositive !== meta.resolvedPositive) {
-    sections.push(`Authored positive: ${meta.authoredPositive}`);
+    sections.push(`Raw positive input: ${meta.authoredPositive}`);
   }
-  if (meta.negativePrompt) {
-    sections.push(`Negative prompt: ${meta.negativePrompt}`);
+  if (meta.resolvedNegative) {
+    sections.push(`Negative prompt: ${meta.resolvedNegative}`);
+  } else if (meta.authoredNegative) {
+    sections.push(`Raw negative input: ${meta.authoredNegative}`);
   }
   if (meta.authoredNegative && meta.resolvedNegative && meta.authoredNegative !== meta.resolvedNegative) {
-    sections.push(`Authored negative: ${meta.authoredNegative}`);
+    sections.push(`Raw negative input: ${meta.authoredNegative}`);
   }
   if (meta.loras?.length) {
     const loraText = meta.loras.map(l => `<lora:${l.name}:${l.modelStrength}${l.clipStrength !== l.modelStrength ? `:${l.clipStrength}` : ""}>`).join(" ");

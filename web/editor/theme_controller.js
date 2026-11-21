@@ -186,6 +186,11 @@ export function createThemeController(ctx) {
   const booruSourceCustomWords = el("booruSourceCustomWords");
   const toggleBooruPromptColorsCb = el("toggleBooruPromptColors");
   const toggleAnimaArtistFormatting = el("toggleAnimaArtistFormatting");
+  const toggleStyleSelectorCb = el("toggleStyleSelector");
+  const toggleStyleAutocompleteCb = el("toggleStyleAutocomplete");
+  const styleAutocompleteModeSelect = el("styleAutocompleteMode");
+  const styleModelFilterSelect = el("styleModelFilter");
+  const styleMossDialectSelect = el("styleMossDialect");
   const booruColorRoot = el("booruColors");
   let categoryFilter = "";
   let categoryPalettes = loadCategoryPalettes();
@@ -513,6 +518,7 @@ export function createThemeController(ctx) {
       layout: Object.fromEntries(Object.entries(theme).filter(([key]) => key.startsWith("show") || [
         "syntaxInjectorEnabled", "promptHistoryEnabled", "starterPacksEnabled", "booruAutocompleteEnabled",
         "booruAutocompleteMode", "booruAutocompleteMinChars", "booruSourceDatabase", "booruSourceCustomWords", "booruPromptColors", "animaArtistFormatting",
+        "styleSelectorEnabled", "styleAutocompleteEnabled", "styleAutocompleteMode", "styleModelFilter", "styleMossDialect",
         "autocompletePreviews", "autocompleteRecentLimit", "zenMode", "layoutPreset", "dayTheme", "nightTheme", "toolbarMode", "toolbarScale", "toolbarSize", "toolbarOrder", "statusBarMode",
         "workspaceSnapGrid", "fieldEditorColumns", "fieldEditorMinHeight", "fieldColorTarget",
       ].includes(key))),
@@ -596,6 +602,12 @@ export function createThemeController(ctx) {
         if (!(key in defaults) || !["boolean", "string", "number"].includes(typeof value)) continue;
         if (key === "booruAutocompleteMode") {
           theme[key] = ["auto", "onDemand", "off"].includes(value) ? value : "off";
+        } else if (key === "styleAutocompleteMode") {
+          theme[key] = ["auto", "onDemand", "off"].includes(value) ? value : "off";
+        } else if (key === "styleModelFilter") {
+          theme[key] = ["auto", "both", "krea2", "moss"].includes(value) ? value : "auto";
+        } else if (key === "styleMossDialect") {
+          theme[key] = ["caption", "tags", "layout"].includes(value) ? value : "caption";
         } else if (key === "autocompleteRecentLimit") {
           theme[key] = Math.max(5, Math.min(10, Math.round(Number(value) || 5)));
         } else if (key === "booruAutocompleteMinChars") {
@@ -1003,6 +1015,7 @@ export function createThemeController(ctx) {
     toggleZenModeCb.checked = on;
     if (on) {
       node._ppLoraSidecar?.close();
+      node._ppStyleSelector?.close();
       closeAllPowerPopups();
       closeStash();
       closePickerDrawer();
@@ -1076,6 +1089,11 @@ export function createThemeController(ctx) {
     booruSourceCustomWords.checked = theme.booruSourceCustomWords !== false;
     toggleBooruPromptColorsCb.checked = theme.booruPromptColors !== false;
     toggleAnimaArtistFormatting.checked = theme.animaArtistFormatting === true;
+    if (toggleStyleSelectorCb) toggleStyleSelectorCb.checked = theme.styleSelectorEnabled === true;
+    if (toggleStyleAutocompleteCb) toggleStyleAutocompleteCb.checked = theme.styleAutocompleteEnabled === true;
+    if (styleAutocompleteModeSelect) styleAutocompleteModeSelect.value = ["auto", "onDemand", "off"].includes(theme.styleAutocompleteMode) ? theme.styleAutocompleteMode : "off";
+    if (styleModelFilterSelect) styleModelFilterSelect.value = ["auto", "both", "krea2", "moss"].includes(theme.styleModelFilter) ? theme.styleModelFilter : "auto";
+    if (styleMossDialectSelect) styleMossDialectSelect.value = ["caption", "tags", "layout"].includes(theme.styleMossDialect) ? theme.styleMossDialect : "caption";
     toggleZenModeCb.checked = !!theme.zenMode;
     TOOLBAR_BTN_TOGGLES.forEach(([, key, cb]) => {
       cb.checked = theme[key] !== false;
@@ -1247,6 +1265,37 @@ export function createThemeController(ctx) {
   });
   toggleAnimaArtistFormatting.addEventListener("change", () => {
     theme.animaArtistFormatting = toggleAnimaArtistFormatting.checked;
+    saveTheme(theme);
+    updateThemeJson();
+  });
+  toggleStyleSelectorCb?.addEventListener("change", () => {
+    theme.styleSelectorEnabled = toggleStyleSelectorCb.checked;
+    saveTheme(theme);
+    applyToolbarSettings();
+    updateThemeJson();
+  });
+  toggleStyleAutocompleteCb?.addEventListener("change", () => {
+    theme.styleAutocompleteEnabled = toggleStyleAutocompleteCb.checked;
+    if (theme.styleAutocompleteEnabled && theme.styleAutocompleteMode === "off") theme.styleAutocompleteMode = "auto";
+    if (!theme.styleAutocompleteEnabled) theme.styleAutocompleteMode = "off";
+    if (styleAutocompleteModeSelect) styleAutocompleteModeSelect.value = theme.styleAutocompleteMode;
+    saveTheme(theme);
+    updateThemeJson();
+  });
+  styleAutocompleteModeSelect?.addEventListener("change", () => {
+    theme.styleAutocompleteMode = ["auto", "onDemand", "off"].includes(styleAutocompleteModeSelect.value) ? styleAutocompleteModeSelect.value : "auto";
+    theme.styleAutocompleteEnabled = theme.styleAutocompleteMode !== "off";
+    saveTheme(theme);
+    refreshToolbarSettingsUI();
+    updateThemeJson();
+  });
+  styleModelFilterSelect?.addEventListener("change", () => {
+    theme.styleModelFilter = ["auto", "both", "krea2", "moss"].includes(styleModelFilterSelect.value) ? styleModelFilterSelect.value : "auto";
+    saveTheme(theme);
+    updateThemeJson();
+  });
+  styleMossDialectSelect?.addEventListener("change", () => {
+    theme.styleMossDialect = ["caption", "tags", "layout"].includes(styleMossDialectSelect.value) ? styleMossDialectSelect.value : "caption";
     saveTheme(theme);
     updateThemeJson();
   });

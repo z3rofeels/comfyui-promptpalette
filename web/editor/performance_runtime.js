@@ -124,8 +124,15 @@ export function observePanelAnchor(anchor, onChange, { content = null } = {}) {
   }
   const visibility = () => { if (!document.hidden) schedule(); };
   const transition = event => { if (ancestry.includes(event.target)) schedule(); };
+  const onScroll = event => {
+    const target = event?.target;
+    if (!target || target === document || target === window || target === document.documentElement || target === document.body
+      || (typeof target.contains === "function" && (target === anchor || target.contains(anchor)))) {
+      schedule();
+    }
+  };
   window.addEventListener("resize", schedule, { passive: true });
-  window.addEventListener("scroll", schedule, { passive: true, capture: true });
+  window.addEventListener("scroll", onScroll, { passive: true, capture: true });
   document.addEventListener("visibilitychange", visibility);
   document.addEventListener("transitionrun", transition, true);
   document.addEventListener("transitionend", transition, true);
@@ -136,7 +143,7 @@ export function observePanelAnchor(anchor, onChange, { content = null } = {}) {
     if (frame !== null) cancel(frame);
     frame = null; mutation?.disconnect(); resize?.disconnect(); ancestry = [];
     window.removeEventListener("resize", schedule);
-    window.removeEventListener("scroll", schedule, true);
+    window.removeEventListener("scroll", onScroll, true);
     document.removeEventListener("visibilitychange", visibility);
     document.removeEventListener("transitionrun", transition, true);
     document.removeEventListener("transitionend", transition, true);

@@ -30,9 +30,10 @@ export class SidebarDisplayControls {
     this.ratioButtons = new Map();
     const listen = (element, type, callback) => element.addEventListener(type, callback, { signal: this.events.signal });
     const commit = changes => { saveSidebarDisplay(changes); onDismiss(); this.sync(this.visible); onChange(); };
-    for (const [key, text] of [["square", "1:1"], ["portrait", "3:4"], ["tall", "2:3"], ["landscape", "4:3"], ["wide", "16:9"]]) {
+    for (const [key, text] of [["natural", "Natural"], ["square", "1:1"], ["portrait", "3:4"], ["tall", "2:3"], ["landscape", "4:3"], ["wide", "16:9"]]) {
       const pill = make("button", "pp-sidebar-ratio"); pill.type = "button";
       pill.dataset.ratio = key; pill.setAttribute("aria-label", `Preview aspect ratio ${text}`);
+      if (key === "natural") pill.title = "Use each thumbnail's natural aspect ratio";
       pill.append(make("i", "pp-sidebar-ratio-shape"), make("span", "", text));
       listen(pill, "click", () => commit({ aspect: key }));
       this.ratios.append(pill); this.ratioButtons.set(key, pill);

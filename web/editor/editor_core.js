@@ -1,4 +1,5 @@
 import { installLoraSidecar } from "./lora_sidecar.js";
+import { installStyleSelector } from "./style_selector.js";
 import { sidebarEditingHandlers } from "./sidebar_targets.js";
 import { createRecipeWorkspaceController } from "./recipe_workspace_controller.js";
 import { setToolbarLabel, installToolbarLayout } from "./toolbar.js";
@@ -1186,7 +1187,15 @@ function buildWildcardWidget(node, hiddenWidget) {
       openInjectMenuAtPoint(event.clientX, event.clientY, "", textarea, render, selection.start === selection.end ? null : selection);
     },
   });
-  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeAllPowerPopups(); closeSettings(); closeStash(); closePickerDrawer(); closeEditDrawer(); ioRail.close(); } });
+  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeAllPowerPopups(); closeSettings(); closeStash(); closePickerDrawer(); closeEditDrawer(); ioRail.close(); node?._ppStyleSelector?.close?.(); } });
+  const styleSelector = installStyleSelector({
+    root,
+    node,
+    editor: textarea,
+    getNegative: () => node.widgets?.find((w) => w.name === "negative_text")?.value || "",
+    setNegative: (val) => node._ppNegativePromptState?.commit?.(val || ""),
+    beforeOpen: () => { closeAllPowerPopups(); closeSettings(); closeStash(); closePickerDrawer(); closeEditDrawer(); ioRail.close(); loraSidecar.close(); },
+  });
 
   function replaceMissingToken(target, path) {
     const current = textarea.value.slice(target.start, target.end);
@@ -1251,6 +1260,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       trigger = root.querySelector(`[aria-controls="${popup.id}"]`); closeAllPowerPopups();
     }
     else if (node._ppLoraSidecar?.isOpen()) { node._ppLoraSidecar.close({ restoreFocus: true }); }
+    else if (node._ppStyleSelector?.isOpen()) { node._ppStyleSelector.close({ restoreFocus: true }); }
     else if (stashPopup.classList.contains("open")) { trigger = root.querySelector('[data-act="stash"]'); closeStash(); }
     else if (editDrawer.classList.contains("open")) { trigger = root.querySelector('[data-act="edit"]'); closeEditDrawer(); }
     else if (pickerDrawer.classList.contains("open")) { trigger = libraryButton; closePickerDrawer(); }
@@ -1387,6 +1397,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       editorSurface.cleanup();
       statusBar.cleanup();
       loraSidecar?.cleanup();
+      styleSelector?.cleanup();
       cleanupEditorContext();
       delete textarea.__ppExtractSelectionToWildcard;
       delete textarea.__ppSaveSelectionAsList;

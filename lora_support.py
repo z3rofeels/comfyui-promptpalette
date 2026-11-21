@@ -6,6 +6,7 @@ import logging
 import math
 import re
 from pathlib import Path, PurePosixPath
+from threading import Lock
 from urllib.parse import unquote
 
 import comfy.sd
@@ -13,7 +14,10 @@ import comfy.utils
 import folder_paths
 
 from .json_literals import JsonLiterals
-from .lora_previews import find_preview, find_previews, preview_type, metadata_files, clear_preview_cache, preview_poster
+from .lora_previews import (
+    find_preview, find_previews, preview_type, metadata_files,
+    clear_preview_cache, preview_poster, media_dimensions,
+)
 
 logger = logging.getLogger(__name__)
 NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
@@ -46,6 +50,7 @@ def catalog():
 
 
 _METADATA_CACHE = {}
+_METADATA_LOCK = Lock()
 
 
 def catalog_folders(names=None):
@@ -146,6 +151,8 @@ def get_lora_metadata(filename, full_path=None):
             "tags": [],
             "size_bytes": None,
             "has_preview": False,
+            "preview_width": None,
+            "preview_height": None,
         }
     p = Path(full_path).resolve()
     base = p.with_suffix("")
@@ -162,9 +169,11 @@ def get_lora_metadata(filename, full_path=None):
             signature.append((str(candidate), None, None))
     signature = tuple(signature)
     cache_key = (str(p), filename)
-    cached = _METADATA_CACHE.get(cache_key)
-    if cached and cached[0] == signature:
-        return cached[1]
+    with _METADATA_LOCK:
+        cached = _METADATA_CACHE.get(cache_key)
+        if cached and cached[0] == signature:
+            _METADATA_CACHE[cache_key] = _METADATA_CACHE.pop(cache_key)
+            return cached[1]
 
     folder_str = str(PurePosixPath(filename.replace("\\", "/")).parent)
     if folder_str == ".":
@@ -316,6 +325,18 @@ def get_lora_metadata(filename, full_path=None):
         if civitai_version_id:
             civitai_url += f"?modelVersionId={civitai_version_id}"
 
+    preview_options = []
+    primary_dims = None
+    for i, path in enumerate(previews):
+        option = {"type": preview_type(path), "name": path.name, "index": i}
+        dims = media_dimensions(path)
+        if dims:
+            option["width"] = dims[0]
+            option["height"] = dims[1]
+        if i == 0:
+            primary_dims = dims
+        preview_options.append(option)
+
     result = {
         "name": filename,
         "filename": filename,
@@ -338,12 +359,17 @@ def get_lora_metadata(filename, full_path=None):
         "has_preview": has_preview,
         "preview_type": preview_type(preview) if has_preview else None,
         "preview_name": preview.name if preview else "",
-        "preview_options": [{"type": preview_type(path), "name": path.name, "index": i} for i, path in enumerate(previews)],
+        "preview_width": primary_dims[0] if primary_dims else None,
+        "preview_height": primary_dims[1] if primary_dims else None,
+        "preview_options": preview_options,
     }
 
-    if len(_METADATA_CACHE) >= 2048:
-        _METADATA_CACHE.pop(next(iter(_METADATA_CACHE)))
-    _METADATA_CACHE[cache_key] = (signature, result)
+    with _METADATA_LOCK:
+        if cache_key in _METADATA_CACHE:
+            _METADATA_CACHE.pop(cache_key)
+        elif len(_METADATA_CACHE) >= 2048:
+            _METADATA_CACHE.pop(next(iter(_METADATA_CACHE)))
+        _METADATA_CACHE[cache_key] = (signature, result)
     return result
 
 

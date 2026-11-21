@@ -1,8 +1,7 @@
-import { readEditorPreference } from "../prompt_palette_state.js";
+import { readEditorPreference, getWorkspacePreferences } from "../prompt_palette_state.js";
 import { API } from "../prompt_palette_api.js";
-import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
 import { stylePreviewUrl } from "./style_library_model.js";
-import { getWorkspacePreferences } from "../prompt_palette_state.js";
+import { PresentationScope } from "./sidebar_presentation.js";
 
 let revision = -1, categories = null;
 const cached = new Map();
@@ -43,7 +42,7 @@ async function previewUrls(rows) {
     });
   }
   while (cached.size > 512) cached.delete(cached.keys().next().value);
-  const library = rows.some(({item}) => !["booru", "custom", "syntax", "lora"].includes(item.kind));
+  const library = rows.some(({item}) => !["booru", "custom", "syntax", "lora", "style"].includes(item.kind));
   if (library && !categories) {
     const pending = API.categories(); categories = pending;
     pending.catch(() => { if (categories === pending) categories = null; });
@@ -52,8 +51,8 @@ async function previewUrls(rows) {
   // Metadata errors cannot take away text suggestions or the other image source.
   return Promise.all(rows.map(async ({item}) => {
     if (item.kind === "booru") return cached.get(identity(item))?.catch(() => "") || "";
-    if (item.kind === "lora") return readEditorPreference("lora-picker", {})?.images === true ? API.loraPreviewUrl(item.value) : "";
-    if (item.kind === "custom" || item.kind === "syntax") return "";
+    if (item.kind === "lora") return readEditorPreference("lora-picker", {})?.images !== false ? API.loraPreviewUrl(item.value, { v: version }) : "";
+    if (item.kind === "custom" || item.kind === "syntax" || item.kind === "style") return "";
     const path = map[item.value] || map[item.value.replace(/\.txt$/i, "")];
     return path ? API.thumbnailUrl(path, `&v=${version}`) : "";
   }));
@@ -61,8 +60,17 @@ async function previewUrls(rows) {
 
 export function hydrateAcThumbnails(menu, rows, activeIndex, isCurrent, onLayout = () => {}) {
   let disposed = false, timer = null, tip = null, hovering = activeIndex, layoutFrame = 0;
+  const scope = new PresentationScope(menu);
   const listeners = [], images = [];
-  const hide = () => { clearTimeout(timer); timer = null; tip?.remove(); tip = null; };
+  const hide = () => {
+    clearTimeout(timer);
+    timer = null;
+    if (tip) {
+      scope.release(tip);
+      tip.remove();
+      tip = null;
+    }
+  };
   const show = (row, url) => {
     hide();
     if (getWorkspacePreferences().disableHoverPreviews) return;
@@ -71,15 +79,17 @@ export function hydrateAcThumbnails(menu, rows, activeIndex, isCurrent, onLayout
       const rect = menu.getBoundingClientRect(), gap = 10;
       tip = document.createElement("div");
       tip.className = "wg-ac-preview wg-root"; tip.dataset.promptPaletteGlobal = "true";
-      tip.setAttribute("aria-hidden", "true"); copyPromptPaletteThemeScope(menu, tip);
+      tip.setAttribute("aria-hidden", "true"); scope.syncPortalTheme(tip);
       const image = document.createElement("img"); image.alt = ""; image.src = url;
       image.addEventListener("error", hide, {once:true}); tip.append(image);
       document.body.append(tip);
       const { width, height } = tip.getBoundingClientRect();
       const right = rect.right + gap, left = rect.left - width - gap;
       if (right + width > window.innerWidth - 8 && left < 8) { hide(); return; }
-      tip.style.left = `${right + width <= window.innerWidth - 8 ? right : left}px`;
-      tip.style.top = `${Math.max(8, Math.min(row.getBoundingClientRect().top, window.innerHeight - height - 8))}px`;
+      scope.set(tip, {
+        left: `${right + width <= window.innerWidth - 8 ? right : left}px`,
+        top: `${Math.max(8, Math.min(row.getBoundingClientRect().top, window.innerHeight - height - 8))}px`,
+      });
     }, 320);
   };
   const leave = () => { hovering = -1; hide(); };
@@ -93,7 +103,7 @@ export function hydrateAcThumbnails(menu, rows, activeIndex, isCurrent, onLayout
     previewUrls(rows).then(urls => {
       if (disposed || !isCurrent()) return;
       rows.forEach(({row, index}, position) => {
-        const url = urls[position]; if (!url) return;
+        let url = urls[position]; if (!url) return;
         const image = document.createElement("img");
         image.className = "wg-ac-thumb"; image.alt = ""; image.decoding = "async"; image.hidden = true;
         image.onload = () => {
@@ -102,14 +112,25 @@ export function hydrateAcThumbnails(menu, rows, activeIndex, isCurrent, onLayout
           if (!layoutFrame) layoutFrame = requestAnimationFrame(() => { layoutFrame = 0; if (!disposed && isCurrent()) onLayout(); });
           if (hovering === index) show(row, url);
         };
-        image.onerror = () => { image.hidden = true; image.remove(); if (hovering === index) hide(); };
+        image.onerror = () => {
+          if (rows[position]?.item?.kind === "lora" && !image.dataset.triedPoster) {
+            image.dataset.triedPoster = "true";
+            const posterUrl = API.loraPreviewUrl(rows[position].item.value, { poster: true, v: refreshRevision() });
+            if (posterUrl) {
+              url = urls[position] = posterUrl;
+              image.src = posterUrl;
+              return;
+            }
+          }
+          image.hidden = true; image.remove(); if (hovering === index) hide();
+        };
         row.prepend(image); images.push(image); image.src = url;
         const enter = () => { hovering = index; if (!image.hidden) show(row, url); else hide(); };
         row.addEventListener("mouseenter", enter); listeners.push(() => row.removeEventListener("mouseenter", enter));
       });
     }).catch(() => { /* Optional imagery must leave autocomplete usable. */ });
   }, 75);
-  const cleanup = () => { disposed = true; clearTimeout(previewTimer); hide(); cancelAnimationFrame(layoutFrame); for (const remove of listeners) remove(); for (const image of images) { image.onload = null; image.onerror = null; image.remove(); } };
+  const cleanup = () => { disposed = true; clearTimeout(previewTimer); hide(); scope.cleanup(); cancelAnimationFrame(layoutFrame); for (const remove of listeners) remove(); for (const image of images) { image.onload = null; image.onerror = null; image.remove(); } };
   cleanup.dismiss = leave;
   return cleanup;
 }

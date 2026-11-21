@@ -1,12 +1,18 @@
 import { api } from "../../../scripts/api.js";
 import { API } from "../prompt_palette_api.js";
 import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
-import { svgIcon } from "../prompt_palette_shared.js";
+import {
+  copyPromptPaletteThemeScope,
+  installPromptPaletteKeyboardBoundary,
+  svgIcon,
+} from "../prompt_palette_shared.js";
 import { openCtxMenu } from "./context_menu.js";
 import { historyRefinementSources, reviewHistoryRefinement } from "./history_restore.js";
 import { loadSidebarDisplay, loadTheme, saveSidebarDisplay } from "./preferences.js";
 import { colorForLora, loraIdentity } from "./lora_colors.js";
 import { sidebarLayoutMetrics } from "./sidebar_layout.js";
+import { PresentationScope, captureSidebarFocus, restoreSidebarFocus } from "./sidebar_presentation.js";
+import { VirtualCollectionManager } from "../library/virtual_collection.js";
 import {
   requestGenerationHistory,
   subscribeGenerationHistory,
@@ -27,6 +33,7 @@ const VALID_LAYOUTS = new Set(["gallery", "list", "masonry", "filmstrip"]);
 const WIDE_PARAM_KEYS = new Set(["model", "clip", "vae"]);
 const runMetadataCache = new Map();
 const imageDimensionsCache = new Map();
+const loraInfoCache = new Map();
 
 function normalizeGenLayout(value) {
   if (value === "grid") return "gallery";
@@ -54,23 +61,34 @@ function pill(text, tone = "", title = "") {
   return el;
 }
 
-// One toggle button that shows both versions and highlights the active one,
-// so the label never has to describe the current state and the next state at once.
-function promptModeSwitch(mode, ariaLabel, title, onToggle) {
-  const el = btn("", onToggle, "pp-sidebar-gen-seg");
-  const resolved = make("span", "", "Resolved");
-  const authored = make("span", "", "Authored");
-  resolved.classList.toggle("is-on", mode !== "authored");
-  authored.classList.toggle("is-on", mode === "authored");
-  el.append(resolved, authored);
-  el.dataset.mode = mode === "authored" ? "authored" : "resolved";
-  el.title = title;
-  el.setAttribute("aria-label", ariaLabel);
-  return el;
-}
-
 function shortModelName(value) {
   return String(value ?? "").split(/[\\/]/).pop().replace(/\.(safetensors|ckpt|pt|pth|gguf|bin)$/i, "");
+}
+
+function formatLoraStatusLabel(status) {
+  switch (status) {
+    case "loaded": return "Applied";
+    case "external": return "External";
+    case "graph": return "Graph";
+    case "disabled": return "Disabled (0)";
+    case "missing": return "Missing";
+    case "ambiguous": return "Ambiguous";
+    case "stripped": return "Stripped";
+    case "text_only": return "Text only";
+    default: return "Applied";
+  }
+}
+
+function formatLoraStrengthLabel(lora) {
+  const sm = Number.isFinite(lora.modelStrength) ? lora.modelStrength : 1;
+  const sc = Number.isFinite(lora.clipStrength) ? lora.clipStrength : sm;
+  return sm === sc ? `Strength ${sm}` : `Model ${sm} · CLIP ${sc}`;
+}
+
+function loraTagSyntax(lora) {
+  const sm = Number.isFinite(lora.modelStrength) ? lora.modelStrength : 1;
+  const sc = Number.isFinite(lora.clipStrength) ? lora.clipStrength : sm;
+  return `<lora:${lora.name}:${sm}${sc !== sm ? `:${sc}` : ""}>`;
 }
 
 function rememberBounded(map, key, value, max = 160) {
@@ -102,11 +120,17 @@ async function fetchRunEnrichment(record, signal) {
     }
   }
   const hasGraph = Array.isArray(result.historyEntry?.prompt) && result.historyEntry.prompt[2];
-  if (!hasGraph && !record?.missing && record?.image?.filename && /\.png$/i.test(record.image.filename)) {
+  const histExtra = Array.isArray(result.historyEntry?.prompt) ? result.historyEntry.prompt[3]?.extra_pnginfo : null;
+  const histOutputs = result.historyEntry?.outputs;
+  const hasHistoryPalette = Boolean(
+    histExtra?.prompt_palette || histExtra?.prompt_palette_metadata
+    || (histOutputs && typeof histOutputs === "object" && Object.values(histOutputs).some(o => o && typeof o === "object" && o.prompt_palette))
+  );
+  if ((!hasGraph || (!record?.resolved_positive && !hasHistoryPalette)) && !record?.missing && record?.image?.filename && /\.png$/i.test(record.image.filename)) {
     try {
       const res = await api.fetchApi(`/view?${new URLSearchParams(record.image)}`, {
         ...(signal ? { signal } : {}),
-        headers: { Range: "bytes=0-262143" },
+        headers: { Range: "bytes=0-524287" },
       });
       if (res?.ok) {
         const buf = await res.arrayBuffer();
@@ -132,14 +156,6 @@ function resolveRecordDimensions(record, meta) {
     return { width: mw, height: mh };
   }
   return null;
-}
-
-function resolveRecordAspectRatio(record, meta, fallbackRatio = 1) {
-  const dims = resolveRecordDimensions(record, meta);
-  if (dims && dims.width > 0 && dims.height > 0) {
-    return Math.max(0.35, Math.min(2.8, dims.width / dims.height));
-  }
-  return Math.max(0.35, Math.min(2.8, Number(fallbackRatio) || 1));
 }
 
 export function createSidebarGenerations(host, {
@@ -172,20 +188,25 @@ export function createSidebarGenerations(host, {
   let selectedRecord = null;
   let selectedExtra = {};
   let selectedNodeIds = new Set();
-  let promptViewMode = { positive: "resolved", negative: "resolved" };
+  let workflowSectionOpen = false;
   let lastGeometry = "";
 
   let listSequence = 0;
   let inspectSequence = 0;
+  let loraEnrichSequence = 0;
   let refineSequence = 0;
   let listController = null;
   let inspectController = null;
+  let loraEnrichController = null;
   let refineReview = null;
   let searchDebounce = 0;
-  let rebalanceFrame = 0;
   let unsubscribeCapture = null;
+  let collection = null;
+  let lastRenderedImages = null;
+  let lastRenderedItems = null;
+  let pendingItemsSync = false;
   const copyTimers = new WeakMap();
-  const cardMediaElements = new Set();
+  const cardRecords = new WeakMap();
 
   // One layout control lives in the sidebar toolbar. The Generations tab has its own saved layout;
   // the Recent Generations section on the Library tab follows the Library layout.
@@ -199,12 +220,25 @@ export function createSidebarGenerations(host, {
     writeEditorPreference(PREF_SIDEBAR_GEN_STATE, { open: isOpen });
   }
 
-  function releaseCardMediaRules() {
-    if (!presentation) return;
-    for (const el of cardMediaElements) {
-      presentation.release(el);
+  function flashButtonFeedback(buttonEl, feedbackLabel = "✓ Copied") {
+    if (!buttonEl || !buttonEl.isConnected) return;
+    const prevTimer = copyTimers.get(buttonEl);
+    if (prevTimer) clearTimeout(prevTimer);
+    const originalText = buttonEl.dataset.originalLabel ?? buttonEl.textContent;
+    buttonEl.dataset.originalLabel = originalText;
+    buttonEl.dataset.copied = "true";
+    if (!buttonEl.childElementCount) {
+      buttonEl.textContent = feedbackLabel;
     }
-    cardMediaElements.clear();
+    const timer = setTimeout(() => {
+      copyTimers.delete(buttonEl);
+      if (!buttonEl.isConnected) return;
+      delete buttonEl.dataset.copied;
+      if (!buttonEl.childElementCount && buttonEl.dataset.originalLabel != null) {
+        buttonEl.textContent = buttonEl.dataset.originalLabel;
+      }
+    }, 1200);
+    copyTimers.set(buttonEl, timer);
   }
 
   async function copyValue(text, label, buttonEl = null) {
@@ -241,25 +275,7 @@ export function createSidebarGenerations(host, {
       return false;
     }
     announce(`Copied ${label}.`);
-    if (buttonEl && buttonEl.isConnected) {
-      const prevTimer = copyTimers.get(buttonEl);
-      if (prevTimer) clearTimeout(prevTimer);
-      const originalText = buttonEl.dataset.originalLabel ?? buttonEl.textContent;
-      buttonEl.dataset.originalLabel = originalText;
-      buttonEl.dataset.copied = "true";
-      if (!buttonEl.childElementCount) {
-        buttonEl.textContent = "✓ Copied";
-      }
-      const timer = setTimeout(() => {
-        copyTimers.delete(buttonEl);
-        if (!buttonEl.isConnected) return;
-        delete buttonEl.dataset.copied;
-        if (!buttonEl.childElementCount && buttonEl.dataset.originalLabel != null) {
-          buttonEl.textContent = buttonEl.dataset.originalLabel;
-        }
-      }, 1200);
-      copyTimers.set(buttonEl, timer);
-    }
+    flashButtonFeedback(buttonEl, "✓ Copied");
     return true;
   }
 
@@ -393,31 +409,135 @@ export function createSidebarGenerations(host, {
     settingsPanel.hidden = !settingsDetails.open;
   });
 
-  // Thumbnail list / gallery / masonry / filmstrip container
+  // Thumbnail list / gallery / masonry / filmstrip container (virtualized)
   const listEl = make("div", "pp-sidebar-gen-list");
   listEl.setAttribute("role", "list");
   listEl.setAttribute("aria-label", "Recent generations list");
+  const virtual = new VirtualCollectionManager(listEl);
 
   const loadMoreBtn = btn("Load more", () => refresh(true), "pp-sidebar-gen-more");
   loadMoreBtn.hidden = true;
 
-  // Inline Metadata Inspector
-  const inspectorEl = make("section", "pp-sidebar-gen-inspector");
-  inspectorEl.hidden = true;
-  inspectorEl.setAttribute("aria-label", "Generation metadata inspector");
-
-  body.append(listEl, loadMoreBtn, inspectorEl);
+  body.append(listEl, loadMoreBtn);
   if (isTabMode) host.append(section);
   else host.prepend(section);
 
+  const ownedPresentation = presentation ? null : new PresentationScope(section);
+  const scope = presentation || ownedPresentation;
+
+  // Generation details popout: a Civitai-style right-hand flyout mounted on <body>
+  // beside the sidebar so the gallery remains visible and usable while browsing.
+  const flyoutEl = make("aside", "wg-root pp-gen-flyout");
+  flyoutEl.hidden = true;
+  flyoutEl.setAttribute("role", "dialog");
+  flyoutEl.setAttribute("aria-modal", "false");
+  flyoutEl.setAttribute("aria-label", "Generation details");
+
+  const flyHead = make("header", "pp-gen-flyout-head");
+  const flyTitle = make("span", "pp-gen-flyout-title");
+  flyTitle.innerHTML = `${svgIcon("history", 13)}<span>Generation info</span>`;
+  const flyNameBadge = make("span", "pp-gen-flyout-name-badge");
+  const flyHeadTools = make("div", "pp-gen-flyout-tools");
+  const flyCloseBtn = make("button", "wg-close-btn");
+  flyCloseBtn.type = "button";
+  flyCloseBtn.innerHTML = svgIcon("close", 14);
+  flyCloseBtn.setAttribute("aria-label", "Close generation details");
+  flyCloseBtn.title = "Close (Esc)";
+  flyHead.append(flyTitle, flyNameBadge, flyHeadTools, flyCloseBtn);
+
+  const flyBody = make("div", "pp-gen-flyout-body");
+  const flyFoot = make("footer", "pp-gen-flyout-foot");
+  flyoutEl.append(flyHead, flyBody, flyFoot);
+
+  for (const type of ["pointerdown", "mousedown", "click", "dblclick", "contextmenu"]) {
+    flyoutEl.addEventListener(type, event => event.stopPropagation());
+  }
+  flyoutEl.addEventListener("wheel", event => event.stopPropagation(), { passive: true });
+  const releaseFlyoutKeyboard = installPromptPaletteKeyboardBoundary(flyoutEl);
+  flyoutEl.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeInspector();
+    }
+  });
+  flyCloseBtn.addEventListener("click", () => closeInspector());
+
+  let flyoutTimer = 0;
+  let flyoutRectKey = "";
+  const flyoutAnchor = () => section.closest(".pp-main-sidebar") || section;
+
+  function syncFlyoutTheme() {
+    const themeRoot = section.closest(".pp-main-sidebar, .wg-root") || section;
+    if (presentation?.syncPortalTheme) {
+      presentation.syncPortalTheme(flyoutEl);
+      return;
+    }
+    copyPromptPaletteThemeScope(themeRoot, flyoutEl, scope.declaration(flyoutEl, { portal: true }));
+    for (const cls of ["wg-high-contrast", "wg-reduce-motion", "wg-no-animations", "wg-disable-animations", "wg-large-text"]) {
+      flyoutEl.classList.toggle(cls, themeRoot.classList?.contains(cls) === true);
+    }
+  }
+
+  function placeFlyout(force = false) {
+    if (disposed || flyoutEl.hidden || !flyoutEl.isConnected) return;
+    const anchor = flyoutAnchor();
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width < 8 || rect.height < 8) {
+      hideFlyout();
+      return;
+    }
+    const vw = globalThis.innerWidth || 1024;
+    const vh = globalThis.innerHeight || 768;
+    const key = [rect.left, rect.top, rect.right, rect.bottom, vw, vh].map(Math.round).join();
+    if (!force && key === flyoutRectKey) return;
+    flyoutRectKey = key;
+    const margin = 8;
+    const gap = 8;
+    const width = Math.max(320, Math.min(520, vw - margin * 2));
+    const roomRight = vw - margin - rect.right - gap;
+    const roomLeft = rect.left - margin - gap;
+    let left;
+    if (roomRight >= width) left = rect.right + gap;
+    else if (roomLeft >= width) left = rect.left - gap - width;
+    else left = Math.max(margin, vw - margin - width);
+    const top = Math.max(margin, Math.min(rect.top || margin, vh - margin - 280));
+    const maxHeight = Math.max(260, vh - margin - top);
+    scope.set(flyoutEl, {
+      "--pp-fly-left": `${Math.round(left)}px`,
+      "--pp-fly-top": `${Math.round(top)}px`,
+      "--pp-fly-width": `${Math.round(width)}px`,
+      "--pp-fly-max-height": `${Math.round(maxHeight)}px`,
+    });
+  }
+
+  function showFlyout() {
+    if (disposed) return;
+    if (!flyoutEl.isConnected) document.body.append(flyoutEl);
+    syncFlyoutTheme();
+    flyoutEl.hidden = false;
+    placeFlyout(true);
+    if (!flyoutTimer) flyoutTimer = setInterval(placeFlyout, 150);
+  }
+
+  function hideFlyout() {
+    flyoutEl.hidden = true;
+    clearInterval(flyoutTimer);
+    flyoutTimer = 0;
+  }
+
+  const onFlyoutResize = () => placeFlyout(true);
+  globalThis.addEventListener?.("resize", onFlyoutResize);
+
   function computeMetrics() {
-    const rawWidth = listEl.clientWidth || body.clientWidth || host.clientWidth || 320;
-    const availWidth = Math.max(120, rawWidth);
-    const metrics = sidebarLayoutMetrics(layoutKey, uiScale(), availWidth);
+    const rawWidth = listEl.clientWidth || body.clientWidth || host.clientWidth || 0;
+    const availWidth = rawWidth > 0 ? Math.max(120, rawWidth) : 0;
+    const metrics = sidebarLayoutMetrics(layoutKey, uiScale(), availWidth || 320);
     const layoutMode = normalizeGenLayout(metrics.mode);
     const display = loadSidebarDisplay();
     const images = display.chrome?.images !== false;
     const fit = display.chrome?.fit === "contain" ? "contain" : "cover";
+    const fillRows = display.chrome?.fillRows !== false;
     const imageHeight = images ? Math.max(28, Math.round(metrics.cardWidth / metrics.ratio)) : 0;
     const listDensity = layoutMode === "list"
       ? (metrics.rowHeight < 42 ? "tiny" : metrics.rowHeight < 54 ? "micro" : "normal")
@@ -427,8 +547,10 @@ export function createSidebarGenerations(host, {
       mode: layoutMode,
       images,
       fit,
+      fillRows,
       imageHeight,
       listDensity,
+      rawWidth,
       availWidth,
     };
   }
@@ -437,16 +559,15 @@ export function createSidebarGenerations(host, {
     section.dataset.layout = m.mode;
     listEl.dataset.layout = m.mode;
     listEl.dataset.density = m.listDensity;
-    if (presentation) {
-      presentation.set(listEl, {
-        "--pp-gen-columns": m.columns,
-        "--pp-gen-card-width": `${m.cardWidth}px`,
-        "--pp-gen-image-height": `${m.imageHeight}px`,
-        "--pp-gen-row-height": `${Math.round(m.rowHeight)}px`,
-        "--pp-gen-scale": m.scale,
-        "--pp-gen-ratio": m.ratio,
-      });
-    }
+    listEl.dataset.aspect = m.aspect;
+    scope.set(listEl, {
+      "--pp-gen-columns": m.columns,
+      "--pp-gen-card-width": `${m.cardWidth}px`,
+      "--pp-gen-image-height": `${m.imageHeight}px`,
+      "--pp-gen-row-height": `${Math.round(m.rowHeight)}px`,
+      "--pp-gen-scale": m.scale,
+      "--pp-gen-ratio": m.ratio,
+    });
   }
 
   function syncCapture() {
@@ -497,27 +618,32 @@ export function createSidebarGenerations(host, {
       Object.assign(record, saved);
       if (selectedRecord?.id === record.id) Object.assign(selectedRecord, saved);
       API.publishMetadataChange?.({ namespace: "generations", action: "annotate", id: record.id });
-      renderList();
+      renderList({ itemsChanged: true });
       if (selectedRecord?.id === record.id) renderInspector();
     } catch (error) {
       announce(error.message || String(error), true);
     }
   }
 
-  async function usePromptInTarget(text, channel = "positive", record = selectedRecord) {
+  async function usePromptInTarget(text, channel = "positive", record = selectedRecord, buttonEl = null) {
     if (!text) return;
     try {
       if (restore && channel === "negative") {
         await restore({ text, channel, record, requiresConfirmation: true });
+        flashButtonFeedback(buttonEl, "✓ Sent");
         announce("Sent negative prompt to target node.");
         return;
       }
       if (insertPrompt && channel === "positive") {
         const ok = await insertPrompt(text);
-        if (ok) return;
+        if (ok) {
+          flashButtonFeedback(buttonEl, "✓ Inserted");
+          return;
+        }
       }
       if (restore) {
         await restore({ text, channel, record, requiresConfirmation: true });
+        flashButtonFeedback(buttonEl, "✓ Sent");
         announce(`Sent ${channel} prompt to target node.`);
       }
     } catch (error) {
@@ -562,14 +688,99 @@ export function createSidebarGenerations(host, {
     }
   }
 
-  function scheduleMasonryRebalance() {
-    if (rebalanceFrame || disposed) return;
-    rebalanceFrame = requestAnimationFrame(() => {
-      rebalanceFrame = 0;
-      if (!disposed && currentLayoutMode() === "masonry" && rows.length > 1) {
-        renderList();
+  function buildSubParts(record, meta, dims, activeMode, primaryLabel) {
+    const subParts = [];
+    if (activeMode === "list" && record.image?.filename && primaryLabel !== record.image.filename) {
+      subParts.push(record.image.filename);
+    }
+    if (meta.seed != null) subParts.push(`#${meta.seed}`);
+    if (meta.sampler) subParts.push(meta.sampler);
+    if (dims) subParts.push(`${dims.width}×${dims.height}`);
+    else if (record.completed_at) subParts.push(new Date(record.completed_at).toLocaleDateString());
+    return subParts;
+  }
+
+  function syncCardBadges(media, record, dims, activeMode) {
+    let badges = media.querySelector(".pp-sidebar-gen-badges");
+    const wantRes = (activeMode === "masonry" || activeMode === "filmstrip") && dims;
+    const wantAny = record.provenance === "verified" || Boolean(record.favorite) || Boolean(wantRes);
+    if (!wantAny) {
+      badges?.remove();
+      return;
+    }
+    if (!badges) {
+      badges = make("span", "pp-sidebar-gen-badges");
+      media.append(badges);
+    }
+    let vBadge = badges.querySelector(".pp-sidebar-gen-verified");
+    if (record.provenance === "verified") {
+      if (!vBadge) {
+        vBadge = make("span", "pp-sidebar-gen-verified", "✓");
+        vBadge.title = "Verified Prompt Palette output";
+        badges.prepend(vBadge);
       }
-    });
+    } else {
+      vBadge?.remove();
+    }
+    let fBadge = badges.querySelector(".pp-sidebar-gen-fav");
+    if (record.favorite) {
+      if (!fBadge) {
+        fBadge = make("span", "pp-sidebar-gen-fav", "★");
+        fBadge.title = "Favorite";
+        if (vBadge) vBadge.after(fBadge);
+        else badges.prepend(fBadge);
+      }
+    } else {
+      fBadge?.remove();
+    }
+    let resTag = badges.querySelector(".pp-sidebar-gen-res");
+    if (wantRes) {
+      if (!resTag) {
+        resTag = make("span", "pp-sidebar-gen-res");
+        badges.append(resTag);
+      }
+      resTag.textContent = `${dims.width}×${dims.height}`;
+    } else {
+      resTag?.remove();
+    }
+  }
+
+  function patchCard(card, record) {
+    cardRecords.set(card, record);
+    const isSelected = Boolean(selectedId && record.id === selectedId);
+    card.classList.toggle("is-selected", isSelected);
+    card.querySelector(".pp-sidebar-gen-card-select")?.setAttribute("aria-pressed", String(isSelected));
+    const extra = selectedRecord?.id === record.id
+      ? { ...selectedExtra, dimensions: imageDimensionsCache.get(record.id) }
+      : { dimensions: imageDimensionsCache.get(record.id) };
+    const meta = extractGenerationMetadata(record, extra);
+    const dims = resolveRecordDimensions(record, meta);
+    const activeMode = currentLayoutMode();
+    const media = card.querySelector(".pp-sidebar-gen-media");
+    if (media) syncCardBadges(media, record, dims, activeMode);
+    const primaryLabel = activeMode === "list" && meta.positivePrompt
+      ? meta.positivePrompt.replace(/\s+/g, " ").trim()
+      : (record.image?.filename || "Generation");
+    const titleEl = card.querySelector(".pp-sidebar-gen-filename");
+    if (titleEl) titleEl.textContent = primaryLabel;
+    const subParts = buildSubParts(record, meta, dims, activeMode, primaryLabel);
+    const subEl = card.querySelector(".pp-sidebar-gen-sub");
+    if (subEl) subEl.textContent = subParts.join(" · ") || (record.provenance === "verified" ? "Verified" : "Run context");
+    const favQuick = card.querySelector(".pp-sidebar-gen-quick-fav");
+    if (favQuick) {
+      favQuick.textContent = record.favorite ? "★" : "☆";
+      favQuick.title = record.favorite ? "Unfavorite" : "Favorite";
+      favQuick.setAttribute("aria-label", `${favQuick.title} ${record.image?.filename || "generation"}`);
+      favQuick.setAttribute("aria-pressed", String(Boolean(record.favorite)));
+    }
+    if (hoverPreview && !record.missing && record.image?.filename) {
+      hoverPreview.bind(card, {
+        title: record.image.filename,
+        subtitle: subParts.join(" · "),
+        prompt: meta.positivePrompt || "",
+        image: generationImageUrl(record.image),
+      });
+    }
   }
 
   function renderCard(record, metrics) {
@@ -580,48 +791,36 @@ export function createSidebarGenerations(host, {
     const card = make("article", "pp-sidebar-gen-card");
     card.setAttribute("role", "listitem");
     card.dataset.generationId = record.id;
+    cardRecords.set(card, record);
     const isSelected = selectedId === record.id;
     card.classList.toggle("is-selected", isSelected);
 
     const media = make("div", "pp-sidebar-gen-media");
-    const naturalRatio = resolveRecordAspectRatio(record, meta, metrics.ratio);
-    if ((metrics.mode === "masonry" || metrics.mode === "filmstrip") && presentation) {
-      const targetWidth = metrics.mode === "filmstrip" ? metrics.availWidth : metrics.cardWidth;
-      const mediaHeight = metrics.images ? Math.max(36, Math.round(targetWidth / naturalRatio)) : 0;
-      presentation.set(media, { "--pp-gen-media-height": `${mediaHeight}px` });
-      cardMediaElements.add(media);
-    }
 
     if (!record.missing && record.image?.filename && metrics.images) {
       const img = make("img", "pp-sidebar-gen-thumb");
-      img.src = generationImageUrl(record.image);
       img.alt = record.image.filename;
       img.loading = "lazy";
       img.decoding = "async";
       img.addEventListener("load", () => {
         if (disposed || !img.naturalWidth || !img.naturalHeight) return;
-        const prev = imageDimensionsCache.get(record.id);
+        const cur = cardRecords.get(card) || record;
         const nextDims = { width: img.naturalWidth, height: img.naturalHeight };
-        rememberBounded(imageDimensionsCache, record.id, nextDims, 256);
-        const loadedRatio = Math.max(0.35, Math.min(2.8, nextDims.width / nextDims.height));
-        const resBadge = media.querySelector(".pp-sidebar-gen-res");
-        if (resBadge) resBadge.textContent = `${nextDims.width}×${nextDims.height}`;
-        if ((metrics.mode === "masonry" || metrics.mode === "filmstrip") && presentation && media.isConnected) {
-          const mNow = computeMetrics();
-          const targetW = mNow.mode === "filmstrip" ? mNow.availWidth : mNow.cardWidth;
-          const nextHeight = mNow.images ? Math.max(36, Math.round(targetW / loadedRatio)) : 0;
-          presentation.set(media, { "--pp-gen-media-height": `${nextHeight}px` });
-          if (mNow.mode === "masonry" && (!prev || Math.abs(prev.width / prev.height - nextDims.width / nextDims.height) > 0.04)) {
-            scheduleMasonryRebalance();
-          }
+        rememberBounded(imageDimensionsCache, cur.id, nextDims, 2048);
+        const activeMode = currentLayoutMode();
+        if (activeMode === "masonry" || activeMode === "filmstrip") {
+          syncCardBadges(media, cur, nextDims, activeMode);
         }
-        if (selectedRecord?.id === record.id && !meta.resolution) {
+        collection?.notifyMediaDimensions(card, img.naturalWidth, img.naturalHeight);
+        if (selectedRecord?.id === cur.id && !meta.resolution) {
           renderInspector();
         }
       }, { once: true });
       img.addEventListener("error", () => {
+        collection?.notifyMediaError(card);
         img.replaceWith(make("span", "pp-sidebar-gen-fallback", "No preview"));
       }, { once: true });
+      img.src = generationImageUrl(record.image);
       media.append(img);
     } else if (record.missing) {
       media.append(make("span", "pp-sidebar-gen-fallback", "Missing"));
@@ -631,25 +830,13 @@ export function createSidebarGenerations(host, {
       media.append(make("span", "pp-sidebar-gen-fallback", "No preview"));
     }
 
-    const badges = make("span", "pp-sidebar-gen-badges");
-    if (record.provenance === "verified") {
-      const vBadge = make("span", "pp-sidebar-gen-verified", "✓");
-      vBadge.title = "Verified Prompt Palette output";
-      badges.append(vBadge);
-    }
-    if (record.favorite) {
-      const fBadge = make("span", "pp-sidebar-gen-fav", "★");
-      fBadge.title = "Favorite";
-      badges.append(fBadge);
-    }
     const dims = resolveRecordDimensions(record, meta);
-    if ((metrics.mode === "masonry" || metrics.mode === "filmstrip") && dims) {
-      const resTag = make("span", "pp-sidebar-gen-res", `${dims.width}×${dims.height}`);
-      badges.append(resTag);
-    }
-    if (badges.childNodes.length) media.append(badges);
+    syncCardBadges(media, record, dims, metrics.mode);
 
-    const selectBtn = btn("", () => inspectGeneration(record.id), "pp-sidebar-gen-card-select");
+    const selectBtn = btn("", () => {
+      const cur = cardRecords.get(card) || record;
+      inspectGeneration(cur.id);
+    }, "pp-sidebar-gen-card-select");
     selectBtn.setAttribute("aria-label", `Inspect ${record.image?.filename || "generation"}`);
     selectBtn.setAttribute("aria-pressed", String(isSelected));
 
@@ -658,15 +845,7 @@ export function createSidebarGenerations(host, {
       ? meta.positivePrompt.replace(/\s+/g, " ").trim()
       : (record.image?.filename || "Generation");
     const title = make("strong", "pp-sidebar-gen-filename", primaryLabel);
-
-    const subParts = [];
-    if (metrics.mode === "list" && record.image?.filename && primaryLabel !== record.image.filename) {
-      subParts.push(record.image.filename);
-    }
-    if (meta.seed != null) subParts.push(`#${meta.seed}`);
-    if (meta.sampler) subParts.push(meta.sampler);
-    if (dims) subParts.push(`${dims.width}×${dims.height}`);
-    else if (record.completed_at) subParts.push(new Date(record.completed_at).toLocaleDateString());
+    const subParts = buildSubParts(record, meta, dims, metrics.mode, primaryLabel);
 
     const subtitle = make(
       "small",
@@ -687,14 +866,19 @@ export function createSidebarGenerations(host, {
       if (meta.positivePrompt) {
         const copyQuick = btn("", event => {
           event.stopPropagation();
-          copyValue(meta.positivePrompt, "positive prompt", copyQuick);
+          const cur = cardRecords.get(card) || record;
+          const curMeta = extractGenerationMetadata(cur, { dimensions: imageDimensionsCache.get(cur.id) });
+          copyValue(curMeta.positivePrompt || meta.positivePrompt, "positive prompt", copyQuick);
         }, "pp-sidebar-icon pp-sidebar-gen-quick-copy");
         copyQuick.innerHTML = svgIcon("copy", 13);
         copyQuick.title = "Copy positive prompt";
         copyQuick.setAttribute("aria-label", `Copy positive prompt for ${record.image?.filename || "generation"}`);
         rowActions.append(copyQuick);
       }
-      const favQuick = btn(record.favorite ? "★" : "☆", event => toggleFavorite(record, event), "pp-sidebar-icon pp-sidebar-gen-quick-fav");
+      const favQuick = btn(record.favorite ? "★" : "☆", event => {
+        const cur = cardRecords.get(card) || record;
+        toggleFavorite(cur, event);
+      }, "pp-sidebar-icon pp-sidebar-gen-quick-fav");
       favQuick.title = record.favorite ? "Unfavorite" : "Favorite";
       favQuick.setAttribute("aria-label", `${favQuick.title} ${record.image?.filename || "generation"}`);
       favQuick.setAttribute("aria-pressed", String(Boolean(record.favorite)));
@@ -714,18 +898,19 @@ export function createSidebarGenerations(host, {
     card.addEventListener("contextmenu", event => {
       event.preventDefault();
       event.stopPropagation();
+      const cur = cardRecords.get(card) || record;
       const currentMeta = extractGenerationMetadata(
-        selectedRecord?.id === record.id ? selectedRecord : record,
-        selectedRecord?.id === record.id
-          ? { ...selectedExtra, dimensions: imageDimensionsCache.get(record.id) }
-          : { dimensions: imageDimensionsCache.get(record.id) }
+        selectedRecord?.id === cur.id ? selectedRecord : cur,
+        selectedRecord?.id === cur.id
+          ? { ...selectedExtra, dimensions: imageDimensionsCache.get(cur.id) }
+          : { dimensions: imageDimensionsCache.get(cur.id) }
       );
       const items = [
-        { label: "Inspect generation metadata", icon: "eye", group: "inspect", onSelect: () => inspectGeneration(record.id) },
+        { label: "Inspect generation metadata", icon: "eye", group: "inspect", onSelect: () => inspectGeneration(cur.id) },
       ];
       if (currentMeta.positivePrompt) {
         items.push({ label: "Copy positive prompt", icon: "copy", group: "copy", onSelect: () => copyValue(currentMeta.positivePrompt, "positive prompt") });
-        items.push({ label: "Use positive prompt in target", icon: "plus", group: "use", onSelect: () => usePromptInTarget(currentMeta.positivePrompt, "positive", record) });
+        items.push({ label: "Use positive prompt in target", icon: "plus", group: "use", onSelect: () => usePromptInTarget(currentMeta.positivePrompt, "positive", cur) });
       }
       if (currentMeta.negativePrompt) {
         items.push({ label: "Copy negative prompt", icon: "copy", group: "copy", onSelect: () => copyValue(currentMeta.negativePrompt, "negative prompt") });
@@ -746,10 +931,10 @@ export function createSidebarGenerations(host, {
         });
       }
       items.push({
-        label: record.favorite ? "Remove from favorites" : "Add to favorites",
+        label: cur.favorite ? "Remove from favorites" : "Add to favorites",
         icon: "star",
         group: "item",
-        onSelect: () => toggleFavorite(record),
+        onSelect: () => toggleFavorite(cur),
       });
       openCtxMenu(event.clientX, event.clientY, items);
     });
@@ -757,17 +942,28 @@ export function createSidebarGenerations(host, {
     return card;
   }
 
+  function syncCardSelection() {
+    if (disposed) return;
+    section.dataset.inspecting = String(Boolean(selectedRecord));
+    for (const card of listEl.querySelectorAll(".pp-sidebar-gen-card")) {
+      const isSelected = Boolean(selectedId && card.dataset.generationId === selectedId);
+      card.classList.toggle("is-selected", isSelected);
+      card.querySelector(".pp-sidebar-gen-card-select")?.setAttribute("aria-pressed", String(isSelected));
+    }
+  }
+
   // Closes the inspector; when focus was inside it, hands focus back to the card that opened it
   // so keyboard users land where they started instead of at the top of the page.
   function closeInspector() {
     if (disposed || !selectedId) return;
     const returnId = selectedId;
-    const hadFocus = inspectorEl.contains(document.activeElement);
+    const hadFocus = flyoutEl.contains(document.activeElement);
     inspectController?.abort();
+    loraEnrichController?.abort();
     selectedId = null;
     selectedRecord = null;
     selectedExtra = {};
-    renderList();
+    syncCardSelection();
     renderInspector();
     if (hadFocus) {
       const cards = listEl.querySelectorAll(".pp-sidebar-gen-card");
@@ -817,17 +1013,19 @@ export function createSidebarGenerations(host, {
     if (nextIndex !== index) buttons[nextIndex].focus();
   });
 
-  function renderList() {
+  function renderList({ itemsChanged = true } = {}) {
     if (disposed) return;
-    releaseCardMediaRules();
     const metrics = computeMetrics();
-    applyMetricsToDOM(metrics);
-
     countBadge.textContent = rows.length ? String(rows.length) : prefs?.enabled === false ? "Off" : "0";
-    inspectorEl.hidden = !selectedRecord;
     section.dataset.inspecting = String(Boolean(selectedRecord));
 
     if (!rows.length) {
+      virtual.clear();
+      collection = null;
+      lastRenderedImages = null;
+      lastRenderedItems = null;
+      pendingItemsSync = false;
+      applyMetricsToDOM(metrics);
       const hasFilters = Boolean(searchInput.value.trim() || favFilterBtn.getAttribute("aria-pressed") === "true" || dateSelect.value !== "0");
       const emptyMsg = hasFilters
         ? "No matching generations. Clear search or filters."
@@ -838,66 +1036,216 @@ export function createSidebarGenerations(host, {
       return;
     }
 
-    if (metrics.mode === "masonry") {
-      const colCount = Math.max(1, metrics.columns);
-      const cols = Array.from({ length: colCount }, () => make("div", "pp-sidebar-gen-masonry-col"));
-      const heights = new Array(colCount).fill(0);
-      const captionEstimate = metrics.listDensity === "tiny" ? 0 : metrics.listDensity === "micro" ? 24 : 38;
-      for (const record of rows) {
-        const card = renderCard(record, metrics);
-        const meta = extractGenerationMetadata(record, { dimensions: imageDimensionsCache.get(record.id) });
-        const ratio = resolveRecordAspectRatio(record, meta, metrics.ratio);
-        const estMediaHeight = metrics.images ? Math.max(36, Math.round(metrics.cardWidth / ratio)) : 0;
-        let minIdx = 0;
-        for (let i = 1; i < colCount; i++) {
-          if (heights[i] < heights[minIdx]) minIdx = i;
-        }
-        cols[minIdx].append(card);
-        heights[minIdx] += estMediaHeight + captionEstimate + 8;
-      }
-      listEl.replaceChildren(...cols);
+    if (metrics.rawWidth <= 0) {
+      if (itemsChanged) pendingItemsSync = true;
+      lastGeometry = "";
       return;
     }
 
-    listEl.replaceChildren(...rows.map(record => renderCard(record, metrics)));
+    const needItemsUpdate = itemsChanged || pendingItemsSync || lastRenderedItems !== rows;
+    pendingItemsSync = false;
+    const oldScroll = listEl.scrollTop;
+    applyMetricsToDOM(metrics);
+
+    const virtualMode = metrics.mode === "gallery" ? "grid" : metrics.mode;
+    const chromeHeight = metrics.listDensity === "tiny" ? 0 : metrics.listDensity === "micro" ? 30 : 44;
+    const cardHeightForWidth = width => {
+      if (!metrics.images) return (metrics.listDensity === "tiny" ? 28 : 44) + 8;
+      const effectiveRatio = metrics.isNaturalRatio ? 1 : metrics.ratio;
+      const mediaHeight = Math.max(28, Math.round(width / effectiveRatio));
+      return mediaHeight + chromeHeight + 8;
+    };
+    const layoutOptions = {
+      mode: virtualMode,
+      minCardWidth: metrics.cardWidth,
+      columnCount: virtualMode === "masonry" ? (metrics.fillRows ? metrics.columns : null) : (virtualMode === "grid" ? metrics.columns : 1),
+      fixedCardWidth: virtualMode === "masonry" ? !metrics.fillRows : virtualMode === "grid",
+      imageAspectRatio: metrics.images ? (metrics.isNaturalRatio ? 1 : metrics.ratio) : 0,
+      estimateRowHeight: Math.max(32, Math.round(metrics.rowHeight)),
+      estimateCardHeight: cardHeightForWidth(metrics.cardWidth),
+      estimateChromeHeight: chromeHeight,
+      cardHeightForWidth,
+      gap: 8,
+      itemKey: record => record.id,
+      getItemRatio: record => {
+        const d = resolveRecordDimensions(record, null);
+        return d ? { width: d.width, height: d.height } : null;
+      },
+      thumbnailUrl: record => (!record.missing && record.image?.filename) ? generationImageUrl(record.image) : "",
+    };
+
+    if (!collection) {
+      listEl.replaceChildren();
+      collection = virtual.mount(listEl, {
+        ...layoutOptions,
+        items: rows,
+        renderItem: record => renderCard(record, metrics),
+        preserveViewport: true,
+        styleDeclaration: scope.declaration,
+        releaseStyle: el => scope.release(el),
+        captureFocus: () => captureSidebarFocus(listEl, ".pp-sidebar-gen-card", "generationId"),
+        restoreFocus: snapshot => restoreSidebarFocus(listEl, ".pp-sidebar-gen-card", "generationId", snapshot),
+      });
+    } else {
+      const modeChanged = virtualMode !== collection.mode;
+      const imagesChanged = lastRenderedImages !== null && lastRenderedImages !== metrics.images;
+      const anchor = !needItemsUpdate && !modeChanged ? virtual.captureViewportAnchor() : null;
+      collection.renderItem = record => renderCard(record, metrics);
+      collection.updateLayout(layoutOptions);
+      if (imagesChanged) {
+        collection.setItems(rows);
+      } else if (modeChanged) {
+        if (needItemsUpdate) collection.setItems(rows);
+      } else if (needItemsUpdate) {
+        collection.updateItems(rows, { patchNode: patchCard });
+      }
+      collection.render();
+      if (anchor) virtual.restoreViewportAnchor(anchor);
+      else if (!modeChanged) listEl.scrollTop = oldScroll;
+      virtual.refresh();
+    }
+
+    lastRenderedImages = metrics.images;
+    lastRenderedItems = rows;
   }
 
   function refreshAppearance({ force = false } = {}) {
     if (disposed) return;
+    if (!flyoutEl.hidden) {
+      syncFlyoutTheme();
+      placeFlyout(true);
+    }
     const m = computeMetrics();
-    const geometry = `${m.mode}|${m.scale}|${m.columns}|${Math.round(m.cardWidth)}|${Math.round(m.rowHeight)}|${m.ratio}|${m.images}|${m.fit}`;
-    if (!force && geometry === lastGeometry) {
+    if (m.rawWidth <= 0) {
+      lastGeometry = "";
+      if (!rows.length) renderList({ itemsChanged: false });
+      return;
+    }
+    const geometry = `${m.mode}|${m.scale}|${m.columns}|${Math.round(m.cardWidth)}|${Math.round(m.rowHeight)}|${Math.round(m.availWidth)}|${m.aspect}|${m.ratio}|${m.fillRows}|${m.images}|${m.fit}|${m.listDensity}`;
+    if (!force && geometry === lastGeometry && collection) {
       applyMetricsToDOM(m);
       return;
     }
     lastGeometry = geometry;
-    renderList();
+    renderList({ itemsChanged: false });
   }
 
   const listResize = new ResizeObserver(() => {
     if (!disposed && visible && (isTabMode || isOpen)) {
       refreshAppearance();
+      if (selectedRecord && flyoutEl.hidden && flyoutAnchor().getBoundingClientRect().width >= 8) {
+        showFlyout();
+      }
     }
   });
   listResize.observe(listEl);
 
+  function lookupCachedLoraInfo(lora) {
+    if (!lora) return undefined;
+    if (lora.filename && loraInfoCache.has(lora.filename)) return loraInfoCache.get(lora.filename);
+    if (lora.name && loraInfoCache.has(lora.name)) return loraInfoCache.get(lora.name);
+    return undefined;
+  }
+
+  async function enrichLorasForMeta(meta, recordId) {
+    if (disposed || !meta?.loras?.length || typeof API.loraBatchInfo !== "function") return;
+    const missing = [];
+    const seenReq = new Set();
+    for (const lora of meta.loras) {
+      const lookup = lora.filename || lora.name;
+      if (!lookup || seenReq.has(lookup) || lookupCachedLoraInfo(lora) !== undefined) continue;
+      seenReq.add(lookup);
+      missing.push(lookup);
+    }
+    if (!missing.length) return;
+    const seq = ++loraEnrichSequence;
+    loraEnrichController?.abort();
+    const controller = (loraEnrichController = new AbortController());
+    try {
+      const data = await API.loraBatchInfo(missing, { signal: controller.signal });
+      if (disposed || controller.signal.aborted || seq !== loraEnrichSequence) return;
+      const infoMap = data?.info && typeof data.info === "object" ? data.info : {};
+      for (const reqName of missing) {
+        const entry = infoMap[reqName] || null;
+        rememberBounded(loraInfoCache, reqName, entry, 256);
+        if (entry?.filename && entry.filename !== reqName) {
+          rememberBounded(loraInfoCache, entry.filename, entry, 256);
+        }
+      }
+      if (selectedRecord?.id === recordId) {
+        renderInspector();
+      }
+    } catch {
+      /* Local LoRA metadata enrichment is optional; keep base display. */
+    } finally {
+      if (loraEnrichController === controller) loraEnrichController = null;
+    }
+  }
+
+  function renderPromptVariantBlock({ channel, kind, label, badgeText, text, record }) {
+    const block = make("div", "pp-sidebar-gen-prompt-block");
+    block.dataset.promptChannel = channel;
+    block.dataset.promptKind = kind;
+
+    const headRow = make("div", "pp-sidebar-gen-prompt-head");
+    const labelGroup = make("div", "pp-gen-prompt-label-group");
+    labelGroup.append(make("span", "pp-sidebar-gen-label", label));
+    if (badgeText) {
+      labelGroup.append(make("span", "pp-gen-prompt-kind-pill", badgeText));
+    }
+
+    const actions = make("div", "pp-sidebar-gen-btn-row");
+    const rolePrefix = kind === "raw" ? "raw-" : "";
+    const copyBtn = btn("Copy", e => copyValue(text, `${label.toLowerCase()}`, e.currentTarget), "pp-sidebar-gen-copy-btn");
+    copyBtn.dataset.copyRole = `${rolePrefix}${channel}`;
+    copyBtn.setAttribute("aria-label", `Copy ${label.toLowerCase()}`);
+    actions.append(copyBtn);
+
+    if (insertPrompt || restore) {
+      const useBtn = btn("Use", e => usePromptInTarget(text, channel, record, e.currentTarget), "pp-sidebar-gen-copy-btn pp-sidebar-gen-use-btn");
+      useBtn.setAttribute("aria-label", `Use ${label.toLowerCase()} in target node`);
+      useBtn.title = kind === "raw"
+        ? "Send original raw input prompt (with wildcards and syntax) to target node"
+        : "Send final resolved prompt to target node";
+      actions.append(useBtn);
+    }
+
+    headRow.append(labelGroup, actions);
+    const pre = make("pre", "pp-sidebar-gen-prompt-text", text);
+    pre.dataset.promptText = `${rolePrefix}${channel}`;
+    block.append(headRow, pre);
+    return block;
+  }
+
   function renderInspector() {
     if (disposed) return;
     if (!selectedRecord) {
-      inspectorEl.hidden = true;
-      inspectorEl.replaceChildren();
+      hideFlyout();
+      delete flyoutEl.dataset.recordId;
+      flyBody.replaceChildren();
+      flyHeadTools.replaceChildren();
+      flyFoot.replaceChildren();
+      flyNameBadge.textContent = "";
       section.dataset.inspecting = "false";
       return;
     }
-    inspectorEl.hidden = false;
-    section.dataset.inspecting = "true";
-    inspectorEl.replaceChildren();
 
     const record = selectedRecord;
     const meta = extractGenerationMetadata(record, {
       ...selectedExtra,
       dimensions: imageDimensionsCache.get(record.id),
     });
+
+    section.dataset.inspecting = "true";
+    flyNameBadge.textContent = record.image?.filename || "Generation";
+    flyNameBadge.title = record.image?.filename || "Generation";
+
+    flyHeadTools.replaceChildren();
+    const favBtn = btn(record.favorite ? "★" : "☆", e => toggleFavorite(record, e), "pp-sidebar-icon pp-sidebar-gen-fav-btn");
+    favBtn.title = record.favorite ? "Remove from favorites" : "Add to favorites";
+    favBtn.setAttribute("aria-label", "Favorite generation");
+    favBtn.setAttribute("aria-pressed", String(Boolean(record.favorite)));
+    flyHeadTools.append(favBtn);
 
     // Ensure selectedNodeIds has valid defaults
     const validIds = new Set(meta.workflowComponents.map(c => String(c.id)));
@@ -908,74 +1256,91 @@ export function createSidebarGenerations(host, {
       for (const id of validIds) selectedNodeIds.add(id);
     }
 
-    // 1. Inspector hero: artwork, identity pills and the primary actions (Civitai-style info panel)
-    const head = make("header", "pp-sidebar-gen-inspector-head pp-sidebar-gen-hero");
+    const sameRecord = flyoutEl.dataset.recordId === String(record.id);
+    const prevScroll = sameRecord ? flyBody.scrollTop : 0;
+    flyoutEl.dataset.recordId = String(record.id);
+
+    flyBody.replaceChildren();
+
+    // 1. Civitai-style Hero: artwork, identity badges, quick stat tiles, primary actions
+    const hero = make("header", "pp-gen-hero");
     const hasArtwork = !record.missing && Boolean(record.image?.filename);
-    head.dataset.media = hasArtwork ? "image" : "none";
+    hero.dataset.media = hasArtwork ? "image" : "none";
     if (hasArtwork) {
-      const thumbLink = make("a", "pp-sidebar-gen-inspector-thumb-link");
+      const thumbLink = make("a", "pp-gen-hero-art");
       thumbLink.href = generationImageUrl(record.image);
       thumbLink.target = "_blank";
       thumbLink.rel = "noopener";
       thumbLink.title = "Open full-resolution image in new tab";
       thumbLink.setAttribute("aria-label", "Open full-resolution image in new tab");
-      const miniThumb = make("img", "pp-sidebar-gen-inspector-thumb");
+      const miniThumb = make("img", "pp-gen-hero-img");
       miniThumb.src = generationImageUrl(record.image);
-      miniThumb.alt = "";
+      miniThumb.alt = record.image.filename || "";
       miniThumb.decoding = "async";
       const artWidth = Number(meta.width), artHeight = Number(meta.height);
       if (artWidth > 0 && artHeight > 0) {
-        // Intrinsic size attributes let the browser reserve the right aspect ratio before the image loads.
         miniThumb.width = artWidth;
         miniThumb.height = artHeight;
       }
       miniThumb.addEventListener("error", () => {
         thumbLink.remove();
-        head.dataset.media = "none";
+        hero.dataset.media = "none";
       }, { once: true });
       thumbLink.append(miniThumb);
-      head.append(thumbLink);
+      hero.append(thumbLink);
     }
 
-    const info = make("div", "pp-sidebar-gen-hero-info");
-    const titleRow = make("div", "pp-sidebar-gen-inspector-title");
-    const titleMeta = make("div", "pp-sidebar-gen-inspector-meta");
-    const filenameEl = make("strong", "", record.image?.filename || "Generation");
-    filenameEl.title = record.image?.filename || "Generation";
-    titleMeta.append(filenameEl);
+    const heroInfo = make("div", "pp-gen-hero-info");
+    const heroTitle = make("strong", "pp-gen-hero-title", record.image?.filename || "Generation");
+    heroTitle.title = record.image?.filename || "Generation";
+    heroInfo.append(heroTitle);
+
+    const badgeList = make("div", "pp-gen-badge-list");
+    badgeList.append(record.provenance === "verified"
+      ? pill("✓ Verified", "verified", "One Prompt Palette node fed this image, so its recorded prompt and seed are attributed to it.")
+      : pill("Run context", "context", "Prompts and parameters come from the run that produced this image, not from a single Prompt Palette node."));
+    if (meta.model) badgeList.append(pill(shortModelName(meta.model), "model", `Model: ${meta.model}`));
+    if (meta.resolution) badgeList.append(pill(meta.resolution, "dims", "Image dimensions"));
+    heroInfo.append(badgeList);
+
     if (record.completed_at) {
-      titleMeta.append(make("small", "pp-sidebar-gen-inspector-sub", new Date(record.completed_at).toLocaleString([], {
+      heroInfo.append(make("small", "pp-gen-hero-sub", new Date(record.completed_at).toLocaleString([], {
         month: "short",
         day: "numeric",
+        year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       })));
     }
 
-    const headTools = make("div", "pp-sidebar-gen-inspector-tools");
-    const favBtn = btn(record.favorite ? "★" : "☆", e => toggleFavorite(record, e), "pp-sidebar-icon pp-sidebar-gen-fav-btn");
-    favBtn.title = record.favorite ? "Remove from favorites" : "Add to favorites";
-    favBtn.setAttribute("aria-label", "Favorite generation");
-    favBtn.setAttribute("aria-pressed", String(Boolean(record.favorite)));
+    // Civitai-style quick stat strip (up to 4 most useful scannable facts)
+    const quickStats = [];
+    if (meta.seed != null) quickStats.push({ label: "Seed", value: String(meta.seed), copy: String(meta.seed) });
+    if (meta.sampler) quickStats.push({ label: "Sampler", value: meta.sampler, copy: formatSamplerScheduler(meta) || meta.sampler });
+    if (meta.steps != null) quickStats.push({ label: "Steps", value: String(meta.steps), copy: String(meta.steps) });
+    if (meta.cfg != null) quickStats.push({ label: "CFG", value: String(meta.cfg), copy: String(meta.cfg) });
+    else if (meta.guidance != null) quickStats.push({ label: "Guidance", value: String(meta.guidance), copy: String(meta.guidance) });
+    if (quickStats.length < 4 && meta.loras.length) {
+      quickStats.push({
+        label: "LoRAs",
+        value: String(meta.loras.length),
+        copy: meta.loras.map(loraTagSyntax).join(" "),
+      });
+    }
+    if (quickStats.length) {
+      const statRow = make("div", "pp-gen-stat-row");
+      for (const st of quickStats) {
+        const statBtn = btn("", e => copyValue(st.copy, st.label.toLowerCase(), e.currentTarget), "pp-gen-stat");
+        statBtn.title = `Click to copy ${st.label}: ${st.copy}`;
+        statBtn.setAttribute("aria-label", `Copy ${st.label}: ${st.copy}`);
+        statBtn.append(make("b", "", st.value), make("small", "", st.label));
+        statRow.append(statBtn);
+      }
+      heroInfo.append(statRow);
+    }
 
-    const closeBtn = btn("×", () => closeInspector(), "pp-sidebar-icon pp-sidebar-gen-close");
-    closeBtn.title = "Close generation inspector (Esc)";
-    closeBtn.setAttribute("aria-label", "Close generation inspector");
-
-    headTools.append(favBtn, closeBtn);
-    titleRow.append(titleMeta, headTools);
-
-    const pills = make("div", "pp-sidebar-gen-pills");
-    pills.append(record.provenance === "verified"
-      ? pill("✓ Verified", "verified", "One Prompt Palette node fed this image, so its recorded prompt and seed are attributed to it.")
-      : pill("Run context", "context", "Prompts and parameters come from the run that produced this image, not from a single Prompt Palette node."));
-    if (meta.model) pills.append(pill(shortModelName(meta.model), "model", `Checkpoint: ${meta.model}`));
-    if (meta.resolution) pills.append(pill(meta.resolution, "dims", "Image dimensions"));
-    info.append(titleRow, pills);
-    head.append(info);
-
-    // Primary reusable actions bar
-    const quickBar = make("div", "pp-sidebar-gen-quickbar");
+    // Hero reusable action toolbar
+    const quickBar = make("div", "pp-gen-hero-toolbar");
     const completePromptText = formatCompletePromptInfo(meta);
     if (completePromptText) {
       const copyAllPromptBtn = btn("Copy prompt info", e => copyValue(completePromptText, "complete prompt information", e.currentTarget), "pp-sidebar-gen-action");
@@ -983,7 +1348,6 @@ export function createSidebarGenerations(host, {
       copyAllPromptBtn.setAttribute("aria-label", "Copy complete prompt information");
       quickBar.append(copyAllPromptBtn);
     }
-
     if (meta.hasWorkflow) {
       const wfJson = JSON.stringify(meta.workflow || meta.promptGraph, null, 2);
       const copyWfQuickBtn = btn("Copy workflow", e => copyValue(wfJson, "complete workflow", e.currentTarget), "pp-sidebar-gen-action");
@@ -991,181 +1355,323 @@ export function createSidebarGenerations(host, {
       copyWfQuickBtn.setAttribute("aria-label", "Copy complete workflow");
       quickBar.append(copyWfQuickBtn);
     }
-
     const canRefine = historyRefinementSources(record, { includeFields: false }).length > 0 || historyRefinementSources(record).length > 0;
+    const refineAdapter = getNode?.()?._ppHistoryRefinement;
+    const refineReason = !getNode
+      ? ""
+      : !refineAdapter?.alive?.()
+        ? "Choose an open Prompt Palette or Combinatorial node in 'Insert into' first."
+        : refineAdapter.isRefining?.()
+          ? "Commit or Cancel the active refinement in the target node first."
+          : "";
     if (canRefine && getNode) {
       const refineBtn = btn("Refine in node…", () => openRefinement(record), "pp-sidebar-gen-action pp-sidebar-gen-action--primary");
+      refineBtn.disabled = Boolean(refineReason);
+      refineBtn.title = refineReason || "Open recorded prompt data in the target node with Commit / Cancel";
       refineBtn.setAttribute("aria-label", "Refine generation in target node");
+      if (refineReason) refineBtn.setAttribute("aria-description", refineReason);
       quickBar.append(refineBtn);
     }
+    if (quickBar.childNodes.length) heroInfo.append(quickBar);
 
-    if (quickBar.childNodes.length) info.append(quickBar);
-    inspectorEl.append(head);
+    hero.append(heroInfo);
+    flyBody.append(hero);
 
-    // 2. Prompts Section (only if prompt metadata exists)
+    // 2. Prompts & Wildcard Selections Section (always preserves Raw Input vs Final Resolved)
     if (meta.hasPrompts) {
-      const promptsGroup = make("details", "pp-sidebar-gen-group");
+      const promptsGroup = make("section", "pp-gen-section");
       promptsGroup.dataset.section = "prompts";
-      promptsGroup.open = true;
-      const promptsSummary = make("summary", "pp-sidebar-gen-group-summary");
-      promptsSummary.append(make("span", "pp-sidebar-gen-group-title", "Prompts"));
-      promptsGroup.append(promptsSummary);
+      const promptsHead = make("div", "pp-gen-section-head");
+      promptsHead.append(make("span", "pp-sidebar-gen-group-title", "Prompts"));
+      promptsGroup.append(promptsHead);
 
       const promptsBody = make("div", "pp-sidebar-gen-group-body");
 
-      // Positive prompt block
-      if (meta.positivePrompt) {
-        const posBlock = make("div", "pp-sidebar-gen-prompt-block");
-        posBlock.dataset.promptChannel = "positive";
-        const posHead = make("div", "pp-sidebar-gen-prompt-head");
-        const posLabel = make("span", "pp-sidebar-gen-label", "Positive prompt");
-        posHead.append(posLabel);
-
-        const hasBothPos = Boolean(meta.resolvedPositive && meta.authoredPositive && meta.resolvedPositive !== meta.authoredPositive);
-        const activePosText = hasBothPos && promptViewMode.positive === "authored" ? meta.authoredPositive : (meta.resolvedPositive ?? meta.authoredPositive);
-
-        const posActions = make("div", "pp-sidebar-gen-btn-row");
-        if (hasBothPos) {
-          posActions.append(promptModeSwitch(
-            promptViewMode.positive,
-            "Switch positive prompt version",
-            "Switch between resolved output and authored template",
-            () => {
-              promptViewMode.positive = promptViewMode.positive === "authored" ? "resolved" : "authored";
-              renderInspector();
-            }
-          ));
-        }
-
-        const copyPosBtn = btn("Copy", e => copyValue(activePosText, "positive prompt", e.currentTarget), "pp-sidebar-gen-copy-btn");
-        copyPosBtn.dataset.copyRole = "positive";
-        copyPosBtn.setAttribute("aria-label", "Copy positive prompt");
-        posActions.append(copyPosBtn);
-
-        const usePosBtn = btn("Use", () => usePromptInTarget(activePosText, "positive", record), "pp-sidebar-gen-copy-btn pp-sidebar-gen-use-btn");
-        usePosBtn.setAttribute("aria-label", "Use positive prompt in target node");
-        posActions.append(usePosBtn);
-
-        posHead.append(posActions);
-        const posPre = make("pre", "pp-sidebar-gen-prompt-text", activePosText);
-        posPre.dataset.promptText = "positive";
-        posBlock.append(posHead, posPre);
-        promptsBody.append(posBlock);
+      // Positive prompts: show both Raw Input Prompt and Final Resolved Prompt without overwriting either
+      if (meta.authoredPositive) {
+        const posSame = Boolean(meta.resolvedPositive && meta.authoredPositive === meta.resolvedPositive);
+        promptsBody.append(renderPromptVariantBlock({
+          channel: "positive",
+          kind: "raw",
+          label: "Raw Input Prompt",
+          badgeText: posSame ? "Matches resolved" : "Original input",
+          text: meta.authoredPositive,
+          record,
+        }));
+      }
+      if (meta.resolvedPositive) {
+        promptsBody.append(renderPromptVariantBlock({
+          channel: "positive",
+          kind: "resolved",
+          label: "Final Resolved Prompt",
+          badgeText: meta.clipTokenCount != null && meta.clipTokenCount >= 0
+            ? `${meta.clipTokenCount} CLIP tokens`
+            : "Expanded output",
+          text: meta.resolvedPositive,
+          record,
+        }));
       }
 
-      // Negative prompt block (only if negative prompt actually exists)
-      if (meta.negativePrompt) {
-        const negBlock = make("div", "pp-sidebar-gen-prompt-block");
-        negBlock.dataset.promptChannel = "negative";
-        const negHead = make("div", "pp-sidebar-gen-prompt-head");
-        negHead.append(make("span", "pp-sidebar-gen-label", "Negative prompt"));
-
-        const hasBothNeg = Boolean(meta.resolvedNegative && meta.authoredNegative && meta.resolvedNegative !== meta.authoredNegative);
-        const activeNegText = hasBothNeg && promptViewMode.negative === "authored" ? meta.authoredNegative : (meta.resolvedNegative ?? meta.authoredNegative);
-
-        const negActions = make("div", "pp-sidebar-gen-btn-row");
-        if (hasBothNeg) {
-          negActions.append(promptModeSwitch(
-            promptViewMode.negative,
-            "Switch negative prompt version",
-            "Switch between resolved negative and authored template",
-            () => {
-              promptViewMode.negative = promptViewMode.negative === "authored" ? "resolved" : "authored";
-              renderInspector();
-            }
-          ));
-        }
-
-        const copyNegBtn = btn("Copy", e => copyValue(activeNegText, "negative prompt", e.currentTarget), "pp-sidebar-gen-copy-btn");
-        copyNegBtn.dataset.copyRole = "negative";
-        copyNegBtn.setAttribute("aria-label", "Copy negative prompt");
-        negActions.append(copyNegBtn);
-
-        const useNegBtn = btn("Use", () => usePromptInTarget(activeNegText, "negative", record), "pp-sidebar-gen-copy-btn pp-sidebar-gen-use-btn");
-        useNegBtn.setAttribute("aria-label", "Use negative prompt in target node");
-        negActions.append(useNegBtn);
-
-        negHead.append(negActions);
-        const negPre = make("pre", "pp-sidebar-gen-prompt-text", activeNegText);
-        negPre.dataset.promptText = "negative";
-        negBlock.append(negHead, negPre);
-        promptsBody.append(negBlock);
+      // Negative prompts: show both Raw Negative Input and Final Resolved Negative when available
+      if (meta.authoredNegative) {
+        const negSame = Boolean(meta.resolvedNegative && meta.authoredNegative === meta.resolvedNegative);
+        promptsBody.append(renderPromptVariantBlock({
+          channel: "negative",
+          kind: "raw",
+          label: "Raw Negative Input",
+          badgeText: negSame ? "Matches resolved" : "Original input",
+          text: meta.authoredNegative,
+          record,
+        }));
+      }
+      if (meta.resolvedNegative) {
+        promptsBody.append(renderPromptVariantBlock({
+          channel: "negative",
+          kind: "resolved",
+          label: "Final Resolved Negative",
+          badgeText: "Expanded output",
+          text: meta.resolvedNegative,
+          record,
+        }));
       }
 
-      // Active LoRAs in generation
+      // Wildcard picks, brace choices, and resolved variables
+      if (meta.selections.length || meta.wildcardsUsed.length || meta.variableEntries.length) {
+        const wcBlock = make("div", "pp-sidebar-gen-tags-block");
+        wcBlock.dataset.resource = "wildcard";
+        const wcHead = make("div", "pp-sidebar-gen-prompt-head");
+        const selCount = meta.selections.length || meta.wildcardsUsed.length;
+        wcHead.append(make("span", "pp-sidebar-gen-label", `Wildcards & Selections (${selCount})`));
+        const wcHeadActions = make("div", "pp-sidebar-gen-btn-row");
+        if (meta.selections.length) {
+          const allSelText = meta.selections.map(sel => {
+            if (sel.kind === "wildcard") return `__${sel.mode || ""}${sel.name}__ -> ${sel.chosen || ""}`;
+            if (sel.kind === "brace") return `${sel.raw || "{choice}"} -> ${sel.chosen || ""}`;
+            return `${sel.open_expr || sel.block || "conditional"} -> ${sel.chosen_expr || sel.chosen_tag || ""}`;
+          }).join("\n");
+          const copySelBtn = btn("Copy selections", e => copyValue(allSelText, "wildcard and choice selections", e.currentTarget), "pp-sidebar-gen-copy-btn");
+          copySelBtn.setAttribute("aria-label", "Copy wildcard and choice selections");
+          wcHeadActions.append(copySelBtn);
+        }
+        if (meta.wildcardsUsed.length) {
+          const allWcText = meta.wildcardsUsed.map(w => `__${w.replace(/^__|__$/g, "")}__`).join(", ");
+          const copyWcBtn = btn("Copy wildcards", e => copyValue(allWcText, "wildcards", e.currentTarget), "pp-sidebar-gen-copy-btn");
+          copyWcBtn.dataset.copyRole = "wildcards";
+          copyWcBtn.setAttribute("aria-label", "Copy wildcards");
+          wcHeadActions.append(copyWcBtn);
+        }
+        if (wcHeadActions.childNodes.length) wcHead.append(wcHeadActions);
+        wcBlock.append(wcHead);
+
+        if (meta.selections.length) {
+          const selList = make("div", "pp-gen-selection-list");
+          for (const sel of meta.selections) {
+            if (sel.kind === "wildcard") {
+              const token = `__${sel.mode || ""}${sel.name}__`;
+              const row = btn("", e => copyValue(sel.chosen || token, `wildcard ${sel.name}`, e.currentTarget), "pp-gen-selection-row");
+              row.dataset.selectionKind = "wildcard";
+              row.title = sel.chosen ? `Click to copy picked text: ${sel.chosen}` : `Click to copy ${token}`;
+              row.append(
+                make("span", "pp-gen-selection-source", token),
+                make("span", "pp-gen-selection-arrow", "→"),
+                make("span", "pp-gen-selection-value", sel.chosen || "(resolved)")
+              );
+              selList.append(row);
+            } else if (sel.kind === "brace") {
+              const srcLabel = sel.raw || (Array.isArray(sel.options) ? `{${sel.options.join("|")}}` : "{choice}");
+              const chosenText = sel.chosen || (Array.isArray(sel.chosen_options) ? sel.chosen_options.join(", ") : "");
+              const row = btn("", e => copyValue(chosenText || srcLabel, "selected choice", e.currentTarget), "pp-gen-selection-row");
+              row.dataset.selectionKind = "brace";
+              row.title = `${srcLabel} → ${chosenText}`;
+              row.append(
+                make("span", "pp-gen-selection-source", srcLabel),
+                make("span", "pp-gen-selection-arrow", "→"),
+                make("span", "pp-gen-selection-value", chosenText)
+              );
+              selList.append(row);
+            } else if (sel.kind === "conditional") {
+              const srcLabel = sel.open_expr ? `[${sel.block} ${sel.open_expr}]` : `[${sel.block || "if"}]`;
+              const chosenText = sel.chosen_expr ? `${sel.chosen_tag}: ${sel.chosen_expr}` : (sel.chosen_tag || "taken");
+              const row = btn("", e => copyValue(chosenText, "conditional branch", e.currentTarget), "pp-gen-selection-row");
+              row.dataset.selectionKind = "conditional";
+              row.append(
+                make("span", "pp-gen-selection-source", srcLabel),
+                make("span", "pp-gen-selection-arrow", "→"),
+                make("span", "pp-gen-selection-value", chosenText)
+              );
+              selList.append(row);
+            }
+          }
+          wcBlock.append(selList);
+        }
+
+        if (meta.variableEntries.length) {
+          const varRow = make("div", "pp-sidebar-gen-chips");
+          for (const entry of meta.variableEntries) {
+            const chip = btn(`$${entry.name} = ${entry.value}`, e => copyValue(entry.value, `variable $${entry.name}`, e.currentTarget), "pp-sidebar-gen-chip pp-gen-chip--var");
+            chip.title = `Click to copy value for $${entry.name}`;
+            varRow.append(chip);
+          }
+          wcBlock.append(varRow);
+        }
+
+        if (meta.wildcardsUsed.length) {
+          const chips = make("div", "pp-sidebar-gen-chips");
+          for (const w of meta.wildcardsUsed) {
+            const cleanW = w.replace(/^__|__$/g, "");
+            const token = `__${cleanW}__`;
+            const chip = btn(cleanW, e => copyValue(token, `wildcard ${cleanW}`, e.currentTarget), "pp-sidebar-gen-chip pp-sidebar-gen-chip--wildcard");
+            chip.title = `Click to copy ${token}`;
+            chips.append(chip);
+          }
+          wcBlock.append(chips);
+        }
+
+        promptsBody.append(wcBlock);
+      }
+
+      promptsGroup.append(promptsBody);
+      flyBody.append(promptsGroup);
+    }
+
+    // 3. Models & LoRAs Section (with exact applied strengths, model compatibility & trigger words)
+    if (meta.hasModelsOrLoras) {
+      const resourcesGroup = make("section", "pp-gen-section");
+      resourcesGroup.dataset.section = "loras";
+      const resourcesHead = make("div", "pp-gen-section-head");
+      resourcesHead.append(make("span", "pp-sidebar-gen-group-title", "Models & LoRAs"));
+      if (meta.loras.length) {
+        resourcesHead.append(make("span", "pp-sidebar-gen-badge", `${meta.loras.length} LoRA${meta.loras.length === 1 ? "" : "s"}`));
+      }
+      resourcesGroup.append(resourcesHead);
+
+      const resourcesBody = make("div", "pp-sidebar-gen-group-body");
+
+      const modelRows = [
+        meta.model ? { key: "model", label: "Checkpoint / Model", value: meta.model } : null,
+        meta.clip ? { key: "clip", label: "CLIP", value: meta.clip } : null,
+        meta.vae ? { key: "vae", label: "VAE", value: meta.vae } : null,
+      ].filter(Boolean);
+
+      if (modelRows.length) {
+        const modelLedger = make("div", "pp-gen-model-list");
+        for (const item of modelRows) {
+          const row = btn("", e => copyValue(item.value, item.label, e.currentTarget), "pp-gen-model-row");
+          row.title = `Click to copy ${item.label}: ${item.value}`;
+          row.append(
+            make("span", "pp-gen-model-label", item.label),
+            make("strong", "pp-gen-model-value", item.value)
+          );
+          modelLedger.append(row);
+        }
+        resourcesBody.append(modelLedger);
+      }
+
       if (meta.loras.length) {
         const loraBlock = make("div", "pp-sidebar-gen-tags-block");
         loraBlock.dataset.resource = "lora";
         const loraHead = make("div", "pp-sidebar-gen-prompt-head");
         loraHead.append(make("span", "pp-sidebar-gen-label", `LoRAs (${meta.loras.length})`));
-        const allLoraSyntax = meta.loras.map(l => `<lora:${l.name}:${l.modelStrength}${l.clipStrength !== l.modelStrength ? `:${l.clipStrength}` : ""}>`).join(" ");
+
+        const allLoraSyntax = meta.loras.map(loraTagSyntax).join(" ");
+        const loraHeadActions = make("div", "pp-sidebar-gen-btn-row");
         const copyLorasBtn = btn("Copy LoRAs", e => copyValue(allLoraSyntax, "LoRA tags", e.currentTarget), "pp-sidebar-gen-copy-btn");
         copyLorasBtn.dataset.copyRole = "loras";
-        copyLorasBtn.setAttribute("aria-label", "Copy LoRAs");
-        loraHead.append(copyLorasBtn);
+        copyLorasBtn.setAttribute("aria-label", "Copy all LoRAs");
+        loraHeadActions.append(copyLorasBtn);
 
-        const chips = make("div", "pp-sidebar-gen-chips pp-sidebar-gen-chips--stack");
+        if (insertPrompt) {
+          const insertLorasBtn = btn("Insert LoRAs", e => usePromptInTarget(allLoraSyntax, "positive", record, e.currentTarget), "pp-sidebar-gen-copy-btn pp-sidebar-gen-use-btn");
+          insertLorasBtn.setAttribute("aria-label", "Insert LoRA tags into target prompt");
+          insertLorasBtn.title = "Insert exact LoRA tags into the active target prompt";
+          loraHeadActions.append(insertLorasBtn);
+        }
+        loraHead.append(loraHeadActions);
+
+        const loraList = make("div", "pp-gen-lora-list");
         const loraTheme = loadTheme();
         for (const lora of meta.loras) {
-          const hasClip = lora.clipStrength !== lora.modelStrength;
-          const tag = `<lora:${lora.name}:${lora.modelStrength}${hasClip ? `:${lora.clipStrength}` : ""}>`;
-          const shortName = String(lora.name).split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
-          const chip = btn("", e => copyValue(tag, `LoRA ${shortName}`, e.currentTarget), "pp-sidebar-gen-chip pp-sidebar-gen-chip--lora");
-          chip.dataset.loraName = String(lora.name);
-          chip.title = `Click to copy ${tag}`;
-          chip.setAttribute("aria-label", `Copy LoRA ${shortName}`);
-          const strength = hasClip ? `${lora.modelStrength} / ${lora.clipStrength}` : String(lora.modelStrength);
-          chip.append(
-            make("span", "pp-sidebar-gen-chip-name", shortName),
-            make("span", "pp-sidebar-gen-chip-strength", strength)
-          );
-          // Same color the LoRA carries in LoraPal and in the editor's syntax highlighting.
-          presentation?.category(chip, `lora:${loraIdentity(lora.name)}`, colorForLora(lora.name, loraTheme));
-          chips.append(chip);
+          const tag = loraTagSyntax(lora);
+          const displayTarget = lora.filename || lora.name;
+          const shortName = String(displayTarget).split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
+          const localInfo = lookupCachedLoraInfo(lora);
+
+          const card = make("article", "pp-gen-lora-card");
+          card.dataset.loraName = String(lora.name);
+          scope.category(card, `lora:${loraIdentity(displayTarget)}`, colorForLora(displayTarget, loraTheme));
+
+          const topRow = make("div", "pp-gen-lora-top");
+          const titleWrap = make("div", "pp-gen-lora-name-wrap");
+          const nameEl = make("strong", "pp-gen-lora-name", shortName);
+          nameEl.title = displayTarget;
+          titleWrap.append(nameEl);
+
+          const badgeRow = make("div", "pp-gen-lora-badges");
+          badgeRow.append(make("span", "pp-gen-lora-strength", formatLoraStrengthLabel(lora)));
+          badgeRow.append(make("span", "pp-gen-lora-status", formatLoraStatusLabel(lora.status)));
+          if (lora.source === "negative") {
+            badgeRow.append(make("span", "pp-gen-lora-source", "Negative"));
+          }
+          if (localInfo?.base_model) {
+            badgeRow.append(make("span", "pp-gen-lora-base", localInfo.base_model));
+          }
+
+          const copyTagBtn = btn("Copy tag", e => copyValue(tag, `LoRA ${shortName}`, e.currentTarget), "pp-sidebar-gen-copy-btn");
+          copyTagBtn.title = `Copy ${tag}`;
+          copyTagBtn.setAttribute("aria-label", `Copy ${tag}`);
+
+          topRow.append(titleWrap, copyTagBtn);
+          card.append(topRow, badgeRow);
+
+          if (lora.authoredModelStrength != null || lora.authoredClipStrength != null) {
+            const authoredStr = lora.authoredClipStrength != null && lora.authoredClipStrength !== (lora.authoredModelStrength ?? lora.modelStrength)
+              ? `${lora.authoredModelStrength ?? lora.modelStrength} / ${lora.authoredClipStrength}`
+              : String(lora.authoredModelStrength ?? lora.modelStrength);
+            card.append(make("small", "pp-gen-lora-note", `Authored tag strength: ${authoredStr} · Applied: ${formatLoraStrengthLabel(lora)}`));
+          }
+
+          if (localInfo?.triggers?.length) {
+            const trigWrap = make("div", "pp-gen-lora-triggers");
+            const trigHead = make("div", "pp-gen-lora-triggers-head");
+            trigHead.append(make("span", "pp-gen-lora-triggers-label", `Triggers (${localInfo.triggers.length})`));
+            const copyTrigBtn = btn(
+              "Copy triggers",
+              e => copyValue(localInfo.triggers.join(", "), `triggers for ${shortName}`, e.currentTarget),
+              "pp-sidebar-gen-copy-btn"
+            );
+            trigHead.append(copyTrigBtn);
+            const trigChips = make("div", "pp-sidebar-gen-chips");
+            for (const trig of localInfo.triggers) {
+              const tChip = btn(trig, e => copyValue(trig, `trigger ${trig}`, e.currentTarget), "pp-sidebar-gen-chip pp-gen-chip--trigger");
+              tChip.title = `Click to copy trigger word "${trig}"`;
+              trigChips.append(tChip);
+            }
+            trigWrap.append(trigHead, trigChips);
+            card.append(trigWrap);
+          }
+
+          loraList.append(card);
         }
-        loraBlock.append(loraHead, chips);
-        promptsBody.append(loraBlock);
+
+        loraBlock.append(loraHead, loraList);
+        resourcesBody.append(loraBlock);
       }
 
-      // Wildcards used
-      if (meta.wildcardsUsed.length) {
-        const wcBlock = make("div", "pp-sidebar-gen-tags-block");
-        wcBlock.dataset.resource = "wildcard";
-        const wcHead = make("div", "pp-sidebar-gen-prompt-head");
-        wcHead.append(make("span", "pp-sidebar-gen-label", `Wildcards (${meta.wildcardsUsed.length})`));
-        const allWcText = meta.wildcardsUsed.map(w => `__${w.replace(/^__|__$/g, "")}__`).join(", ");
-        const copyWcBtn = btn("Copy wildcards", e => copyValue(allWcText, "wildcards", e.currentTarget), "pp-sidebar-gen-copy-btn");
-        copyWcBtn.dataset.copyRole = "wildcards";
-        copyWcBtn.setAttribute("aria-label", "Copy wildcards");
-        wcHead.append(copyWcBtn);
-
-        const chips = make("div", "pp-sidebar-gen-chips");
-        for (const w of meta.wildcardsUsed) {
-          const cleanW = w.replace(/^__|__$/g, "");
-          const token = `__${cleanW}__`;
-          const chip = btn(cleanW, e => copyValue(token, `wildcard ${cleanW}`, e.currentTarget), "pp-sidebar-gen-chip pp-sidebar-gen-chip--wildcard");
-          chip.title = `Click to copy ${token}`;
-          chips.append(chip);
-        }
-        wcBlock.append(wcHead, chips);
-        promptsBody.append(wcBlock);
-      }
-
-      promptsGroup.append(promptsBody);
-      inspectorEl.append(promptsGroup);
+      resourcesGroup.append(resourcesBody);
+      flyBody.append(resourcesGroup);
+      enrichLorasForMeta(meta, record.id);
     }
 
-    // 3. Generation Parameters Section (Precision Tabular Spec Ledger)
+    // 4. Generation Settings Section (Precision Tabular Spec Ledger)
     if (meta.hasParameters) {
-      const paramsGroup = make("details", "pp-sidebar-gen-group");
+      const paramsGroup = make("section", "pp-gen-section");
       paramsGroup.dataset.section = "parameters";
-      paramsGroup.open = true;
-      const paramsSummary = make("summary", "pp-sidebar-gen-group-summary");
-      paramsSummary.append(
-        make("span", "pp-sidebar-gen-group-title", "Generation Parameters"),
+      const paramsHead = make("div", "pp-gen-section-head");
+      paramsHead.append(
+        make("span", "pp-sidebar-gen-group-title", "Generation Settings"),
         make("span", "pp-sidebar-gen-badge", String(meta.parameterEntries.length))
       );
-      paramsGroup.append(paramsSummary);
+      paramsGroup.append(paramsHead);
 
       const paramsBody = make("div", "pp-sidebar-gen-group-body");
       const paramActions = make("div", "pp-sidebar-gen-btn-row");
@@ -1212,14 +1718,44 @@ export function createSidebarGenerations(host, {
       });
       paramsBody.append(paramGrid);
       paramsGroup.append(paramsBody);
-      inspectorEl.append(paramsGroup);
+      flyBody.append(paramsGroup);
     }
 
-    // 4. Workflow & Node Components Section (Clean hairline table)
+    // 5. Notes & Tags (if recorded)
+    const cleanNotes = typeof record.notes === "string" ? record.notes.trim() : "";
+    const recordTags = Array.isArray(record.tags) ? record.tags.filter(t => typeof t === "string" && t.trim()) : [];
+    if (cleanNotes || recordTags.length) {
+      const notesGroup = make("section", "pp-gen-section");
+      notesGroup.dataset.section = "notes";
+      const notesHead = make("div", "pp-gen-section-head");
+      notesHead.append(make("span", "pp-sidebar-gen-group-title", "Notes & Tags"));
+      if (cleanNotes) {
+        notesHead.append(btn("Copy notes", e => copyValue(cleanNotes, "generation notes", e.currentTarget), "pp-sidebar-gen-copy-btn"));
+      }
+      notesGroup.append(notesHead);
+      const notesBody = make("div", "pp-sidebar-gen-group-body");
+      if (cleanNotes) notesBody.append(make("p", "pp-gen-notes-text", cleanNotes));
+      if (recordTags.length) {
+        const tagChips = make("div", "pp-sidebar-gen-chips");
+        for (const tag of recordTags) {
+          const tChip = btn(tag, e => copyValue(tag, `tag ${tag}`, e.currentTarget), "pp-sidebar-gen-chip");
+          tChip.title = `Click to copy "${tag}"`;
+          tagChips.append(tChip);
+        }
+        notesBody.append(tagChips);
+      }
+      notesGroup.append(notesBody);
+      flyBody.append(notesGroup);
+    }
+
+    // 6. Workflow & Node Components Section (Collapsible so prompts/LoRAs/settings stay primary)
     if (meta.hasWorkflow || meta.workflowComponents.length > 0) {
-      const wfGroup = make("details", "pp-sidebar-gen-group");
+      const wfGroup = make("details", "pp-gen-section pp-sidebar-gen-group");
       wfGroup.dataset.section = "workflow";
-      wfGroup.open = true;
+      wfGroup.open = workflowSectionOpen;
+      wfGroup.addEventListener("toggle", () => {
+        workflowSectionOpen = wfGroup.open;
+      });
       const wfSummary = make("summary", "pp-sidebar-gen-group-summary");
       wfSummary.append(
         make("span", "pp-sidebar-gen-group-title", "Workflow & Nodes"),
@@ -1347,7 +1883,31 @@ export function createSidebarGenerations(host, {
       }
 
       wfGroup.append(wfBody);
-      inspectorEl.append(wfGroup);
+      flyBody.append(wfGroup);
+    }
+
+    // Footer matching LoRA Info popout footer
+    flyFoot.replaceChildren();
+    flyFoot.append(make("span", "pp-gen-flyout-hint", "Click values to copy · Gallery stays active · Esc closes"));
+    if (canRefine && getNode) {
+      const footRefineBtn = btn("Refine in node…", () => openRefinement(record), "pp-sidebar-gen-action pp-sidebar-gen-action--primary pp-gen-flyout-cta");
+      footRefineBtn.disabled = Boolean(refineReason);
+      footRefineBtn.title = refineReason || "Open recorded prompt data in the target node with Commit / Cancel";
+      if (refineReason) footRefineBtn.setAttribute("aria-description", refineReason);
+      flyFoot.append(footRefineBtn);
+    } else if (meta.authoredPositive && (insertPrompt || restore)) {
+      const footUseBtn = btn("Use raw prompt", e => usePromptInTarget(meta.authoredPositive, "positive", record, e.currentTarget), "pp-sidebar-gen-action pp-sidebar-gen-action--primary pp-gen-flyout-cta");
+      flyFoot.append(footUseBtn);
+    } else if (meta.positivePrompt && (insertPrompt || restore)) {
+      const footUseBtn = btn("Use prompt", e => usePromptInTarget(meta.positivePrompt, "positive", record, e.currentTarget), "pp-sidebar-gen-action pp-sidebar-gen-action--primary pp-gen-flyout-cta");
+      flyFoot.append(footUseBtn);
+    }
+
+    if (visible && active && isOpen) {
+      showFlyout();
+      if (sameRecord && prevScroll > 0) flyBody.scrollTop = prevScroll;
+    } else {
+      hideFlyout();
     }
   }
 
@@ -1359,31 +1919,33 @@ export function createSidebarGenerations(host, {
 
     const existing = rows.find(r => r.id === id) || (selectedRecord?.id === id ? selectedRecord : null);
     selectedId = id;
-    if (existing && selectedRecord?.id !== id) {
-      selectedRecord = existing;
-      selectedExtra = {};
-      selectedNodeIds.clear();
-      renderList();
+    if (existing && (selectedRecord?.id !== id || flyoutEl.hidden)) {
+      if (selectedRecord?.id !== id) {
+        selectedRecord = existing;
+        selectedExtra = {};
+        selectedNodeIds.clear();
+      }
+      syncCardSelection();
       renderInspector();
     }
 
     try {
       const fresh = await requestGenerationHistory(`/${encodeURIComponent(id)}`, "GET", undefined, controller.signal);
       if (disposed || controller.signal.aborted || version !== inspectSequence) return;
+      const changedRecord = JSON.stringify(selectedRecord) !== JSON.stringify(fresh);
       selectedRecord = fresh;
       const idx = rows.findIndex(r => r.id === id);
       if (idx >= 0) rows[idx] = fresh;
-      renderList();
-      renderInspector();
+      syncCardSelection();
+      if (changedRecord || flyoutEl.hidden) renderInspector();
 
       const extra = await fetchRunEnrichment(fresh, controller.signal);
       if (disposed || controller.signal.aborted || version !== inspectSequence) return;
       if (extra.historyEntry || extra.embedded) {
         selectedExtra = extra;
         if (extra.embedded?.width && extra.embedded?.height) {
-          rememberBounded(imageDimensionsCache, fresh.id, { width: extra.embedded.width, height: extra.embedded.height }, 256);
+          rememberBounded(imageDimensionsCache, fresh.id, { width: extra.embedded.width, height: extra.embedded.height }, 2048);
         }
-        renderList();
         renderInspector();
       }
     } catch (error) {
@@ -1436,9 +1998,12 @@ export function createSidebarGenerations(host, {
     section.addEventListener("toggle", () => {
       isOpen = section.open;
       persistState();
-      if (isOpen && visible && active) {
+      if (!isOpen) {
+        hideFlyout();
+      } else if (visible && active) {
         refreshAppearance({ force: true });
         refresh();
+        if (selectedRecord) showFlyout();
       }
     });
   }
@@ -1464,6 +2029,7 @@ export function createSidebarGenerations(host, {
         selectedId = null;
         selectedRecord = null;
         selectedExtra = {};
+        renderInspector();
       }
       if (visible && active && isOpen) refresh();
     }
@@ -1503,9 +2069,12 @@ export function createSidebarGenerations(host, {
       visible = next;
       section.hidden = !visible;
       // Hiding the section never disables generation tracking (syncCapture stays alive).
-      if (visible && active && isOpen) {
+      if (!visible) {
+        hideFlyout();
+      } else if (active && isOpen) {
         refreshAppearance({ force: true });
         refresh();
+        if (selectedRecord) showFlyout();
       }
     },
     setActive(nextActive) {
@@ -1513,13 +2082,16 @@ export function createSidebarGenerations(host, {
       const next = Boolean(nextActive);
       if (active === next) return;
       active = next;
-      if (active && visible && isOpen) {
+      if (!active) {
+        hideFlyout();
+      } else if (visible && isOpen) {
         refreshAppearance({ force: true });
         if (prefs?.enabled) {
           requestGenerationHistory("/sync", "POST", {}).then(() => refresh()).catch(() => refresh());
         } else {
           refresh();
         }
+        if (selectedRecord) showFlyout();
       }
     },
     refreshTarget() {
@@ -1530,17 +2102,27 @@ export function createSidebarGenerations(host, {
       if (disposed) return;
       disposed = true;
       importCancelled = true;
+      hideFlyout();
+      releaseFlyoutKeyboard();
+      globalThis.removeEventListener?.("resize", onFlyoutResize);
       clearTimeout(searchDebounce);
-      if (rebalanceFrame) cancelAnimationFrame(rebalanceFrame);
       listResize.disconnect();
       listController?.abort();
       inspectController?.abort();
+      loraEnrichController?.abort();
       refineReview?.close();
       refineReview = null;
       unsubscribeCapture?.();
       unsubMetadata?.();
-      releaseCardMediaRules();
-      if (presentation) presentation.release(listEl);
+      virtual.cleanup();
+      collection = null;
+      if (ownedPresentation) {
+        ownedPresentation.cleanup();
+      } else if (presentation) {
+        presentation.release(listEl);
+        presentation.release(flyoutEl);
+      }
+      flyoutEl.remove();
       section.remove();
     },
   };

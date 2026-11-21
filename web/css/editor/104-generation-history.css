@@ -1,8 +1,8 @@
 .pp-generation-history { display:flex; flex-direction:column; gap:7px; min-width:0; padding:4px; color:var(--wg-text,#e2e8f0); }
-.pp-generation-history .pp-history-list { height:clamp(240px,55vh,640px); overflow:auto; min-width:0; width:100%; }
+.pp-generation-history .pp-history-list { height:clamp(240px,55vh,640px); overflow:auto; scrollbar-gutter:stable; min-width:0; width:100%; }
 .pp-history-list .pp-history-card { box-sizing:border-box; min-width:0; margin:0; }
-.pp-history-list .pp-history-card .wg-thumb-media { aspect-ratio:1; width:100%; flex:none; }
-.pp-history-list .pp-history-card .wg-thumb-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; line-height:20px; padding:2px 5px; flex:none; }
+.pp-history-list:where(:not([data-history-view="masonry"]):not([data-history-view="filmstrip"])) .pp-history-card:where(:not(.pp-view-masonry *):not(.pp-view-filmstrip *)) .wg-thumb-media { aspect-ratio:var(--wg-library-image-ratio,1); width:100%; flex:none; }
+.pp-history-list .pp-history-card .wg-thumb-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; height:auto; min-height:0; max-height:none; line-height:20px; padding:2px 5px; flex:none; }
 .pp-history-list .pp-history-card > .pp-history-note { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:18px; padding:0 5px; flex:none; }
 .pp-history-list .pp-history-actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; padding:4px; min-height:36px; margin-top:auto; }
 .pp-history-list .pp-history-actions :is(button,a) { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
@@ -11,6 +11,7 @@
 .pp-history-list[data-history-view="list"] .pp-history-card { display:grid; grid-template-columns:76px minmax(0,1fr); grid-template-rows:24px 20px 44px; column-gap:6px; height:94px; padding:3px; overflow:hidden; }
 .pp-history-list[data-history-view="list"] .pp-history-card .wg-thumb-media { width:76px; height:76px; aspect-ratio:1; grid-column:1; grid-row:1/4; }
 .pp-history-list[data-history-view="list"] .pp-history-card > :not(.wg-thumb-media) { grid-column:2; margin:0; padding:0; min-height:0; }
+.pp-history-list[data-history-view="list"] .pp-history-card .wg-thumb-name { height:auto; min-height:0; max-height:none; line-height:20px; padding:0; border-top:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pp-history-list[data-history-view="list"] .pp-history-card .pp-history-actions { align-content:center; }
 
 .pp-generation-history [hidden] { display:none !important; }

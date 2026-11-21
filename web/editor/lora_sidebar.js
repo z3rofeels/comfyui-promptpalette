@@ -21,7 +21,6 @@ export function createLoraSidebar(host, { target, selection, presentation, uiSca
     return selection();
   }
   function syncUiState(t) {
-    cursor.disabled = !captured;
     hint.textContent = !captured ? "Browse your local LoRAs. Choose a target below to insert or test."
       : t?.handlers.sidebarRequiresResolvedText
       ? "Text insertion only. This field needs a compatible LoRA loader; Palette’s patched MODEL/CLIP outputs apply LoRAs."
@@ -33,15 +32,31 @@ export function createLoraSidebar(host, { target, selection, presentation, uiSca
     const nextLora = nextTarget?.handlers.sidebarLoraTarget?.() || null;
     const nextEditor = nextLora?.editor || nextTarget?.handlers.sidebarEditor?.() || null;
     if (picker && !force && nextTarget === boundTarget && nextEditor === boundEditor) {
-      if (!captured && nextTarget) {
-        try {
-          captured = readSelection(nextTarget);
-          if (captured && snapshot) Object.assign(snapshot, { source: captured.source, start: captured.start, end: captured.end });
-        } catch {
-          captured = null;
-        }
+      let nextCaptured = null;
+      if (nextTarget) {
+        try { nextCaptured = readSelection(nextTarget); }
+        catch { nextCaptured = null; }
+      }
+      const changed = !captured !== !nextCaptured
+        || (nextCaptured && snapshot && (
+          nextCaptured.source !== snapshot.source
+          || nextCaptured.start !== snapshot.start
+          || nextCaptured.end !== snapshot.end
+          || nextCaptured.surface !== captured?.surface
+        ));
+      captured = nextCaptured;
+      if (captured && snapshot) {
+        Object.assign(snapshot, { source: captured.source, start: captured.start, end: captured.end });
+      } else if (!captured && snapshot) {
+        Object.assign(snapshot, { source: "", start: 0, end: 0 });
       }
       syncUiState(nextTarget);
+      if (changed) {
+        picker.syncTarget(
+          captured ? { start: captured.start, end: captured.end } : null,
+          captured ? null : { source: "", start: 0, end: 0 },
+        );
+      }
       return;
     }
     const draft = picker?.draft();
@@ -56,7 +71,8 @@ export function createLoraSidebar(host, { target, selection, presentation, uiSca
       get value() { try { return nextTarget ? readSelection(nextTarget).source : ""; } catch { return ""; } },
       get selectionStart() { try { return readSelection(nextTarget).start; } catch { return 0; } },
       get selectionEnd() { try { return readSelection(nextTarget).end; } catch { return 0; } },
-      readOnly: !captured, disabled: false, getAttribute: () => null,
+      get readOnly() { return !captured; },
+      disabled: false, getAttribute: () => null,
       addEventListener() {}, removeEventListener() {}, focus() {},
     };
     snapshot = { source: captured?.source || "", start: captured?.start || 0, end: captured?.end || 0 };
@@ -78,22 +94,34 @@ export function createLoraSidebar(host, { target, selection, presentation, uiSca
       },
       guard, close() {}, message: announce, keepOpen: true, sidebar: { presentation, uiScale } });
   }
+  cursor.addEventListener("mousedown", event => event.preventDefault());
   cursor.addEventListener("click", () => {
     try {
       const nextTarget = target() || null;
       const live = readSelection(nextTarget);
+      const prev = picker;
       refresh();
       captured = live;
       if (snapshot) Object.assign(snapshot, { source: live.source, start: live.start, end: live.end });
       syncUiState(nextTarget);
-      picker?.syncTarget({ start: live.start, end: live.end });
+      if (picker === prev) picker?.syncTarget({ start: live.start, end: live.end });
       announce("Captured the target’s current cursor or selection.");
     } catch (error) { announce(error.message, true); }
   });
   return {
-    activate(value) { active = value; picker?.setActive(active); if (active) { refresh(); picker?.refreshAppearance(); } },
+    activate(value) {
+      active = !!value;
+      picker?.setActive(active);
+      if (active) {
+        const prev = picker;
+        refresh();
+        if (picker && picker === prev && picker.isLoaded?.()) picker.refreshAppearance(true);
+      }
+    },
     refresh,
-    refreshAppearance() { if (active) picker?.refreshAppearance(); },
+    refreshAppearance(force = false) {
+      if (active && picker?.isLoaded?.()) picker.refreshAppearance(!force);
+    },
     cleanup() { picker?.cleanup(); toolbar.remove(); hint.remove(); body.remove(); },
   };
 }

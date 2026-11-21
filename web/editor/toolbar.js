@@ -27,6 +27,12 @@ export function applyToolbarVisibility(root, theme) {
     const toggle = root.querySelector(`[data-el="${toggleName}"]`);
     if (toggle) toggle.checked = theme[key] !== false;
   }
+  const stylesBtn = root.querySelector('[data-el="btnStyles"]');
+  if (stylesBtn) {
+    const enabled = theme.styleSelectorEnabled === true;
+    stylesBtn.hidden = !enabled;
+    stylesBtn.style.display = enabled ? "" : "none";
+  }
   if (theme.showSlotsBtn === false) root.dispatchEvent(new Event("pp-prompt-slots-hide"));
 }
 
@@ -43,7 +49,7 @@ const MODULES = [
   ["positiveAntonyms", "Positive Antonyms", "run"],
   ["promptSlots", "Slots A–D", "edit"],
   ["undo", "Undo", "edit"], ["redo", "Redo", "edit"], ["copy", "Copy", "edit"],
-  ["picker", "Library", "source"], ["loras", "LoraPal", "source"], ["importImage", "Import image", "source"],
+  ["picker", "Library", "source"], ["styles", "Style Studio", "source"], ["loras", "LoraPal", "source"], ["importImage", "Import image", "source"],
   ["stash", "Stash", "source"], ["recipesShortcut", "Recipes", "source"], ["edit", "Edit library", "source"],
   ["refresh", "Rescan library", "view"], ["ioRailToggle", "Inputs / outputs", "view"],
   ["dayNightToggle", "Day / night", "view"], ["zenToggle", "Zen", "view"],

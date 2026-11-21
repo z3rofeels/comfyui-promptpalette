@@ -4,394 +4,105 @@
 
 <p align="center">
   <strong>Your new best friend when it comes to prompting in ComfyUI</strong><br>
-  Prompt editing, wildcard libraries, batch generation, and model-aware weighting for ComfyUI.
+  Prompt editing, wildcard libraries, Fields workspaces, local LoRA browsing, generation comparison, batch expansion, and model-aware weighting for ComfyUI.
 </p>
+
 <p align="center">
+  <a href="https://z3rofeels.github.io/comfyui-promptpalette/">
+  <img alt="Version 2.1.0" src="https://img.shields.io/badge/Version-2.1.0-dda253?style=for-the-badge&labelColor=11131a">
   <img alt="GitHub stars" src="https://img.shields.io/github/stars/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=6ee7b7&labelColor=11131a">
   <img alt="Last commit" src="https://img.shields.io/github/last-commit/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=60a5fa&labelColor=11131a">
   <img alt="ComfyUI Nodes 1 and 2" src="https://img.shields.io/badge/ComfyUI-Nodes%201.x%20%2B%202.x-a78bfa?style=for-the-badge&labelColor=11131a">
-
 </p>
 
-
-<img width="986" height="605" alt="Screen Recording 2026-11-01 at 7 43 28 PM" src="https://github.com/user-attachments/assets/9cad56ae-cb69-4c00-bb3d-1ae8abaad252" />
-
-
-
-
+<p align="center">
+  <img width="986" height="605" alt="Prompt Palette live editor and prompting walkthrough" src="https://github.com/user-attachments/assets/9cad56ae-cb69-4c00-bb3d-1ae8abaad252" />
+</p>
 
 > [!TIP]
 > **Start with Prompt Palette.** The Combinatorial and Weight Controller nodes are specialized companions—not requirements. Add them only when your workflow needs batch expansion or dedicated prompt-weight routing.
 
 <p align="center">
-  <a href="#recent-updates">Recent updates</a> ·
+  <a href="#whats-new">What's New in 2.1.0</a> ·
+  <a href="#choose-your-node">Suite</a> ·
   <a href="#installation">Installation</a> ·
-  <a href="#choose-your-node">Choose a node</a> ·
-  <a href="#prompt-palette">Prompt Palette</a> ·
+  <a href="#prompt-palette">Editor</a> ·
+  <a href="#fields-workspace">Fields</a> ·
+  <a href="#lorapal">LoraPal</a> ·
+  <a href="#keep-and-evolve">Keep &amp; Evolve</a> ·
+  <a href="#booru-autocomplete">Autocomplete</a> ·
+  <a href="#main-sidebar">Sidebar &amp; Styles</a> ·
   <a href="#combinatorial">Combinatorial</a> ·
   <a href="#weight-controller">Weight Controller</a> ·
-  <a href="#booru-autocomplete">Autocomplete</a> ·
   <a href="#wildcard-syntax">Syntax</a> ·
-  <a href="#troubleshooting">Troubleshooting</a>
+  <a href="#troubleshooting">Reference</a>
 </p>
 
----
-<a id="recent-updates"></a>
-## Recent updates — 2.0.9
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
-### Keep & Evolve: Recent Generations, Inspector & Refinement
+<a id="whats-new"></a>
+## What's New in 2.1.0
 
-- **Recent Generations in the sidebar:** Browse past outputs inside **Library → Recent Generations**, or open the dedicated **Generations** tab via **Tab ↗** (or **Sidebar settings → Recent Generations tab**). Switch between **Gallery**, **Masonry**, **Filmstrip / detail**, and **List** from the shared sidebar toolbar, search prompts/models/seeds, filter by ★ favorites or timeframe (**24h / 7d / 30d**), and pull in existing outputs with **Import ComfyUI history**.
-- **Generation Inspector:** Click any card to view the image (click through to full size), switch positive and negative prompts between **Resolved** and **Authored**, copy LoRAs color-matched to LoraPal or wildcards used, click **Generation Parameters** tiles to copy settings, and open **Workflow & Nodes** to filter (**All / Prompting / Sampling / Models**), check nodes, and copy either a selected portion, the complete workflow, API prompt, or one node. Navigate cards with `Arrow` keys, `Home`, or `End`, and press `Esc` to close.
-- **Keep & Evolve & A/B wipe comparison:** Pin any generation as a node's **Keeper** reference (**Keep** / **Unpin Keeper**; stored on that node without touching your active text). Queue up to **4** generations into **Compare · N/4**, compare side-by-side in **Gallery** or with an interactive **A/B wipe** divider (`Arrow` keys + **Center**), review **Prompt differences** with independent Reference/Candidate text sources, check **Run details**, or **Export JSON** (downloads file references, selected prompt text, notes, and tags without bundling original images).
-- **Promote… & Refine (Commit / Cancel):** Use **Promote…** to review and copy recorded prompts or full authored **Fields** into the current editor or any **A–D** draft with an overwrite check before replacing saved work. Use **Refine…**—or the toolbar's **Refine** button—to iterate directly in-node while **A–D** switching is paused so other drafts stay untouched; **Commit** keeps your edits and **Cancel** restores your prior prompt, Fields workspace, LoRA mode, and prepared batch.
+Prompt Palette **2.1.0** brings together **Keep & Evolve**, **LoraPal Model Info**, **opt-in Style Studio & Style Autocomplete**, **expanded Starter Packs**, and a cleaner, faster virtualized UI across both ComfyUI Nodes 1.x and 2.x.
 
-### LoraPal upgrades: Sidebar tab, Masonry & Filmstrip, Model Info flyout & Saved sets
+| Area | Highlights |
+|---|---|
+| **Style Studio & Autocomplete** *(opt-in)* | Dedicated **Krea 2 & MOSS-Image** sidecar with **94** curated entries across **12** facets and **8** curated mixes, `{%a|b}` Mix Composer, MOSS Caption / Ordered Tags / Spatial JSON dialects, quoted typography helper, conflict/buzzword lint, and live style autocomplete (`style:`, `cam:`, `lens:`, `light:`, `krea2:`, `moss:`). |
+| **Expanded Starter Packs (`v2.2.0`)** | **12** model-ready packs—including expanded **Universal (54)**, **KREA 2 (50)**, and **MOSS-Image (30)** alongside **MiniMax H3, Qwen Image, Z-Image Turbo, LTX-2.3, Anima, Illustrious, Pony, SDXL,** and **Prompt Palette Syntax**—with tag/facet search and an optional Style Studio bridge. |
+| **Keep & Evolve & Inspector** | **Recent Generations** in the sidebar with **Gallery, Masonry, Filmstrip, and List** views, a Civitai-style pop-out **Generation Inspector** (`Raw Input` vs `Final Resolved`, wildcard selections, color-matched LoRAs, parameter tiles, collapsible `Workflow & Nodes`), **Keeper** pinning, **4-way A/B wipe** comparison, and **Promote / Refine** (`Commit / Cancel`). |
+| **LoraPal & LoRAs Sidebar Tab** | Unified local LoRA browsing in both the floating sidecar and the main sidebar **LoRAs** tab, pop-out **Model Info** flyout with multi-preview image/video stepping, `1.0` base-strength init, trailing `# --- LoRAs ---` prompt docking, **Saved LoRA sets**, and **LoRA Audition Lab**. |
+| **Fields, Ports, Drafts & Toolbar** | Per-field `In: <Field>` / `Out: <Field>` sockets with pre-run **Import / Disconnect**, **Jump to field**, **Field & title** accents, **Ports** search with up to **16 Saved port layouts**, named **A–D** quick drafts with overwrite preview, compact toolbar **Seed** pill, and an **Auto hide** bottom status bar. |
 
-- **LoRAs sidebar tab:** Open **LoRAs** in ComfyUI's main sidebar to browse, favorite, color, organize **Saved LoRA sets**, and audition your local collection beside any graph. **Insert into** tracks the active Prompt Palette node automatically (or lets you pin one), and **Use cursor / selection** targets your current field or selection.
-- **Masonry & Filmstrip views:** **Masonry** and **Filmstrip** join **Gallery** and **List** in both the popout sidecar and sidebar.
-- **Pop-out Model Info flyout:** Click any LoRA card or **ⓘ** to open a dedicated flyout beside the browser without covering your grid (`Esc` closes the flyout first). Step through multiple local preview images and videos with the **Preview** selector, check base model/version pills, author byline, file size, local counts, optional `View on Civitai ↗` link, scrollable description, and tags. Set or reset that LoRA's **Color** and custom artwork directly in the flyout, apply **Suggested** strength, copy all triggers at once with **Copy triggers**, click individual trigger chips, or add straight to your prompt.
-- **Active deck, docking & Saved LoRA sets:** Newly added LoRAs initialize at base strength **1.0** instead of inheriting the prior entry's strength, with quick **1.0** reset buttons on deck items and inside **LoRA Audition Lab**. Standalone LoRA tags automatically dock neatly into a `# --- LoRAs ---` block at the bottom of your prompt while inline choices and rules stay in place. Save reusable stacks in **Saved LoRA sets** (**Add set**, **Replace deck**, **Update from deck**, **Delete** + **Undo delete**), collapse **Active in Prompt** or catalog panels for space, and drag any left, right, bottom, or corner edge of the popout window (**Follow node** / **Reset**). Shorthand `<lora:name>` is also supported at weight `1.0`.
+<details>
+<summary><strong>Release history (2.0.5 – 2.0.9)</strong> — see <a href="CHANGELOG.md">CHANGELOG.md</a> for full notes</summary>
 
-### Connect individual Fields, custom accents & faster navigation
+- **2.0.9 — Keep & Evolve:** Keeper reference pinning, 4-candidate A/B wipe comparison, Promote & Refine (`Commit / Cancel`), pop-out LoRA Model Info flyout, sidebar **LoRAs** tab, per-field IN/OUT sockets, named A–D drafts, Find & Replace previews, compact top-edge **Ports** with 16 saved layouts, toolbar **Seed** pill, and auto-hiding status bar.
+- **2.0.8 — LoraPal & Flexible Workspaces:** Local LoraPal browser and Audition Lab, adjustable multi-column Fields, Tiles and Contact Sheet library views, A–D quick slots, Seed Lab, Anima 1.0 weighting mode, Settings search, and optional library intelligence.
+- **2.0.7 — Visual Browsing & MOSS:** Shared wildcard thumbnails across Library, sidebar, and autocomplete; **MOSS-Image** starters and literal JSON preservation; **One field at a time** comparisons; 193 bundled style/artist references; `Ctrl/Cmd+Enter` run pass-through.
+- **2.0.6 — Main Sidebar & Field Variation:** Main ComfyUI sidebar tabs (**Library, Explore, Syntax, Tools**), **59k+ Anima artist** search (`@artist`), `Vary / Lock / Follow` field modes, `[switch]` conditionals, and **Positive Antonyms**.
+- **2.0.5 — Selective Variation & Booru Autocomplete:** Offline Danbooru + custom-word autocomplete, Adjustable Recipe Workspace, **Variation Lab**, customizable toolbar, image prompt import, **Choices & rules**, and **Prompt Inspector**.
 
-- **Per-field IN and OUT sockets:** In **Field settings**, turn on **Input text → Socket** (`In: <Field>`, with **Insert before text** or **Insert after text** placement; empty fields accept incoming text directly) and **Output text → Socket (STRING)** (`Out: <Field>`, exposing just that field's resolved text for regional conditioning or per-part routing—and emitting a matching list of strings on **Combinatorial**). Field headers show **IN**, **OUT**, or **IN·OUT** badges.
-- **Pre-run Import & Disconnect:** When a field input wire is connected, click **Import** right in the field header or settings to load current upstream text into the field (**Replace**, **Replace & disconnect wire**, **Append**, or **Prepend**), or click **Disconnect** in Field settings.
-- **Field & title accents + Jump to field:** Under **Settings → Toolbar & layout → Fields editor → Accent color applies to**, pick **Field and title**, **Field only**, or **Title only** (or override per field with **Color on** and **No accent**). Use **Jump to field** in the workspace bar to jump straight to any field—including collapsed ones—without losing selection or scroll position. Starter **Layouts** now cover **FLUX · Natural language**, **Realistic photo**, **Video & Motion (Wan / Hunyuan)**, **Anime image**, **Portrait**, **Character sheet**, **Scene**, **Product render**, **Anima Structure**, and **Negative prompt set**.
+</details>
 
-### Named quick drafts A–D & Find & Replace previews
-
-- **Named A–D drafts & reviewed copy:** Click the **active letter** or right-click any **A–D** button (`Shift+F10` / `ArrowDown` when focused) to give a draft a custom **Name**, inspect its **Prompt preview** (positive, negative, and field count), or **Copy X into Y…** (or **Alt/Option+click**). Copying into a draft with existing content opens a side-by-side preview before you choose **Replace and switch**. Shortcuts: `Alt/Option+1–4` switches drafts; add `Shift` to copy into a slot.
-- **Find & Replace improvements:** Expand **Preview replacements** to inspect up to three before/after snippets and the total match count before changing text, toggle **Options** (**Aa** case, **Word**, and range-safe **In selection**), and keep `Ctrl/Cmd+Enter` triggering ComfyUI's run shortcut normally.
-
-### Compact Ports rail, floating Seed pill & Auto-hiding status bar
-
-- **Ports & Saved port layouts:** **I/O** is now **Ports**. When closed, port labels collapse into compact colored top-edge dots (inputs on the left, outputs on the right—hover any dot to see its name, type, and connection status). Inside **Ports**, filter with **Find name or type…**, switch **Show all / Recommended / Hide unused** (connected ports always stay visible), toggle **Pin open**, and save up to **16 Saved port layouts** per node (including custom field sockets).
-- **Compact toolbar Seed pill:** Enabling **Settings → Toolbar & layout → Toolbar modules → Seed controls** now adds a compact **Seed** button right on the toolbar showing your live seed and run-behavior tag—click it to open the floating Seed panel instead of dedicating an extra row in the node. **Shift+Click** the **Seed** button to open **Wheel of Fortune** directly.
-- **Auto-hiding bottom status bar:** **Bottom status bar** under **Settings → Toolbar & layout** now defaults to **Auto hide**, freeing up vertical editor space until you hover the bottom edge or Tab to **Prompt status**. Missing wildcards and warnings remain visible automatically, or choose **Always visible** / **Warnings only**.
-
----
-
-## Recent updates — 2.0.8
-
-### LoraPal: your local LoRA collection
-
-Open **LoraPal** on the toolbar, or choose **Insert syntax → Browse LoRAs** from the editor menu. Drag and resize its sidecar, or leave **Follow node** enabled to keep it beside your editor.
-
-- Search your folders, filter favorites, and choose **Grid** or **List**. Local images and video previews help you find the right LoRA. Videos play silently on hover or keyboard focus.
-- The **Previews** switch is directly beside **Grid / List** and **Size**, above the collection. Previews start enabled. Use **Size** to scale thumbnails from **80–240px**; double-click the slider to reset it.
-- LoraPal reads matching local artwork and metadata, including **JPEG**, **MP4**, and supported Civitai Helper, LoRA Manager, and rgthree sidecars. A folder containing one LoRA can also use generic files such as `metadata.json`, `preview.jpeg`, or `preview.mp4`. Nothing is fetched online.
-- Click **+ Add** to insert a LoRA. Select a card to inspect its recorded trigger words, model information, and suggested strengths. Trigger-word chips are optional; choose the words you want before inserting.
-- Supply your own thumbnail with **Set image / Change image** in the info area or the card's right-click menu. **Use folder preview** restores the local artwork. In **LoRA settings → Thumbnail framing**, choose **Fill thumbnail** or **Show whole image**.
-
-In **Active in Prompt**, adjust **Model** and **CLIP** strengths, mute an entry, swap it, or remove it. **Dock at end** groups standalone LoRA tags below your text. Open **LoRA settings** for the execution mode, optional tag autocomplete, highlighting, and default color; individual LoRAs can have their own colors too.
-
-For integrated loading, connect MODEL and CLIP into Palette and route its patched outputs downstream. Choose **External** when another loader reads the tags. See the [LoRA guide](LORA_GUIDE.md) for wiring, filenames, and syntax examples.
-
-<img width="800" height="872" alt="LoraPalV1" src="https://github.com/user-attachments/assets/984b8aec-4b8b-4e98-b7bf-e3e857f1cb85" />
-
-<img width="589" height="698" alt="Screenshot 2026-10-30 at 3 30 23 PM" src="https://github.com/user-attachments/assets/1bfe5f44-5d7c-4dfc-a440-2bd67cdbf969" />
-
-
-### LoRA Audition Lab
-
-Inside LoraPal, select a LoRA and open **LoRA Audition Lab** to compare choices or strengths.
-
-- Use **A/B**, **3-Step**, or **5-Step** presets, or enter your own strength values. Model and CLIP strengths can stay linked or be adjusted separately.
-- Choose **Cycle**, **Seeded trial**, or **Fresh random choice** to control how alternatives change.
-- Use **Batch alternatives** with **Combinatorial** for a comparison batch. Keep the sampler's noise seed fixed when comparing strengths; Palette's seed controls prompt choices separately.
-- Right-click an inserted LoRA tag for quick strength changes, swapping, and variation syntax.
-
-
-
-### Fields that fit your workspace
-
-Enable **Adjustable Recipe Workspace** in **Settings → Power tools** to build prompts from separate fields. Existing **Vary / Lock / Follow** modes, snapshots, and compiled previews are available alongside the new layout controls.
-
-- Open **Settings → Layout → Fields editor**. Choose **1 column**, **up to 2**, **up to 3**, or **Auto-fit**, then set a minimum field height. Columns share the available width, and narrower nodes use fewer columns.
-- Drag a field's bottom grip to set its height. Manual resizing snaps to **8px** by default; double-click the grip to restore the grid height. **Field settings → Editor height** also offers Grid cell, Fit content, and Custom pixels.
-- Choose which titles, counts, mode badges, channel indicators, Include switches, and quick buttons appear under **Field headers**. **Workspace bar** controls the name and Add, Save, Variation Lab, Layouts, and Unlink shortcuts. **Layout and help** contains resize handles, snapping, and explanatory notes.
-- Hidden shortcuts remain accessible through **Field settings** or **Workspace settings**. **Reset Fields UI** restores the visibility and grid preferences while keeping your prompt content.
-
-<img width="677" height="831" alt="Screenshot 2026-10-30 at 11 47 37 AM" src="https://github.com/user-attachments/assets/f8254fba-6f32-4c40-9907-83d6d2842a1c" />
-
-Choose **No accent** for a quieter field card. Collapsed fields show syntax-colored previews.
-
-
-<img width="534" height="639" alt="Screenshot 2026-10-30 at 12 19 44 PM" src="https://github.com/user-attachments/assets/dee09011-dfa9-41e0-bae6-ef5b8042f06d" />
-
-
-
-### More ways to browse your library
-
-Open the node's **Library**, then its settings gear. **Tiles** and **Contact sheet** join **List**, **Gallery**, **Masonry**, and **Filmstrip / detail** views.
-
-Adjust card size, aspect ratio, image fit, spacing, captions, and visible filter shortcuts. **Fit** shows the whole image; **Fill** covers its frame. Drag the library's side handle to resize the drawer.
-
-The themed **Library settings** window can also be moved and resized. Use **Follow library** to keep it nearby, or **Reset window** to restore its position and size.
-
-<img width="800" height="834" alt="Library Settings" src="https://github.com/user-attachments/assets/eb5ddbe4-44b7-43d5-bc43-28bd634df438" />
-
-
-### Quick prompt slots A–D
-
-Use **A–D** on the toolbar to switch between four prompt drafts in the same node. Each slot keeps its positive text, negative text, and Fields workspace with the workflow.
-
-Click a letter to switch. **Alt/Option+click** copies the current prompt into that slot and switches to it. Show or hide the control in **Settings → Layout → Toolbar modules → Quick slots A–D**.
-
-<img width="411" height="155" alt="Screenshot 2026-10-30 at 4 28 47 PM" src="https://github.com/user-attachments/assets/bacf7593-9d0a-49d0-8fe0-f6edb9b315fd" />
-
-
-### Seed Lab and the compact seed bar
-
-Enable **Settings → Layout → Toolbar modules → Seed controls** to type, copy, randomize, or step through seeds. Hold **Shift** while stepping to move by ten.
-
-Open **Seed Lab** for recent seeds, pinned favorites, presets, **Seed Fortune**, and the **Wheel of Fortune**. Choose a candidate and apply it when you want to use it. The separate **Seed Fortunes & Wheel** toggle controls those optional extras.
-
-Palette's seed controls prompt resolution; your sampler's seed controls image noise. Fortune descriptions are creative suggestions, not predictions of image quality.
-
-<img width="800" height="1063" alt="Screen Recording 2026-10-30 at 5 07 56 PM" src="https://github.com/user-attachments/assets/888a346e-ff96-4cc8-af37-9fb9f140b16c" />
-
-
-
-
-### Make the interface your own
-
-Open the editor's **Settings** and use the search box to find a control by name. Select a result to jump to its tab and reveal it.
-
-| Where | What you can change |
-| --- | --- |
-| **Layout → Workspace level** | Start with **Core**, **Creator**, or **Power User**. These presets change the existing visibility and optional tool settings; each control remains editable. |
-| **Layout → Toolbar** | Choose always visible, auto-hide, collapsed, or hidden presentation; adjust button size and order. **Toolbar modules** lets you toggle individual shortcuts, including LoraPal and A–D slots. Settings remains accessible. |
-| **Layout → Preview update mode** | Choose **Manual**, **After pause**, or **Live** for resolved preview updates. |
-| **Layout → Fields editor** | Customize the field grid, header controls, workspace shortcuts, resizing, and help notes. |
-| **Appearance → Typography** | Set **Menus & hover cards** independently from prompt text and interface text. The **80–250%** range covers autocomplete, syntax menus, right-click menus, and library hover previews. |
-| **Editor & suggestions** | Toggle autocomplete images, syntax help, and automatic prompt history. |
-
-
-
-### Find & Replace
-
-Focus the main prompt editor and press **Ctrl/Cmd+F** for Find. Use **Ctrl+H** or **Cmd+Option+F**, or expand the Find bar, to reveal Replace.
-
-Match case or whole words, step through results, and replace one occurrence or all matches. Select text first and enable **In selection** to limit changes to that passage. Replacements support undo; **Esc** closes the bar.
-
-<img width="748" height="201" alt="Screenshot 2026-10-30 at 5 02 48 PM" src="https://github.com/user-attachments/assets/4a37bf45-5914-468e-9354-8aa227490a3f" />
-
-
-### Anima mode in Weight Controller
-
-In the **Weight Controller** node, choose **Anima 1.0 (High-Scale Qwen)** from the weighting-mode menu. Explicit weights such as `(warm lighting:2.4)` stay in the output, with values capped at **3.5**. The mode keeps your chosen strengths without automatically boosting them; optional **Soft Safety Clamp** is still available under **Advanced**.
-
-Nested explicit groups multiply their weights. Anima mode also preserves artist names and literal prompt structures such as JSON, quoted text, and LoRA tags.
-
-
-
-### Optional library intelligence and generation history
-
-- Browse natural-ratio **Masonry** cards or inspect entries in **Filmstrip / detail** alongside the existing library views.
-- Open **Collections, relationships & dependencies** in Library settings to save virtual filters, inspect references and missing targets, and organize metadata without moving wildcard files.
-- Apply an opt-in relationship rule set to a Palette node to constrain participating wildcard choices. Invalid or incompatible rules report an error instead of generating an invalid combination.
-- Open **Recent generations** to enable local run-associated history, browse results, favorite and compare images, add notes, and review authored text before restoring it. Prompt recording is a separate choice; original images stay in ComfyUI output/temp.
-- History labels distinguish run context from proven image-specific prompts. Capture is disabled when authenticated ownership cannot be established in multi-user mode.
-
-Relationship rules require clearing prepared literal batches; repeated references to a participating entry share a selected choice.
-
-## Recent updates — 2.0.7
-
-### Library thumbnails, everywhere you browse
-
-
-| SET THEM | ANYWHERE | AND EVERYWHERE|
-| :---: | :---: | :---: |
-| <img width="406" height="464" alt="SIDEBAR" src="https://github.com/user-attachments/assets/4f3c4569-978a-4d4d-bd42-30223c958e20" />| <img width="236" height="605" alt="Screenshot 2026-10-19 at 1 07 32 PM" src="https://github.com/user-attachments/assets/be428a66-1953-4de4-a338-4ed655fd6d32" />| <img width="528" height="763" alt="edbox" src="https://github.com/user-attachments/assets/9a7cb1c6-2511-4cb7-84d6-601dc09ad5b2" />|
-| *SIDEBAR* | *LIBRARY PANEL* | *EDITOR* |
-
-
-
-
-- Right-click a wildcard in the node’s slide-out **Library**, in list or gallery view, to **Set**, **Change**, or **Remove Thumbnail**. The same actions are available on main-sidebar library entries and library autocomplete suggestions.
-- The shared library editor keeps its Add/Replace/Remove controls. Replacements refresh across open editors, galleries, autocomplete, and their image previews, including other browser tabs.
-- PNG/JPEG images up to **8 MB** stay beside their TXT entries. New-entry images attach when you save; failed uploads keep staged images available to retry.
-
-### A clearer prompting sidebar
-
-- **Artists** brings Anima, Booru artist tags, and classic references into one workspace with a remembered catalog picker. **Booru tags** stays separate for subjects and details. Favorites, your previews, and imported words have direct shortcuts.
-
-
-### 
-
-|  |  |  |  |
-| :---: | :---: | :---: | :---: |
-| <img src="https://github.com/user-attachments/assets/3240c55d-ade5-48c4-bb65-0c2cbb197236" width="230" alt="V1" /> | <img src="https://github.com/user-attachments/assets/939baf17-db20-499a-a30f-284de5f56991" width="230" alt="v2" /> | <img src="https://github.com/user-attachments/assets/d093a7f0-db1a-43b8-86dd-1dd49033d9e8" width="230" alt="v3" /> | <img src="https://github.com/user-attachments/assets/327d1588-3780-4fee-abf6-090fd4b819f0" width="230" alt="v4" /> |
-
-
-
-
-
-
-
-
-
-
-
-
-- **Syntax → Choose your prompting language** offers editable starters for plain language (Krea 2 / Qwen-Image), tag-based prompting, MOSS captions/layout guidance, and image editing instructions.
-- The sidebar’s **gear** has its own controls for tabs, collections, introductions, and model guidance. Hide what you don’t use or choose **Show all sections** to restore it. Main editor settings stay separate.
-- Tighter sidebar spacing and narrow-width labels; collection switching handles loading and retries cleanly. Edited prompt starters stay intact when you switch guide categories.
-
-### Editing and visual autocomplete
-
-<img width="578" height="580" alt="Screenshot 2026-10-27 at 8 14 06 PM" src="https://github.com/user-attachments/assets/69d93ead-03bf-4863-a049-c09b29042091" />
-
-
-- Attached thumbnails appear in autocomplete, with a small hover preview where there is room. Entries without images stay as text. Use **Images** in the menu or **Settings → Editor & suggestions → Autocomplete images** to switch them off; saved choices are retained.
-- **Ctrl/Cmd+Enter** passes through to ComfyUI to start a run while editing, including with autocomplete open.
-- **Right-click** opens Prompt Palette actions; right-click a `__library entry__` to choose random, next, previous or cycle modes. **Alt/Option+right-click** opens browser/Desktop spelling and editing suggestions. Spellcheck is enabled in Fields and library editing too.
-
-### MOSS-Image prompting
-
-- New **MOSS caption**, **ordered tags**, and **1024×1024 layout JSON** starters in **Layouts**. Keep exact lettering separate and retain normal field variation tools.
-- Complete valid JSON objects stay literal through prompt resolution and batches, preserving layout braces and quoted text. Choices and wildcards outside JSON work normally.
-- Local **Base INT8**, **toxicdog Turbo AIO**, and **regular-SFT** workflow examples. Use ComfyUI **0.42.1+** for native MOSS support and its template crash fixes.
-
-- <img width="1042" height="601" alt="Screenshot 2026-10-27 at 7 57 52 PM" src="https://github.com/user-attachments/assets/a365b425-70a7-49da-b8b9-50ea575daffa" />
-
-
-### Compare one prompt change at a time
-
-- In a Fields workspace, open **Variation Lab → Explore → One field at a time**. Capture a baseline, then test each selected field while every other resolved phrase stays fixed—including Follow fields and negative text.
-- Review exactly what changed, keep useful trials, and send the resolved batch to Combinatorial with **Fixed** seed mode. Original choices stay available. Previewing never queues images.
-- Prepared batches now keep each positive prompt with its matching negative. New **Negative prompt list** and **Negative conditioning list** outputs support negative-prompt comparisons too.
-
-### More visual sidebar browsing
-
-- **193 bundled images** now include **120 SFW Anima portrait references** alongside the existing **73 public-domain/CC0 references**. **64 Booru concept tags** link to these reference images. Each image keeps its source and rights information; Anima previews are model interpretations, not original artist works.
-- Choose **Studio**, **Showcase**, or **Minimal**, control visible card text and guidance, and fit the full image or fill its frame. Existing gallery/list layouts and 10–150% item sizing remain available.
-- **Explore** groups styles, artists, Booru tags, favorites, personal previews, and imported words beside the canvas.
-
----
-
-## Recent features — 2.0.6
-
-### Prompt Palette in the main sidebar
-
-- Open **Library**, **Styles**, **Syntax**, and **Tools** beside the ComfyUI canvas.
-- Choose **Insert into** to send entries to Prompt Palette, Combinatorial, an active workspace field, or another compatible text field.
-- Click an entry to insert it; use its **pencil** to edit. **Quick view** previews its contents first.
-- Switch between gallery cards and compact lists.
-
-### Offline style gallery & Anima artists
-
-- Browse styles, classic artists, Booru tags, and a separate **Anima artist collection with 59k+ names**. Search and filter by available labels such as medium, color, mood, or visual treatment.
-- Explore **73 real public-domain or CC0 reference images**, with source and rights information. Attach your own previews and save favorites across collections.
-- Choose literal Booru/Pony/Illustrious tags, **Anima `@artist`**, or natural-language descriptions. **Will insert** shows the text before you add it.
-- Type **`@`** in a prompt to search the local Anima artist snapshot. Ordinary Booru tags and custom words stay plain text; library entries keep their `__wildcard__` syntax.
-
-### Fields that vary during generation
-
-- **Vary** cycles through supplied choices each generation, even with a fixed seed. Choose **Cycle**, **Shuffle**, **By seed**, or **Use written syntax** in field settings.
-- **Lock** captures a resolved value and keeps it across seed changes and reloads. **Follow** changes a choice only when a selected source field changes.
-- Choose purpose-built starter layouts for portraits, character sheets, scenes, products, photos, anime, Anima, or negative prompts. Start with example content or empty fields, using natural-language, Booru, or Anima starters.
-- Keep named **snapshots and variants**, compare field changes, and reuse saved workspace versions without rebuilding a prompt.
-
-### Library editing that keeps your place
-
-- Editing an existing entry loads its saved prompt options and preserves its name, including capitals, spaces, and Unicode.
-- Use autocomplete, **Suggest**, **Syntax**, **Find**, and **Expand** for quick fixes or longer edits. **Clean up** groups sorting, duplicate removal, and whitespace tools.
-- **Back to library** keeps your draft; **Resume** brings it back. Saved/unsaved badges, option counts, and cursor indicators make the current state clear.
-- Changing an entry path offers **Save copy**. Existing entries and unsaved edits are protected from accidental replacement.
-
-### More flexible controls & syntax help
-
-- Scale toolbar buttons, rearrange them, and choose always visible, auto-hide, collapsed, or hidden modes.
-- Updated settings and sidebar controls follow the same dark, light, and custom themes.
-- The sidebar's visual syntax guide explains choices, wildcards, reusable variables, and conditional text. **`switch` / `case` / `default`** adds a readable way to choose between several named cases.
-- Enable the optional **Positive Antonyms** tool to replace supported descriptors in the resolved positive prompt while preserving authored text and the negative prompt.
-
-All browsing and autocomplete use local data. No account, API key, or runtime downloads are required.
-
----
-
-## Recent features — 2.0.5
-
-### Booru autocomplete & custom words
-
-- Local tag suggestions with category colors, aliases, and custom shortcuts.
-- Choose **Off**, **Auto**, or **On demand** (`Ctrl+Space`); import and export your custom words.
-- Narrow results with `artist:`, `character:`, `series:`, `general:`, or `meta:`. See [Autocomplete](#booru-autocomplete) for examples.
-
-
-
-### Adjustable prompt workspace & selective variation
-
-- Build positive and negative prompts from editable, reorderable recipe fields.
-- Use **Lock / Vary / Follow** to control which fields change during variation.
-- In **Variation Lab**, compare unique results, hide duplicates, and **Keep** favorites to copy or send to Combinatorial.
-- Combinatorial also includes the structured workspace, Variation Lab, Prompt Doctor, and recipe tools.
-
-
-
-### Customizable toolbar
-
-- Choose **Small**, **Medium**, or **Large** buttons and rearrange their order.
-- Use **Always visible**, **Click to open**, or **Auto-hide**; **Keep open** pins the toolbar for that node.
-- Show only the shortcuts you need, including the optional image-import button. Controls follow your dark, light, or custom theme.
-
-
-
-### Import prompts from images
-
-- Drop a PNG, JPEG, or WebP onto Editor or Combinatorial, or choose **Import prompt from image**.
-- Preview positive and negative text before importing. Choose the authored template or resolved prompt when Palette metadata is available.
-- Supports Palette metadata, ComfyUI API prompt graphs, and A1111 generation metadata. Images need embedded metadata to recover a prompt.
-
-
-
-### Choices, rules & prompt inspector
-
-- Open **Choices & rules** from the right-click or syntax menu to build fixed choices, seeded choices, and variable-based conditions.
-- Preview a rule before inserting it, then reopen it to edit.
-- **Prompt inspector** shows explicit weights, embedding availability, and a CLIP-L reference token layout.
-- Syntax menus group actions with theme-colored labels and keyboard navigation.
-
-
-
-### Editing & library improvements
-
-- Improved text selection, undo, list saving, and saved workspace restoration.
-- Library edits refresh across open nodes and browser tabs connected to the same ComfyUI server.
-- Autocomplete formatting choices persist; saved node sizes and hover previews behave more consistently.
-
-Optional tools can be enabled individually in **Settings**.
-
----
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="choose-your-node"></a>
-<img width="1600" height="190" alt="section-suite" src="https://github.com/user-attachments/assets/756f4704-0e4f-408d-8ba8-5d5031c1195e" />
+<p align="center">
+  <img width="1600" height="190" alt="Choose your node — Prompt Palette Suite" src="https://github.com/user-attachments/assets/756f4704-0e4f-408d-8ba8-5d5031c1195e" />
+</p>
 
-<img width="1600" height="520" alt="suite-overview" src="https://github.com/user-attachments/assets/1e4e7296-e74a-461d-b7b8-7166fa4aa442" />
+<p align="center">
+  <img width="1600" height="520" alt="Prompt Palette Suite overview" src="https://github.com/user-attachments/assets/1e4e7296-e74a-461d-b7b8-7166fa4aa442" />
+</p>
 
 | Node | Best for | What it returns |
 |---|---|---|
-| **Prompt Palette** | Everyday prompt writing, wildcard browsing, editing, organization, previewing, and optional encoding | Resolved prompt text, optional positive/negative conditioning, model/CLIP passthrough, seed and wildcard metadata |
-| **Prompt Palette (Combinatorial)** | Producing many deliberate prompt variations from one template | Lists of prompts, seeds, wildcard metadata, and optional per-prompt conditioning/model/CLIP outputs |
-| **Prompt Palette (Weight Controller)** | Applying and translating explicit `(phrase:weight)` instructions for different text backends | Backend-ready text, raw weight dictionary, compatibility text, optional conditioning, model/CLIP passthrough |
+| **Prompt Palette** | Everyday prompt writing, wildcard browsing, Fields workspaces, LoRAs, previewing, and optional encoding | Resolved prompt text, optional positive/negative conditioning, model/CLIP passthrough, seed, variables, and wildcard metadata |
+| **Prompt Palette (Combinatorial)** | Producing many deliberate prompt variations from one template | Lists of prompts, seeds, wildcard metadata, per-field outputs, and optional per-prompt conditioning/model/CLIP outputs |
+| **Prompt Palette (Weight Controller)** | Applying and translating explicit `(phrase:weight)` instructions for different text backends | Backend-ready text, raw weight dictionary, compatibility text, optional conditioning, and model/CLIP passthrough |
 
-All three nodes appear under the **PromptPalette** category and share autocomplete and theme settings.
+All three nodes appear under the **PromptPalette** category and share autocomplete, shortcuts, and theme settings.
 
----
+### Compact Ports & Saved Port Layouts
+
+Open **Ports** on any Prompt Palette node to search by name or type, switch between **Show all**, **Recommended**, and **Hide unused**, pin the manager open, or save up to **16 Saved port layouts** per node (including per-field sockets). When **Ports** is closed, active inputs and outputs collapse into compact color-coded dots along the top edge—hover any dot to inspect its name, type, and connection state.
+
+<p align="center">
+  <img src="docs/artwork/screenshots/socketrailsetsave.png" alt="Ports manager with search, filter pills, IN/OUT status dots, and Saved port layouts" width="900" />
+</p>
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="installation"></a>
-<img width="1600" height="190" alt="section-install" src="https://github.com/user-attachments/assets/4798f3bf-783e-4c67-87e9-baed7085f5ee" />
+<p align="center">
+  <img width="1600" height="190" alt="Installation" src="https://github.com/user-attachments/assets/4798f3bf-783e-4c67-87e9-baed7085f5ee" />
+</p>
 
 ### Standard ComfyUI
 
-Use **Python 3.10+** and a current ComfyUI build with the V3 custom-node API. The optional MOSS examples require **ComfyUI 0.42.1+** and the model files listed in the [MOSS guide](MOSS_PROMPTING.md). Prompt Palette contains node code and bundled reference data, not model weights.
+Use **Python 3.10+** and a current ComfyUI build with the V3 custom-node API. The optional MOSS examples require **ComfyUI 0.42.1+** and the model files listed in the [MOSS guide](MOSS_PROMPTING.md). Prompt Palette contains node code and bundled reference data—no model weights or automatic downloads.
 
-Search for **Prompt Palette** by **z3rofeels** in ComfyUI’s extension manager (Registry ID: `zf-prompt-palette`).
-
-or manually:
+Search for **Prompt Palette** by **z3rofeels** in ComfyUI’s extension manager (Registry ID: `zf-prompt-palette`), or install manually:
 
 ```bash
 cd ComfyUI/custom_nodes
@@ -432,583 +143,487 @@ Restart ComfyUI and hard-refresh the browser after frontend updates.
 
 ### Wildcard library location
 
-By default, Prompt Palette creates and scans:
-
-```text
-ComfyUI/wildcards/
-```
-
-It supports nested `.txt`, `.yaml`, and `.yml` libraries. Choose a different wildcard folder in **Settings** on the computer running ComfyUI. Advanced setups can use `wildcards_config.json` or a `wildcards:` entry in ComfyUI's `extra_model_paths.yaml`.
-
-Example:
+By default, Prompt Palette creates and scans `ComfyUI/wildcards/`, supporting nested `.txt`, `.yaml`, and `.yml` libraries. Choose a different folder in **Settings** on the machine running ComfyUI, or configure `wildcards_config.json` / a `wildcards:` entry in ComfyUI's `extra_model_paths.yaml`.
 
 ```text
 ComfyUI/wildcards/
 ├── characters/
 │   └── monsters.txt        → __characters/monsters__
 ├── lighting/
-│   └── cinematic.txt    → __lighting/cinematic__
-└── styles.yaml          → nested YAML keys become slash paths
+│   └── cinematic.txt       → __lighting/cinematic__
+└── styles.yaml             → nested YAML keys become slash paths
 ```
 
----
+<p align="center">
+  <img src="docs/assets/readme/quick-start.svg" alt="Quick start in three steps: Add Prompt Palette, Write a prompt, Check the result" width="900" />
+</p>
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="prompt-palette"></a>
-<img width="1600" height="190" alt="section-prompt-palette" src="https://github.com/user-attachments/assets/f59d6a9b-4a55-4e3c-a6b9-e7ac682e11de" />
+<p align="center">
+  <img width="1600" height="190" alt="Prompt Palette — The Core Editor" src="https://github.com/user-attachments/assets/f59d6a9b-4a55-4e3c-a6b9-e7ac682e11de" />
+</p>
 
-Prompt Palette replaces the plain prompt box with a full wildcard-aware editor while remaining useful as a simple text node. Leave every optional socket disabled and it behaves like a normal resolving prompt box; connect CLIP and MODEL only when you want live encoding and LoRA handling.
+Prompt Palette replaces ComfyUI's plain text box with a wildcard-aware creative workspace while staying completely optional in wiring: leave every extra port off and it works like a clean resolving prompt node, or connect `CLIP` and `Model` when you want integrated LoRA loading and direct conditioning.
 
 <p align="center">
-<img width="1689" height="972" alt="Screenshot 2026-08-16 160803" src="https://github.com/user-attachments/assets/2d3499f9-9a5a-4ba6-a250-822b94eb1d28" />
-
+  <img src="docs/artwork/screenshots/editor.png" alt="Prompt Palette node showing compact top-edge ports, folder-colored wildcards, inline choices, Anima artist text, LoRA tag, and bottom folder legend" width="760" />
 </p>
 
 ### The 30-second tour
 
-1. Type normally. `__wildcards__` are color-coded by their folder.
-2. Open the **Prompt Library** to search My Library or the optional Starter Packs, preview entries, and insert what you need. Starter Packs are library content only; they are not added to autocomplete suggestions.
-3. Open **Edit** to create or change `.txt` wildcards without leaving ComfyUI.
-4. Use **Resolved Preview** to inspect the actual returned prompt; choose Manual, After pause, or Live updates in Settings.
-5. Open **Settings** for Theme Studio, workspace controls, text sizing, wildcard paths, optional tools, and socket visibility.
+1. **Write naturally.** `__wildcards__`, `{inline|choices}`, `@artists`, and `<lora:name:weight>` tags are color-coded directly in your prompt.
+2. **Browse & insert.** Open **Library** on the node (or the ComfyUI sidebar) to search **My Library**, preview entries, or explore **Starter Packs**.
+3. **Edit in place.** Open **Edit**—or double-click any `__wildcard__`—to create or edit `.txt` entries without leaving ComfyUI.
+4. **Preview before queueing.** Use **Preview** to inspect the exact resolved text (**Manual**, **After pause**, or **Live** in Settings).
+5. **Make it yours.** Open **Settings** for **Theme Studio**, workspace presets, toolbar layout, typography, wildcard paths, and optional Power Tools.
 
-### Wildcard-first editing
+### Wildcard-first editing & Syntax Injector
 
-- **Folder colors and legend** make long prompts readable at a glance.
-- **Missing wildcard detection** marks broken references and lets you jump to the next one.
-- **Autocomplete** opens when you type `__`.
-- **Booru tag autocomplete** suggests tags and custom words as you type. See [Autocomplete](#booru-autocomplete) for settings and category filters.
+- **Folder colors & legend** keep complex multi-part prompts readable at a glance.
+- **Missing wildcard detection** marks broken references and lets you jump straight to them.
 - **Hover preview** shows a wildcard file's contents without inserting it.
-- **Double-click a token** to open that wildcard directly in the editor.
-- **Right-click a token** to open the Syntax Injector and rewrite that exact occurrence.
-- **Undo and redo** cover typing, inserts, autocomplete, syntax changes, and clearing.
+- **Double-click a token** to open that wildcard in the Edit drawer.
+- **Right-click a token** to open the **Syntax Injector** and rewrite that exact occurrence (random, unseeded, sequential `+/-`, Cartesian `%`, weighted, joined ranges, variables, or conditionals).
+- **Full undo & redo** covers typing, inserts, autocomplete, syntax transforms, and clearing.
 
-### Prompt workspace & toolbar
+<p align="center">
+  <img src="docs/artwork/screenshots/syntaxautocom.png" alt="Right-click Insert Syntax menu showing Choices, Selection & Weighting, and Reusable Values" width="760" />
+</p>
 
-Enable the **Adjustable Recipe Workspace** in **Settings → Power tools** to organize a prompt into fields such as subject, outfit, setting, and lighting. Rename or reorder fields, choose separators, and check the compiled preview. Workspaces support positive and negative prompts.
+### Named Drafts A–D, Refine & Find & Replace
 
-Give a field alternatives with **Set choices**—one option per line—or **Insert wildcard**, then choose how it behaves. A field containing only plain text has one value to use.
+Switch between **four independent prompt drafts (`A–D`)** inside the same node—each preserving its own positive text, negative text, and Fields workspace. Right-click (or click the active letter) to **rename** a slot, preview its contents, or **Copy X into Y…** (`Alt/Option+1–4` switches; add `Shift` to review and copy). Need to iterate without risking other drafts? Click **Refine** on the toolbar for an in-node **Commit / Cancel** session.
 
-| Field mode | During generation |
+Press `Ctrl/Cmd+F` for **Find** or `Ctrl+H` / `Cmd+Option+F` for **Replace**, with **Aa** case, **Word**, range-safe **In selection**, and an expandable **Preview replacements** drawer before changing text. `Ctrl/Cmd+Enter` passes straight through to queue ComfyUI normally.
+
+<table>
+  <tr>
+    <td width="42%" align="center" valign="middle">
+      <img src="docs/artwork/screenshots/drafts.png" alt="Named quick prompt drafts A through D with active indicator dots" width="320" /><br>
+      <sub><strong>Quick drafts A–D</strong> · rename, preview, and copy with diff review</sub>
+    </td>
+    <td width="58%" align="center" valign="middle">
+      <img src="docs/assets/readme/find-replace.png" alt="Find and Replace bar with Aa, Word, In selection, and live match highlighting" width="500" /><br>
+      <sub><strong>Find &amp; Replace</strong> · match rules, in-selection scope, and replacement previews</sub>
+    </td>
+  </tr>
+</table>
+
+### Seed Controls, Seed Lab & Wheel of Fortune
+
+Enable **Settings → Toolbar & layout → Toolbar modules → Seed controls** to add a compact **Seed** pill right on the toolbar showing your live seed and run behavior (`Fixed`, `Increment`, `Decrement`, `Randomize`). Click it for the floating Seed panel, or **Shift+Click** to jump straight into **Wheel of Fortune**. Open **Seed Lab** for recent seeds, pinned favorites, presets, and **Seed Fortune** archetypes.
+
+<table>
+  <tr>
+    <td width="46%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/seedtoolbar.png" alt="Compact toolbar Seed pill opening the floating Seed panel with After Run, Lines, and Seed Fortune badge" width="380" /><br>
+      <sub><strong>Compact toolbar Seed pill</strong> · zero dedicated node row</sub>
+    </td>
+    <td width="54%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/seedlab.png" alt="Seed Lab portal showing Identity archetype Mirage Weaver, Wheel, and Saved & recent tabs" width="440" /><br>
+      <sub><strong>Seed Lab</strong> · Identity archetypes, Wheel of Fortune, and saved seeds</sub>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>Watch Seed Lab &amp; Wheel of Fortune in action</strong></summary>
+
+<p align="center">
+  <img width="800" alt="Seed Lab and Wheel of Fortune demonstration" src="https://github.com/user-attachments/assets/888a346e-ff96-4cc8-af37-9fb9f140b16c" />
+</p>
+
+</details>
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
+
+<a id="fields-workspace"></a>
+### Fields Workspace
+
+Enable **Adjustable Recipe Workspace** in **Settings → Power tools** to organize prompts into color-coded, reorderable fields—Subject, Wardrobe, Environment, Lighting, Camera, Negative, or any custom structure—while keeping a live compiled preview.
+
+<table>
+  <tr>
+    <td width="60%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/fields.png" alt="Collapsed Fields Workspace showing Jump to field dropdown, color-coded field cards, Vary/Follow/Lock badges, and include toggles" width="540" /><br>
+      <sub><strong>Collapsed overview</strong> · Jump to field navigator, accent targets, and Vary/Follow/Lock badges</sub>
+    </td>
+    <td width="40%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/fields2.png" alt="Expanded Fields Workspace with inline choices, weights, and LoRA tags inside individual fields" width="340" /><br>
+      <sub><strong>Expanded editing</strong> · per-field choices, weights, and LoRAs</sub>
+    </td>
+  </tr>
+</table>
+
+| Field mode | Behavior during generation |
 |---|---|
-| **Vary** | Cycles through your choices each generation, including with a fixed seed. Field settings also offer Shuffle, By seed, or written syntax. |
-| **Lock** | Captures the current resolved choice and keeps that text across seed changes and reloads. Your original choices remain available. |
-| **Follow** | Holds its choice until a selected source field changes, then chooses again. Pick the source in field settings. |
-| **Default** | Uses the field's authored prompt syntax normally. |
+| **Vary** | Cycles through supplied choices each generation, even with a fixed seed (or use Shuffle / By seed / written syntax). |
+| **Lock** | Captures the current resolved value and holds it across seed changes and workflow reloads without deleting your alternatives. |
+| **Follow** | Holds its pick until a chosen source field changes, then resolves again. |
+| **Default** | Evaluates the field's authored prompt syntax normally. |
 
-For example, let **Lighting** follow **Pose**: when the resolved pose changes, lighting can change too. Follow responds to changes; it does not match the meanings or line numbers of two lists.
+- **Per-field `IN` and `OUT` sockets:** In **Field settings**, enable **Input text → Socket** (`In: <Field>`, inserted before or after widget text, with pre-run **Import** and **Disconnect** actions) and **Output text → Socket (STRING)** (`Out: <Field>`, exposing that field's resolved text for regional conditioning—and emitting a matching list on **Combinatorial**).
+- **Grid layout & accents:** Choose **1, 2, 3, or Auto-fit** columns, drag field bottom grips with **8px** snapping (double-click to reset), and apply accents to **Field and title**, **Field only**, **Title only**, or **No accent**.
+- **Starter Layouts, Presets & Snapshots:** Load starters for **FLUX · Natural language**, **Realistic photo**, **Video & Motion (Wan / Hunyuan)**, **Anime image**, **Portrait**, **Character sheet**, **Scene**, **Product render**, **Anima Structure**, and **Negative prompt set**—or save your own field presets and **Snapshots & variants**.
 
-Open **Layouts** for a starter suited to your task, including **FLUX · Natural language**, **Realistic photo**, **Video & Motion (Wan / Hunyuan)**, **Anime image**, **Portrait**, **Character sheet**, **Scene**, **Product render**, **Anima Structure**, and **Negative prompt set**. **Include starter choices** adds example content; turn it off for empty fields. Save your own **field presets** with structure only or with default values, use **Jump to field** in the workspace bar to move quickly (even to collapsed fields), and use **Snapshots & variants** to save checkpoints, keep alternate versions, and compare field differences.
-
-Each field can also carry its own graph wires: open **Field settings** to toggle **Input text → Socket** (`In: <Field>`, inserted before or after widget text, with pre-run **Import** and **Disconnect** controls) or **Output text → Socket (STRING)** (`Out: <Field>`, for regional conditioning or per-part routing while leaving the full compiled prompt intact). Customize field and title accent colors under **Settings → Toolbar & layout → Fields editor → Accent color applies to** (**Field and title**, **Field only**, or **Title only**), or per field with **Color on** and **No accent**.
-
-In **Variation Lab**, compare previews, hide duplicates, and check **Keep** on results you want to reuse. Apply a preview to the targeted fields while keeping their choices available, or send kept full versions to Combinatorial for batch generation.
-
-Choose **One field at a time** to find out what one lighting, camera, style, or negative-prompt change contributes. The first card is the resolved **Baseline**. Each following trial replaces one field and holds all other resolved text fixed; Follow is held during these comparisons. **Samples per field** sets the search budget, with duplicates skipped. It samples alternatives rather than exhaustively expanding them; large workspaces share a budget of at most 256 total trials. **Use field value** applies that field only; the rest of your workspace keeps its authored text and generation behavior.
-
-**Send to Combinatorial** creates an exact batch in preview order and starts its seed mode at **Fixed**. Connect **Seed list** to your sampler's seed input and keep its other settings unchanged to compare with the same noise seed. When negatives differ, connect **Negative conditioning list** (with CLIP connected), or **Negative prompt list** to your text encoder. Those outputs appear automatically for a batch with varying negatives. Single-value negative outputs return the first trial. Keep selects the trials to send; without a shortlist, all visible trials are sent. The sampler and model still determine the images.
-
-Customize the Editor toolbar under **Settings → Toolbar & layout → Toolbar layout**; Combinatorial has the same controls under **Settings → Generation**. Use the **60–180%** size slider or a size preset, choose a visibility mode, adjust **Bottom status bar** (**Auto hide**, **Always visible**, or **Warnings only**), then use **Arrange buttons** to drag buttons or move them with arrows. **Reset order** restores the default arrangement. Enable **Toolbar modules → Seed controls** for a compact toolbar **Seed** pill (opening the floating Seed panel, or **Shift+Click** for **Wheel of Fortune**) and **Quick slots A–D** for named drafts and reviewed copy, or click **Refine** on the toolbar for in-node **Commit / Cancel** iteration while other drafts stay safe. In retractable modes, **Tools** opens the toolbar and **Keep open** holds it open. **Hidden** keeps shortcuts out of the way while Settings stays accessible.
-
-### Recover a prompt from an image
-
-Choose **Import prompt from image** or drop one PNG, JPEG, or WebP onto the editor. Review the recovered text, choose **Authored template** or **Resolved prompt** when available, and decide whether to import the negative prompt. The import can be undone.
-
-If an image has no negative-prompt metadata, your existing negative stays intact. Prefixes, suffixes, seeds, and connected inputs still apply, so check the final preview before queueing. Images without embedded prompt metadata cannot be used for recovery. Maximum image size: **32 MB**.
-
-### Prompt Library, recipes, and stash
+### Prompt Library, Recipes, Stash & Starter Packs
 
 <table>
-<tr>
-<td width="33%" valign="top"><strong>Prompt Library</strong><br>Search My Library, browse folders, switch between list/grid views, use thumbnails, favorites and Recent, and keep RECIPES alongside normal local entries.</td>
-<td width="33%" valign="top"><strong>Palette Recipes</strong><br>Save reusable prompt building blocks so a familiar combination is never more than a click away.</td>
-<td width="33%" valign="top"><strong>Prompt Stash</strong><br>Temporarily park prompts inside the node instead of opening extra text nodes or external notes.</td>
-</tr>
+  <tr>
+    <td width="33%" valign="top">
+      <strong>Prompt Library</strong><br>
+      Browse <em>My Library</em> in <strong>List, Gallery, Masonry, Tiles, Contact sheet,</strong> or <strong>Filmstrip</strong> views. Pin favorites, set custom PNG/JPEG thumbnails (up to 8 MB), and scale cards with <strong>Fit</strong> or <strong>Fill</strong>.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Palette Recipes &amp; Stash</strong><br>
+      Save reusable multi-entry <strong>RECIPES</strong> right alongside normal wildcards, or park work-in-progress prompts inside <strong>Prompt Stash</strong> without cluttering the graph with extra text nodes.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Starter Packs (v2.2.0)</strong><br>
+      Optional built-in examples kept separate from your personal folders, covering <strong>Prompt Palette Syntax, Universal (54), KREA 2 (50), MOSS-Image (30), MiniMax H3, Qwen Image, Z-Image Turbo, LTX-2.3, Anima, Illustrious, Pony,</strong> and <strong>SDXL</strong>.
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="docs/artwork/screenshots/library-gallery.png" alt="Prompt Library Gallery view with Set Thumbnail context menu" width="270" /></td>
+    <td align="center" valign="top"><img src="docs/assets/readme/recipes.gif" alt="Palette Recipes demonstration animation" width="240" /></td>
+    <td align="center" valign="top"><img src="docs/artwork/screenshots/starter-packs.png" alt="Starter Packs browser showing KREA 2 categories and prompt cards" width="250" /></td>
+  </tr>
 </table>
 
+<details>
+<summary><strong>More Library &amp; Stash views</strong> (List view with Favorites/Recent/Recipes and Prompt Stash)</summary>
+
 <table>
-<tr>
-<td align="center"><img width="430" alt="Wildcard gallery mode" src="https://github.com/user-attachments/assets/c71b9c45-c315-47d2-973f-d91176d94459"></td>
-<td align="center"><img width="500" alt="Palette Recipes" src="https://github.com/user-attachments/assets/f6792bd7-b9d2-4e9a-b2ab-01e15f31a0a5"></td>
-<td align="center"><img width="500" alt="Prompt Stash" src="https://github.com/user-attachments/assets/42de2118-e9a9-40c1-8eae-b965d679398c"></td>
-</tr>
+  <tr>
+    <td width="42%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/library-list.png" alt="Prompt Library List view showing Favorites, Recent, RECIPES, and Library thumbnails" width="320" /><br>
+      <sub><strong>List view</strong> · Favorites, Recent, RECIPES, and folder colors</sub>
+    </td>
+    <td width="58%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/stash.png" alt="Prompt Stash drawer saving and loading prompt drafts" width="460" /><br>
+      <sub><strong>Prompt Stash</strong> · save, load, and copy drafts inside the node</sub>
+    </td>
+  </tr>
 </table>
+
+</details>
+
+### Optional Power Tools & Image Import
+
+Every Power Tool stays off until you enable it in **Settings → Power tools**:
+
+- **Prompt Doctor** — Local syntax diagnostics for missing or empty wildcards, unclosed expressions, undefined variables, malformed parameter calls, and duplicate LoRA tags, with **Show in editor** jumps.
+- **Variation Lab** — Resolve multiple deterministic previews before queueing, filter duplicates, inspect **One field at a time** trials against a fixed baseline, and **Send to Combinatorial** as an exact batch (matching positive and negative pairs).
+- **Resolved Diff** — Side-by-side highlight of what changed between your template and the resolved prompt.
+- **Library Manager, Collections & Relationships** — Multi-select management, saved virtual filter collections, dependency inspection, and opt-in relationship rules that constrain participating wildcard picks.
+- **Positive Antonyms** — Optional descriptor inversion on the resolved positive prompt while leaving authored text and negatives untouched.
+- **Import Prompt from Image** — Drop a PNG, JPEG, or WebP (up to **32 MB**) onto Editor or Combinatorial to recover Palette authored/resolved prompts, ComfyUI API graphs, or A1111 metadata before importing.
+
+<table>
+  <tr>
+    <td width="43%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/prompt-doctor.png" alt="Prompt Doctor identifying a missing wildcard reference with Show in editor jump" width="380" /><br>
+      <sub><strong>Prompt Doctor</strong> · catch missing wildcards and syntax typos before queueing</sub>
+    </td>
+    <td width="57%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/variation-lab.png" alt="Variation Lab previewing 12 deterministic resolutions with token and wildcard counts" width="500" /><br>
+      <sub><strong>Variation Lab</strong> · preview deterministic seeds or isolate one field at a time</sub>
+    </td>
+  </tr>
+</table>
+
+### Optional encoder and workflow sockets
+
+Leave every extra socket closed when you only need resolved text, or enable what your workflow uses in **Ports**:
+
+- **Optional inputs:** `clip`, `model`, `prompt_prefix`, `prompt_suffix`, `enhancer_override`, `external_seed`, `negative_text`, `negative_prefix`, `negative_suffix`, `variables_in`, and per-field `In: <Field>`.
+- **Optional outputs:** Patched `model` & `clip`, positive & negative `conditioning`, resolved `prompt` & `negative_prompt`, `seed_used`, `wildcards_used`, `wildcards_count`, `raw_text`, `used_enhancer`, `clip_token_count`, `prompt_metadata`, `variables`, and per-field `Out: <Field>`.
+
+> [!NOTE]
+> LoRA tags are applied only when both **Model** and **CLIP** are connected (unless **LoRA execution** is set to **External** or **Strip**). With only **CLIP** connected, recognized tags are stripped before encoding. Tags are scanned **after** wildcard resolution, so wildcards and choices can emit `<lora:name:weight>` dynamically.
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
+
+<a id="lorapal"></a>
+## LoraPal — Local LoRAs, Model Info & Audition Lab
+
+Browse your local LoRA collection from the **LoraPal** toolbar button (a moveable, resizable floating sidecar with **Follow node** tracking) or from the **LoRAs** tab in ComfyUI's main sidebar. Everything stays **100% local**—LoraPal reads `.civitai.info`, `.metadata.json`, `.rgthree-info.json`, `.txt`, embedded safetensors metadata, and adjacent image/video previews (`.png`, `.jpg`, `.webp`, `.gif`, `.avif`, `.bmp`, `.mp4`, `.webm`, `.m4v`) without fetching anything online.
+
+<p align="center">
+  <img src="docs/artwork/screenshots/lorapalinfo.png" alt="LoraPal sidecar showing Active in Prompt deck, Masonry LoRA library with video and image previews, LoRA Audition Lab, and the pop-out Model Info flyout" width="900" />
+</p>
+
+- **Pop-out Model Info flyout:** Click any card or **ⓘ** to inspect artwork (and step through multiple local images/videos), base model/version pills, author byline, file size, description, tags, suggested strength, **Copy triggers** / clickable trigger chips, per-LoRA **Color** swatches, and **Set image** custom artwork (up to 8 MB, stored per-user without touching model folders).
+- **Active in Prompt & `# --- LoRAs ---` docking:** Newly added LoRAs start at strength **1.0** with quick **1.0** resets, independent **Model / CLIP** strengths, non-destructive **Mute**, **Swap**, **Saved LoRA sets**, and automatic trailing `# --- LoRAs ---` prompt docking that keeps inline choices and rules intact.
+- **LoRA Audition Lab:** Compare strengths and alternatives with one-click presets (**Subtle 0.35**, **Balanced 0.70**, **Full 1.00**, **Punchy 1.25**, **A/B Trial**, **3-Step**, **5-Step Sweep**) and variation modes (`Cycle`, `Seeded trial`, `Combinatorial batch`).
+- **Four virtualized views:** Switch freely between **Gallery**, **Masonry**, **Filmstrip**, and **List** with **80–240px** card scaling and shorthand `<lora:name>` (`1.0`) support. See the [LoRA guide](LORA_GUIDE.md) for full wiring and execution details.
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
+
+<a id="keep-and-evolve"></a>
+## Keep & Evolve — Recent Generations & Comparison
+
+Enable local run history under **Library → Recent Generations** or open the dedicated **Generations** sidebar tab (**Tab ↗** or **Sidebar settings → Recent Generations tab**). Existing ComfyUI outputs can also be pulled in via **Import ComfyUI history**.
+
+<table>
+  <tr>
+    <td width="46%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/sidebarrecentgenview1.png" alt="ComfyUI sidebar Generations tab in Filmstrip/detail view with search, favorites, and date filters" width="320" /><br>
+      <sub><strong>Generations tab</strong> · Gallery, Masonry, Filmstrip, and List views</sub>
+    </td>
+    <td width="54%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/recentgeninfopanel.png" alt="Pop-out Generation Inspector showing artwork, run parameters, Raw Input vs Final Resolved prompt, wildcard selections, models, and generation settings" width="380" /><br>
+      <sub><strong>Generation Inspector</strong> · Raw vs Resolved prompts, wildcards, LoRAs, and workflow copy</sub>
+    </td>
+  </tr>
+</table>
+
+- **Generation Inspector:** Click any card to open a non-obstructing right-hand flyout with full-size image inspection, **Raw Input** vs **Final Resolved** prompt blocks, exact wildcard & choice selections, color-matched LoRA cards, click-to-copy **Generation Settings** tiles, and a collapsible **Workflow & Nodes** filter (**All / Prompting / Sampling / Models**) for copying one node, a subset, or the full workflow. Navigate with `Arrow` keys, `Home`, `End`, and `Esc`.
+- **Keep & Evolve & A/B Wipe:** Pin any generation as a node's **Keeper** reference without touching your active text. Queue up to **4** candidates into **Compare**, inspect **Prompt differences**, slide an interactive **A/B wipe** divider (`Arrow` keys + **Center**), or **Export JSON**.
+- **Promote… & Refine:** Review recorded prompts or full authored **Fields** before promoting them into your active editor or any **A–D** draft (with overwrite diff review), or click **Refine** to iterate in-node with **Commit / Cancel** protection.
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
+
+<a id="booru-autocomplete"></a>
+## Autocomplete — Wildcards, Booru, Anima & Styles
+
+Prompt Palette's autocomplete adapts to what you type—with optional thumbnails, hover previews, category colors, custom words, and `Ctrl/Cmd+Enter` pass-through so you can queue ComfyUI even while the menu is open.
+
+<table>
+  <tr>
+    <td width="33%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/libraryautocom1.png" alt="Wildcard library autocomplete menu showing Favorites, Recent, RECIPES, and thumbnail previews" width="280" /><br>
+      <sub><strong>Wildcard library (<code>__</code>)</strong> · Favorites, Recent, RECIPES, and thumbnails</sub>
+    </td>
+    <td width="34%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/booruautocom.png" alt="Booru autocomplete menu with Favorite Tags, category colors, tag counts, and custom word controls" width="295" /><br>
+      <sub><strong>Booru &amp; custom words</strong> · category colors, counts, and inline coloring</sub>
+    </td>
+    <td width="33%" align="center" valign="top">
+      <img src="docs/artwork/screenshots/styleautocom.png" alt="Opt-in Style autocomplete showing Krea 2 and MOSS entries with facet badges" width="280" /><br>
+      <sub><strong>Style autocomplete (opt-in)</strong> · Krea 2 &amp; MOSS facet badges</sub>
+    </td>
+  </tr>
+</table>
+
+- **Wildcard (`__`) & LoRA (`<lora:`) suggestions:** Type `__` to search your local wildcard folders with optional thumbnail previews, Favorites, Recent, and RECIPES. Toggle **Images** directly in the menu footer.
+- **Offline Booru & Custom Words:** Enable under **Settings → Editor & suggestions** (**Off**, **Auto**, or **On demand** via `Ctrl+Space`). Filter by `artist:`, `character:`, `series:`, `general:`, or `meta:` (aliases `art:`, `char:`, `copy:`, `gen:`), toggle **underscores → spaces** and **append comma**, mark already-present tags with `✓`, or click **+ Custom word** / **Manage** / **Save as list** (saved locally in `prompt_palette/autocomplete.txt`).
+- **Anima `@artist` search:** Type `@` followed by a name to search the bundled **Anima artist snapshot** (`59k+` names) and insert `@artist name` (distinct from sequential `__@wildcard__`).
+- **Opt-in Style autocomplete:** When enabled in Settings, prefix queries with `style:`, `cam:`, `lens:`, `angle:`, `framing:`, `pose:`, `expr:`, `light:`, `atmo:`, `comp:`, `krea2:`, or `moss:` to insert curated Krea 2 & MOSS phrases verbatim without Booru underscore/parenthesis transforms.
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="main-sidebar"></a>
-### Main sidebar, Generations & Explore
+## Main Sidebar & Opt-in Style Studio
 
-Open **Prompt Palette** in ComfyUI's main sidebar. **Insert into** tracks the active Prompt Palette node automatically while you edit, or lets you pick a specific target node; browsing and library editing work without a target node.
+Open **Prompt Palette** in ComfyUI's main sidebar to browse, edit, and insert across your graph. **Insert into** tracks the active Prompt Palette node automatically (or lets you pin a target), while browsing and library editing work even without a selected node.
 
 | Tab | What you can do |
 |---|---|
 | **Library** | Search folders, pinned entries, recents, and **Recent Generations**; preview entries, insert wildcards, or edit with the pencil. |
-| **Generations** *(optional)* | Dedicated run-history tab (**Tab ↗** or **Sidebar settings → Recent Generations tab**) with **Gallery, List, Masonry, and Filmstrip / detail**, search/date filters, **Import ComfyUI history**, and the **Generation Inspector**. |
-| **LoRAs** | Browse your local LoRA collection in **Gallery / Masonry / Filmstrip / List**, open the pop-out **Model info** flyout, manage **Saved LoRA sets**, audition strengths, and insert via **Insert into** or **Use cursor / selection**. |
-| **Explore** | Browse styles, classic artists, Anima artists, Booru tags, custom words, favorites, and your previews. |
-| **Syntax** | Browse explained examples, adjust a template, preview it, and insert it at your target cursor. |
-| **Tools** | Open prompting tools supported by the selected node. |
+| **Generations** *(optional)* | Dedicated run-history tab with **Gallery, List, Masonry, and Filmstrip** views, search/date filters, **Import ComfyUI history**, and the **Generation Inspector**. |
+| **LoRAs** | Browse your local LoRA catalog, inspect the **Model info** flyout, manage **Saved LoRA sets**, audition strengths, and insert via **Insert into** or **Use cursor / selection**. |
+| **Explore** | Browse **59k+ Anima artists**, classic artists, Booru tags, and **193 bundled reference images** (**120** SFW Anima portraits + **73** public-domain/CC0 references, [credits](STYLE_IMAGE_CREDITS.md)); compare up to **4** styles side-by-side. |
+| **Syntax** | Interactive **Choose your prompting language** starters (plain language, tags, MOSS captions/layouts, image editing) and visual syntax examples. |
+| **Tools** | Quick access to prompting tools supported by the selected node. |
 
-In **Explore**, use the available filters to narrow a collection. Clear filters to find artists without matching labels. Check **Prompt language** and **Will insert**: Anima uses `@artist`, Booru/Pony/Illustrious use literal tags, and natural-language mode uses readable descriptions. Quality prefixes are optional and are not added automatically.
+### Edit a library entry
 
-Cards can use your own local preview images. Compare up to **four** styles with a shared subject, copy their prompts, and attach your own generated samples. Bundled artwork is a visual reference, not a promise of a checkpoint's output. [Image credits and sources](STYLE_IMAGE_CREDITS.md) are included.
+Click any entry's **pencil** to edit its saved lines in a full-featured shared drawer (available in both the node and sidebar) with **Suggest** (`Ctrl+Space`), **Syntax**, **Find**, **Expand**, **Clean up** (sort, deduplicate, trim), **Save / Save copy**, and draft retention (**Back to library / Resume**).
 
-#### Edit a library entry
+### Opt-in Style Studio (Krea 2 & MOSS-Image)
 
-Click its **pencil** to open the saved text. Each non-comment line is one option and can contain a short tag or a complete prompt.
+Enable **Style Studio** in **Settings → Editor & suggestions** to add a floating **Style Studio** sidecar tuned for **Krea 2** natural-language photography/editorial prompts and **MOSS-Image** prompting (**Caption**, **Ordered Tags**, and **Spatial JSON** dialects):
 
-- **Suggest** or `Ctrl+Space` opens available completions; **Syntax** works at the cursor or around selected text.
-- **Find** searches within the entry; **Expand** gives the text more room. **Clean up** offers sorting, duplicate removal, and whitespace cleanup.
-- **Save** updates the entry. Changing the path offers **Save copy** and leaves the original in place.
-- **Back to library** retains your draft; **Resume** reopens it. **Revert** restores the saved text.
-- Use **Copy** for the wildcard reference or **Use** to insert the saved entry into your selected target. Save changes before using the edited entry.
+- Browse **94** SFW style, medium, camera, lens, angle, framing, pose, expression, lighting, atmosphere, composition, and syntax entries plus **8** curated mixes across **12 facets**.
+- Stage multiple entries into the **Mix & Composer** tray, toggle **Subject-First** vs **Scene-First** word-budget ordering or **`Mix {%a|b}`** variation blocks, format `"Quoted Text"` typography, check **conflict & buzzword lint** + quick token estimates, and add a safe MOSS negative helper.
 
-The sidebar and node edit drawers share these prompt tools. Existing capitalization, spaces, and Unicode in entry names are preserved. YAML/JSON entries can be viewed here; edit their source file to change them.
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
-### Starter Packs
+<a id="themes"></a>
+## Themes & Appearance
 
-Starter Packs are optional built-in examples kept separate from **My Library**. They are there to show useful syntax and model-oriented prompt structures without mixing bundled content into your own wildcard folders.
-
-Included packs cover **Prompt Palette Syntax, Universal, KREA 2, MiniMax H3, Qwen Image, Z-Image Turbo, LTX-2.3, Anima, Illustrious, Pony, and SDXL**. Disable Starter Packs in Settings if you only want your own library.
-
-<img width="726" height="1155" alt="Screenshot 2026-08-16 114459" src="https://github.com/user-attachments/assets/fb80837d-07d4-4db3-93aa-d06967d0f7bf" />
-
-### Optional Power Tools
-
-Each Power Tool is independent and can stay off unless you want it.
-
-- **Prompt Doctor** — local prompt/library syntax checks for missing or empty wildcards, unclosed expressions, undefined variables, malformed parameter calls, duplicate LoRA tags, and similar issues.
-<img width="986" height="566" alt="PPalDoc" src="https://github.com/user-attachments/assets/f25b99f0-bd36-4de4-b0ed-ed7b9eccff00" />
-
-- **Variation Lab** — preview multiple deterministic wildcard resolutions before queueing, then copy or reuse a result with its seed.
-
-  <img width="1494" height="989" alt="PPalVari" src="https://github.com/user-attachments/assets/95b67457-45b8-47b3-a300-ee7b60fbde14" />
-
-- **Resolved Diff** — highlights what changed between the editable source and the resolved prompt.
-- **Library Manager** — larger-library management and health tools, including multi-select and supported reversible operations.
-- **Recipe Builder 2** — richer RECIPES creation with ordering, wildcard mode, separator, prefix, suffix, and source preview.
-
-Prompt Palette can also expose its actions through ComfyUI's command palette when that integration is enabled.
-
-### Optional encoder and workflow sockets
-
-Nothing is required. Open **Ports** on the node to show, search, filter (**Show all / Recommended / Hide unused**), pin open, or hide sockets. When **Ports** is closed, enabled ports collapse into compact colored dots along the top edge (hover a dot for its name, type, and connection status). You can also store up to **16 Saved port layouts** per node.
-
-**Optional inputs**
-
-- `clip` — encodes the resolved positive and negative text.
-- `model` — enables `<lora:name:weight>` loading when CLIP is also connected.
-- `prompt_prefix` / `prompt_suffix` — add reusable text before or after the main prompt.
-- `enhancer_override` — replaces the resolved positive prompt when a connected enhancer returns text.
-- `external_seed` — takes seed control from another node.
-- `negative_text`, `negative_prefix`, `negative_suffix` — build and resolve the negative side in the same node.
-- `In: <Field>` — optional per-field text inputs enabled in **Field settings** (`Input text → Socket`).
-
-**Optional outputs**
-
-- Patched `model` and `clip`
-- Positive and negative `conditioning`
-- Resolved positive and negative prompt strings
-- Effective seed
-- Wildcards used and wildcard count
-- Original unresolved text
-- Enhancer-used flag
-- Real CLIP-L token count
-- Prompt Palette metadata JSON
-- `Out: <Field>` — optional per-field resolved `STRING` outputs enabled in **Field settings** (`Output text → Socket (STRING)`).
-
-Socket visibility and **Ports** manager state stay separate, and connected sockets remain visible even when filtering unused ports out of the graph.
-
-> [!NOTE]
-> LoRA tags are applied only when both MODEL and CLIP are connected. With only CLIP connected, the tags are removed before encoding instead of being encoded as text. Tags are scanned **after** wildcard resolution, so a wildcard entry may contain `<lora:name:weight>`.
-
-### Themes and accessibility
-
-- **72 built-in palettes** across 12 collections: Soda Shop, Planetarium, Ocean, Garden, Sweet Shop, Pixel Arcade, Trailhead, Night, Daylight, Creative, Professional, and Materials
-- Full-width **Theme Studio** with larger previews and collection browsing
-- Suite-wide saved appearance for Prompt Palette, Combinatorial, and Weight Controller
-- Independent day and night theme pairing
-- Editable custom themes with import/export
-- Per-category wildcard colors
-- Hue and saturation controls
-- Custom prompt and interface fonts
-- Separate prompt/interface text sizes
-- Dedicated prompt text color
-- Corner-roundness and other presentation controls
-- Workspace presets for a minimal or expanded interface
-- Density, toolbar, preview, motion, contrast, and interface-size controls
-
-Prompt Palette themes cover its own nodes, sidebar, and menus. They do not recolor the ComfyUI canvas or unrelated nodes and interface panels.
+Prompt Palette ships with **72 built-in palettes** across **12 collections** (**Soda Shop, Planetarium, Ocean, Garden, Sweet Shop, Pixel Arcade, Trailhead, Night, Daylight, Creative, Professional,** and **Materials**) inside a full-width **Theme Studio**. Every theme applies cleanly across Prompt Palette nodes, the main sidebar, and pop-out flyouts without recoloring the rest of ComfyUI.
 
 <p align="center">
-<img width="1437" height="1344" alt="Comfy_Desktop_2EoBSqbTuy" src="https://github.com/user-attachments/assets/7980ac12-8236-486a-8566-bc6c022bf9cd" />
+  <img src="docs/assets/readme/themes-workflow.png" alt="Theme Studio showing dark palettes and Day/Night quick switch pairing Porcelain and Cinder" width="900" />
 </p>
 
----
+- **Day / Night quick switch:** Pair any light and dark favorite (such as **Porcelain** and **Cinder**) and toggle right from the toolbar.
+- **Custom themes & category colors:** Duplicate any built-in palette to edit all 12 tokens, import/export JSON themes, tune wildcard hue/saturation, and customize per-folder or per-LoRA colors.
+- **Typography, toolbar & status bar:** Pick **Core / Creator / Power User** workspace presets, adjust **Prompt text**, **Interface text**, and **Menus & hover cards (80–250%)** independently, scale/reorder toolbar buttons (**60–180%**, **Always visible / Auto hide / Collapsed / Hidden**), and choose **Auto hide / Always visible / Warnings only** for the bottom status bar.
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="combinatorial"></a>
+<p align="center">
+  <img width="1600" height="190" alt="Prompt Palette (Combinatorial)" src="https://github.com/user-attachments/assets/2ee927c7-1bd1-4874-85d5-de27cd6aa9c0" />
+</p>
 
-<img width="1600" height="190" alt="section-combinatorial" src="https://github.com/user-attachments/assets/2ee927c7-1bd1-4874-85d5-de27cd6aa9c0" />
+The **Combinatorial** node turns one wildcard-aware template into a **list of resolved prompts in a single execution**. It shares Prompt Palette's editor, Fields workspace, LoraPal, theming, and syntax tools while outputting lists so downstream ComfyUI nodes can fan out across the entire batch.
 
-The Combinatorial node turns one wildcard-aware template into a **list of resolved prompts in a single node execution**. It shares Prompt Palette's editor, browser, theming, and syntax tools, but its main outputs are list-based so downstream nodes can fan out over the generated set.
+<p align="center">
+  <img src="docs/assets/readme/combinatorial-flow.svg" alt="Combinatorial expansion example: {cat|dog} times {day|night} produces 4 prompt rows in one execution" width="900" />
+</p>
 
-<img width="1600" height="460" alt="diagram-combinatorial" src="https://github.com/user-attachments/assets/e241cac3-911d-4778-9739-118c6a180376" />
-
-### Choose a generation mode
+<p align="center">
+  <img width="1600" height="460" alt="Prompt Palette Combinatorial node overview diagram" src="https://github.com/user-attachments/assets/e241cac3-911d-4778-9739-118c6a180376" />
+</p>
 
 | Mode | What it does | Use it when |
 |---|---|---|
-| **Random** | Resolves the template `count` times with independently derived seeds. Sampling is with replacement, so repeats are possible. | You want a controlled number of quick variations without expanding the complete space. |
-| **Combinatorial** | Expands every **unmarked** wildcard and choice group into the full Cartesian product, stopping at `max_prompts`. | You want every subject × outfit × location pairing, a test matrix, or a complete prompt sweep. |
+| **Random** | Resolves the template `count` times with independently derived seeds (sampling with replacement). | You want a fixed number of variations without expanding the full matrix. |
+| **Combinatorial** | Expands every **unmarked** `__wildcard__` and `{a\|b}` group into the full Cartesian product, stopping at `max_prompts` (`0` = built-in limit of **5,000**). | You want every subject × outfit × lighting combination or a complete test matrix. |
 
-Example:
-
-```text
-a __subject__ wearing __outfit__ in __location__
-```
-
-With 3 subjects, 4 outfits, and 5 locations, Combinatorial mode produces `3 × 4 × 5 = 60` prompts.
-
-### Controls
-
-- `count` — number of prompts in Random mode; ignored in Combinatorial mode.
-- `seed` — base seed used to make the run reproducible.
-- `seed_mode`
-  - **Sequential** — `seed`, `seed + 1`, `seed + 2`, …
-  - **Fixed** — reuse the same seed for every generated prompt.
-  - **Random** — derive a reproducible sequence of random seeds from the base seed.
-- `max_prompts` — Combinatorial-only safety cap. `0` uses the built-in limit of **5,000**.
-- **Estimated output** — updates before the run and warns when expansion will hit the cap.
-
-### What expands—and what does not
-
-In Combinatorial mode, ordinary unmarked groups expand:
-
-```text
-__subject__
-{red|blue|green}
-```
-
-A group carrying an explicit sampler marker such as `+`, `-`, `*`, `~`, `@`, or `%` opts out of full expansion and makes one pick per generated prompt. This lets one part of a template stay random or sequential while the rest expands exhaustively.
-
-### Outputs and fan-out
-
-The node has two kinds of outputs. Open the **Ports** button on the node to search, filter, apply **Saved port layouts**, or show and hide any of them.
-
-**List outputs** hold one entry per generated prompt: `Model list`, `CLIP list`, `Conditioning list`, `Prompt list`, `Seed list`, `Wildcards used`, `Prompt metadata (JSON) list`, `Negative prompt list`, and `Negative conditioning list`. Positive and negative lists use the same order. Ordinary batches repeat their shared negative; prepared batches can carry different negatives. When individual Fields enable **Output text → Socket (STRING)**, matching per-field `STRING` list outputs appear in **Ports** as well.
-
-**Single-value outputs** are not lists, so whatever they feed runs once per queue, not once per prompt:
-
-| Output | Value |
-|---|---|
-| `Model (passthrough)` / `CLIP (passthrough)` | The connected Model / CLIP, unchanged |
-| `Conditioning (first)` | Conditioning for the first generated prompt (needs CLIP) |
-| `Negative conditioning` | The first negative prompt encoded with the unpatched CLIP (needs CLIP) |
-| `Prompt (first)` / `Seed used (first)` | The first generated prompt and its seed |
-| `Negative prompt` | The first resolved negative text; ordinary batches share it across all prompts |
-| `Wildcards used (JSON)` / `Wildcards used (count)` | Wildcard files picked during the batch, as one JSON value / a count |
-| `Raw text (unresolved)` | The template before resolution |
-| `Used enhancer override` | True when the enhancer override replaced the prompts |
-| `CLIP token count (max)` | Highest CLIP-L token count in the batch, or `-1` |
-| `Batch metadata (JSON)` / `Prompt count` | One record for the whole batch / how many prompts were generated |
-
-The node also accepts the same optional input sockets as Prompt Palette: `Prompt prefix`, `Prompt suffix`, `LLM / enhancer override`, `External seed`, `Negative prompt (text)`, `Negative prefix`, and `Negative suffix`. Prefix and suffix are resolved per generated prompt (they are not expanded combinatorially). An enhancer override replaces every prompt and keeps the batch length and seeds.
+- **Opting out of expansion:** Any group carrying an explicit sampler marker (`+`, `-`, `*`, `~`, `@`, or `%`) makes one pick per generated prompt instead of expanding combinatorially—ideal for keeping background details varied while systematically sweeping core attributes.
+- **Controls & live estimate:** Configure `count`, `seed`, `seed_mode` (**Sequential**, **Fixed**, or **Random**), and `max_prompts` while **Estimated output** warns before hitting the cap.
+- **List outputs vs. single-value outputs:** Connect **List outputs** (`Model list`, `CLIP list`, `Conditioning list`, `Prompt list`, `Seed list`, `Wildcards used`, `Prompt metadata (JSON) list`, `Negative prompt list`, `Negative conditioning list`, and per-field `Out: <Field>` lists) to fan out downstream, or read **Single-value outputs** (`Conditioning (first)`, `Prompt (first)`, `Batch metadata (JSON)`, `Prompt count`, etc.) once per queue.
+- **Per-row LoRAs:** With both **Model** and **CLIP** connected, each generated prompt applies its own LoRA stack before encoding.
 
 > [!WARNING]
-> In ComfyUI, a list output can cause connected downstream nodes to execute once per item. An estimated output of 500 prompts can therefore become 500 sampler runs. Use the live estimate and `max_prompts` deliberately.
+> In ComfyUI, list outputs cause connected downstream nodes to execute once per item. Check **Estimated output** and set `max_prompts` deliberately before queueing large sweeps.
 
-When both MODEL and CLIP are connected, each generated prompt can load and apply its own LoRA tags before encoding. That matters when different wildcard combinations select different LoRAs.
-
----
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="weight-controller"></a>
-<img width="1600" height="190" alt="section-weight-controller" src="https://github.com/user-attachments/assets/5912fc8b-ef24-4e0f-a164-9d52a259d248" />
+<p align="center">
+  <img width="1600" height="190" alt="Prompt Palette (Weight Controller)" src="https://github.com/user-attachments/assets/5912fc8b-ef24-4e0f-a164-9d52a259d248" />
+</p>
 
-The Weight Controller is a standalone text-routing companion. Feed it Prompt Palette's resolved `prompt`, `negative_prompt`, `raw_text`, or any other STRING. It reads explicit `(phrase:weight)` annotations and returns the format expected by the selected backend.
+The **Weight Controller** is a standalone backend-aware routing companion. Feed it Prompt Palette's resolved `prompt`, `negative_prompt`, `raw_text`, or any `STRING`; it parses explicit `(phrase:weight)` groups and outputs the exact syntax expected by your encoder.
 
-<img width="1600" height="500" alt="diagram-weight-controller" src="https://github.com/user-attachments/assets/66a68575-1d31-4342-9426-673c52b40d54" />
+<p align="center">
+  <img src="docs/assets/readme/weight-routing.svg" alt="Weight Controller routing (red fox:1.35) to SDXL/CLIP, clean prose for Qwen/T5/LLM, and explicit weights for Anima" width="900" />
+</p>
 
-### Input syntax
+<p align="center">
+  <img width="1600" height="500" alt="Prompt Palette Weight Controller node overview diagram" src="https://github.com/user-attachments/assets/66a68575-1d31-4342-9426-673c52b40d54" />
+</p>
 
 ```text
 a portrait of a (red fox:1.35), dusk lighting, (blurry:-0.8)
 ```
 
-- Weight `1.0` is neutral.
-- Values above `1.0` emphasize a phrase.
-- Values below `1.0` reduce it.
-- Negative values request suppression where the downstream backend supports negative weighting.
-- Nested weighted parentheses are not supported; keep each weighted phrase in its own top-level group.
-- Bare `(word)` or `[word]` shorthand is not interpreted. Use the explicit `:weight` form.
-
-### Weighting modes
-
-| Mode shown in the node | `text` output | Typical route |
+| Mode | `text` output | Typical route |
 |---|---|---|
-| **SDXL / CLIP (Standard)** | Keeps `(phrase:weight)` annotations intact | Standard ComfyUI CLIP tokenization; connect CLIP for direct conditioning |
-| **Krea 2 / ZIT (Qwen)** | Returns clean de-bracketed prose | Send clean text to the Qwen-family encoder; use `negpip_compatible` for a downstream attention/negative-weight patcher that parses explicit weights |
-| **LTX 2.3 / T5 (LLM)** | Returns clean de-bracketed prose | LLM/T5/Gemma-style text encoders that should receive natural language without literal weight brackets |
-| **Anima 1.0 (High-Scale Qwen)** | Keeps explicit weights up to `3.5` without boosting | Anima / high-scale Qwen setups that support explicit `(phrase:weight)` syntax directly while leaving `@Artist Name` and JSON literals intact |
+| **SDXL / CLIP (Standard)** | Keeps `(phrase:weight)` intact | Standard ComfyUI CLIP tokenization; connect `CLIP` for direct conditioning |
+| **Krea 2 / ZIT (Qwen)** | Clean de-bracketed prose | Qwen-family encoders; route `negpip_compatible` to a downstream weight/negative patcher if needed |
+| **LTX 2.3 / T5 (LLM)** | Clean de-bracketed prose | LLM / T5 / Gemma encoders expecting natural language without literal brackets |
+| **Anima 1.0 (High-Scale Qwen)** | Keeps explicit weights up to `3.5` without boosting | Anima / high-scale Qwen pipelines; preserves `@Artist Name`, nested explicit groups, and JSON literals |
 
-### Outputs
+- **Outputs:** `text`, `weight_dict` (raw `{phrase: weight}` excluding `1.0`), `negpip_compatible`, `conditioning` (when `CLIP` is connected), `model` / `clip` passthroughs, and `clip_token_count`.
+- **Advanced controls (off by default):** **Soft Safety Clamp** compresses extreme weights toward `1.0`, and **Zero Inversion Null** strips negatively weighted phrases in clean-prose modes instead of turning them into ordinary text. `weight_dict` always preserves your authored numbers.
 
-- `text` — formatted for the selected weighting mode.
-- `weight_dict` — raw `{phrase: weight}` values exactly as authored, excluding neutral `1.0` segments.
-- `negpip_compatible` — always emits explicit weighted text for downstream nodes that parse `(phrase:weight)`.
-- `conditioning` — populated when CLIP is connected.
-- `model` / `clip` — untouched passthrough sockets for cleaner graphs.
-- `clip_token_count` — token count for the node's final `text` output.
-
-### Advanced controls
-
-Advanced controls are intentionally off by default.
-
-- **Soft Safety Clamp** compresses extreme weights toward `1.0` while leaving values near neutral mostly unchanged.
-- **Zero Inversion Null** affects clean-prose modes only. Because plain prose cannot carry a negative multiplier, negatively weighted phrases are removed instead of silently becoming normal unweighted text.
-
-> [!IMPORTANT]
-> `weight_dict` always preserves the raw number you entered. Clamping and negative routing affect generated text/conditioning outputs—not the dictionary.
-
-### Recommended wiring
-
-Connect Prompt Palette's `prompt` output to Weight Controller's `text` input, then choose the output your workflow needs:
-
-| Output | Connect to |
-|---|---|
-| `text` | Your model's text encoder |
-| `negpip_compatible` | A compatible attention or negative-weight patcher |
-| `conditioning` | The sampler's conditioning input, when CLIP is connected |
-
-Add a second Weight Controller after Prompt Palette's `negative_prompt` output when the positive and negative sides need independent handling.
-
----
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="wildcard-syntax"></a>
-<img width="1600" height="190" alt="section-syntax" src="https://github.com/user-attachments/assets/0f2fe042-9ea2-4ec2-8236-1493e3b54fc5" />
-
-The **Syntax Injector** inserts most of this for you from the wildcard browser or a token's right-click menu.
-
-<img width="759" height="576" alt="Screenshot 2026-08-16 114940" src="https://github.com/user-attachments/assets/a0a2c32f-6adb-4e1f-bdb4-ab625b394624" />
+<p align="center">
+  <img width="1600" height="190" alt="Wildcard & Dynamic Syntax" src="https://github.com/user-attachments/assets/0f2fe042-9ea2-4ec2-8236-1493e3b54fc5" />
+</p>
 
 ### Everyday syntax
 
 | Syntax | Meaning |
 |---|---|
 | `__name__` | Seeded random line from a wildcard file |
-| `__*name__` or `__~name__` | Unseeded random line; may change every run |
-| `__+name__` | Sequential forward |
-| `__-name__` | Sequential backward |
-| `__@name__` | Cyclical/sequential-forward alias used by Dynamic Prompts syntax |
-| `__%name__` | Joint combinatorial step across every `%` group in the same normal Prompt Palette resolve call |
-| `{a\|b\|c}` | Seeded inline choice |
-| `{*a\|b\|c}` or `{~a\|b\|c}` | Unseeded inline choice |
-| `{+a\|b\|c}` / `{-a\|b\|c}` | Sequential inline choice |
-| `{@a\|b\|c}` | Cyclical inline choice |
-| `{%a\|b\|c}` | Joint combinatorial inline step |
+| `__*name__` / `__~name__` | Unseeded random line; may change every run |
+| `__+name__` / `__-name__` | Sequential forward / backward |
+| `__@name__` | Cyclical/sequential-forward alias (Dynamic Prompts syntax) |
+| `__%name__` | Joint combinatorial step across every `%` group per Prompt Palette resolve call |
+| `{a\|b\|c}` | Seeded inline choice (`*`/`~` unseeded, `+`/`-` sequential, `@` cyclical, `%` joint step) |
 | `{2::common\|1::rare}` | Weighted random choice |
-| `{2$$, $$a\|b\|c}` | Pick exactly two items and join with `, ` |
-| `{1-3$$, $$a\|b\|c}` | Pick between one and three items |
-| `<lora:name:0.8>` | Load/apply a LoRA when MODEL and CLIP are connected |
+| `{2$$, $$a\|b\|c}` | Pick exactly two items and join with `, ` (`{1-3$$, $$...}` for a range) |
+| `<lora:name:0.8>` | Load/apply a LoRA when **Model** and **CLIP** are connected (`<lora:name>` defaults to `1.0`) |
 
 <details>
-<summary><strong>Advanced templates, globs, and variables</strong></summary>
+<summary><strong>Advanced templates, globs, variables, and conditionals</strong></summary>
 
 | Syntax | Meaning |
 |---|---|
 | `__colours*__` | Pool entries from wildcard names matching a glob pattern |
 | `__artists/**__` | Recursive wildcard glob below a folder |
-| `__template(subject=fox)__` | Use a wildcard file as a parameterized multi-line template |
-| `${name=value}` | Assign a variable that is re-evaluated when read |
-| `${name=!value}` | Assign and resolve a variable once immediately |
-| `${name}` | Read a variable |
-| `${name:default}` | Read a variable with fallback text |
+| `__template(subject=fox)__` | Parameterized multi-line template wildcard |
+| `${name=value}` / `${name=!value}` | Assign a lazy variable / resolve-immediately variable |
+| `${name}` / `${name:default}` | Read a variable (with optional fallback) |
 | `{3#__name__}` | Expand the wildcard token three times before multi-select processing |
-| `[if expression] ... [elif expression] ... [else] ... [/if]` | Conditionally include prompt text using existing Prompt Palette variables |
-| `[switch name][case "value"]text[default]fallback[/switch]` | Use the first matching case, or the default when none match |
+| `[if expr] ... [elif expr] ... [else] ... [/if]` | Conditional prompt blocks supporting `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `and`, `or`, `not` |
+| `[switch name][case "val"]text[default]fallback[/switch]` | Multi-branch switch on a Prompt Palette variable |
 
-Nesting is resolved innermost-first. Lines beginning with `#` are treated as comments and omitted during resolution.
+Nesting resolves innermost-first. Lines starting with `#` are treated as comments and omitted at resolution time. Complete valid JSON objects—such as **MOSS-Image** spatial layout guidance (see [MOSS_PROMPTING.md](MOSS_PROMPTING.md))—remain literal through resolution and batches while choices and wildcards outside JSON resolve normally.
 
-### Conditional prompt blocks
-
-Conditional blocks include different text based on your prompt variables. Conditions operate on Prompt Palette variables and are evaluated again for each Combinatorial branch.
-
-```text
-${style=anime}
-A character portrait. [if style == "anime"]cel shading, vivid colors[elif style == "realistic"]natural skin texture, realistic lighting[else]clean studio lighting[/if]
-```
-
-Supported operators are `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `and`, `or`, and `not`. `in` accepts a compact pipe-separated set such as `style in anime|illustration|realistic`. Conditionals can be nested.
-
-Use **switch** for several alternatives based on one variable:
-
-```text
-${mood=calm}
-A landscape, [switch mood][case "calm"]soft morning light[case "dramatic"]storm clouds and hard shadows[default]balanced daylight[/switch]
-```
-
-The first matching case is used; otherwise the default text is included. For combined conditions, use expressions such as `[if style == "anime" and mood != "dark"]vivid cel shading[/if]`.
-
-The sidebar's **Syntax** tab explains these patterns and lets you edit a template before inserting it. You can also open **Choices & rules** from a prompt's right-click menu.
+> **Note:** In the standard **Prompt Palette** node, `%` syntax advances **one joint combination per execution**. In **Combinatorial**, unmarked groups expand into the full set in one execution without requiring `%`.
 
 </details>
 
----
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
-### `%` inside Prompt Palette vs. the Combinatorial node
+<p align="center">
+  <img width="1600" height="190" alt="Quick Reference, Troubleshooting & Credits" src="https://github.com/user-attachments/assets/ec90b3aa-1423-4020-a580-b53502a19a8d" />
+</p>
 
-- `%` syntax in the regular Prompt Palette node advances **one joint combination per execution**.
-- The dedicated Combinatorial node returns the **entire expansion set in one execution** and does not require `%` markers.
-
----
-
-<a id="booru-autocomplete"></a>
-## Booru autocomplete & custom words
-
-Type a tag after a space or comma to search the bundled offline Danbooru tags and your custom words. Choosing a result inserts plain prompt text. Typing `__` still opens wildcard suggestions.
-
-### Anima artist search
-
-Type **`@`** followed by a name to search the separate bundled **Anima artist snapshot**. Selecting an artist inserts **`@artist name`**. Use the sidebar's **Explore → Anima** collection to discover names without already knowing what to type.
-
-The **Anima artist formatting** setting can also format recognized artist suggestions for Anima. Other Booru tags and custom words remain literal prompt text, and only library entries are inserted as `__wildcards__`. Artist results depend on the checkpoint; the local name collection does not certify model support.
-
-`@artist` is different from `__@name__`: the former is Anima artist text; the latter is the existing sequential wildcard alias.
-
-### Autocomplete settings
-
-Open **Settings → Editor & suggestions**:
-
-| Setting | What it does |
-|---|---|
-| **Off** | Turns off bare-word tag suggestions; wildcard autocomplete remains available. |
-| **Auto** | Opens suggestions after the minimum number of characters. |
-| **On demand** | Opens suggestions when you press `Ctrl+Space`. |
-| **Minimum characters** | Choose `1`–`12`; default is `2`. |
-| **Booru database / Custom Words** | Choose which sources to search. |
-| **Color tags in prompt** | Colors recognized tags in the editor by category. |
-
-Use arrow keys to browse, `Enter` or `Tab` to insert, and `Esc` to close. Optional menu controls convert **underscores → spaces** or **append comma**; your choices are saved. Booru tags and custom words are inserted as stored, subject to your selected formatting options; they are not wrapped in `__`.
-
-### Filter by category
-
-| Search | Category |
-|---|---|
-| `artist:monet` | Artists |
-| `character:saber` | Characters |
-| `series:zelda` | Series / copyright |
-| `general:portrait` | General tags |
-| `meta:highres` | Metadata tags |
-
-Aliases `art:`, `char:`, `copyright:`, `copy:`, and `gen:` also work. Selecting a result replaces the category prefix and search term with the tag. Filters also apply to categorized custom words, favorites, and recents; uncategorized words remain available in ordinary searches.
-
-### Readable suggestions
-
-- Category colors follow your theme and remain separate from wildcard folder colors.
-- Recognized tags can keep their colors inside the prompt, including pasted and saved tags.
-- Tags already in the prompt are dimmed and marked with `✓`.
-- Search matches tags and aliases, including text inside a name; multiple search terms can appear in any order.
-- Exact custom-word matches take priority over database tags.
-
-### Add, import & export custom words
-
-Click **+ Custom word** in the autocomplete menu to save a word or phrase. Add optional shortcuts and a category, then press **Save**. Use **Manage** to search, remove, import, or export entries. CSV and text imports can add to or replace your list; replacement keeps a backup. Large imports of **100 MB or more** ask for confirmation.
-
-Custom words are saved in `prompt_palette/autocomplete.txt` inside ComfyUI's user directory and survive extension updates. To edit them by hand, use one entry per line:
-
-```csv
-tag,category,count,aliases
-saber_(fate),character,120000,"saber,/sab"
-hatsune_miku,character
-fate/grand_order,series,90000
-long phrase to insert,lp
-```
-
-Only the tag is required. Categories accept names or Danbooru IDs: `0` general, `1` artist, `3` copyright, `4` character, and `5` meta. Optional counts rank entries; aliases provide search shortcuts. A two-column `phrase,shortcut` row saves a phrase with a shortcut.
-
-To create a wildcard list from a prompt, select comma- or newline-separated tags and choose **Save as list** in the autocomplete menu. This works in Editor and Combinatorial.
-
----
-
-<img width="1600" height="190" alt="section-reference" src="https://github.com/user-attachments/assets/ec90b3aa-1423-4020-a580-b53502a19a8d" />
-
-### Keyboard and mouse shortcuts
+### Keyboard & mouse shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl/Cmd + Z` | Undo |
-| `Ctrl/Cmd + Shift + Z` or `Ctrl/Cmd + Y` | Redo |
-| `Ctrl/Cmd + F` in main prompt | Open Find in the current prompt |
-| `Ctrl + H` or `Cmd + Option + F` in main prompt | Open Replace with match preview |
+| `Ctrl/Cmd + Z` / `Ctrl/Cmd + Shift + Z` (or `Y`) | Undo / Redo |
+| `Ctrl/Cmd + F` / `Ctrl + H` (`Cmd + Option + F`) | Open Find / Replace with preview in the main prompt |
 | `Alt/Option + 1–4` (`+ Shift` to copy) | Switch to (or copy current draft into) quick draft **A–D** |
 | `Shift + Click` on toolbar **Seed** pill | Open **Wheel of Fortune** directly |
-| `Ctrl+Space` in On-demand mode | Open Booru autocomplete for the current bare word |
-| `Ctrl/Cmd + S` in the Edit drawer | Save the current wildcard file |
-| `Ctrl/Cmd + F` in a library editor | Find text within the current entry |
-| `Ctrl+Space` in a library editor | Open available suggestions at the cursor |
-| `Arrow keys` / `Home` / `End` in **Generation Inspector** | Step between generation cards or **A/B wipe** divider |
-| `Esc` | Close the active flyout, inspector, drawer, menu, or popup |
-| `Ctrl/Cmd + Enter` | Pass the run shortcut through to ComfyUI |
-| Right-click prompt text | Open Prompt Palette actions |
-| `Alt/Option` + right-click prompt text | Open native spelling and editing tools |
-| Right-click a wildcard token | Open the Syntax Injector for that occurrence |
-| Double-click a wildcard token | Open that wildcard in the Edit drawer |
+| `Ctrl + Space` | Open autocomplete in **On demand** mode or inside a library editor |
+| `Ctrl/Cmd + S` / `Ctrl/Cmd + F` in Edit drawer | Save wildcard file / Find within entry |
+| `Arrow keys` / `Home` / `End` in **Generation Inspector** | Step between generation cards or adjust the **A/B wipe** divider |
+| `Esc` | Close the topmost active flyout, inspector, drawer, menu, or popup |
+| `Ctrl/Cmd + Enter` | Pass ComfyUI's run shortcut through while editing |
+| Right-click / `Alt/Option` + right-click prompt text | Prompt Palette actions / native spelling & OS edit tools |
+| Right-click / Double-click a `__wildcard__` | Open Syntax Injector for that token / open in the Edit drawer |
 
 <a id="troubleshooting"></a>
-### Troubleshooting
+### Troubleshooting & Compatibility
 
 <details>
 <summary><strong>The node loads, but its custom UI does not appear</strong></summary>
 
 1. Update ComfyUI and its frontend.
-2. Restart ComfyUI completely.
-3. Hard-refresh the browser (`Ctrl/Cmd + Shift + R`).
-4. Confirm the repository folder is named `comfyui-promptpalette` and contains the `web/` directory.
-5. Open the browser console and look for messages beginning with `[PromptPalette]` or `Prompt Palette:`.
-6. When reporting the issue, include whether you use Desktop or portable, Nodes 1.x or 2.x, the frontend version, and the first relevant console error.
+2. Restart ComfyUI completely and hard-refresh the browser (`Ctrl/Cmd + Shift + R`).
+3. Confirm the repository folder is named `comfyui-promptpalette` and contains the `web/` directory.
+4. Check the browser console for messages starting with `[PromptPalette]` or `Prompt Palette:`.
 </details>
 
 <details>
 <summary><strong>My wildcard stays unresolved</strong></summary>
 
-- Confirm the file exists below the active wildcard library path.
-- Use slash paths without the file extension: `characters/monsters.txt` becomes `__characters/monsters__`.
-- Click Refresh in the wildcard browser after external file changes.
-- A bare leaf name works only when it is unambiguous across the library.
+- Confirm the file exists inside the active wildcard library path and use slash paths without the extension (`characters/monsters.txt` → `__characters/monsters__`).
+- Click **Refresh** in the wildcard browser after adding files externally. Bare leaf names resolve only when unambiguous across folders.
 </details>
 
 <details>
 <summary><strong>Combinatorial mode creates too many runs</strong></summary>
 
-Check **Estimated output** before queueing. Reduce the wildcard sizes, mark groups that should make only one pick, or set a lower `max_prompts` value.
+Check **Estimated output** before queueing. Reduce wildcard sizes, mark groups that should make only one pick (`+`, `-`, `*`, `~`, `@`, `%`), or lower `max_prompts`.
 </details>
 
 <details>
 <summary><strong>Weights appear as literal text</strong></summary>
 
-Confirm the selected mode matches the connected text encoder. Standard ComfyUI CLIP can interpret explicit weighted syntax; Qwen/LLM-style encoders generally need clean prose plus a compatible downstream weighting patcher.
+Confirm the Weight Controller mode matches your text encoder. Standard ComfyUI CLIP parses explicit `(phrase:weight)` syntax; Qwen/LLM-style encoders need clean prose plus a compatible downstream weighting patcher.
 </details>
 
-### Compatibility
-
-Native spelling suggestions depend on the browser/Desktop spellchecker and installed language dictionaries. Use **Alt/Option+right-click** inside prompt text to access them.
-
-- ComfyUI Nodes **1.x and 2.x**
-- ComfyUI Desktop and portable installations
-- `.txt`, `.yaml`, and `.yml` wildcard libraries
-- Large nested wildcard libraries with cached/background scanning
-
-When reporting a bug, include a minimal workflow, exact reproduction steps, console output, ComfyUI/frontend versions, node mode, and Desktop vs. portable.
-
+- **Supported environments:** ComfyUI **Nodes 1.x and 2.x**, ComfyUI Desktop and portable installations, `.txt` / `.yaml` / `.yml` wildcard libraries, and large nested directories with cached background scanning. All browsing, autocomplete, LoRA metadata, and history tools operate **100% locally**.
 
 ### Credits
 
-Prompt Palette builds on work and conventions from:
+Prompt Palette builds on conventions and inspiration from:
 
-- **ComfyUI and the ComfyUI community** — the node-based creative platform and ecosystem.
-- **Adi Eyal / Dynamic Prompts** — the wildcard and dynamic-prompt conventions that inspired much of the supported syntax.
-- **Jtkelm2 and AUTOMATIC1111 contributors** — early text-file prompt replacement workflows and conventions.
+- **ComfyUI and the ComfyUI community** — the node-based creative ecosystem.
+- **Adi Eyal / Dynamic Prompts** — wildcard and dynamic-prompt syntax conventions.
+- **Jtkelm2 and AUTOMATIC1111 contributors** — early text-file prompt replacement workflows.
 
-By **z3rofeels**.
+Built by **z3rofeels**.
 
 <p align="center">
+  <a href="https://z3rofeels.github.io/comfyui-promptpalette/">Website &amp; Live Studio</a> ·
   <a href="https://github.com/z3rofeels/comfyui-promptpalette/issues">Report a bug</a> ·
   <a href="https://github.com/z3rofeels/comfyui-promptpalette/discussions">Start a discussion</a> ·
   <a href="https://github.com/z3rofeels/comfyui-promptpalette">Star Prompt Palette</a>

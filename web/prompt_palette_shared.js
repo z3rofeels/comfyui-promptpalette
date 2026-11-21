@@ -320,18 +320,18 @@ export function clearLegacyPromptPaletteGlobalTheme() {
 }
 
 /** Copy the currently resolved Prompt Palette variables to a body-mounted Prompt Palette popup. */
-export function copyPromptPaletteThemeScope(source, target) {
-  if (!source || !target?.style || typeof globalThis.getComputedStyle !== "function") return;
+export function copyPromptPaletteThemeScope(source, target, declaration = target?.style) {
+  if (!source || !target || !declaration || typeof globalThis.getComputedStyle !== "function") return;
   const computed = getComputedStyle(source);
   for (const key of [...PROMPT_PALETTE_THEME_KEYS, ...PROMPT_PALETTE_TYPOGRAPHY_KEYS, ...PROMPT_PALETTE_EFFECT_KEYS]) {
     const value = computed.getPropertyValue(`--wg-${key}`).trim();
-    if (value) target.style.setProperty(`--wg-${key}`, value);
-    else target.style.removeProperty(`--wg-${key}`);
+    if (value) declaration.setProperty(`--wg-${key}`, value);
+    else declaration.removeProperty(`--wg-${key}`);
   }
   const finish = source.dataset?.wgFinish;
   if (finish) target.dataset.wgFinish = finish;
   target.dataset.wgTone = source.dataset?.wgTone || panelToneFor(source);
-  target.style.colorScheme = target.dataset.wgTone;
+  declaration.setProperty("color-scheme", target.dataset.wgTone);
 }
 
 /** Position an existing, non-interactive preview inside the browser viewport. */

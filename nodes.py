@@ -1130,6 +1130,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         variables_dict.update(resolver.export_variables())
         variables_json = json.dumps(variables_dict, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
+        source_prompt = compose_source_prompt([prompt_prefix, text, prompt_suffix], "entire text as one")
+        source_negative_prompt = compose_source_prompt(
+            [negative_prefix, negative_text, negative_suffix], "entire text as one"
+        )
         out_models, out_clips, conditioning, out_prompts = [], [], [], []
         prompt_metadata = []
         lora_cache = {}
@@ -1155,8 +1159,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                 node_type="PromptPaletteCombinatorial",
                 prompt=out_prompts[-1],
                 negative_prompt=output_negatives[index],
-                source_prompt=text,
+                source_prompt=source_prompt,
+                source_negative_prompt=source_negative_prompt,
                 source_text=text,
+                source_negative_text=negative_text,
                 seed=seeds_out[index],
                 processing_mode=mode,
                 wildcards_used=used_names,
@@ -1175,6 +1181,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     "encoded_negative_prompt": encode_negative,
                     "prepared_variation": bool(prepared),
                     "variables": variables_dict,
+                    "prompt_prefix": prompt_prefix,
+                    "prompt_suffix": prompt_suffix,
+                    "negative_prefix": negative_prefix,
+                    "negative_suffix": negative_suffix,
                     **({"branch_selections": body_branch_selections} if index == 0 and body_branch_selections else {}),
                     **({"comparison": "one-field", "trial_label": prepared["labels"][index]} if prepared and prepared.get("comparison") == "one-field" else {}),
                 },
@@ -1210,11 +1220,12 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             "positive_antonyms": positive_antonyms,
             "resolution_seed": prepared.get("resolution_seed") if prepared else None,
             "count": n,
-            "source_prompt": text,
+            "source_prompt": source_prompt,
             "source_text": text,
             "negative_prompt": resolved_negative,
             "varying_negatives": len(set(negatives)) > 1,
             "comparison": prepared.get("comparison") if prepared else None,
+            "source_negative_prompt": source_negative_prompt,
             "source_negative_text": negative_text,
             "prompt_prefix": prompt_prefix,
             "prompt_suffix": prompt_suffix,

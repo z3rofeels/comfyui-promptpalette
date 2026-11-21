@@ -1,4 +1,6 @@
 import { readStarterPreference, writeStarterPreference } from "./prompt_palette_state.js";
+import { loadTheme } from "./editor/preferences.js";
+import { onPromptPaletteAppearanceChanged } from "./prompt_palette_shared.js";
 
 const CATALOG_URL = new URL("./prompt_library_catalog.json", import.meta.url).href;
 let catalogPromise = null;
@@ -277,7 +279,10 @@ export function createStarterPackController({
     if (!model) return;
     modelSummary.style.setProperty("--starter-accent", model.accent || "#d49a52");
     const auto = currentModelId === "auto" ? `<span class="wg-starter-auto-note" title="${escapeHtml(suggestedModelDetail)}">AUTO</span>` : "";
-    modelSummary.innerHTML = `<div>${auto}<span class="wg-starter-summary-badge">${escapeHtml(model.kind || "Model")}</span><strong>${escapeHtml(model.name)}</strong><p>${escapeHtml(model.summary || "")}</p></div>`;
+    const styleStudioBridge = loadTheme().styleSelectorEnabled === true
+      ? `<button type="button" class="wg-starter-style-bridge" data-starter-style-studio="1" title="Open Style Studio to mix proven Krea 2 &amp; MOSS styles, cameras, lenses, angles, poses &amp; dialects">Style Studio ↗</button>`
+      : "";
+    modelSummary.innerHTML = `<div>${auto}<span class="wg-starter-summary-badge">${escapeHtml(model.kind || "Model")}</span><strong>${escapeHtml(model.name)}</strong><p>${escapeHtml(model.summary || "")}</p>${styleStudioBridge}</div>`;
   }
 
   function matchingCategories() {
@@ -291,7 +296,9 @@ export function createStarterPackController({
         if (filterMode === "favorites" && !isFavorite?.(prompt.id)) return false;
         if (filterMode === "recent" && !recent.has(String(prompt.id))) return false;
         if (!query) return true;
-        const haystack = `${prompt.title} ${prompt.note || ""} ${prompt.prompt || ""} ${prompt.subcategory || ""} ${category.name} ${category.description || ""}`.toLowerCase();
+        const tags = Array.isArray(prompt.tags) ? prompt.tags.join(" ") : "";
+        const facets = Array.isArray(prompt.facets) ? prompt.facets.join(" ") : "";
+        const haystack = `${prompt.title} ${prompt.note || ""} ${prompt.prompt || ""} ${prompt.subcategory || ""} ${tags} ${facets} ${category.name} ${category.description || ""}`.toLowerCase();
         return haystack.includes(query);
       });
       if (prompts.length) categories.push({ category, prompts });
@@ -448,7 +455,25 @@ export function createStarterPackController({
     renderTree();
   };
 
+  const onSummaryClick = async (event) => {
+    const button = event.target.closest?.("[data-starter-style-studio]");
+    if (!button || disposed) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (loadTheme().styleSelectorEnabled !== true) return;
+    try {
+      const { openStyleSelector } = await import("./editor/style_selector.js");
+      if (!disposed) openStyleSelector?.(textarea);
+    } catch (error) {
+      notify?.("error", "Style Studio could not be opened", error?.message || "Module load failed.");
+    }
+  };
+  const unsubAppearance = onPromptPaletteAppearanceChanged(() => {
+    if (!disposed && catalog) renderSummary();
+  });
+
   modelSelect.addEventListener("change", onModelChangeEvent);
+  modelSummary.addEventListener("click", onSummaryClick);
   tree.addEventListener("toggle", onTreeToggle, true);
   tree.addEventListener("click", onTreeClick);
   tree.addEventListener("keydown", onTreeKeydown);
@@ -492,7 +517,9 @@ export function createStarterPackController({
     cleanup() {
       disposed = true;
       active = false;
+      unsubAppearance?.();
       modelSelect.removeEventListener("change", onModelChangeEvent);
+      modelSummary.removeEventListener("click", onSummaryClick);
       tree.removeEventListener("toggle", onTreeToggle, true);
       tree.removeEventListener("click", onTreeClick);
       tree.removeEventListener("keydown", onTreeKeydown);

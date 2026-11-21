@@ -8,11 +8,33 @@ export function loraPreviewOptions(metadata) {
   return options;
 }
 
-export function createLoraPreviews(urlFor, { probe, customBlob, canPlay = () => true, onError = () => {}, onReady = () => {} } = {}) {
+export function createLoraPreviews(urlFor, {
+  probe,
+  customBlob,
+  canPlay = () => true,
+  onError = () => {},
+  onReady = () => {},
+  root = null,
+  rootMargin = '120px',
+  onDimensions = () => {},
+  onMediaError = () => {},
+} = {}) {
   const records = new Set(), lookup = new WeakMap();
+  const reportedErrors = new Set(), lastErrorByMsg = new Map();
   let reportedPlayError = false;
   // A card rebuilt under a resting pointer is created detached, so :hover could not be known then.
   const refreshHover = record => { try { record.hovered = record.owner.matches(':hover'); } catch { /* Keep prior state. */ } };
+  function notifyError(name, msg) {
+    const text = String(msg || 'Could not display the local preview');
+    const key = `${name}\0${text}`;
+    if (reportedErrors.has(key)) return;
+    reportedErrors.add(key);
+    const now = Date.now();
+    const prev = lastErrorByMsg.get(text) || 0;
+    if (now - prev < 2000) return;
+    lastErrorByMsg.set(text, now);
+    onError(name, text);
+  }
   function reportPlayError(record, error) {
     if (!error || error.name === 'AbortError' || record.closed) return;
     console.warn('[Prompt Palette] LoRA video preview could not play:', error.name, error.message);
@@ -30,10 +52,11 @@ export function createLoraPreviews(urlFor, { probe, customBlob, canPlay = () => 
       if (record.visible) { refreshHover(record); record.load(); }
       syncPlayback(record);
     }
-  }, { rootMargin: '100px' }) : null;
+  }, { root, rootMargin }) : null;
   function release(record) {
     record.closed = true; clearTimeout(record.timer); record.abort.abort();
     observer?.unobserve(record.frame);
+    lookup.delete(record.frame);
     for (const [event, fn] of record.listeners) record.owner.removeEventListener(event, fn);
     record.media?.pause?.(); record.media?.removeAttribute('src'); record.media?.load?.();
     if (record.objectUrl) URL.revokeObjectURL(record.objectUrl);
@@ -88,11 +111,18 @@ export function createLoraPreviews(urlFor, { probe, customBlob, canPlay = () => 
         const option = options[at];
         if (!option) {
           placeholder(frame, 'Preview unavailable', 'The local preview could not be decoded. Try another local image/video or Set image.');
-          onError(name, 'Could not display the local preview'); return;
+          notifyError(name, 'Could not display the local preview');
+          onMediaError?.(record.owner);
+          return;
         }
         const video = option.type === 'video', media = document.createElement(video ? 'video' : 'img');
         record.media = media; frame.dataset.mediaType = video ? 'video' : 'image';
-        let failed = false;
+        let failed = false, dimsSent = false;
+        const sendDimensions = (width, height) => {
+          if (dimsSent || !width || !height) return;
+          dimsSent = true;
+          onDimensions(record.owner, width, height);
+        };
         const next = () => {
           if (failed || record.closed || record.media !== media) return;
           failed = true; clearTimeout(record.timer); mount(options, at + 1);
@@ -109,7 +139,7 @@ export function createLoraPreviews(urlFor, { probe, customBlob, canPlay = () => 
           refreshHover(record);
           const width = video ? media.videoWidth : media.naturalWidth;
           const height = video ? media.videoHeight : media.naturalHeight;
-          if (width && height) owner.style.setProperty('--pp-natural-ratio', String(width / height));
+          sendDimensions(width, height);
           onReady();
           if (video) syncPlayback(record);
         };
@@ -118,6 +148,8 @@ export function createLoraPreviews(urlFor, { probe, customBlob, canPlay = () => 
           media.setAttribute('aria-label', 'Local video preview; focus to play'); media.title = `${option.name || name} · hover or focus to play`;
           media.addEventListener('loadedmetadata', () => {
             if (record.closed || record.media !== media || failed) return;
+            // Lock Masonry/Filmstrip aspect ratio from metadata before seeking frame 0.
+            sendDimensions(media.videoWidth, media.videoHeight);
             if (Number.isFinite(media.duration) && media.duration > 0) {
               record.rest = Math.min(0.1, media.duration / 2);
               media.currentTime = record.rest;
@@ -157,7 +189,9 @@ export function createLoraPreviews(urlFor, { probe, customBlob, canPlay = () => 
           mount(fallbacks);
         } catch (error) {
           if (record.closed || error.name === 'AbortError') return;
-          placeholder(frame, 'Preview request failed', error.message); onError(name, error.message);
+          placeholder(frame, 'Preview request failed', error.message);
+          notifyError(name, error.message);
+          onMediaError?.(record.owner);
         }
       };
       placeholder(frame, metadata?.has_preview === false ? (fallback || 'No local preview') : 'Loading preview…');
@@ -166,6 +200,11 @@ export function createLoraPreviews(urlFor, { probe, customBlob, canPlay = () => 
     pruneDetached() { for (const record of records) if (!record.frame.isConnected) release(record); },
     refreshPlayback() { for (const record of records) syncPlayback(record); },
     clear(root) { for (const record of records) if (root.contains(record.frame)) release(record); },
-    destroy() { observer?.disconnect(); for (const record of records) release(record); },
+    destroy() {
+      observer?.disconnect();
+      for (const record of records) release(record);
+      reportedErrors.clear();
+      lastErrorByMsg.clear();
+    },
   };
 }

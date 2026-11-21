@@ -38,6 +38,7 @@ import { libraryThumbnailActions } from "./thumbnails.js";
 import { notify } from "./notifications.js";
 import { createLibraryEntryEditor } from "./library_entry_editor.js";
 import { VirtualCollectionManager } from "../library/virtual_collection.js";
+import { PresentationScope } from "./sidebar_presentation.js";
 
 export function createLibraryController(ctx) {
   const {
@@ -147,6 +148,31 @@ export function createLibraryController(ctx) {
 
   const searchInput = el("search");
   const pickerList = el("pickerList");
+  const pickerDoc = pickerList?.ownerDocument || globalThis.document;
+  const listScope = typeof CSSStyleSheet === "function" && pickerDoc && "adoptedStyleSheets" in pickerDoc
+    ? new PresentationScope(pickerList, { scopeAttr: "data-pp-lib-scope", layoutAttr: "data-pp-lib-layout" })
+    : null;
+  const staticStyledNodes = new Set();
+  function setListProp(element, prop, value) {
+    if (!element) return;
+    if (listScope) {
+      listScope.set(element, { [prop]: value });
+      staticStyledNodes.add(element);
+    } else {
+      element.style.setProperty(prop, String(value));
+    }
+  }
+  function clearStaticStyles() {
+    if (!staticStyledNodes.size) return;
+    for (const element of staticStyledNodes) listScope?.release(element);
+    staticStyledNodes.clear();
+  }
+  function entryThumbUrl(path) {
+    const thumbRel = state.thumbMap?.[path];
+    if (!thumbRel) return "";
+    const thumbBustQs = state.thumbBust?.[path] ? `&v=${state.thumbBust[path]}` : "";
+    return API.thumbnailUrl(thumbRel, thumbBustQs);
+  }
 
   let pickerKbIndex = -1;
   function pickerRows() { return Array.from(pickerList.querySelectorAll(".wg-item[data-path], .wg-thumb-item[data-path]")); }
@@ -240,6 +266,7 @@ export function createLibraryController(ctx) {
       renderPickerList(searchInput.value);
     },
     syntax: true,
+    node,
   });
 
   const WRAP_SYNTAX = {
@@ -307,21 +334,53 @@ export function createLibraryController(ctx) {
     return row;
   }
 
-  function pickerTile(item) {
+  function wireTileImage(tile, getCollection = null) {
+    const img = tile.querySelector(".wg-thumb-img");
+    if (!img) return;
+    const reportDimensions = () => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      const collection = typeof getCollection === "function" ? getCollection() : getCollection;
+      if (collection && typeof collection.notifyMediaDimensions === "function") {
+        collection.notifyMediaDimensions(tile, img.naturalWidth, img.naturalHeight);
+        return;
+      }
+      if (getCollection) {
+        queueMicrotask(() => {
+          const deferred = typeof getCollection === "function" ? getCollection() : null;
+          if (deferred && typeof deferred.notifyMediaDimensions === "function") {
+            deferred.notifyMediaDimensions(tile, img.naturalWidth, img.naturalHeight);
+          }
+        });
+      }
+      const ratio = Math.max(0.35, Math.min(2.8, img.naturalWidth / img.naturalHeight));
+      setListProp(tile, "--pp-natural-ratio", ratio);
+    };
+    if (img.complete && img.naturalWidth && img.naturalHeight) {
+      reportDimensions();
+    } else {
+      img.addEventListener("load", reportDimensions, { once: true });
+    }
+    img.addEventListener("error", () => {
+      const collection = typeof getCollection === "function" ? getCollection() : getCollection;
+      collection?.notifyMediaError?.(tile);
+    }, { once: true });
+  }
+
+  function pickerTile(item, getCollection = null) {
     const cat = categoryOf(item.path);
     const isRecipe = isRecipeCategory(cat);
     const color = getCategoryColor(cat);
     const isPinned = pinned.has(item.path);
     const isSelected = recipeSelection.has(item.path);
     const name = item.path.split("/").pop();
-    const thumbRel = state.thumbMap[item.path];
-    const thumbBustQs = state.thumbBust[item.path] ? `&v=${state.thumbBust[item.path]}` : "";
-    const thumbHtml = libraryThumbnailMarkup(thumbRel ? API.thumbnailUrl(thumbRel, thumbBustQs) : "", isRecipe);
+    const thumbUrl = entryThumbUrl(item.path);
+    const thumbHtml = libraryThumbnailMarkup(thumbUrl, isRecipe);
 
     const tile = document.createElement("div");
-    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "") + (thumbRel ? " has-thumb" : "");
+    tile.className = "wg-thumb-item" + (isRecipe ? " wg-item-recipe" : "") + (isSelected ? " wg-selected" : "") + (thumbUrl ? " has-thumb" : "");
     tile.dataset.path = item.path;
-    tile.style.setProperty("--wg-card-accent", color);
+    tile.dataset.thumbUrl = thumbUrl;
+    setListProp(tile, "--wg-card-accent", color);
     tile.title = isRecipe ? `${item.path} (Palette Recipe)` : item.path;
     const checkboxHtml = state.recipeSelectMode
       ? `<input type="checkbox" class="wg-recipe-check wg-thumb-check" ${isSelected ? "checked" : ""} title="Add to Palette Recipe selection">`
@@ -330,7 +389,39 @@ export function createLibraryController(ctx) {
       ? `<button type="button" class="wg-inject-trigger wg-thumb-inject" title="Insert wildcard syntax for &quot;${escapeHtml(item.path)}&quot;" draggable="false">&#9889;</button>`
       : "";
     tile.innerHTML = `${thumbHtml}${checkboxHtml}${injectHtml}<span class="wg-thumb-pin ${isPinned ? "pinned" : ""}">${isPinned ? "★" : "☆"}</span><span class="wg-thumb-name">${escapeHtml(name)}</span><span class="wg-thumb-meta">${escapeHtml(item.path.includes("/") ? item.path.slice(0, item.path.lastIndexOf("/")) : "Unfiled")}</span>`;
+    wireTileImage(tile, getCollection);
     return tile;
+  }
+
+  function patchVisualTile(tile, item, getCollection = null) {
+    if (!tile || !item) return;
+    const cat = categoryOf(item.path);
+    const isRecipe = isRecipeCategory(cat);
+    const isPinned = pinned.has(item.path);
+    const isSelected = recipeSelection.has(item.path);
+    tile.classList.toggle("wg-selected", isSelected);
+    const pinEl = tile.querySelector(".wg-thumb-pin");
+    if (pinEl) {
+      pinEl.classList.toggle("pinned", isPinned);
+      pinEl.textContent = isPinned ? "★" : "☆";
+    }
+    const checkEl = tile.querySelector(".wg-recipe-check");
+    if (checkEl) checkEl.checked = isSelected;
+    const nextUrl = entryThumbUrl(item.path);
+    if ((tile.dataset.thumbUrl || "") !== nextUrl) {
+      tile.dataset.thumbUrl = nextUrl;
+      tile.classList.toggle("has-thumb", Boolean(nextUrl));
+      const media = tile.querySelector(".wg-thumb-media");
+      if (media) {
+        const temp = document.createElement("div");
+        temp.innerHTML = libraryThumbnailMarkup(nextUrl, isRecipe);
+        const nextMedia = temp.firstElementChild;
+        if (nextMedia) {
+          media.replaceWith(nextMedia);
+          wireTileImage(tile, getCollection);
+        }
+      }
+    }
   }
 
   async function copyLibraryPath(path, button = null) {
@@ -470,6 +561,12 @@ export function createLibraryController(ctx) {
       resetLibraryFilters();
       return;
     }
+    const expandAllBtn = event.target.closest('[data-act="libExpandAll"]');
+    if (expandAllBtn) {
+      event.stopPropagation();
+      expandAllCategories();
+      return;
+    }
     const clearRecent = event.target.closest('[data-act="clearRecent"]');
     if (clearRecent) {
       event.stopPropagation();
@@ -580,12 +677,35 @@ export function createLibraryController(ctx) {
 
   let renderedLibraryItems = 0;
   let workerSearchVersion = 0;
+  let needsPickerRender = false;
+  let lastObservedListWidth = pickerList.clientWidth || 0;
+  let lastRenderedSelectMode = Boolean(state.recipeSelectMode);
   const virtualManager = new VirtualCollectionManager(pickerList, {
     onVisibleCount: (count) => {
       renderedLibraryItems = count;
       profiler?.gauge("visibleLibraryItems", count);
     },
   });
+  const pickerListResizeObserver = typeof ResizeObserver !== "undefined"
+    ? new ResizeObserver(() => {
+        if (libraryDisposed) return;
+        const width = pickerList.clientWidth || 0;
+        if (width <= 0) {
+          lastObservedListWidth = 0;
+          return;
+        }
+        if (needsPickerRender && pickerDrawer.classList.contains("open") && activeLibraryTab === "personal" && performanceRuntime?.visualActive?.() !== false) {
+          lastObservedListWidth = width;
+          renderPickerList(searchInput.value);
+          return;
+        }
+        if (width !== lastObservedListWidth) {
+          lastObservedListWidth = width;
+          if (virtualManager.collections.size > 0) virtualManager.refresh();
+        }
+      })
+    : null;
+  pickerListResizeObserver?.observe(pickerList);
   let dragCat = null;
 
   pickerList.addEventListener("dragstart", (event) => {
@@ -647,14 +767,25 @@ export function createLibraryController(ctx) {
     // at larger UI scales, so following category headers overlapped and clipped
     // the list. List rows are single-line below, making one measured probe exact.
     const rowHeight = grid ? 32 : measurePickerRowHeight(items?.[0], filter);
-    return virtualManager.mount(container, {
+    let mounted = null;
+    mounted = virtualManager.mount(container, {
       items,
       mode: ["masonry", "filmstrip"].includes(state.pickerViewMode) ? state.pickerViewMode : grid ? "grid" : "list",
       estimateRowHeight: rowHeight,
       ...geometry,
+      itemKey: (item) => item.path,
+      thumbnailUrl: (item) => entryThumbUrl(item?.path),
+      ...(listScope ? {
+        styleDeclaration: listScope.declaration,
+        releaseStyle: (el) => {
+          staticStyledNodes.delete(el);
+          listScope.release(el);
+        },
+      } : {}),
       overscan: 2,
-      renderItem: (item) => grid ? pickerTile(item) : pickerRow(item, filter),
+      renderItem: (item) => grid ? pickerTile(item, () => mounted) : pickerRow(item, filter),
     });
+    return mounted;
   }
 
   function refreshDisplayGeometry() {
@@ -674,16 +805,15 @@ export function createLibraryController(ctx) {
   // virtualizing every folder separately adds geometry without saving meaningful
   // DOM work. Render those folders in normal document flow: every .txt entry is
   // present, card heights are intrinsic, and category headers can never inherit a
-  // stale estimated spacer height. Very large search result sets still use one
-  // virtual collection below.
+  // stale estimated spacer height. Very large search result sets and visual views
+  // (masonry/filmstrip) use one unified virtual collection below.
   function mountStaticItems(container, items, filter = "", category = "") {
-    if (["masonry", "filmstrip"].includes(state.pickerViewMode)) return mountVirtualItems(container, items, filter);
     const grid = state.pickerViewMode !== "list";
     const host = grid ? document.createElement("div") : null;
     const categoryColor = category ? getCategoryColor(category) : "";
     if (host) {
       host.className = "wg-thumb-grid wg-static-collection" + (category ? " wg-category-content" : "");
-      if (categoryColor) host.style.setProperty("--wg-category-accent", categoryColor);
+      if (categoryColor) setListProp(host, "--wg-category-accent", categoryColor);
     }
     const target = host || container;
     const fragment = document.createDocumentFragment();
@@ -695,7 +825,7 @@ export function createLibraryController(ctx) {
           entry.classList.add("wg-category-entry");
           if (index === 0) entry.classList.add("wg-category-first");
           if (index === sourceItems.length - 1) entry.classList.add("wg-category-last");
-          if (categoryColor) entry.style.setProperty("--wg-category-accent", categoryColor);
+          if (categoryColor) setListProp(entry, "--wg-category-accent", categoryColor);
         }
         fragment.appendChild(entry);
       } catch (error) {
@@ -704,7 +834,7 @@ export function createLibraryController(ctx) {
         fallback.className = "wg-item wg-virtual-fallback" + (category ? " wg-category-entry" : "");
         fallback.dataset.path = item?.path || "";
         fallback.textContent = String(item?.path || "Library entry").split("/").pop();
-        if (categoryColor) fallback.style.setProperty("--wg-category-accent", categoryColor);
+        if (categoryColor) setListProp(fallback, "--wg-category-accent", categoryColor);
         fragment.appendChild(fallback);
       }
     });
@@ -718,9 +848,19 @@ export function createLibraryController(ctx) {
 
   const LARGE_SEARCH_VIRTUAL_THRESHOLD = 1000;
 
+  function isPickerHidden() {
+    return !pickerDrawer.classList.contains("open")
+      || activeLibraryTab !== "personal"
+      || performanceRuntime?.visualActive?.() === false
+      || pickerList.hidden;
+  }
+
   function renderPickerList(filter = "", prefilteredItems = null) {
     const requestedFilter = String(filter || "");
-    if (!pickerDrawer.classList.contains("open") || activeLibraryTab !== "personal" || performanceRuntime?.visualActive?.() === false) {
+    if (isPickerHidden()) {
+      needsPickerRender = true;
+      virtualManager.clear();
+      clearStaticStyles();
       profiler?.count("libraryRendersSkippedHidden");
       return;
     }
@@ -741,10 +881,14 @@ export function createLibraryController(ctx) {
     if (!requestedFilter) { workerSearchVersion += 1; performanceRuntime?.cancelTimer("library-worker-search"); }
     if (injectState && injectState.textarea === textarea) closeInjectMenu();
     if (ctxMenuOpen) closeCtxMenu();
+    needsPickerRender = false;
+    lastObservedListWidth = pickerList.clientWidth || 0;
     pickerKbIndex = -1;
     const prevScrollTop = pickerList.scrollTop;
-    virtualManager.clear();
-    renderedLibraryItems = 0;
+    const isUnifiedVisualView = ["masonry", "filmstrip"].includes(state.pickerViewMode);
+    const existingCollection = virtualManager.collections.size === 1
+      ? virtualManager.collections.values().next().value
+      : null;
 
     const org = getLibraryOrganization(pickerDrawer);
     org.quickFilter = activeQuickFilter !== "all" ? activeQuickFilter : "";
@@ -767,9 +911,26 @@ export function createLibraryController(ctx) {
         ? (profiler?.measure("library.search", () => libraryIndex.search(requestedFilter, { limit: libraryIndex.size(), pinned, recent: state.recentList })) || libraryIndex.search(requestedFilter, { limit: libraryIndex.size(), pinned, recent: state.recentList }))
         : state.libraryCache;
     const items = sortLibraryItems(libraryFeatures?.filter(rawItems) || rawItems, org, pinned, state.thumbMap);
+    const collapsedSecSet = new Set(org.collapsedSections || []);
 
-    profiler?.measure("library.render", () => {
-      pickerList.replaceChildren();
+    const canReuseUnified = Boolean(
+      isUnifiedVisualView
+      && !(requestedFilter && items.length > LARGE_SEARCH_VIRTUAL_THRESHOLD)
+      && existingCollection
+      && existingCollection.mode === state.pickerViewMode
+      && pickerList.children.length === 1
+      && pickerList.firstElementChild === existingCollection.host
+      && lastRenderedSelectMode === Boolean(state.recipeSelectMode)
+    );
+
+    if (!canReuseUnified) {
+      virtualManager.clear();
+      clearStaticStyles();
+    }
+    renderedLibraryItems = 0;
+
+    const runLibraryRenderPass = () => {
+      if (!canReuseUnified) pickerList.replaceChildren();
 
       if (requestedFilter && items.length > LARGE_SEARCH_VIRTUAL_THRESHOLD) {
         const label = document.createElement("div");
@@ -777,6 +938,114 @@ export function createLibraryController(ctx) {
         label.textContent = `Search results · ${items.length.toLocaleString()}`;
         pickerList.appendChild(label);
         mountVirtualItems(pickerList, items, requestedFilter);
+        lastRenderedSelectMode = Boolean(state.recipeSelectMode);
+        return;
+      }
+
+      if (isUnifiedVisualView) {
+        const unifiedItems = [];
+        const seenPaths = new Set();
+        const pushUnique = (list) => {
+          for (const entry of list || []) {
+            if (!entry?.path || seenPaths.has(entry.path)) continue;
+            seenPaths.add(entry.path);
+            unifiedItems.push(entry);
+          }
+        };
+        const collectCategoryEntries = (includeAllMatching) => {
+          const grouped = new Map();
+          for (const entry of items) {
+            const cat = categoryOf(entry.path);
+            if (!grouped.has(cat)) grouped.set(cat, []);
+            grouped.get(cat).push(entry);
+          }
+          const catNames = sortLibraryCategories(
+            Array.from(grouped.keys()),
+            grouped,
+            { ...org, includeHidden: Boolean(requestedFilter || org.quickFilter) },
+            canonicalCatOrder
+          );
+          for (const cat of catNames) {
+            if (includeAllMatching || isCatExpanded(cat, Boolean(requestedFilter))) {
+              pushUnique(grouped.get(cat));
+            }
+          }
+        };
+
+        if (!requestedFilter && !org.quickFilter) {
+          const sectionOrder = Array.isArray(org.sectionOrder) ? org.sectionOrder : ["pinned", "recent", "categories"];
+          for (const secId of sectionOrder) {
+            if (hiddenSecSet.has(secId)) continue;
+            if (secId === "pinned") {
+              if (!collapsedSecSet.has("pinned")) {
+                pushUnique(sortLibraryItems(
+                  state.libraryCache.filter((entry) => pinned.has(entry.path)),
+                  org,
+                  pinned,
+                  state.thumbMap
+                ));
+              }
+            } else if (secId === "recent") {
+              if (!collapsedSecSet.has("recent")) {
+                pushUnique(sortLibraryItems(
+                  state.recentList.filter((path) => !pinned.has(path)).map((path) => libraryIndex.get(path)).filter(Boolean),
+                  org,
+                  pinned,
+                  state.thumbMap
+                ));
+              }
+            } else if (secId === "categories") {
+              collectCategoryEntries(false);
+            }
+          }
+        } else {
+          collectCategoryEntries(Boolean(org.quickFilter && !requestedFilter));
+        }
+
+        if (unifiedItems.length) {
+          if (canReuseUnified) {
+            existingCollection.updateLayout(libraryVirtualLayout(pickerDrawer));
+            existingCollection.updateItems(unifiedItems, {
+              patchNode: (nodeEl, item) => patchVisualTile(nodeEl, item, () => existingCollection),
+            });
+          } else {
+            mountVirtualItems(pickerList, unifiedItems, requestedFilter);
+          }
+          lastRenderedSelectMode = Boolean(state.recipeSelectMode);
+          return;
+        }
+
+        if (canReuseUnified) {
+          virtualManager.clear();
+          clearStaticStyles();
+          pickerList.replaceChildren();
+        }
+        const empty = document.createElement("div");
+        empty.className = "wg-hint wg-lib-empty-state";
+        const message = document.createElement("span");
+        if (!items.length) {
+          message.textContent = org.quickFilter ? `No ${org.quickFilter} entries match` : "No matching entries";
+          empty.appendChild(message);
+          if (requestedFilter || org.quickFilter) {
+            const resetFilters = document.createElement("button");
+            resetFilters.type = "button";
+            resetFilters.className = "wg-lib-empty-reset";
+            resetFilters.dataset.act = "libResetFilters";
+            resetFilters.textContent = requestedFilter && org.quickFilter ? "Clear search & filter" : requestedFilter ? "Clear search" : "Show all";
+            empty.appendChild(resetFilters);
+          }
+        } else {
+          message.textContent = "No expanded folders or sections visible";
+          empty.appendChild(message);
+          const expandBtn = document.createElement("button");
+          expandBtn.type = "button";
+          expandBtn.className = "wg-lib-empty-reset";
+          expandBtn.dataset.act = "libExpandAll";
+          expandBtn.textContent = "Expand all folders";
+          empty.appendChild(expandBtn);
+        }
+        pickerList.appendChild(empty);
+        lastRenderedSelectMode = Boolean(state.recipeSelectMode);
         return;
       }
 
@@ -804,7 +1073,7 @@ export function createLibraryController(ctx) {
           header.dataset.cat = cat;
           header.draggable = canReorder;
           const categoryColor = getCategoryColor(cat);
-          header.style.setProperty("--wg-category-accent", categoryColor);
+          setListProp(header, "--wg-category-accent", categoryColor);
           const folderLabel = isRecipeCategory(cat) ? `&#128214; ${escapeHtml(cat)}` : escapeHtml(cat);
           const toolsHtml = !requestedFilter
             ? `<span class="wg-folder-tools">
@@ -826,7 +1095,6 @@ export function createLibraryController(ctx) {
         }
       };
 
-      const collapsedSecSet = new Set(org.collapsedSections || []);
       if (!requestedFilter && !org.quickFilter) {
         const sectionOrder = Array.isArray(org.sectionOrder) ? org.sectionOrder : ["pinned", "recent", "categories"];
         for (const secId of sectionOrder) {
@@ -889,7 +1157,10 @@ export function createLibraryController(ctx) {
         }
         pickerList.appendChild(empty);
       }
-    });
+      lastRenderedSelectMode = Boolean(state.recipeSelectMode);
+    };
+    if (profiler?.measure) profiler.measure("library.render", runLibraryRenderPass);
+    else runLibraryRenderPass();
     if (prevScrollTop > 0) {
       pickerList.scrollTop = Math.min(prevScrollTop, Math.max(0, pickerList.scrollHeight - pickerList.clientHeight));
     } else if (pickerList.scrollTop !== 0) {
@@ -1208,6 +1479,8 @@ export function createLibraryController(ctx) {
     libraryButton.setAttribute("aria-expanded", "false");
     starterPackController.setActive(false);
     virtualManager.clear();
+    clearStaticStyles();
+    needsPickerRender = false;
     workerSearchVersion += 1;
     performanceRuntime?.cancelTimer("library-worker-search");
     cancelNodeTimer(node, searchDebounce);
@@ -1353,7 +1626,10 @@ export function createLibraryController(ctx) {
       cleanupPickerContext();
       cleanupLibraryViewControls();
       editPanel.cleanup();
+      pickerListResizeObserver?.disconnect();
       virtualManager.cleanup();
+      clearStaticStyles();
+      listScope?.cleanup();
       starterPackController.cleanup();
     },
   };

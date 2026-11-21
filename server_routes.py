@@ -12,6 +12,7 @@ import os
 import re
 import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +30,7 @@ from . import style_indexes
 from .image_prompt_import import import_image_prompts, MAX_IMPORT_BYTES
 from .feature_store import require_same_origin, user_store
 from . import lora_support
-from .lora_previews import MEDIA_TYPES
+from .lora_previews import MEDIA_TYPES, media_dimensions
 
 logger = logging.getLogger(__name__)
 routes = PromptServer.instance.routes
@@ -79,15 +80,16 @@ async def prompt_palette_lora_preview(request):
         previews = await asyncio.to_thread(lora_support.find_previews, full)
         candidate = previews[index] if 0 <= index < len(previews) else None
     if candidate and candidate.is_file():
+        cache_control = "private, max-age=300" if request.query.get("v", "").strip() else "no-cache"
         if request.query.get("poster") == "1":
             if lora_support.preview_type(candidate) != "video":
                 raise web.HTTPBadRequest(text="Poster requires a video preview")
             poster = await asyncio.to_thread(lora_support.preview_poster, candidate)
             if poster:
-                return web.Response(body=poster, content_type="image/jpeg", headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
+                return web.Response(body=poster, content_type="image/jpeg", headers={"Cache-Control": cache_control, "X-Content-Type-Options": "nosniff"})
             raise web.HTTPUnsupportedMediaType(text="No local video decoder available; add a JPEG preview for this codec")
         # FileResponse streams media and supports byte ranges for video seeking.
-        return web.FileResponse(candidate, headers={"X-PP-Preview-Types": ",".join(lora_support.preview_type(path) for path in previews), "X-PP-Preview-Source": "custom" if is_custom else "folder", "Content-Type": MEDIA_TYPES[candidate.suffix.lower()], "X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"})
+        return web.FileResponse(candidate, headers={"X-PP-Preview-Types": ",".join(lora_support.preview_type(path) for path in previews), "X-PP-Preview-Source": "custom" if is_custom else "folder", "Content-Type": MEDIA_TYPES[candidate.suffix.lower()], "X-Content-Type-Options": "nosniff", "Cache-Control": cache_control})
     raise web.HTTPNotFound()
 
 
@@ -144,12 +146,25 @@ def _lora_custom_preview(request, full_path):
 def _lora_user_metadata(request, filename, metadata):
     import folder_paths
     full = folder_paths.get_full_path("loras", filename)
+    custom_path = None
     try:
-        custom = bool(full and _lora_custom_preview(request, full).is_file())
+        candidate = _lora_custom_preview(request, full) if full else None
+        if candidate and candidate.is_file():
+            custom_path = candidate
     except (web.HTTPServiceUnavailable, OSError):
-        custom = False
-    return {**metadata, "custom_preview": custom, "has_preview": custom or metadata.get("has_preview", False),
-            "preview_type": "image" if custom else metadata.get("preview_type")}
+        custom_path = None
+    custom = custom_path is not None
+    result = {
+        **metadata,
+        "custom_preview": custom,
+        "has_preview": custom or metadata.get("has_preview", False),
+        "preview_type": "image" if custom else metadata.get("preview_type"),
+    }
+    if custom:
+        dims = media_dimensions(custom_path)
+        result["preview_width"] = dims[0] if dims else None
+        result["preview_height"] = dims[1] if dims else None
+    return result
 
 
 @routes.post("/prompt_palette/lora_thumbnail")
@@ -1196,6 +1211,7 @@ async def save_wildcard(request):
         content = _bounded_text(data.get("content"), "content", _recipe_content_limit(name))
         index = await asyncio.to_thread(get_index)
         await asyncio.to_thread(index.save_txt, name, content)
+        _invalidate_thumbnail_cache()
     except ValueError as exc:
         return _error(str(exc), ok=False)
     except Exception:
@@ -1212,6 +1228,7 @@ async def delete_wildcard(request):
         name = _bounded_text(data.get("name"), "name", MAX_NAME_CHARS)
         index = await _get_fresh_index()
         await asyncio.to_thread(index.delete, name)
+        _invalidate_thumbnail_cache()
     except (FileNotFoundError, ValueError) as exc:
         return _error(str(exc), ok=False)
     except Exception:
@@ -1226,6 +1243,7 @@ async def refresh_index(request):
     try:
         index = await asyncio.to_thread(get_index)
         await asyncio.to_thread(index.rescan, True)
+        _invalidate_thumbnail_cache()
         items = index.flat_list()
     except Exception:
         logger.exception("Could not refresh wildcard index")
@@ -1275,6 +1293,7 @@ async def set_path(request):
             await asyncio.to_thread(index.set_root, path)
         else:
             await asyncio.to_thread(index.reset_root)
+        _invalidate_thumbnail_cache()
     except ValueError as exc:
         return _error(str(exc), ok=False)
     except Exception:
@@ -1615,7 +1634,36 @@ def _resolve_within_root(root_dir: str, rel_path: str) -> str | None:
         return None
 
 
-def _thumbnail_map(root: str) -> dict[str, str | None]:
+_THUMBNAIL_MAP_CACHE: dict[str, tuple[tuple[Any, ...], float, dict[str, str | None]]] = {}
+_THUMBNAIL_MAP_LOCK = threading.Lock()
+_THUMBNAIL_MAP_TTL_SECONDS = 2.0
+
+
+def _invalidate_thumbnail_cache(root: str | None = None) -> None:
+    with _THUMBNAIL_MAP_LOCK:
+        if root is None:
+            _THUMBNAIL_MAP_CACHE.clear()
+        else:
+            _THUMBNAIL_MAP_CACHE.pop(os.path.realpath(root), None)
+
+
+def _thumbnail_root_signature(real_root: str) -> tuple[Any, ...] | None:
+    try:
+        root_mtime = os.stat(real_root).st_mtime_ns
+        subdirs: list[tuple[str, int]] = []
+        with os.scandir(real_root) as entries:
+            for entry in entries:
+                if entry.name in {".git", "__pycache__"}:
+                    continue
+                if entry.is_dir(follow_symlinks=False):
+                    subdirs.append((entry.name, entry.stat(follow_symlinks=False).st_mtime_ns))
+        subdirs.sort(key=lambda item: item[0])
+        return (root_mtime, tuple(subdirs))
+    except OSError:
+        return None
+
+
+def _scan_thumbnail_map(root: str) -> dict[str, str | None]:
     mapping: dict[str, str | None] = {}
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(
@@ -1638,6 +1686,27 @@ def _thumbnail_map(root: str) -> dict[str, str | None]:
                     break
             mapping[name_key] = thumbnail
     return mapping
+
+
+def _thumbnail_map(root: str) -> dict[str, str | None]:
+    real_root = os.path.realpath(root)
+    signature = _thumbnail_root_signature(real_root)
+    now = time.monotonic()
+    if signature is not None:
+        with _THUMBNAIL_MAP_LOCK:
+            cached = _THUMBNAIL_MAP_CACHE.get(real_root)
+            if cached and cached[0] == signature and (now - cached[1]) < _THUMBNAIL_MAP_TTL_SECONDS:
+                _THUMBNAIL_MAP_CACHE[real_root] = _THUMBNAIL_MAP_CACHE.pop(real_root)
+                return dict(cached[2])
+    mapping = _scan_thumbnail_map(real_root)
+    if signature is not None:
+        with _THUMBNAIL_MAP_LOCK:
+            if real_root in _THUMBNAIL_MAP_CACHE:
+                _THUMBNAIL_MAP_CACHE.pop(real_root)
+            elif len(_THUMBNAIL_MAP_CACHE) >= 16:
+                _THUMBNAIL_MAP_CACHE.pop(next(iter(_THUMBNAIL_MAP_CACHE)))
+            _THUMBNAIL_MAP_CACHE[real_root] = (signature, time.monotonic(), mapping)
+    return dict(mapping)
 
 
 _LIBRARY_TOKEN_RE = re.compile(r"__([+\-*%~@]?)([A-Za-z0-9_\-/*]+)(?:\([^()]*\))?__")
@@ -1772,6 +1841,7 @@ async def library_action(request):
             raise ValueError("unsupported library action")
 
         await asyncio.to_thread(index.rescan, True)
+        _invalidate_thumbnail_cache()
         return web.json_response({"ok": True, "action": action})
     except (FileNotFoundError, ValueError) as exc:
         return _error(str(exc), ok=False)
@@ -1874,7 +1944,9 @@ async def library_batch(request):
                         await asyncio.to_thread(index.rename_txt, target, source)
                 except Exception:
                     logger.exception("Prompt Palette could not fully roll back a batch library action")
+            _invalidate_thumbnail_cache()
             raise
+        _invalidate_thumbnail_cache()
         return web.json_response({"ok": True, "action": action, "items": completed})
     except (FileNotFoundError, ValueError) as exc:
         return _error(str(exc), ok=False)
@@ -1995,6 +2067,7 @@ async def set_thumbnail(request):
                     os.remove(stale)
 
         await asyncio.to_thread(write_thumbnail)
+        _invalidate_thumbnail_cache()
     except ValueError as exc:
         return _error(str(exc), ok=False)
     except web.HTTPException as exc:
@@ -2032,6 +2105,7 @@ async def remove_thumbnail(request):
             return removed
 
         removed = await asyncio.to_thread(remove_files)
+        _invalidate_thumbnail_cache()
     except ValueError as exc:
         return _error(str(exc), ok=False)
     except OSError:
