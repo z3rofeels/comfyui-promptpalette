@@ -387,7 +387,7 @@ export function installPromptSlots({
     if (!applyActive && !activeSlot.negative && currentNegative) {
       activeSlot.negative = currentNegative;
     }
-    if (!applyActive && currentWs) {
+    if (!applyActive && !activeSlot.workspace && currentWs) {
       activeSlot.workspace = cloneSlotWorkspace(currentWs);
     } else if (!applyActive && activeSlot.workspace && typeof setWorkspace === "function") {
       setWorkspace(cloneSlotWorkspace(activeSlot.workspace));

@@ -1,16 +1,16 @@
 {
-  "last_node_id": 9,
-  "last_link_id": 9,
+  "last_node_id": 13,
+  "last_link_id": 10,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        20,
-        40
+        0,
+        60
       ],
       "size": [
-        360,
+        390,
         110
       ],
       "flags": {},
@@ -22,7 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3
+            10
           ]
         }
       ],
@@ -32,17 +32,20 @@
       "widgets_values": [
         "krea2_turbo_fp8_scaled.safetensors",
         "default"
-      ]
+      ],
+      "title": "Diffusion Model · Krea 2 Turbo FP8",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        20,
-        200
+        0,
+        240
       ],
       "size": [
-        360,
+        390,
         130
       ],
       "flags": {},
@@ -65,17 +68,20 @@
         "qwen3vl_4b_fp8_scaled.safetensors",
         "krea2",
         "default"
-      ]
+      ],
+      "title": "Text Encoder · Qwen 3 VL 4B (krea2)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        20,
-        380
+        0,
+        440
       ],
       "size": [
-        360,
+        390,
         90
       ],
       "flags": {},
@@ -96,18 +102,21 @@
       },
       "widgets_values": [
         "qwen_image_vae.safetensors"
-      ]
+      ],
+      "title": "VAE · Qwen Image VAE",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 4,
       "type": "PromptPaletteEditor",
       "pos": [
-        460,
-        70
+        480,
+        60
       ],
       "size": [
-        430,
-        310
+        540,
+        520
       ],
       "flags": {},
       "order": 3,
@@ -122,7 +131,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 10,
           "shape": 7
         },
         {
@@ -172,7 +181,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -239,25 +250,217 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "Full-body editorial photograph of a handsome man in a tailored rust-red suit, relaxed contrapposto stance with one hip lowered, one hand resting loosely in a pocket and the other relaxed at his side, clean studio backdrop, soft directional light, natural skin texture, refined magazine styling."
+        },
+        "wg_text": "Full-body editorial photograph of a handsome man in a tailored rust-red suit, relaxed contrapposto stance with one hip lowered, one hand resting loosely in a pocket and the other relaxed at his side, clean studio backdrop, soft directional light, natural skin texture, refined magazine styling.",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Realistic photo",
+            "presetId": "photo",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "ae72c1ee-af05-4d48-9691-4258a957f14e",
+                "name": "Subject",
+                "label": "Subject",
+                "value": "Full-body editorial photograph of a handsome man",
+                "default": "Full-body editorial photograph of a handsome man",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "subject",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "bdd41b45-de31-4acb-b8a0-7f4bd88bc976",
+                "name": "Wardrobe",
+                "label": "Wardrobe",
+                "value": "in a tailored charcoal coat over a crisp ivory knit",
+                "default": "in a tailored charcoal coat over a crisp ivory knit",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "outfit",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "97065d86-27cc-48af-a4c9-03c125ee4cac",
+                "name": "Environment",
+                "label": "Environment",
+                "value": "walking across a sunlit stone courtyard with warm architectural shadows",
+                "default": "walking across a sunlit stone courtyard with warm architectural shadows",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "environment",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "b5fda521-93df-44cd-b78a-12f0dea64b20",
+                "name": "Lighting",
+                "label": "Lighting",
+                "value": "natural late-afternoon golden light with subtle rim highlights",
+                "default": "natural late-afternoon golden light with subtle rim highlights",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lighting",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [
+                  "97065d86-27cc-48af-a4c9-03c125ee4cac"
+                ],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "98ff2f4a-ddf5-4be4-9e03-6808270ca532",
+                "name": "Camera & Optics",
+                "label": "Camera & Optics",
+                "value": "50mm lens, f/2.8, natural shallow depth of field",
+                "default": "50mm lens, f/2.8, natural shallow depth of field",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "camera",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "271ff693-15c8-488b-820c-dd0de3201641",
+                "name": "Film & Grading",
+                "label": "Film & Grading",
+                "value": "authentic skin texture, refined editorial color grading",
+                "default": "authentic skin texture, refined editorial color grading",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "ae72c1ee-af05-4d48-9691-4258a957f14e",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "bdd41b45-de31-4acb-b8a0-7f4bd88bc976",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "97065d86-27cc-48af-a4c9-03c125ee4cac",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "b5fda521-93df-44cd-b78a-12f0dea64b20",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "98ff2f4a-ddf5-4be4-9e03-6808270ca532",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "271ff693-15c8-488b-820c-dd0de3201641",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "Full-body editorial photograph of a handsome man in a tailored rust-red suit, relaxed contrapposto stance with one hip lowered, one hand resting loosely in a pocket and the other relaxed at his side, clean studio backdrop, soft directional light, natural skin texture, refined magazine styling.",
+        "Full-body editorial photograph of a handsome man, in a tailored charcoal coat over a crisp ivory knit, walking across a sunlit stone courtyard with warm architectural shadows, natural late-afternoon golden light with subtle rim highlights, 50mm lens, f/2.8, natural shallow depth of field, authentic skin texture, refined editorial color grading",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette"
+      "title": "Prompt Palette · Krea 2 Editorial Prompt",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "Full-body editorial photograph of a handsome man, in a tailored charcoal coat over a crisp ivory knit, walking across a sunlit stone courtyard with warm architectural shadows, natural late-afternoon golden light with subtle rim highlights, 50mm lens, f/2.8, natural shallow depth of field, authentic skin texture, refined editorial color grading",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"4\",\"positive\":\"Full-body editorial photograph of a handsome man, in a tailored charcoal coat over a crisp ivory knit, walking across a sunlit stone courtyard with warm architectural shadows, natural late-afternoon golden light with subtle rim highlights, 50mm lens, f/2.8, natural shallow depth of field, authentic skin texture, refined editorial color grading\",\"negative\":\"\",\"fields\":[{\"id\":\"ae72c1ee-af05-4d48-9691-4258a957f14e\",\"channel\":\"positive\",\"start\":0,\"end\":48,\"source\":\"Full-body editorial photograph of a handsome man\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"bdd41b45-de31-4acb-b8a0-7f4bd88bc976\",\"channel\":\"positive\",\"start\":50,\"end\":101,\"source\":\"in a tailored charcoal coat over a crisp ivory knit\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"97065d86-27cc-48af-a4c9-03c125ee4cac\",\"channel\":\"positive\",\"start\":103,\"end\":174,\"source\":\"walking across a sunlit stone courtyard with warm architectural shadows\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"b5fda521-93df-44cd-b78a-12f0dea64b20\",\"channel\":\"positive\",\"start\":176,\"end\":238,\"source\":\"natural late-afternoon golden light with subtle rim highlights\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"98ff2f4a-ddf5-4be4-9e03-6808270ca532\",\"channel\":\"positive\",\"start\":240,\"end\":288,\"source\":\"50mm lens, f/2.8, natural shallow depth of field\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"271ff693-15c8-488b-820c-dd0de3201641\",\"channel\":\"positive\",\"start\":290,\"end\":345,\"source\":\"authentic skin texture, refined editorial color grading\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"ae72c1ee-af05-4d48-9691-4258a957f14e\",\"join\":true},{\"type\":\"field\",\"id\":\"bdd41b45-de31-4acb-b8a0-7f4bd88bc976\",\"join\":true},{\"type\":\"field\",\"id\":\"97065d86-27cc-48af-a4c9-03c125ee4cac\",\"join\":true},{\"type\":\"field\",\"id\":\"b5fda521-93df-44cd-b78a-12f0dea64b20\",\"join\":true},{\"type\":\"field\",\"id\":\"98ff2f4a-ddf5-4be4-9e03-6808270ca532\",\"join\":true},{\"type\":\"field\",\"id\":\"271ff693-15c8-488b-820c-dd0de3201641\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"ae72c1ee-af05-4d48-9691-4258a957f14e\":null,\"bdd41b45-de31-4acb-b8a0-7f4bd88bc976\":null,\"97065d86-27cc-48af-a4c9-03c125ee4cac\":null,\"b5fda521-93df-44cd-b78a-12f0dea64b20\":null,\"98ff2f4a-ddf5-4be4-9e03-6808270ca532\":null,\"271ff693-15c8-488b-820c-dd0de3201641\":null},\"edges\":{\"positive\":[\"ae72c1ee-af05-4d48-9691-4258a957f14e\",\"271ff693-15c8-488b-820c-dd0de3201641\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 5,
       "type": "ConditioningZeroOut",
       "pos": [
-        920,
-        390
+        1110,
+        60
       ],
       "size": [
-        240,
-        80
+        310,
+        90
       ],
       "flags": {},
       "order": 4,
@@ -281,18 +484,21 @@
       "properties": {
         "Node name for S&R": "ConditioningZeroOut"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Zero-Out Negative (CFG 1.0)",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 6,
-      "type": "EmptyLatentImage",
+      "type": "PromptPaletteResolutionSelector",
       "pos": [
-        500,
-        500
+        1110,
+        220
       ],
       "size": [
-        270,
-        130
+        320,
+        290
       ],
       "flags": {},
       "order": 5,
@@ -300,32 +506,64 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
+          "localized_name": "Latent",
           "type": "LATENT",
           "links": [
             6
           ]
+        },
+        {
+          "name": "width",
+          "localized_name": "Width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "localized_name": "Height",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage"
+        "Node name for S&R": "PromptPaletteResolutionSelector",
+        "resolution_pal_v1": {
+          "model_profile": "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1,
+          "snap_to_multiple": true
+        }
       },
       "widgets_values": [
+        "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
         1024,
         1024,
-        1
-      ]
+        1,
+        true
+      ],
+      "title": "Resolution Selector · 1024 × 1024",
+      "color": "#2a223d",
+      "bgcolor": "#181522",
+      "widgets_values_named": {
+        "model_profile": "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1,
+        "snap_to_multiple": true
+      }
     },
     {
       "id": 7,
       "type": "KSampler",
       "pos": [
-        1240,
-        160
+        1510,
+        150
       ],
       "size": [
-        330,
-        300
+        340,
+        310
       ],
       "flags": {},
       "order": 6,
@@ -368,21 +606,24 @@
         0,
         "randomize",
         8,
-        1.0,
+        1,
         "euler",
         "simple",
-        1.0
-      ]
+        1
+      ],
+      "title": "KSampler · 8 Steps · CFG 1.0",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 8,
       "type": "VAEDecode",
       "pos": [
-        1630,
-        170
+        1940,
+        60
       ],
       "size": [
-        240,
+        400,
         90
       ],
       "flags": {},
@@ -412,18 +653,21 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "VAE Decode",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 9,
       "type": "SaveImage",
       "pos": [
         1940,
-        150
+        220
       ],
       "size": [
-        300,
-        280
+        400,
+        420
       ],
       "flags": {},
       "order": 8,
@@ -447,7 +691,191 @@
       },
       "widgets_values": [
         "PromptPalette_Krea2"
-      ]
+      ],
+      "title": "Save Image",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 10,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#381d20",
+      "bgcolor": "#1c1416",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "KREA 2 TURBO · Fast 8-Step Editorial Photography",
+          "note": "1024 × 1024 · 8 steps · CFG 1.0 · Euler / Simple — Rapid natural-prose iteration with zero negative overhead.",
+          "color_preset": "cherry",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "KREA 2 TURBO · Fast 8-Step Editorial Photography",
+        "1024 × 1024 · 8 steps · CFG 1.0 · Euler / Simple — Rapid natural-prose iteration with zero negative overhead.",
+        "cherry",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "KREA 2 TURBO · Fast 8-Step Editorial Photography",
+        "note": "1024 × 1024 · 8 steps · CFG 1.0 · Euler / Simple — Rapid natural-prose iteration with zero negative overhead.",
+        "color_preset": "cherry",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 11,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        370
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#381d20",
+      "bgcolor": "#1c1416",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · Required Model Files",
+          "note": "1. `models/diffusion_models/krea2_turbo_fp8_scaled.safetensors`\n2. `models/text_encoders/qwen3vl_4b_fp8_scaled.safetensors` (CLIP type `krea2`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- At `CFG 1.0`, negative prompts are unused — **Zero-Out Negative** feeds a clean null tensor automatically.",
+          "color_preset": "cherry",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · Required Model Files",
+        "1. `models/diffusion_models/krea2_turbo_fp8_scaled.safetensors`\n2. `models/text_encoders/qwen3vl_4b_fp8_scaled.safetensors` (CLIP type `krea2`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- At `CFG 1.0`, negative prompts are unused — **Zero-Out Negative** feeds a clean null tensor automatically.",
+        "cherry",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · Required Model Files",
+        "note": "1. `models/diffusion_models/krea2_turbo_fp8_scaled.safetensors`\n2. `models/text_encoders/qwen3vl_4b_fp8_scaled.safetensors` (CLIP type `krea2`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- At `CFG 1.0`, negative prompts are unused — **Zero-Out Negative** feeds a clean null tensor automatically.",
+        "color_preset": "cherry",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 12,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        494
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#382316",
+      "bgcolor": "#1c1613",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "EXPLORE · Krea 2 Starter Pack & Style Studio",
+          "note": "- Browse **50 built-in Krea 2 templates** in the Starter Packs picker.\n- Want curated camera, film stock, and lighting mixes? Enable **Style Studio** in Prompt Palette **Settings**.",
+          "color_preset": "tangerine",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "EXPLORE · Krea 2 Starter Pack & Style Studio",
+        "- Browse **50 built-in Krea 2 templates** in the Starter Packs picker.\n- Want curated camera, film stock, and lighting mixes? Enable **Style Studio** in Prompt Palette **Settings**.",
+        "tangerine",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "EXPLORE · Krea 2 Starter Pack & Style Studio",
+        "note": "- Browse **50 built-in Krea 2 templates** in the Starter Packs picker.\n- Want curated camera, film stock, and lighting mixes? Enable **Style Studio** in Prompt Palette **Settings**.",
+        "color_preset": "tangerine",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 13,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: Krea 2 Turbo",
+          "note": "",
+          "color_preset": "cherry",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: Krea 2 Turbo",
+        "",
+        "cherry",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: Krea 2 Turbo",
+        "note": "",
+        "color_preset": "cherry",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -469,7 +897,7 @@
     ],
     [
       3,
-      1,
+      4,
       0,
       7,
       0,
@@ -522,16 +950,85 @@
       9,
       0,
       "IMAGE"
+    ],
+    [
+      10,
+      1,
+      0,
+      4,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load Models",
+      "bounding": [
+        -24,
+        -18,
+        438,
+        574
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write & Customize Prompt",
+      "bounding": [
+        456,
+        -18,
+        588,
+        624
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Null Negative & Canvas",
+      "bounding": [
+        1086,
+        -18,
+        358,
+        414
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · 8-Step Turbo Sample",
+      "bounding": [
+        1486,
+        72,
+        388,
+        414
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode & Output",
+      "bounding": [
+        1916,
+        -18,
+        448,
+        684
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.85,
+      "scale": 0.74,
       "offset": [
-        60,
-        60
+        560,
+        220
       ]
     }
   },

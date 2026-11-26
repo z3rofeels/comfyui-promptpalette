@@ -16,11 +16,18 @@ function buildNormalizedTheme(saved) {
   // Seed older preferences from their readable interface size, then save independently.
   theme.menuScale = normalizePromptPaletteMenuScale(clean.menuScale, clean.uiFontScale);
   Object.assign(theme, normalizeToolbarPreferences({ ...theme, toolbarScale: clean.toolbarScale }));
-  if (!Object.hasOwn(clean, "showImportImageBtn") && (clean.layoutPreset === "minimal" || TOOLBAR_BUTTONS.filter(([, key]) => !["showImportImageBtn", "showLorasBtn"].includes(key)).every(([, key]) => clean[key] === false))) theme.showImportImageBtn = false;
+  const legacyToolbarKeys = TOOLBAR_BUTTONS
+    .map(([, key]) => key)
+    .filter((key) => !["showImportImageBtn", "showLorasBtn", "showRefineBtn", "showIoBtn", "showZenBtn"].includes(key));
+  const legacyAllOff = legacyToolbarKeys.every((key) => clean[key] === false);
+  if (!Object.hasOwn(clean, "showImportImageBtn") && (clean.layoutPreset === "minimal" || legacyAllOff)) theme.showImportImageBtn = false;
   theme.booruColors = theme.booruColorsCustomized === true
     ? { ...DEFAULT_BOORU_COLORS_DARK, ...(clean.booruColors && typeof clean.booruColors === "object" ? clean.booruColors : {}) }
     : { ...DEFAULT_BOORU_COLORS_DARK };
-  if (!Object.hasOwn(clean, "showLorasBtn") && (clean.layoutPreset === "minimal" || TOOLBAR_BUTTONS.filter(([, key]) => !["showLorasBtn", "showImportImageBtn"].includes(key)).every(([, key]) => clean[key] === false))) theme.showLorasBtn = false;
+  if (!Object.hasOwn(clean, "showLorasBtn") && (clean.layoutPreset === "minimal" || legacyAllOff)) theme.showLorasBtn = false;
+  if (!Object.hasOwn(clean, "showRefineBtn") && (clean.layoutPreset === "minimal" || legacyAllOff)) theme.showRefineBtn = false;
+  if (!Object.hasOwn(clean, "showZenBtn") && (clean.layoutPreset === "minimal" || legacyAllOff)) theme.showZenBtn = false;
+  if (!Object.hasOwn(clean, "showIoBtn") && legacyAllOff) theme.showIoBtn = false;
   theme.loraColors = Object.fromEntries(Object.entries(clean.loraColors && typeof clean.loraColors === "object" ? clean.loraColors : {}).filter(([key, value]) => key.length <= 4096 && /^#[0-9a-f]{6}$/i.test(value)).slice(0, 1024));
   // Booru/custom-word autocomplete is opt-in (off unless the user turned it on).
   const booruWanted = theme.booruAutocompleteEnabled === true;
@@ -36,6 +43,8 @@ function buildNormalizedTheme(saved) {
   if (!theme.styleAutocompleteEnabled) theme.styleAutocompleteMode = "off";
   if (!["auto", "both", "krea2", "moss"].includes(theme.styleModelFilter)) theme.styleModelFilter = "auto";
   if (!["caption", "tags", "layout"].includes(theme.styleMossDialect)) theme.styleMossDialect = "caption";
+  theme.chunkBoundaryIndicator = theme.chunkBoundaryIndicator === true;
+  theme.emptyQuickStartEnabled = theme.emptyQuickStartEnabled !== false;
   theme.autocompleteRecentLimit = Math.max(5, Math.min(10, Math.round(Number(theme.autocompleteRecentLimit) || 5)));
   Object.assign(theme, normalizeFieldEditorPreferences(clean));
   return theme;
@@ -105,8 +114,11 @@ function defaultTheme() {
     showUndoBtn: true,
     showRedoBtn: true,
     showResolveBtn: true,
+    showRefineBtn: true,
     showCopyBtn: true,
     showClearBtn: true,
+    showIoBtn: true,
+    showZenBtn: true,
 
     showSeedControls: false,
     statusBarMode: "auto",
@@ -132,6 +144,8 @@ function defaultTheme() {
     styleAutocompleteMode: "off",
     styleModelFilter: "auto",
     styleMossDialect: "caption",
+    chunkBoundaryIndicator: false,
+    emptyQuickStartEnabled: true,
     animaArtistFormatting: false,
     showPositiveAntonymsBtn: false,
     ...FIELD_EDITOR_DEFAULTS,
@@ -845,7 +859,7 @@ function saveActiveUiThemeName(name) {
 
 
 export {
-  loadTheme, defaultTheme, saveTheme,
+  loadTheme, defaultTheme, saveTheme, buildNormalizedTheme,
   loadCategoryPalettes, saveCategoryPalettes, categoryPaletteSnapshot,
   loadPinned, savePinned, loadExpandedCats, saveExpandedCats, loadCatOrder, saveCatOrder,
   loadPickerView, savePickerView, loadLibraryDensity, saveLibraryDensity,

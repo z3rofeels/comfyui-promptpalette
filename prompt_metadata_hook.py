@@ -56,14 +56,30 @@ def _loras_match_connection_state(metadata: dict[str, Any], inputs: dict[str, An
             ]
     if not loras:
         return True
-    expected_applied = _is_link(inputs.get("model")) and _is_link(inputs.get("clip"))
+    lora_mode = str(inputs.get("lora_mode", metadata.get("lora_mode", "auto")) or "auto")
+    can_apply = lora_mode in ("auto", "bypass") and _is_link(inputs.get("model")) and _is_link(inputs.get("clip"))
+    if not can_apply:
+        if metadata.get("batch"):
+            prompts = metadata.get("prompts") if isinstance(metadata.get("prompts"), list) else []
+            return all(not item.get("loras_applied") for item in prompts if isinstance(item, dict))
+        return not metadata.get("loras_applied")
     if metadata.get("batch"):
         prompts = metadata.get("prompts") if isinstance(metadata.get("prompts"), list) else []
-        applied_values = {
-            bool(item.get("loras_applied")) for item in prompts if isinstance(item, dict)
-        }
-        return not applied_values or applied_values == {expected_applied}
-    return bool(metadata.get("loras_applied")) == expected_applied
+        for item in prompts:
+            if not isinstance(item, dict):
+                continue
+            item_loras = item.get("loras") or []
+            if any(isinstance(r, dict) and r.get("status") in ("found", "loaded") for r in item_loras) and not item.get("loras_applied"):
+                return False
+        return True
+    if any(isinstance(r, dict) and r.get("status") in ("found", "loaded") for r in loras) and not metadata.get("loras_applied"):
+        return False
+    return True
+
+
+def _same_bool(inputs: dict[str, Any], name: str, expected: Any, default: bool = False) -> bool:
+    literal, value = _literal(inputs, name, default)
+    return literal and bool(value) == bool(expected)
 
 
 def _editor_metadata_is_fresh(metadata: dict[str, Any], inputs: dict[str, Any]) -> bool:
@@ -75,6 +91,10 @@ def _editor_metadata_is_fresh(metadata: dict[str, Any], inputs: dict[str, Any]) 
         inputs, "processing_mode", metadata.get("processing_mode", "entire text as one"),
         "entire text as one",
     ):
+        return False
+    if "lora_mode" in metadata and not _same_text(inputs, "lora_mode", metadata.get("lora_mode", "auto"), "auto"):
+        return False
+    if "positive_antonyms" in metadata and not _same_bool(inputs, "positive_antonyms", metadata.get("positive_antonyms", False), False):
         return False
     for input_name, metadata_name in (
         ("prompt_prefix", "prompt_prefix"),
@@ -104,6 +124,14 @@ def _combinatorial_metadata_is_fresh(metadata: dict[str, Any], inputs: dict[str,
         return False
     if not _same_text(inputs, "text", metadata.get("source_text", metadata.get("source_prompt", ""))):
         return False
+    if "lora_mode" in metadata and not _same_text(inputs, "lora_mode", metadata.get("lora_mode", "auto"), "auto"):
+        return False
+    if "positive_antonyms" in metadata and not _same_bool(inputs, "positive_antonyms", metadata.get("positive_antonyms", False), False):
+        return False
+    if "prepared_variations" in metadata:
+        literal_pb, pb_val = _literal(inputs, "prepared_batch", "")
+        if not literal_pb or bool(str(pb_val or "").strip()) != bool(metadata.get("prepared_variations")):
+            return False
     checks = (
         ("mode", metadata.get("mode", "random"), "random"),
         ("seed_mode", metadata.get("seed_mode", "sequential"), "sequential"),

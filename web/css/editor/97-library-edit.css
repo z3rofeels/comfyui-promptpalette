@@ -2,13 +2,13 @@
    Loaded after 96-split-workspace.css. Every rule is scoped to .pp-ledit so the shared
    .wg-drawer rules keep serving the other drawers. */
 
-.wg-node.wg-root > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
   width: min(520px, 64%, calc(100% - 240px)) !important;
   flex-basis: min(520px, 64%, calc(100% - 240px)) !important;
   box-shadow: none !important;
 }
 @container (max-width: 560px) {
-  .wg-node.wg-root > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
+  .wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.right[data-drawer="edit"].open {
     width: 100% !important; flex-basis: min(480px, 82%) !important; height: min(480px, 82%) !important; min-height: 260px !important;
   }
 }

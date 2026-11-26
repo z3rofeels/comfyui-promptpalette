@@ -1,17 +1,17 @@
 {
-  "last_node_id": 20,
-  "last_link_id": 24,
+  "last_node_id": 24,
+  "last_link_id": 25,
   "nodes": [
     {
       "id": 1,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        20,
-        20
+        0,
+        60
       ],
       "size": [
         430,
-        100
+        105
       ],
       "flags": {},
       "order": 0,
@@ -43,18 +43,21 @@
       },
       "widgets_values": [
         "ltx-2.3-22b-dev-fp8.safetensors"
-      ]
+      ],
+      "title": "Checkpoint · LTX-2.3 22B Dev FP8",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        20,
-        150
+        0,
+        235
       ],
       "size": [
         430,
-        120
+        125
       ],
       "flags": {},
       "order": 1,
@@ -71,7 +74,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            9
+            25
           ]
         }
       ],
@@ -81,18 +84,21 @@
       "widgets_values": [
         "ltx_2.3_22b_distilled_1.1_lora_dynamic_fro09_avg_rank_111_bf16.safetensors",
         0.5
-      ]
+      ],
+      "title": "Distilled 1.1 LoRA (Strength 0.5)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 3,
       "type": "LTXAVTextEncoderLoader",
       "pos": [
-        20,
-        300
+        0,
+        430
       ],
       "size": [
         430,
-        130
+        135
       ],
       "flags": {},
       "order": 2,
@@ -115,14 +121,17 @@
         "gemma_3_12B_it_fp4_mixed.safetensors",
         "ltx-2.3-22b-dev-fp8.safetensors",
         "default"
-      ]
+      ],
+      "title": "AV Text Encoder · Gemma 3 12B FP4",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 4,
       "type": "LTXVAudioVAELoader",
       "pos": [
-        20,
-        460
+        0,
+        635
       ],
       "size": [
         430,
@@ -147,18 +156,21 @@
       },
       "widgets_values": [
         "ltx-2.3-22b-dev-fp8.safetensors"
-      ]
+      ],
+      "title": "Audio VAE Loader · LTX-2.3",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 5,
       "type": "PromptPaletteEditor",
       "pos": [
-        500,
-        20
+        520,
+        60
       ],
       "size": [
-        430,
-        310
+        520,
+        380
       ],
       "flags": {},
       "order": 4,
@@ -173,7 +185,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 25,
           "shape": 7
         },
         {
@@ -223,7 +235,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            9
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -289,25 +303,193 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "Wide establishing shot inside a small neighborhood bakery just before opening. Warm sunrise spills through the front windows. A baker carries a tray of fresh bread from the oven, places it on the counter, tears one loaf open and steam rises. The camera slowly dollies from the doorway to a medium shot at the counter. Flour floats in the light. Audio: oven fan, tray on wood, crust crackle, distant street traffic, no music."
+        },
+        "wg_text": "Wide establishing shot inside a small neighborhood bakery just before opening. Warm sunrise spills through the front windows. A baker carries a tray of fresh bread from the oven, places it on the counter, tears one loaf open and steam rises. The camera slowly dollies from the doorway to a medium shot at the counter. Flour floats in the light. Audio: oven fan, tray on wood, crust crackle, distant street traffic, no music.",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Video & Motion (Wan / Hunyuan)",
+            "presetId": "cinematic-video",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "11f8a626-97ad-4393-9f4c-b47fbf037e21",
+                "name": "Subject & Action",
+                "label": "Subject & Action",
+                "value": "Wide establishing shot inside a small neighborhood bakery just before opening. A baker dusts flour across a wooden counter and slides a tray of golden croissants toward the front display.",
+                "default": "Wide establishing shot inside a small neighborhood bakery just before opening. A baker dusts flour across a wooden counter and slides a tray of golden croissants toward the front display.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "action",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "4c193b1d-364d-4001-9505-83d80273c449",
+                "name": "Camera movement",
+                "label": "Camera movement",
+                "value": "Slow, steady dolly forward at eye level, keeping the counter and warm display case in sharp focus.",
+                "default": "Slow, steady dolly forward at eye level, keeping the counter and warm display case in sharp focus.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "camera",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "eef3121e-c4c9-476e-a3e7-194583be788a",
+                "name": "Atmosphere & Motion",
+                "label": "Atmosphere & Motion",
+                "value": "Fine flour particles drift gently through sunbeams; faint steam rises from freshly baked loaves.",
+                "default": "Fine flour particles drift gently through sunbeams; faint steam rises from freshly baked loaves.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "environment",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [
+                  "11f8a626-97ad-4393-9f4c-b47fbf037e21"
+                ],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "1bbc121f-9a5b-4bfd-83c8-a63ff022622d",
+                "name": "Lighting & Mood",
+                "label": "Lighting & Mood",
+                "value": "Warm morning sunlight streaming through tall front windows, cozy inviting atmosphere.",
+                "default": "Warm morning sunlight streaming through tall front windows, cozy inviting atmosphere.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lighting",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "14455ee8-4862-46b1-bf2e-55e5ff6d6430",
+                "name": "Pacing & Style",
+                "label": "Pacing & Style",
+                "value": "Natural cinematic realism, rich wood and crust textures, gentle ambient sound of quiet kitchen prep.",
+                "default": "Natural cinematic realism, rich wood and crust textures, gentle ambient sound of quiet kitchen prep.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "11f8a626-97ad-4393-9f4c-b47fbf037e21",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "4c193b1d-364d-4001-9505-83d80273c449",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "eef3121e-c4c9-476e-a3e7-194583be788a",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "1bbc121f-9a5b-4bfd-83c8-a63ff022622d",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "14455ee8-4862-46b1-bf2e-55e5ff6d6430",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "Wide establishing shot inside a small neighborhood bakery just before opening. Warm sunrise spills through the front windows. A baker carries a tray of fresh bread from the oven, places it on the counter, tears one loaf open and steam rises. The camera slowly dollies from the doorway to a medium shot at the counter. Flour floats in the light. Audio: oven fan, tray on wood, crust crackle, distant street traffic, no music.",
+        "Wide establishing shot inside a small neighborhood bakery just before opening. A baker dusts flour across a wooden counter and slides a tray of golden croissants toward the front display., Slow, steady dolly forward at eye level, keeping the counter and warm display case in sharp focus., Fine flour particles drift gently through sunbeams; faint steam rises from freshly baked loaves., Warm morning sunlight streaming through tall front windows, cozy inviting atmosphere., Natural cinematic realism, rich wood and crust textures, gentle ambient sound of quiet kitchen prep.",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — LTX 2.3"
+      "title": "Prompt Palette — Scene & Audio Cues",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "Wide establishing shot inside a small neighborhood bakery just before opening. A baker dusts flour across a wooden counter and slides a tray of golden croissants toward the front display., Slow, steady dolly forward at eye level, keeping the counter and warm display case in sharp focus., Fine flour particles drift gently through sunbeams; faint steam rises from freshly baked loaves., Warm morning sunlight streaming through tall front windows, cozy inviting atmosphere., Natural cinematic realism, rich wood and crust textures, gentle ambient sound of quiet kitchen prep.",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"5\",\"positive\":\"Wide establishing shot inside a small neighborhood bakery just before opening. A baker dusts flour across a wooden counter and slides a tray of golden croissants toward the front display., Slow, steady dolly forward at eye level, keeping the counter and warm display case in sharp focus., Fine flour particles drift gently through sunbeams; faint steam rises from freshly baked loaves., Warm morning sunlight streaming through tall front windows, cozy inviting atmosphere., Natural cinematic realism, rich wood and crust textures, gentle ambient sound of quiet kitchen prep.\",\"negative\":\"\",\"fields\":[{\"id\":\"11f8a626-97ad-4393-9f4c-b47fbf037e21\",\"channel\":\"positive\",\"start\":0,\"end\":187,\"source\":\"Wide establishing shot inside a small neighborhood bakery just before opening. A baker dusts flour across a wooden counter and slides a tray of golden croissants toward the front display.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"4c193b1d-364d-4001-9505-83d80273c449\",\"channel\":\"positive\",\"start\":189,\"end\":287,\"source\":\"Slow, steady dolly forward at eye level, keeping the counter and warm display case in sharp focus.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"eef3121e-c4c9-476e-a3e7-194583be788a\",\"channel\":\"positive\",\"start\":289,\"end\":385,\"source\":\"Fine flour particles drift gently through sunbeams; faint steam rises from freshly baked loaves.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"1bbc121f-9a5b-4bfd-83c8-a63ff022622d\",\"channel\":\"positive\",\"start\":387,\"end\":472,\"source\":\"Warm morning sunlight streaming through tall front windows, cozy inviting atmosphere.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"14455ee8-4862-46b1-bf2e-55e5ff6d6430\",\"channel\":\"positive\",\"start\":474,\"end\":574,\"source\":\"Natural cinematic realism, rich wood and crust textures, gentle ambient sound of quiet kitchen prep.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"11f8a626-97ad-4393-9f4c-b47fbf037e21\",\"join\":true},{\"type\":\"field\",\"id\":\"4c193b1d-364d-4001-9505-83d80273c449\",\"join\":true},{\"type\":\"field\",\"id\":\"eef3121e-c4c9-476e-a3e7-194583be788a\",\"join\":true},{\"type\":\"field\",\"id\":\"1bbc121f-9a5b-4bfd-83c8-a63ff022622d\",\"join\":true},{\"type\":\"field\",\"id\":\"14455ee8-4862-46b1-bf2e-55e5ff6d6430\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"11f8a626-97ad-4393-9f4c-b47fbf037e21\":null,\"4c193b1d-364d-4001-9505-83d80273c449\":null,\"eef3121e-c4c9-476e-a3e7-194583be788a\":null,\"1bbc121f-9a5b-4bfd-83c8-a63ff022622d\":null,\"14455ee8-4862-46b1-bf2e-55e5ff6d6430\":null},\"edges\":{\"positive\":[\"11f8a626-97ad-4393-9f4c-b47fbf037e21\",\"14455ee8-4862-46b1-bf2e-55e5ff6d6430\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 6,
       "type": "PromptPaletteEditor",
       "pos": [
-        500,
-        380
+        520,
+        510
       ],
       "size": [
-        430,
-        310
+        520,
+        250
       ],
       "flags": {},
       "order": 5,
@@ -438,25 +620,190 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "pc game, console game, video game, cartoon, childish, ugly"
+        },
+        "wg_text": "pc game, console game, video game, cartoon, childish, ugly",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Negative prompt set",
+            "presetId": "negative",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "17cf96b1-620d-4137-9c5f-4e982c6079e1",
+                "name": "Prompt",
+                "label": "Prompt",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "prompt",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "b74db47c-2373-45e5-a57f-602cfc2f7d34",
+                "name": "Quality exclusions",
+                "label": "Quality exclusions",
+                "value": "pc game, console game, video game, ugly, blurry, low quality",
+                "default": "pc game, console game, video game, ugly, blurry, low quality",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "quality",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "db0c7991-0594-4c9d-a8bf-8a88aeb97f4a",
+                "name": "Anatomy exclusions",
+                "label": "Anatomy exclusions",
+                "value": "deformed, distorted proportions",
+                "default": "deformed, distorted proportions",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "anatomy",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "937d62ec-5639-4831-83ad-9482e5e7e9f9",
+                "name": "Text exclusions",
+                "label": "Text exclusions",
+                "value": "watermark, text, logo",
+                "default": "watermark, text, logo",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "text",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "0df273a1-b97e-45b5-98a6-7a172cdbe9f3",
+                "name": "Style exclusions",
+                "label": "Style exclusions",
+                "value": "cartoon, childish, 3d render",
+                "default": "cartoon, childish, 3d render",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "17cf96b1-620d-4137-9c5f-4e982c6079e1",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "b74db47c-2373-45e5-a57f-602cfc2f7d34",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "db0c7991-0594-4c9d-a8bf-8a88aeb97f4a",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "937d62ec-5639-4831-83ad-9482e5e7e9f9",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "0df273a1-b97e-45b5-98a6-7a172cdbe9f3",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "pc game, console game, video game, cartoon, childish, ugly",
+        "pc game, console game, video game, ugly, blurry, low quality, deformed, distorted proportions, watermark, text, logo, cartoon, childish, 3d render",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Negative"
+      "title": "Prompt Palette — Negative",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "pc game, console game, video game, ugly, blurry, low quality, deformed, distorted proportions, watermark, text, logo, cartoon, childish, 3d render",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"6\",\"positive\":\"pc game, console game, video game, ugly, blurry, low quality, deformed, distorted proportions, watermark, text, logo, cartoon, childish, 3d render\",\"negative\":\"\",\"fields\":[{\"id\":\"b74db47c-2373-45e5-a57f-602cfc2f7d34\",\"channel\":\"positive\",\"start\":0,\"end\":60,\"source\":\"pc game, console game, video game, ugly, blurry, low quality\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"db0c7991-0594-4c9d-a8bf-8a88aeb97f4a\",\"channel\":\"positive\",\"start\":62,\"end\":93,\"source\":\"deformed, distorted proportions\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"937d62ec-5639-4831-83ad-9482e5e7e9f9\",\"channel\":\"positive\",\"start\":95,\"end\":116,\"source\":\"watermark, text, logo\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"0df273a1-b97e-45b5-98a6-7a172cdbe9f3\",\"channel\":\"positive\",\"start\":118,\"end\":146,\"source\":\"cartoon, childish, 3d render\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"17cf96b1-620d-4137-9c5f-4e982c6079e1\",\"join\":true},{\"type\":\"field\",\"id\":\"b74db47c-2373-45e5-a57f-602cfc2f7d34\",\"join\":true},{\"type\":\"field\",\"id\":\"db0c7991-0594-4c9d-a8bf-8a88aeb97f4a\",\"join\":true},{\"type\":\"field\",\"id\":\"937d62ec-5639-4831-83ad-9482e5e7e9f9\",\"join\":true},{\"type\":\"field\",\"id\":\"0df273a1-b97e-45b5-98a6-7a172cdbe9f3\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"17cf96b1-620d-4137-9c5f-4e982c6079e1\":null,\"b74db47c-2373-45e5-a57f-602cfc2f7d34\":null,\"db0c7991-0594-4c9d-a8bf-8a88aeb97f4a\":null,\"937d62ec-5639-4831-83ad-9482e5e7e9f9\":null,\"0df273a1-b97e-45b5-98a6-7a172cdbe9f3\":null},\"edges\":{\"positive\":[\"17cf96b1-620d-4137-9c5f-4e982c6079e1\",\"0df273a1-b97e-45b5-98a6-7a172cdbe9f3\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 7,
       "type": "LTXVConditioning",
       "pos": [
-        980,
-        270
+        1130,
+        60
       ],
       "size": [
-        320,
-        130
+        360,
+        120
       ],
       "flags": {},
       "order": 6,
@@ -496,18 +843,20 @@
       "widgets_values": [
         24
       ],
-      "title": "LTX conditioning — 24 fps"
+      "title": "LTX Conditioning · 24 fps",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 8,
       "type": "EmptyLTXVLatentVideo",
       "pos": [
-        980,
-        500
+        1130,
+        250
       ],
       "size": [
-        350,
-        200
+        360,
+        180
       ],
       "flags": {},
       "order": 7,
@@ -532,18 +881,20 @@
         97,
         1
       ],
-      "title": "Video latent — 832×480 / 81 frames"
+      "title": "Video Latent · 768 × 512 · 97 Frames",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 9,
       "type": "LTXVEmptyLatentAudio",
       "pos": [
-        980,
-        700
+        1130,
+        500
       ],
       "size": [
-        350,
-        180
+        360,
+        160
       ],
       "flags": {},
       "order": 8,
@@ -573,17 +924,19 @@
         24,
         1
       ],
-      "title": "Audio latent — 81 frames / 24 fps"
+      "title": "Audio Latent · 97 Frames · 24 fps",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 10,
       "type": "LTXVConcatAVLatent",
       "pos": [
-        1320,
-        610
+        1130,
+        730
       ],
       "size": [
-        300,
+        360,
         100
       ],
       "flags": {},
@@ -614,18 +967,21 @@
         "Node name for S&R": "LTXVConcatAVLatent",
         "cnr_id": "comfy-core"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Join Audio + Video Latents",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 11,
       "type": "CFGGuider",
       "pos": [
-        1320,
-        270
+        1580,
+        390
       ],
       "size": [
-        320,
-        150
+        440,
+        130
       ],
       "flags": {},
       "order": 10,
@@ -661,20 +1017,22 @@
         "cnr_id": "comfy-core"
       },
       "widgets_values": [
-        1.0
+        1
       ],
-      "title": "Distilled guider — CFG 1"
+      "title": "Distilled Guider · CFG 1.0",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 12,
       "type": "RandomNoise",
       "pos": [
-        1320,
-        20
+        1580,
+        60
       ],
       "size": [
-        320,
-        100
+        440,
+        105
       ],
       "flags": {},
       "order": 11,
@@ -696,18 +1054,21 @@
       "widgets_values": [
         1087440833994,
         "randomize"
-      ]
+      ],
+      "title": "Random Noise (Seed)",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 13,
       "type": "KSamplerSelect",
       "pos": [
-        1320,
-        120
+        1580,
+        235
       ],
       "size": [
-        320,
-        80
+        440,
+        85
       ],
       "flags": {},
       "order": 12,
@@ -728,17 +1089,20 @@
       },
       "widgets_values": [
         "euler"
-      ]
+      ],
+      "title": "Sampler Select · Euler",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 14,
       "type": "ManualSigmas",
       "pos": [
-        1320,
-        770
+        1580,
+        590
       ],
       "size": [
-        520,
+        440,
         110
       ],
       "flags": {},
@@ -761,18 +1125,20 @@
       "widgets_values": [
         "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
       ],
-      "title": "LTX distilled 1.1 sigma schedule"
+      "title": "Distilled 1.1 Sigma Schedule (8 Steps)",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 15,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        1680,
-        350
+        2080,
+        260
       ],
       "size": [
-        300,
-        190
+        320,
+        200
       ],
       "flags": {},
       "order": 14,
@@ -822,17 +1188,20 @@
         "Node name for S&R": "SamplerCustomAdvanced",
         "cnr_id": "comfy-core"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Custom Advanced Sampler",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 16,
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        1970,
-        350
+        2490,
+        260
       ],
       "size": [
-        300,
+        310,
         110
       ],
       "flags": {},
@@ -865,18 +1234,21 @@
         "Node name for S&R": "LTXVSeparateAVLatent",
         "cnr_id": "comfy-core"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Split Audio & Video Latents",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 17,
       "type": "VAEDecode",
       "pos": [
-        2250,
-        250
+        2860,
+        140
       ],
       "size": [
-        260,
-        80
+        310,
+        90
       ],
       "flags": {},
       "order": 16,
@@ -907,18 +1279,20 @@
         "cnr_id": "comfy-core"
       },
       "widgets_values": [],
-      "title": "Decode video frames"
+      "title": "Decode Video Frames",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 18,
       "type": "LTXVAudioVAEDecode",
       "pos": [
-        2250,
-        470
+        2860,
+        300
       ],
       "size": [
-        300,
-        80
+        310,
+        90
       ],
       "flags": {},
       "order": 17,
@@ -949,17 +1323,19 @@
         "cnr_id": "comfy-core"
       },
       "widgets_values": [],
-      "title": "Decode native audio"
+      "title": "Decode Native Audio",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 19,
       "type": "CreateVideo",
       "pos": [
-        2530,
-        330
+        2860,
+        460
       ],
       "size": [
-        300,
+        310,
         120
       ],
       "flags": {},
@@ -995,18 +1371,20 @@
         24,
         8
       ],
-      "title": "Create 24 fps video + audio"
+      "title": "Mux 24 fps Video + Audio",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 20,
       "type": "SaveVideo",
       "pos": [
-        2820,
-        330
+        3230,
+        140
       ],
       "size": [
-        430,
-        120
+        480,
+        440
       ],
       "flags": {},
       "order": 19,
@@ -1032,7 +1410,191 @@
         "video/PromptPalette_LTX23",
         "auto",
         "auto"
-      ]
+      ],
+      "title": "Save Video",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 21,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#29213b",
+      "bgcolor": "#171520",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "LTX-VIDEO 2.3 · Synchronized 24 fps Video + Native Audio",
+          "note": "768 × 512 · 97 frames (~4.0s @ 24 fps) · 8 distilled steps · CFG 1.0 — Direct camera motion, action, and foley in one prompt.",
+          "color_preset": "plum",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "LTX-VIDEO 2.3 · Synchronized 24 fps Video + Native Audio",
+        "768 × 512 · 97 frames (~4.0s @ 24 fps) · 8 distilled steps · CFG 1.0 — Direct camera motion, action, and foley in one prompt.",
+        "plum",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "LTX-VIDEO 2.3 · Synchronized 24 fps Video + Native Audio",
+        "note": "768 × 512 · 97 frames (~4.0s @ 24 fps) · 8 distilled steps · CFG 1.0 — Direct camera motion, action, and foley in one prompt.",
+        "color_preset": "plum",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 22,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        410
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · LTX-2.3 Files & Setup",
+          "note": "1. `models/checkpoints/ltx-2.3-22b-dev-fp8.safetensors` (selected in Checkpoint, AV Text Encoder, and Audio VAE)\n2. `models/loras/ltx_2.3_22b_distilled_1.1_lora_*.safetensors` (`0.5` strength)\n3. `models/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors`\n\n- **Frame rule (`8n + 1`):** Keep **Video Latent** and **Audio Latent** at the same `8n + 1` frame count (`65`, `81`, `97`, `121`).",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · LTX-2.3 Files & Setup",
+        "1. `models/checkpoints/ltx-2.3-22b-dev-fp8.safetensors` (selected in Checkpoint, AV Text Encoder, and Audio VAE)\n2. `models/loras/ltx_2.3_22b_distilled_1.1_lora_*.safetensors` (`0.5` strength)\n3. `models/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors`\n\n- **Frame rule (`8n + 1`):** Keep **Video Latent** and **Audio Latent** at the same `8n + 1` frame count (`65`, `81`, `97`, `121`).",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · LTX-2.3 Files & Setup",
+        "note": "1. `models/checkpoints/ltx-2.3-22b-dev-fp8.safetensors` (selected in Checkpoint, AV Text Encoder, and Audio VAE)\n2. `models/loras/ltx_2.3_22b_distilled_1.1_lora_*.safetensors` (`0.5` strength)\n3. `models/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors`\n\n- **Frame rule (`8n + 1`):** Keep **Video Latent** and **Audio Latent** at the same `8n + 1` frame count (`65`, `81`, `97`, `121`).",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 23,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        534
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#29213b",
+      "bgcolor": "#171520",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "AUDIO + VIDEO TIP · Directing Sound",
+          "note": "- Describe shot framing, subject action, and camera movement first, then end with an explicit `Audio:` line.\n- Specify ``no music`` or concrete foley cues (`crust crackle, distant traffic`) for clean diegetic sound.",
+          "color_preset": "plum",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "AUDIO + VIDEO TIP · Directing Sound",
+        "- Describe shot framing, subject action, and camera movement first, then end with an explicit `Audio:` line.\n- Specify ``no music`` or concrete foley cues (`crust crackle, distant traffic`) for clean diegetic sound.",
+        "plum",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "AUDIO + VIDEO TIP · Directing Sound",
+        "note": "- Describe shot framing, subject action, and camera movement first, then end with an explicit `Audio:` line.\n- Specify ``no music`` or concrete foley cues (`crust crackle, distant traffic`) for clean diegetic sound.",
+        "color_preset": "plum",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 24,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: LTX-2.3 T2V",
+          "note": "",
+          "color_preset": "plum",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: LTX-2.3 T2V",
+        "",
+        "plum",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: LTX-2.3 T2V",
+        "note": "",
+        "color_preset": "plum",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -1102,7 +1664,7 @@
     ],
     [
       9,
-      2,
+      5,
       0,
       11,
       0,
@@ -1227,16 +1789,85 @@
       20,
       0,
       "VIDEO"
+    ],
+    [
+      25,
+      2,
+      0,
+      5,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load Checkpoint, Distilled LoRA & AV Encoders",
+      "bounding": [
+        -24,
+        -18,
+        478,
+        779
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write Scene & Audio Prompt",
+      "bounding": [
+        496,
+        -18,
+        568,
+        804
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · 24 fps Conditioning & AV Latents",
+      "bounding": [
+        1106,
+        -18,
+        408,
+        874
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · Distilled 8-Step Sampling",
+      "bounding": [
+        1556,
+        -18,
+        868,
+        744
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode Video + Audio & Save",
+      "bounding": [
+        2466,
+        62,
+        1268,
+        544
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.62,
+      "scale": 0.56,
       "offset": [
-        50,
-        50
+        560,
+        220
       ]
     }
   },

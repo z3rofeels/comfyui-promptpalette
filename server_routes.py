@@ -21,7 +21,13 @@ from server import PromptServer
 
 from .clip_tokenizer import count_clip_tokens
 from .prompt_exploration import capture_selection
-from .prompt_diagnostics import inspect_resolved_prompt
+from .prompt_diagnostics import (
+    detect_model_syntax_mismatches,
+    find_duplicate_clauses,
+    inspect_embeddings,
+    inspect_resolved_prompt,
+    iter_top_level_clauses,
+)
 from .positive_antonyms import apply_positive_antonyms
 from .wildcard_index import get_index, peek_index
 from .wildcard_resolver import WildcardResolver
@@ -40,7 +46,7 @@ routes = PromptServer.instance.routes
 async def prompt_palette_loras(_request):
     if _request.query.get("refresh") == "1":
         lora_support.clear_preview_cache()
-        lora_support._METADATA_CACHE.clear()
+        lora_support.clear_metadata_cache()
     names = await asyncio.to_thread(lora_support.catalog)
     folders = await asyncio.to_thread(lora_support.catalog_folders, names)
     return web.json_response({"names": names, "folders": folders})
@@ -188,13 +194,20 @@ async def prompt_palette_lora_thumbnail(request):
                 opened = Image.open(io.BytesIO(image))
             except Image.DecompressionBombError as exc:
                 raise ValueError("Choose an image up to 40 megapixels") from exc
-            with opened as img:
-                if img.format not in ("PNG", "JPEG", "WEBP") or img.width * img.height > 40_000_000:
-                    raise ValueError("Use a PNG, JPEG or WebP image up to 40 megapixels")
-                img.thumbnail((1600, 1600))
-                output = io.BytesIO()
-                img.convert("RGBA").save(output, format="PNG")
-                _atomic_write_bytes(str(target), output.getvalue())
+            except (OSError, EOFError, SyntaxError, ValueError) as exc:
+                raise ValueError("Could not read that image file") from exc
+            try:
+                with opened as img:
+                    if img.format not in ("PNG", "JPEG", "WEBP") or img.width * img.height > 40_000_000:
+                        raise ValueError("Use a PNG, JPEG or WebP image up to 40 megapixels")
+                    img.thumbnail((1600, 1600))
+                    output = io.BytesIO()
+                    img.convert("RGBA").save(output, format="PNG")
+                    _atomic_write_bytes(str(target), output.getvalue())
+            except ValueError:
+                raise
+            except (OSError, EOFError, SyntaxError) as exc:
+                raise ValueError("Could not read that image file") from exc
         await asyncio.to_thread(save)
         return web.json_response({"ok": True})
     except (ValueError, OSError) as exc:
@@ -438,22 +451,32 @@ def _custom_word_write_path() -> str:
 
 
 def _load_custom_word_text() -> str:
-    paths = [path for path in _custom_word_sources() if os.path.isfile(path)]
-    signature = tuple((path, os.path.getmtime(path), os.path.getsize(path)) for path in paths)
-    if _CUSTOM_WORD_TEXT_CACHE["signature"] == signature:
-        return str(_CUSTOM_WORD_TEXT_CACHE["text"])
-    chunks: list[str] = []
-    for path in paths:
-        try:
-            with open(path, "r", encoding="utf-8", errors="replace", newline="") as handle:
-                content = handle.read()
-            chunks.append(content)
-        except OSError:
-            logger.debug("Could not read custom word source %s", path, exc_info=True)
-    text = "\n".join(chunks)
-    _CUSTOM_WORD_TEXT_CACHE["signature"] = signature
-    _CUSTOM_WORD_TEXT_CACHE["text"] = text
-    return text
+    with _CUSTOM_WORD_LOCK:
+        paths: list[str] = []
+        sig_entries: list[tuple[str, float, int]] = []
+        for path in _custom_word_sources():
+            try:
+                st = os.stat(path)
+                if os.path.isfile(path):
+                    paths.append(path)
+                    sig_entries.append((path, st.st_mtime, st.st_size))
+            except OSError:
+                continue
+        signature = tuple(sig_entries)
+        if _CUSTOM_WORD_TEXT_CACHE["signature"] == signature:
+            return str(_CUSTOM_WORD_TEXT_CACHE["text"])
+        chunks: list[str] = []
+        for path in paths:
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace", newline="") as handle:
+                    content = handle.read()
+                chunks.append(content)
+            except OSError:
+                logger.debug("Could not read custom word source %s", path, exc_info=True)
+        text = "\n".join(chunks)
+        _CUSTOM_WORD_TEXT_CACHE["signature"] = signature
+        _CUSTOM_WORD_TEXT_CACHE["text"] = text
+        return text
 
 
 def _error(message: str, status: int = 400, *, ok: bool | None = None) -> web.Response:
@@ -1055,7 +1078,7 @@ async def get_custom_words(request):
     # The frontend parses pythongosssss' autocomplete.txt grammar so the same
     # priority/alias semantics are available without installing or patching it.
     try:
-        return web.json_response({"text": _load_custom_word_text()})
+        return web.json_response({"text": await asyncio.to_thread(_load_custom_word_text)})
     except ValueError as exc:
         return _error(str(exc), 413)
     except Exception:
@@ -1103,7 +1126,7 @@ async def remove_custom_words(request):
 async def import_custom_words(request):
     require_same_origin(request)
     try:
-        data = await _read_json_object(request, limit=None)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         text = _bounded_text(data.get("text"), "text", limit=None)
         mode = data.get("mode", "merge")
         if mode not in ("merge", "replace"):
@@ -1306,7 +1329,7 @@ async def set_path(request):
 async def resolve_prompt(request):
     require_same_origin(request)
     try:
-        data = await _read_json_object(request, limit=None)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         text = _bounded_text(data.get("text"), "text", limit=None)
         seed = _bounded_int(data.get("seed", 0), "seed")
         mode = data.get("mode", "entire text as one")
@@ -1340,11 +1363,12 @@ async def resolve_prompt(request):
 
     def resolve_and_count():
         resolver = None
+        workspace_rt = None
         if index is not None:
             index._ensure_fresh()
             view = index.preview_view()
             if workspace_payload is not None and workspace_payload["positive"] == text:
-                workspace_rt = WorkspaceGeneration(view, workspace_payload, preview=True)
+                workspace_rt = WorkspaceGeneration(view, workspace_payload, preview=True, initial_variables=vars_in)
                 resolved, _ = workspace_rt.resolve(workspace_payload["positive"], seed, mode)
             else:
                 resolver = WildcardResolver(view, initial_variables=vars_in)
@@ -1357,12 +1381,29 @@ async def resolve_prompt(request):
             resolved = text
         resolved = apply_positive_antonyms(resolved, positive_antonyms)
         response: dict[str, Any] = {"resolved": resolved}
-        if resolver is not None:
+        if workspace_rt is not None:
+            response["variables"] = dict(workspace_rt.variables)
+            response["branch_selections"] = list(workspace_rt.branch_selections)
+        elif resolver is not None:
             response["variables"] = resolver.export_variables()
             response["branch_selections"] = resolver.branch_selections
+        clean_for_tokens, lora_records = lora_support.extract(resolved)
         token_stats = count_clip_tokens(resolved)
         if token_stats is not None:
             response["token_stats"] = token_stats
+        available_embeddings = _available_embeddings() if "embedding:" in resolved else None
+        embeddings = inspect_embeddings(resolved, available_embeddings) if "embedding:" in resolved else []
+        missing_loras: list[dict[str, Any]] = []
+        if lora_records:
+            lora_names = lora_support.catalog()
+            for record in lora_records[:64]:
+                filename, status = lora_support.resolve_name(record["name"], lora_names)
+                record.update(status=status, filename=filename)
+                if status != "found":
+                    missing_loras.append(record)
+        response["embeddings"] = embeddings
+        response["missing_loras"] = missing_loras
+        response["duplicates"] = find_duplicate_clauses(resolved)
         return response
 
     try:
@@ -1375,6 +1416,57 @@ async def resolve_prompt(request):
     return web.json_response(response)
 
 
+def _available_embeddings() -> list[str] | None:
+    try:
+        import folder_paths
+        return list(folder_paths.get_filename_list("embeddings"))
+    except Exception:
+        return None
+
+
+def _preflight_summary(text: str, negative_text: str = "", target_profile: str = "") -> dict[str, Any]:
+    combined = f"{text}\n{negative_text}" if negative_text else text
+    available_emb = _available_embeddings() if "embedding:" in combined else None
+    embeddings = inspect_embeddings(combined, available_emb) if "embedding:" in combined else []
+    clean_pos, pos_loras = lora_support.extract(text, source="positive")
+    _, neg_loras = lora_support.extract(negative_text, source="negative") if negative_text else ("", [])
+    lora_records = (pos_loras + neg_loras)[:64]
+    missing_loras: list[dict[str, Any]] = []
+    if lora_records:
+        lora_names = lora_support.catalog()
+        for record in lora_records:
+            filename, status = lora_support.resolve_name(record["name"], lora_names)
+            record.update(status=status, filename=filename)
+            if status != "found":
+                missing_loras.append(record)
+    duplicates = find_duplicate_clauses(text)
+    mismatches = detect_model_syntax_mismatches(text, target_profile) if target_profile else []
+    return {
+        "embeddings": embeddings,
+        "loras": lora_records,
+        "missing_loras": missing_loras,
+        "duplicates": duplicates,
+        "mismatches": mismatches,
+    }
+
+
+@routes.post("/prompt_palette/diagnostics")
+async def prompt_diagnostics_route(request):
+    require_same_origin(request)
+    try:
+        data = await _read_json_object(request)
+        text = _bounded_text(data.get("text", ""), "text")
+        negative_text = _bounded_text(data.get("negative_text", ""), "negative_text") if data.get("negative_text") else ""
+        target_profile = _bounded_text(data.get("target_profile", ""), "target_profile", MAX_NAME_CHARS) if data.get("target_profile") else ""
+    except (ValueError, TypeError) as exc:
+        return _error(str(exc))
+    try:
+        return web.json_response(await asyncio.to_thread(_preflight_summary, text, negative_text, target_profile))
+    except Exception:
+        logger.exception("Prompt diagnostics failed")
+        return _error("prompt diagnostics failed", 500)
+
+
 @routes.post("/prompt_palette/inspect")
 async def inspect_prompt(request):
     require_same_origin(request)
@@ -1384,6 +1476,17 @@ async def inspect_prompt(request):
         seed = _bounded_int(data.get("seed", 0), "seed")
         mode = data.get("mode", "entire text as one")
         resolve = data.get("resolve", True)
+        target_profile = _bounded_text(data.get("target_profile", ""), "target_profile", MAX_NAME_CHARS) if data.get("target_profile") else ""
+        raw_fields = data.get("fields")
+        fields_input: list[dict[str, str]] = []
+        if isinstance(raw_fields, list):
+            for entry in raw_fields[:32]:
+                if isinstance(entry, dict) and isinstance(entry.get("id"), str):
+                    fields_input.append({
+                        "id": entry["id"][:128],
+                        "label": str(entry.get("label") or "Field")[:128],
+                        "text": str(entry.get("text") or "")[:100_000],
+                    })
         if not isinstance(resolve, bool):
             raise ValueError("invalid resolve flag")
         if mode not in {"entire text as one", "line by line"}:
@@ -1399,20 +1502,65 @@ async def inspect_prompt(request):
             from .nodes import PromptPaletteWeightController
             resolver = WildcardResolver(index.preview_view()) if index is not None else None
             resolved = text if not resolve else "\n".join(resolver.resolve_lines(text, seed=seed)) if mode == "line by line" else resolver.resolve(text, seed=seed)
-            try:
-                import folder_paths
-                available = folder_paths.get_filename_list("embeddings")
-            except Exception:
-                available = None
-            result = inspect_resolved_prompt(resolved, PromptPaletteWeightController._parse_weighted_segments(resolved), available)
-            lora_records = lora_support.extract(resolved)[1]
+            available = _available_embeddings()
+            result = inspect_resolved_prompt(
+                resolved,
+                PromptPaletteWeightController._parse_weighted_segments(resolved),
+                available,
+                target_profile=target_profile,
+            )
+            clean_resolved, lora_records = lora_support.extract(resolved)
+            missing_loras: list[dict[str, Any]] = []
             if lora_records:
                 lora_names = lora_support.catalog()
                 for record in lora_records[:64]:
                     filename, status = lora_support.resolve_name(record["name"], lora_names)
                     record.update(status=status, filename=filename)
+                    if status != "found":
+                        missing_loras.append(record)
             result["loras"] = lora_records[:64]
-            result.update({"resolved": resolved, "token_stats": count_clip_tokens(resolved, include_layout=True),
+            result["missing_loras"] = missing_loras
+            result["duplicates"] = find_duplicate_clauses(resolved)
+
+            clause_tokens = []
+            for c_start, c_end, c_raw in list(iter_top_level_clauses(text))[:48]:
+                c_resolved = c_raw
+                if resolver is not None and resolve:
+                    try:
+                        c_resolved = WildcardResolver(index.preview_view()).resolve(c_raw, seed=seed)
+                    except Exception:
+                        c_resolved = c_raw
+                c_clean, _ = lora_support.extract(c_resolved)
+                c_stats = count_clip_tokens(c_clean) if c_clean.strip() else {"tokens": 0}
+                clause_tokens.append({
+                    "start": c_start,
+                    "end": c_end,
+                    "text": c_raw[:240],
+                    "tokens": c_stats["tokens"] if c_stats else None,
+                })
+            result["clause_tokens"] = clause_tokens
+
+            if fields_input:
+                field_tokens = []
+                for f_item in fields_input:
+                    f_raw = f_item["text"]
+                    f_res = f_raw
+                    if resolver is not None and resolve and f_raw.strip():
+                        try:
+                            f_res = WildcardResolver(index.preview_view()).resolve(f_raw, seed=seed)
+                        except Exception:
+                            f_res = f_raw
+                    f_clean, _ = lora_support.extract(f_res)
+                    f_stats = count_clip_tokens(f_clean) if f_clean.strip() else {"tokens": 0}
+                    field_tokens.append({
+                        "id": f_item["id"],
+                        "label": f_item["label"],
+                        "tokens": f_stats["tokens"] if f_stats else None,
+                    })
+                result["field_tokens"] = field_tokens
+
+            result.update({"resolved": resolved,
+                           "token_stats": count_clip_tokens(clean_resolved if lora_records else resolved, include_layout=True),
                            "variables": [{"name": name, "value": str(value)} for name, (kind, value) in (resolver.variables.items() if resolver else []) if kind == "resolved"][:64]})
             return result
 
@@ -1450,7 +1598,7 @@ async def capture_prompt_selection(request):
 async def resolve_variations(request):
     require_same_origin(request)
     try:
-        data = await _read_json_object(request, limit=None)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         text = _bounded_text(data.get("text"), "text", limit=None)
         seed = _bounded_int(data.get("seed", 0), "seed")
         count = _bounded_int(data.get("count", 4), "count", minimum=1, maximum=16)
@@ -1500,7 +1648,7 @@ async def resolve_variations(request):
 async def resolve_combinatorial(request):
     require_same_origin(request)
     try:
-        data = await _read_json_object(request, limit=None)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         text = _bounded_text(data.get("text"), "text", limit=None)
         seed = _bounded_int(data.get("seed", 0), "seed")
         requested_max = _bounded_int(
@@ -1537,7 +1685,7 @@ async def resolve_combinatorial(request):
 async def resolve_workspace(request):
     require_same_origin(request)
     try:
-        data = await _read_json_object(request, limit=None)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         payload = read_runtime(data.get("runtime"))
         if payload is None: raise ValueError("Open a Fields workspace first.")
         seed = _bounded_int(data.get("seed", 0), "seed")
@@ -1566,7 +1714,7 @@ async def resolve_workspace(request):
 async def eval_upstream_input(request):
     require_same_origin(request)
     try:
-        data = await _read_json_object(request, limit=None)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         prompt_graph = data.get("prompt")
         target_node = data.get("target_node")
         if target_node is None or str(target_node) == "":
@@ -1585,7 +1733,7 @@ async def eval_upstream_input(request):
 async def count_combinatorial(request):
     require_same_origin(request)
     try:
-        data = await _read_json_object(request, limit=None)
+        data = await _read_json_object(request, limit=MAX_RECIPE_JSON_BYTES)
         text = _bounded_text(data.get("text"), "text", limit=None)
         seed = _bounded_int(data.get("seed", 0), "seed")
         requested_max = _bounded_int(
@@ -1593,6 +1741,8 @@ async def count_combinatorial(request):
             "max_prompts",
             maximum=WildcardResolver.MAX_COMBINATORIAL_PROMPTS,
         )
+        workspace_runtime_raw = data.get("workspace_runtime")
+        workspace_payload = read_runtime(workspace_runtime_raw) if workspace_runtime_raw else None
     except ValueError as exc:
         return _error(str(exc))
 
@@ -1604,8 +1754,15 @@ async def count_combinatorial(request):
         return _error("couldn't load wildcard library", 500)
 
     def count():
-        resolver = WildcardResolver(index.preview_view())
-        return resolver.count_combinatorial(text, seed=seed, limit=min(COUNT_ONLY_LIMIT, cap))
+        view = index.preview_view()
+        source = text
+        if workspace_payload is not None and workspace_payload["positive"] == text:
+            workspace_rt = WorkspaceGeneration(view, workspace_payload, preview=True)
+            for field in workspace_rt.fields:
+                field["state"] = None
+            source = workspace_rt.combinatorial_source(text)
+        resolver = WildcardResolver(view)
+        return resolver.count_combinatorial(source, seed=seed, limit=min(COUNT_ONLY_LIMIT, cap))
 
     try:
         result_count, truncated = await asyncio.to_thread(count)

@@ -32,8 +32,16 @@ export function mountCombinatorialTools(root, settingsPopup) {
   root.querySelector(".pp-header-actions").remove();
   toolbar.appendChild(actions); root.querySelector(".pp-header").after(toolbar);
   const editorWrap = root.querySelector(".wg-editor-wrap");
+  const smartBar = take("smartPasteBar");
+  if (smartBar && editorWrap) editorWrap.prepend(smartBar);
   const findBar = take("editorFindBar");
   if (findBar && editorWrap) editorWrap.prepend(findBar);
+  const quickStart = take("emptyQuickStart");
+  if (quickStart) {
+    const starterBtn = quickStart.querySelector('[data-quickstart="starter"] span');
+    if (starterBtn) starterBtn.textContent = "My Library";
+    root.querySelector('[data-el="editorReal"]')?.appendChild(quickStart);
+  }
   editorWrap.appendChild(take("resolvedView"));
   for (const name of ["doctorPopup", "variationPopup", "libraryManagerPopup", "recipeBuilderPopup"]) root.querySelector(".wg-main").appendChild(take(name));
   root.querySelector(".wg-main").appendChild(shell.querySelector('[data-drawer="edit"]'));
@@ -58,10 +66,19 @@ export function mountCombinatorialTools(root, settingsPopup) {
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleImportImageBtn").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleRecipesBtn").closest(".wg-toggle-card"));
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleSlotsBtn").closest(".wg-toggle-card"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleRefineBtn").closest(".wg-toggle-card"));
+  settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleIoBtn").closest(".wg-toggle-card"));
+  const managePortsBtn = shell.querySelector('[data-act="openPortsFromSettings"]');
+  if (managePortsBtn) {
+    const portsRow = document.createElement("div");
+    portsRow.className = "wg-button-row";
+    portsRow.appendChild(managePortsBtn);
+    settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(portsRow);
+  }
   // Fields settings replaced the legacy layout/snap toggles in the shared shell.
   settingsPopup.querySelector('[data-settings-panel="behavior"]').insertAdjacentHTML("beforeend", fieldEditorSettingsMarkup());
   settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(take("toggleAnimaArtistFormatting").closest(".wg-toggle-card"));
-  for (const styleControl of ["toggleStyleSelector", "toggleStyleAutocomplete", "styleAutocompleteMode", "styleModelFilter", "styleMossDialect"]) {
+  for (const styleControl of ["toggleStyleSelector", "toggleStyleAutocomplete", "styleAutocompleteMode", "styleModelFilter", "styleMossDialect", "toggleChunkBoundary", "toggleEmptyQuickStart"]) {
     const nodeControl = take(styleControl);
     if (nodeControl) settingsPopup.querySelector('[data-settings-panel="behavior"]').appendChild(nodeControl.closest(".wg-toggle-card"));
   }
@@ -86,7 +103,39 @@ export function createCombinatorialTools(ctx) {
     el("editorReal").classList.remove("hidden"); el("resolvedView").classList.remove("on");
     el("btnResolve").classList.remove("on"); setToolbarLabel(el("btnResolve"), "Preview result");
     el("btnResolve").setAttribute("aria-pressed", "false");
+    const tokenCountEl = el("tokenCount");
+    if (tokenCountEl) {
+      tokenCountEl.classList.remove("wg-token-warn", "wg-token-danger");
+      tokenCountEl.textContent = "";
+      tokenCountEl.title = "CLIP-L token count of the resolved prompt (visible while Preview result is open)";
+    }
   };
+  function updateTokenBadge(stats) {
+    const tokenCountEl = el("tokenCount");
+    if (!tokenCountEl) return;
+    tokenCountEl.classList.remove("wg-token-warn", "wg-token-danger");
+    if (!stats) {
+      tokenCountEl.textContent = "";
+      tokenCountEl.title = "CLIP-L token count of the resolved prompt (visible while Preview result is open)";
+      return;
+    }
+    const { tokens, chunks, per_chunk, limit_per_chunk } = stats;
+    if (tokens === 0) {
+      tokenCountEl.textContent = "0 tokens";
+      tokenCountEl.title = "";
+      return;
+    }
+    const chunkWord = chunks === 1 ? "chunk" : "chunks";
+    tokenCountEl.textContent = `${tokens} token${tokens === 1 ? "" : "s"} \u00b7 ${chunks} ${chunkWord}`;
+    if (chunks >= 3) tokenCountEl.classList.add("wg-token-danger");
+    else if (chunks === 2) tokenCountEl.classList.add("wg-token-warn");
+    const breakdown = Array.isArray(per_chunk)
+      ? per_chunk.map((n, i) => `chunk ${i + 1}: ${n}/${limit_per_chunk}`).join(" \u00b7 ")
+      : "";
+    tokenCountEl.title = chunks > 1 && breakdown
+      ? `CLIP-L splits prompts into ${limit_per_chunk}-token chunks. ${breakdown}`
+      : (breakdown ? `${breakdown} CLIP-L tokens` : "CLIP-L tokens");
+  }
   function closeEditDrawer() {
     editVersion++; editPanel.suspend(); editDrawer.classList.remove("open"); editDrawer.hidden = true;
     editDrawer.setAttribute("aria-hidden", "true"); editDrawer.setAttribute("inert", "");
@@ -97,6 +146,7 @@ export function createCombinatorialTools(ctx) {
     if (disposed || request !== editVersion) return;
     if (!opened) { if (el("editStatus").classList.contains("err")) notify("error", "Entry not opened", el("editStatus").textContent); return; }
     tools.closeAllPowerPopups(); closeSettings(); closePickerDrawer(); ioRail.close();
+    node?._ppLoraSidecar?.close?.(); node?._ppStyleSelector?.close?.();
     editDrawer.hidden = false; editDrawer.removeAttribute("inert"); editDrawer.setAttribute("aria-hidden", "false"); editDrawer.classList.add("open");
     el("editName").focus();
   }
@@ -119,7 +169,12 @@ export function createCombinatorialTools(ctx) {
       }
       el("resolvedView").replaceChildren(fragment);
       state.lastTokenStats = result.tokenStats; state.lastTokenStatsSource = source;
-      el("tokenCount").textContent = result.tokenStats ? `${result.tokenStats.tokens} tokens` : "";
+      updateTokenBadge(result.tokenStats);
+      node._ppPreflightBadge?.applyResolvedPreflight?.({
+        embeddings: result.embeddings,
+        missingLoras: result.missingLoras,
+        duplicates: result.duplicates,
+      });
       if (typeof ctx.onPreviewResolved === "function") {
         ctx.onPreviewResolved({ source, branchSelections: result.branchSelections || [], variables: result.variables || {} });
       }
@@ -155,10 +210,9 @@ export function createCombinatorialTools(ctx) {
   action("recipesShortcut", () => { searchInput.value = "RECIPES"; openPickerDrawer(); renderPickerList(searchInput.value); });
   action("buildRecipe", () => tools.promptSaveRecipe([...new Set(ctx.getSourcePaths())]));
   action("closeEditDrawer", closeEditDrawer);
-  listen(root, "keydown", event => { if (event.key === "Escape") { tools.closeAllPowerPopups(); closeEditDrawer(); if (el("resolvedView").classList.contains("on")) showEditor(); } });
   const unsubscribe = API.onLibraryChanged(() => { state.lastTokenStats = null; tools.updateDoctorStatus(); if (el("resolvedView").classList.contains("on")) refreshResolvedView(); });
   tools.syncPowerToolSettingsUI(); tools.applyPowerToolSettings();
-  return { ...tools, showEditor, refresh() {
+  return { ...tools, showEditor, openEditForItem, closeEditDrawer, refresh() {
     tools.syncPowerToolSettingsUI();
     tools.updateDoctorStatus();
     el("btnUndo").disabled = !ctx.canUndo(); el("btnRedo").disabled = !ctx.canRedo();

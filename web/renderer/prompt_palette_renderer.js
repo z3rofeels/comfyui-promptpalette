@@ -101,12 +101,19 @@ export class PromptPaletteRenderer {
     wrap("onMouseLeave", () => this.hover.hide());
     this.labelChanged = () => this.requestLayout();
     // Native slot rename notification, where available. No graph recomputation.
-    this.eventSource = this.node.graph?.events;
+    this.eventSource = null;
+    this.syncEventSource();
+  }
+  syncEventSource() {
+    const next = this.node.graph?.events || null;
+    if (next === this.eventSource) return;
+    this.eventSource?.removeEventListener?.("node:slot-label:changed", this.labelChanged);
+    this.eventSource = next;
     this.eventSource?.addEventListener?.("node:slot-label:changed", this.labelChanged);
   }
-  hideSocket(kind, def, hidden) { this.classic.hideSocket(kind, def, hidden); this.nodes2.requestSyncIfActive(); }
-  requestLayout() { this.classic.requestLayout(); this.nodes2.requestSyncIfActive(); }
-  sync() { this.nodes2.sync(); }
+  hideSocket(kind, def, hidden) { this.syncEventSource(); this.classic.hideSocket(kind, def, hidden); this.nodes2.requestSyncIfActive(); }
+  requestLayout() { this.syncEventSource(); this.classic.requestLayout(); this.nodes2.requestSyncIfActive(); }
+  sync() { this.syncEventSource(); this.nodes2.sync(); }
   isVisible() { return this.nodes2.findVueNode() ? this.nodes2.isVisible() : this.classic.isVisible(); }
   getViewportScale() { return this.classic.getViewportScale(); }
   snapshot() {

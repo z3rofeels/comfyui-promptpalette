@@ -2,6 +2,8 @@ import { parsePrompt } from "../engine/wildcard_engine.js";
 import { escapeHtml } from "./text_utils.js";
 import { copyPromptPaletteThemeScope } from "../prompt_palette_shared.js";
 import { openPromptTools, canBuildPromptRules } from "./prompt_tools_panel.js";
+import { openTokenQuickSwap } from "./token_quick_swap.js";
+import { openPromptHygieneModal } from "./prompt_hygiene.js";
 import { syntaxTone, syntaxCodeHtml } from "./syntax_presentation.js";
 import { notify } from "./notifications.js";
 
@@ -112,7 +114,22 @@ function ensureInjectMenu() {
     e.preventDefault();
     e.stopPropagation();
     const idx = Number(row.dataset.index);
-    if (row.dataset.kind === "tool") {
+    if (row.dataset.kind === "quick-swap") {
+      const { textarea, replaceRange } = injectState;
+      const anchorRect = injectMenu.getBoundingClientRect();
+      closeInjectMenu();
+      openTokenQuickSwap(textarea, {
+        offset: replaceRange?.start ?? textarea.selectionStart ?? 0,
+        anchorPoint: { x: anchorRect.left, y: anchorRect.top },
+      });
+    }
+    else if (row.dataset.kind === "hygiene") {
+      const { textarea } = injectState;
+      const mode = row.dataset.tool || "tidy";
+      closeInjectMenu();
+      openPromptHygieneModal(textarea, { mode });
+    }
+    else if (row.dataset.kind === "tool") {
       const { textarea, replaceRange } = injectState;
       const tab = row.dataset.tool;
       closeInjectMenu(); openPromptTools(textarea, { tab, range: tab !== "inspect" ? replaceRange : null });
@@ -201,10 +218,16 @@ function renderInjectMenu(cat) {
   const editRows = INJECT_EDIT_ACTIONS.map((a, i) => !selected && ["cut", "copy"].includes(a.cmd) ? "" : row("edit", i, a.label, "", a.desc)).join("");
   const tools = (!canBuildPromptRules(injectState.textarea) ? "" : row("tool", 0, "Build choices & rules", "", "Use a dropdown and matching outputs instead of writing syntax by hand.", "rules"))
     + (!canBuildPromptRules(injectState.textarea) ? "" : row("tool", 2, "Browse LoRAs", "", "Local files, separate strengths, swaps and variations.", "loras"))
-    + row("tool", 1, "Inspect prompt", "", "See explicit weights, reference tokens and embedding availability.", "inspect");
+    + row("hygiene", 3, "Fix / Tidy prompt", "", "Preview deduplication and punctuation cleanup diff.", "tidy")
+    + row("tool", 1, "Inspect prompt", "", "See explicit weights, clause token share, and pre-flight availability.", "inspect");
+
+  const quickSwapRow = cat && injectState.replaceRange
+    ? row("quick-swap", 0, "Peek / swap token", "Alt+Click", "Inspect entries, thumbnails, reroll or pin a single option in place.")
+    : "";
 
   menu.innerHTML =
     `<div class="wg-ac-group wg-inject-head" data-ac-section="context">${escapeHtml(cat || "Insert syntax")}</div>` +
+    quickSwapRow +
     (cat ? `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="choice" data-ac-section="wildcard">${reference?.argsRaw ? "Parameterized reference · edit arguments with syntax tools" : "Wildcard mode"}</div>` + modRows : "") + tplRows +
     `<div class="wg-ac-group pp-syntax-group" data-syntax-tone="logic">Prompt tools</div>` + tools +
     `<div class="wg-ac-group" data-ac-section="edit">Edit</div>` + editRows;

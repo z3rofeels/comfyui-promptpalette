@@ -9,6 +9,8 @@ import { editorOffsetAtPoint } from "./editor_hover.js";
 import { notify } from "./notifications.js";
 import { openPromptTools, closePromptToolsFor, canBuildPromptRules } from "./prompt_tools_panel.js";
 import { loadTheme } from "./preferences.js";
+import { findQuickSwapTokenAt, openTokenQuickSwap, closeTokenQuickSwap, attachTokenQuickSwap } from "./token_quick_swap.js";
+import { openPromptHygieneModal, closePromptHygieneModal } from "./prompt_hygiene.js";
 
 let ctxMenu = null;
 let ctxMenuOpen = false;
@@ -98,7 +100,7 @@ function openCtxMenu(x, y, actions, { scope: ownerScope = null } = {}) {
     groups.get(group).push(action);
   }
   actions = [...groups.values()].flat();
-  const sectionLabels = { insert: "Insert", edit: "Text editing", item: "Library entry", thumb: "Thumbnail", nav: "Navigation", folder: "Folders", order: "Folder order", visibility: "Visibility", selection: "Selection", source: "Import", tools: "Prompt tools", fix: "Repair reference", find: "Find entry", lora: "LoRA", audition: "Audition", appearance: "Appearance", "lora-strength": "LoRA strengths", "lora-vary": "LoRA variations", clipboard: "Clipboard", explore: "Explore", favorite: "Favorites" };
+  const sectionLabels = { swap: "Quick swap", insert: "Insert", edit: "Text editing", item: "Library entry", thumb: "Thumbnail", nav: "Navigation", folder: "Folders", order: "Folder order", visibility: "Visibility", selection: "Selection", source: "Import", hygiene: "Prompt hygiene", tools: "Prompt tools", fix: "Repair reference", find: "Find entry", lora: "LoRA", audition: "Audition", appearance: "Appearance", "lora-strength": "LoRA strengths", "lora-vary": "LoRA variations", clipboard: "Clipboard", explore: "Explore", favorite: "Favorites" };
   ctxMenuEditor = null;
   const menu = ensureCtxMenu();
   menu.classList.toggle("pp-lora-context", actions.some(action => action.group === "lora" || action.group === "audition" || action.group?.startsWith("lora-")));
@@ -177,6 +179,8 @@ function closeCtxMenu() {
 
 export function cleanupContextMenu() {
   closeCtxMenu();
+  closeTokenQuickSwap({ restoreFocus: false });
+  closePromptHygieneModal();
   document.removeEventListener("mousedown", handleContextDocumentMouseDown);
   document.removeEventListener("contextmenu", handleContextDocumentMouseDown);
   document.removeEventListener("keydown", handleContextKeyDown, true);
@@ -232,8 +236,9 @@ export function attachEditorContextMenu(editor, {
   promptTools = {},
 } = {}) {
   editor.__ppPromptTools = promptTools;
+  const cleanupQuickSwap = attachTokenQuickSwap(editor, { applyEdit: promptTools.apply });
   const originalTitle = editor.getAttribute("title");
-  editor.title = [originalTitle, "Right-click: Prompt Palette actions and wildcard modes. Alt/Option + right-click: spelling and browser editing."].filter(Boolean).join("\n");
+  editor.title = [originalTitle, "Right-click: Prompt Palette actions and wildcard modes. Alt/Option + Click: peek or swap wildcard/choice token. Alt/Option + right-click: spelling and browser editing."].filter(Boolean).join("\n");
   const onContextMenu = event => {
     // Browsers expose no portable way to ask whether the clicked word is misspelled.
     // Keep Palette's established gesture; the alternate opens only native tools.
@@ -273,9 +278,11 @@ export function attachEditorContextMenu(editor, {
         return;
       }
     }
-    handle(); closeInjectMenu();
+    handle(); closeInjectMenu(); closeTokenQuickSwap({ restoreFocus: false });
     const action = (label, fn, meta = {}) => ({ ...meta, label, onSelect: () => { if (restore()) return fn(); } });
+    const swapTarget = editable ? findQuickSwapTokenAt(editor.value, pointerOffset >= 0 ? pointerOffset : snapshot.start) : null;
     const actions = [
+      ...(swapTarget ? [action("Peek / swap token\u2026", () => openTokenQuickSwap(editor, { offset: swapTarget.start, anchorPoint: { x: event.clientX, y: event.clientY }, applyEdit: promptTools.apply }), { icon: "dice", hint: "Alt+Click", group: "swap" })] : []),
       ...(selected ? [action("Cut", () => runTextareaEditCommand(editor, render, "cut"), { disabled: !editable, icon: "cut", hint: "Ctrl+X", group: "edit" }), action("Copy", () => runTextareaEditCommand(editor, render, "copy"), { icon: "copy", hint: "Ctrl+C", group: "edit" })] : []),
       action("Paste", () => runTextareaEditCommand(editor, render, "paste"), { disabled: !editable, icon: "paste", hint: "Ctrl+V", group: "edit" }),
       ...(selected ? [action("Delete", () => runTextareaEditCommand(editor, render, "delete"), { disabled: !editable, icon: "trash", hint: "Del", group: "edit", danger: true })] : []),
@@ -307,13 +314,17 @@ export function attachEditorContextMenu(editor, {
       for (const [channel, label] of [["model", "Model"], ["clip", "CLIP"]]) for (const delta of [-0.05, 0.05]) actions.push(action(`${label} strength ${delta < 0 ? "−" : "+"}0.05`, () => replace(lora, formatLoraTag(lora, lora.model + (channel === "model" ? delta : 0), lora.clip + (channel === "clip" ? delta : 0))), { group: "lora-strength", icon: delta < 0 ? "minus" : "plus" }));
       for (const [mode, label] of [["seeded", "Seeded strength choice"], ["cycle", "Cycle strengths · next each run"], ["previous", "Cycle strengths · previous each run"], ["random", "Random strengths each run"], ["batch", "Test all strengths · Combinatorial"]]) actions.push(action(label, () => replace(expression, loraModeExpression(expression, mode)), { group: "lora-vary", icon: "branch" }));
     }
+    if (editable) {
+      actions.push(action("Fix / Tidy prompt\u2026", () => openPromptHygieneModal(editor, { mode: "tidy", applyEdit: promptTools.apply }), { icon: "sparkles", group: "hygiene" }));
+      actions.push(action("Adapt for model\u2026", () => openPromptHygieneModal(editor, { mode: "adapt", applyEdit: promptTools.apply }), { icon: "bolt", group: "hygiene" }));
+    }
     actions.push(action("Inspect prompt\u2026", () => openPromptTools(editor, { tab: "inspect" }), { icon: "doctor", group: "tools" }));
     if (loadTheme().styleSelectorEnabled === true) {
       actions.push(action("Open Style Studio\u2026", () => {
         import("./style_selector.js").then(({ openStyleSelector }) => openStyleSelector(editor));
       }, { icon: "palette", group: "tools" }));
     }
-    const groupOrder = lora ? ["lora", "lora-strength", "lora-vary", "edit", "selection", "source", "tools"] : ["edit", "selection", "source", "tools"];
+    const groupOrder = lora ? ["swap", "lora", "lora-strength", "lora-vary", "edit", "selection", "source", "hygiene", "tools"] : ["swap", "edit", "selection", "source", "hygiene", "tools"];
     actions.sort((a, b) => groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group));
     openCtxMenu(event.clientX, event.clientY, actions);
     ctxMenuEditor = editor;
@@ -328,6 +339,7 @@ export function attachEditorContextMenu(editor, {
   editor.addEventListener("contextmenu", onContextMenu);
   editor.addEventListener("keydown", onKeydown);
   return () => {
+    cleanupQuickSwap();
     closePromptToolsFor(editor);
     delete editor.__ppPromptTools;
     if (originalTitle === null) editor.removeAttribute("title"); else editor.setAttribute("title", originalTitle);

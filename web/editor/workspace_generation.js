@@ -236,6 +236,9 @@ export function recoverWorkspaceFromNode(node, info = null) {
 // Fill missing declarations before that boundary, retaining every saved index/link.
 export function prepareWorkspaceFieldSockets(node, info) {
   if (!info || typeof info !== 'object') return info;
+  if (node && 'properties' in info && !info.properties?.[WORKSPACE_KEY]) {
+    delete node._ppConfiguredWorkspace;
+  }
   const recovered = recoverWorkspaceFromNode(node, info);
   const recipe = recovered?.recipe;
   if (!recipe) return info;

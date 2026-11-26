@@ -10,7 +10,17 @@ import { onPromptPaletteAppearanceChanged, svgIcon, copyPromptPaletteThemeScope,
 import { loadTheme, saveTheme } from "./preferences.js";
 import { API } from "../prompt_palette_api.js";
 import { createLoraPreviews, loraPreviewOptions } from "./lora_preview.js";
-import { readEditorPreference, writeEditorPreference } from "../prompt_palette_state.js";
+import { readEditorPreference, writeEditorPreference, STORAGE_KEY, resetPromptPaletteStateCacheForTests } from "../prompt_palette_state.js";
+import {
+  normalizeFolderPath,
+  normalizeFavoriteFolders,
+  loraFolderPath,
+  folderMatchesTarget,
+  matchesFavoriteFolders,
+  reconcileFavoriteFolders,
+  toggleFavoriteFolder,
+  readFavoriteFoldersFromPreference,
+} from "./lora_fave_folders.js";
 import { buildLoraExpression, parseLoraStrengths, missingLoraTriggers, formatLoraTag, loraAt, loraTags, standaloneLoraTags, LORA_DOCK_HEADER_RE, dockLoraText, splitLoraDock } from "../engine/lora_tags.js";
 
 const viewOptions = [["gallery", "Gallery"], ["masonry", "Masonry"], ["filmstrip", "Filmstrip"], ["list", "List"]];
@@ -156,6 +166,7 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
     // Recover the old buried "off" flag once. Future choices use the visible switch.
     images: stored?.previewControlVersion === 1 ? stored.images !== false : true,
     favorites: Array.isArray(stored?.favorites) ? stored.favorites.filter(v => typeof v === "string").slice(0, 512) : [],
+    favoriteFolders: readFavoriteFoldersFromPreference(stored),
     viewMode: viewOptions.some(([key]) => key === readEditorPreference("loraViewMode")) ? readEditorPreference("loraViewMode") : "gallery",
     cardSize: Math.max(80, Math.min(240, Number(readEditorPreference("loraCardSize", 125)) || 125)),
     aspect: aspectOptions.some(([key]) => key === stored?.aspect) ? stored.aspect : "square",
@@ -163,20 +174,25 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
     fit: stored?.fit === "contain" ? "contain" : "cover",
   };
   const favorites = new Set(prefs.favorites);
+  const favoriteFolders = new Set(prefs.favoriteFolders);
 
   const persist = () => {
+    const prev = readEditorPreference("lora-picker", {});
+    const base = prev && typeof prev === "object" && !Array.isArray(prev) ? prev : {};
+    const nextFavoriteFolders = normalizeFavoriteFolders(favoriteFolders);
     if (sidebar) {
       // Never overwrite Sidecar's viewMode, cardSize, images, fit, or aspect from Sidebar.
-      const prev = readEditorPreference("lora-picker", {});
       writeEditorPreference("lora-picker", {
-        ...(prev && typeof prev === "object" ? prev : {}),
+        ...base,
         previewControlVersion: 1,
         motion: prefs.motion,
         sort: activeSort,
         favorites: [...favorites].slice(0, 512),
+        favoriteFolders: nextFavoriteFolders,
       });
     } else {
       writeEditorPreference("lora-picker", {
+        ...base,
         previewControlVersion: 1,
         images: prefs.images,
         motion: prefs.motion,
@@ -184,6 +200,7 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
         aspect: prefs.aspect,
         sort: activeSort,
         favorites: [...favorites].slice(0, 512),
+        favoriteFolders: nextFavoriteFolders,
       });
       writeEditorPreference("loraViewMode", prefs.viewMode);
       writeEditorPreference("loraCardSize", prefs.cardSize);
@@ -191,7 +208,7 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
     catalogPreferencesChanged.dispatchEvent(new CustomEvent("change", { detail: host }));
   };
 
-  let activeFilter = "all"; // "all" | "favorites" | "active"
+  let activeFilter = "all"; // "all" | "favorites" | "fave-folders" | "active"
   let selectedFolder = "all";
   let activeSort = stored?.sort || "name-asc";
 
@@ -568,28 +585,72 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
   // Filter Row
   const filterRow = make("div", "pp-lora-filter-row");
   const filterPills = make("div", "pp-lora-filter-pills");
-  const allPill = button("All", () => { activeFilter = "all"; updateFilterPills(); renderList(false, false, { resetScroll: true }); }, "pp-lora-pill");
-  const favPill = button("Favorites", () => { activeFilter = "favorites"; updateFilterPills(); renderList(false, false, { resetScroll: true }); }, "pp-lora-pill", "star");
-  const activePill = button("Active", () => { activeFilter = "active"; updateFilterPills(); renderList(false, false, { resetScroll: true }); }, "pp-lora-pill", "bolt");
-  filterPills.append(allPill, favPill, activePill);
+  const allPill = button("All", () => { activeFilter = "all"; updateFilterPills(); renderFaveFoldersBar(); renderList(false, false, { resetScroll: true }); }, "pp-lora-pill");
+  const favPill = button("Favorites", () => { activeFilter = "favorites"; updateFilterPills(); renderFaveFoldersBar(); renderList(false, false, { resetScroll: true }); }, "pp-lora-pill", "star");
+  const faveFoldersPill = button("Fave Folders", () => {
+    activeFilter = "fave-folders";
+    selectedFolder = "all";
+    folderSelect.value = "all";
+    syncFolderFavButton();
+    updateFilterPills();
+    renderFaveFoldersBar();
+    renderList(false, false, { resetScroll: true });
+  }, "pp-lora-pill", "folder");
+  const activePill = button("Active", () => { activeFilter = "active"; updateFilterPills(); renderFaveFoldersBar(); renderList(false, false, { resetScroll: true }); }, "pp-lora-pill", "bolt");
+  filterPills.append(allPill, favPill, faveFoldersPill, activePill);
 
   function updateFilterPills() {
     allPill.classList.toggle("is-active", activeFilter === "all");
     allPill.setAttribute("aria-pressed", String(activeFilter === "all"));
     favPill.classList.toggle("is-active", activeFilter === "favorites");
     favPill.setAttribute("aria-pressed", String(activeFilter === "favorites"));
+    faveFoldersPill.classList.toggle("is-active", activeFilter === "fave-folders");
+    faveFoldersPill.setAttribute("aria-pressed", String(activeFilter === "fave-folders"));
     activePill.classList.toggle("is-active", activeFilter === "active");
     activePill.setAttribute("aria-pressed", String(activeFilter === "active"));
   }
   updateFilterPills();
 
   const selectGroup = make("div", "pp-lora-select-group");
+  const folderControl = make("div", "pp-lora-folder-control");
   const folderSelect = make("select", "pp-lora-select pp-lora-folder-select");
   folderSelect.setAttribute("aria-label", "Filter by folder");
+  const folderFavBtn = make("button", "pp-lora-folder-fav-btn");
+  folderFavBtn.type = "button";
+  const syncFolderFavButton = () => {
+    const normalized = normalizeFolderPath(selectedFolder);
+    if (!normalized) {
+      folderFavBtn.disabled = true;
+      folderFavBtn.classList.remove("is-active");
+      folderFavBtn.setAttribute("aria-pressed", "false");
+      folderFavBtn.setAttribute("aria-label", "Select a folder to favorite");
+      folderFavBtn.title = "Select a specific folder to favorite it";
+      folderFavBtn.innerHTML = svgIcon("star", 12);
+      return;
+    }
+    const isFav = favoriteFolders.has(normalized);
+    folderFavBtn.disabled = false;
+    folderFavBtn.classList.toggle("is-active", isFav);
+    folderFavBtn.setAttribute("aria-pressed", String(isFav));
+    folderFavBtn.title = isFav ? `Unfavorite folder "${normalized}"` : `Favorite folder "${normalized}"`;
+    folderFavBtn.setAttribute("aria-label", folderFavBtn.title);
+    folderFavBtn.innerHTML = svgIcon(isFav ? "starFilled" : "star", 12);
+  };
+  folderFavBtn.addEventListener("click", () => {
+    if (selectedFolder === "all") return;
+    toggleFolderFavorite(selectedFolder);
+  });
   folderSelect.addEventListener("change", () => {
     selectedFolder = folderSelect.value;
+    if (selectedFolder !== "all" && activeFilter === "fave-folders") {
+      activeFilter = "all";
+      updateFilterPills();
+    }
+    syncFolderFavButton();
+    renderFaveFoldersBar();
     renderList(false, false, { resetScroll: true });
   });
+  folderControl.append(folderSelect, folderFavBtn);
 
   const sortSelect = select([
     ["name-asc", "Sort: Name (A → Z)"],
@@ -603,8 +664,160 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
     persist(); renderList(false, false, { resetScroll: true });
   });
 
-  selectGroup.append(folderSelect, sortSelect);
+  selectGroup.append(folderControl, sortSelect);
   filterRow.append(filterPills, selectGroup);
+
+  const faveFoldersBar = make("div", "pp-lora-fave-folders");
+  faveFoldersBar.setAttribute("role", "region");
+  faveFoldersBar.setAttribute("aria-label", "Favorite folders");
+
+  function renderFolderSelect() {
+    const folderCounts = new Map();
+    for (const name of names) {
+      const path = name.replace(/\\/g, "/");
+      for (let slash = path.indexOf("/"); slash >= 0; slash = path.indexOf("/", slash + 1)) {
+        const folder = path.slice(0, slash);
+        folderCounts.set(folder, (folderCounts.get(folder) || 0) + 1);
+      }
+    }
+    folderSelect.replaceChildren();
+    const allOpt = make("option", "", `All folders (${names.length})`);
+    allOpt.value = "all";
+    folderSelect.append(allOpt);
+
+    const { existing: existingFaveFolders } = reconcileFavoriteFolders(favoriteFolders, folders);
+    if (existingFaveFolders.length) {
+      const faveGroup = make("optgroup");
+      faveGroup.label = "★ Fave Folders";
+      for (const f of existingFaveFolders) {
+        const countInFolder = folderCounts.get(f) || 0;
+        const opt = make("option", "", `★ ${f} (${countInFolder})`);
+        opt.value = f;
+        faveGroup.append(opt);
+      }
+      folderSelect.append(faveGroup);
+    }
+
+    if (folders.length) {
+      const folderTarget = existingFaveFolders.length ? make("optgroup") : folderSelect;
+      if (folderTarget !== folderSelect) {
+        folderTarget.label = "All folders";
+        folderSelect.append(folderTarget);
+      }
+      for (const f of folders) {
+        const countInFolder = folderCounts.get(f) || 0;
+        const opt = make("option", "", `${f} (${countInFolder})`);
+        opt.value = f;
+        folderTarget.append(opt);
+      }
+    }
+
+    if (selectedFolder !== "all" && !folders.includes(selectedFolder)) selectedFolder = "all";
+    folderSelect.value = selectedFolder;
+    syncFolderFavButton();
+  }
+
+  function renderFaveFoldersBar() {
+    faveFoldersBar.replaceChildren();
+    const showBar = favoriteFolders.size > 0;
+    faveFoldersBar.hidden = !showBar;
+    if (!showBar) return;
+
+    const allFaveActive = activeFilter === "fave-folders" && selectedFolder === "all";
+    const allFaveBtn = make("button", `pp-lora-pill pp-lora-fave-chip-all${allFaveActive ? " is-active" : ""}`);
+    allFaveBtn.type = "button";
+    allFaveBtn.innerHTML = `${svgIcon("starFilled", 11)}<span>All Fave</span>`;
+    allFaveBtn.setAttribute("aria-pressed", String(allFaveActive));
+    allFaveBtn.title = allFaveActive ? "Showing all favorited folders (click to clear)" : "Show LoRAs in all favorited folders";
+    allFaveBtn.addEventListener("click", () => {
+      if (activeFilter === "fave-folders" && selectedFolder === "all") {
+        activeFilter = "all";
+      } else {
+        activeFilter = "fave-folders";
+        selectedFolder = "all";
+        folderSelect.value = "all";
+      }
+      syncFolderFavButton();
+      updateFilterPills();
+      renderFaveFoldersBar();
+      renderList(false, false, { resetScroll: true });
+    });
+    faveFoldersBar.append(allFaveBtn);
+
+    const { all, missingSet } = loaded
+      ? reconcileFavoriteFolders(favoriteFolders, folders)
+      : { all: normalizeFavoriteFolders(favoriteFolders), missingSet: new Set() };
+
+    for (const folder of all) {
+      const isMissing = loaded && missingSet.has(folder);
+      const isActive = !isMissing && selectedFolder === folder;
+      const chip = make("div", `pp-lora-fave-chip${isActive ? " is-active" : ""}`);
+      chip.dataset.folder = folder;
+      if (isMissing) chip.dataset.missing = "true";
+
+      const jumpBtn = make("button", "pp-lora-fave-chip-jump");
+      jumpBtn.type = "button";
+      jumpBtn.setAttribute("aria-pressed", String(isActive));
+      jumpBtn.innerHTML = `${svgIcon("folder", 11)}<span class="pp-lora-fave-chip-label"></span>`;
+      jumpBtn.querySelector(".pp-lora-fave-chip-label").textContent = folder;
+      if (isMissing) {
+        jumpBtn.append(make("span", "pp-lora-fave-chip-missing", "Missing"));
+        jumpBtn.title = `Folder "${folder}" not found on disk — click × to remove`;
+        jumpBtn.setAttribute("aria-label", `Missing folder ${folder}`);
+      } else {
+        jumpBtn.title = isActive ? `Showing "${folder}" (click to show all folders)` : `Filter to folder "${folder}"`;
+        jumpBtn.setAttribute("aria-label", `Filter to folder ${folder}`);
+      }
+      jumpBtn.addEventListener("click", () => {
+        if (isMissing) {
+          message(`Folder "${folder}" was not found on disk. Click × to remove it.`, true);
+          return;
+        }
+        if (selectedFolder === folder) {
+          selectedFolder = "all";
+          folderSelect.value = "all";
+        } else {
+          selectedFolder = folder;
+          folderSelect.value = folder;
+          if (activeFilter === "fave-folders") activeFilter = "all";
+        }
+        syncFolderFavButton();
+        updateFilterPills();
+        renderFaveFoldersBar();
+        renderList(false, false, { resetScroll: true });
+      });
+
+      const removeBtn = make("button", "pp-lora-fave-chip-remove", "×");
+      removeBtn.type = "button";
+      removeBtn.setAttribute("aria-label", `Remove ${folder} from favorite folders`);
+      removeBtn.title = isMissing
+        ? "Folder not found on disk — click × to remove"
+        : `Remove "${folder}" from favorite folders`;
+      removeBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        toggleFolderFavorite(folder);
+      });
+
+      chip.append(jumpBtn, removeBtn);
+      faveFoldersBar.append(chip);
+    }
+  }
+
+  function toggleFolderFavorite(folder) {
+    const normalized = normalizeFolderPath(folder);
+    if (!normalized) return;
+    const next = toggleFavoriteFolder(favoriteFolders, normalized);
+    favoriteFolders.clear();
+    for (const item of next) favoriteFolders.add(item);
+    persist();
+    if (loaded) renderFolderSelect();
+    else syncFolderFavButton();
+    renderFaveFoldersBar();
+    if (activeFilter === "fave-folders") renderList(false, false, { resetScroll: true });
+  }
+
+  syncFolderFavButton();
+  renderFaveFoldersBar();
 
   let focusedLoraName = "";
 
@@ -828,7 +1041,7 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
   if (!sidebar) viewBar.append(viewModes, aspectSelect, imagesLabel, sizeLabel);
 
   const catalogToolbar = make("div", "pp-lora-catalog-toolbar");
-  catalogToolbar.append(searchWrap, filterRow, ...(sidebar ? [] : [viewBar]));
+  catalogToolbar.append(searchWrap, filterRow, faveFoldersBar, ...(sidebar ? [] : [viewBar]));
   const catalogBody = catalogCtl.body;
   catalogBody.classList.add("pp-lora-catalog-body");
   catalogBody.append(catalogToolbar, list);
@@ -1817,11 +2030,10 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
     return batch.some(name => {
       if (currentSet.has(name)) return false;
       if (activeFilter === "favorites" && !favorites.has(name)) return false;
+      if (activeFilter === "fave-folders" && !matchesFavoriteFolders(name, favoriteFolders)) return false;
       if (authoredNames && !authoredNames.has(name)) return false;
       if (selectedFolder !== "all") {
-        const parts = name.replace(/\\/g, "/").split("/");
-        const folder = parts.length > 1 ? parts.slice(0, -1).join("/") : "";
-        if (folder !== selectedFolder && !folder.startsWith(`${selectedFolder}/`)) return false;
+        if (!folderMatchesTarget(loraFolderPath(name), selectedFolder)) return false;
       }
       return matchesSearchQuery(name, query);
     });
@@ -2014,12 +2226,11 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
         if (!matchesSearchQuery(name, query)) return false;
 
         if (activeFilter === "favorites" && !favorites.has(name)) return false;
+        if (activeFilter === "fave-folders" && !matchesFavoriteFolders(name, favoriteFolders)) return false;
         if (activeFilter === "active" && !authoredNames.has(name)) return false;
 
         if (selectedFolder !== "all") {
-          const parts = name.replace(/\\/g, "/").split("/");
-          const folder = parts.length > 1 ? parts.slice(0, -1).join("/") : "";
-          if (folder !== selectedFolder && !folder.startsWith(`${selectedFolder}/`)) return false;
+          if (!folderMatchesTarget(loraFolderPath(name), selectedFolder)) return false;
         }
         return true;
       });
@@ -2055,6 +2266,16 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
       let emptyText = "No local LoRA files found in ComfyUI’s loras folder.";
       if (names.length) {
         if (activeFilter === "favorites" && !hasSearch && !hasFolder) emptyText = "No favorite LoRAs yet. Click ☆ on any card or row to pin it.";
+        else if (activeFilter === "fave-folders" && !hasSearch && !hasFolder) {
+          const { existing } = reconcileFavoriteFolders(favoriteFolders, folders);
+          if (favoriteFolders.size === 0) {
+            emptyText = "No favorite folders yet. Choose a folder from the dropdown and click ☆ to pin it.";
+          } else if (existing.length === 0) {
+            emptyText = "None of your favorited folders were found on disk.";
+          } else {
+            emptyText = "No LoRAs found in your favorited folders.";
+          }
+        }
         else if (activeFilter === "active" && !hasSearch && !hasFolder) emptyText = "No active LoRAs in this prompt yet.";
         else emptyText = "No matching LoRAs for the current search or filters.";
       }
@@ -2068,7 +2289,9 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
           activeFilter = "all";
           selectedFolder = "all";
           folderSelect.value = "all";
+          syncFolderFavButton();
           updateFilterPills();
+          renderFaveFoldersBar();
           renderList(false, false, { resetScroll: true });
         }, "wg-button pp-lora-chip-btn"));
       }
@@ -2360,9 +2583,18 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
         commit();
       };
 
+      const parentFolder = normalizeFolderPath(loraFolderPath(name));
+      const isFolderFav = Boolean(parentFolder && favoriteFolders.has(parentFolder));
+
       openCtxMenu(event.clientX, event.clientY, [
         { label: "Add to prompt (keep other LoRAs)", onSelect: () => addOne(name), group: "lora" },
         { label: "Local info & trigger words", onSelect: () => updateTriggersBox(name, { trigger: element }), group: "details" },
+        ...(parentFolder ? [{
+          label: isFolderFav ? `Unfavorite folder "${parentFolder}"` : `Favorite folder "${parentFolder}"`,
+          icon: isFolderFav ? "starFilled" : "star",
+          group: "folder",
+          onSelect: () => toggleFolderFavorite(parentFolder),
+        }] : []),
         { label: "Set / change thumbnail…", onSelect: () => chooseThumbnail(name), group: "appearance" },
         { label: "Remove custom thumbnail", disabled: !metadataCache.get(name)?.custom_preview, onSelect: () => removeThumbnail(name), group: "appearance" },
         { label: current ? "Replace selected LoRA" : "Insert this LoRA", onSelect: () => insert("stack"), group: "lora" },
@@ -2420,36 +2652,17 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
       clearAllMetadataPending();
       if (forceRefresh) API.bumpPreviewRevision?.();
       names = Array.isArray(response.names) ? [...new Set(response.names.filter(v => typeof v === "string"))] : [];
-      folders = Array.isArray(response.folders) ? response.folders.filter(v => typeof v === "string") : [];
+      folders = Array.isArray(response.folders) ? response.folders.filter(v => typeof v === "string").map(f => f.replace(/\\/g, "/")) : [];
       loaded = true;
 
-      folderSelect.replaceChildren();
-      const allOpt = make("option", "", `All folders (${names.length})`);
-      allOpt.value = "all";
-      folderSelect.append(allOpt);
-
-      const folderCounts = new Map();
-      for (const name of names) {
-        const path = name.replace(/\\/g, "/");
-        for (let slash = path.indexOf("/"); slash >= 0; slash = path.indexOf("/", slash + 1)) {
-          const folder = path.slice(0, slash);
-          folderCounts.set(folder, (folderCounts.get(folder) || 0) + 1);
-        }
-      }
-      for (const f of folders) {
-        const countInFolder = folderCounts.get(f) || 0;
-        const opt = make("option", "", `${f} (${countInFolder})`);
-        opt.value = f;
-        folderSelect.append(opt);
-      }
-      if (selectedFolder !== "all" && !folders.includes(selectedFolder)) selectedFolder = "all";
-      folderSelect.value = selectedFolder;
-
-      resolveSelection();
       if (catalogPrefsDirty) {
         catalogPrefsDirty = false;
         applyCatalogPreferencesFromStore({ render: false });
       }
+      renderFolderSelect();
+      renderFaveFoldersBar();
+
+      resolveSelection();
       renderActiveDeck();
       renderList(false, forceRefresh);
       if (detailName || current) updateTriggersBox(detailName || catalogName(current.name), { reveal: false });
@@ -2600,6 +2813,10 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
     renderSets();
     const saved = readEditorPreference("lora-picker", {});
     favorites.clear(); for (const name of saved.favorites || []) favorites.add(name);
+    favoriteFolders.clear(); for (const folder of readFavoriteFoldersFromPreference(saved)) favoriteFolders.add(folder);
+    if (loaded) renderFolderSelect();
+    else syncFolderFavButton();
+    renderFaveFoldersBar();
     prefs.motion = saved.motion !== false;
     motionSelect.value = prefs.motion ? "hover" : "still";
     if (saved.sort && ["name-asc", "name-desc", "folder", "favs"].includes(saved.sort)) {
@@ -2633,6 +2850,14 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
     applyCatalogPreferencesFromStore();
   };
   catalogPreferencesChanged.addEventListener("change", syncCatalogPreferences);
+
+  const onStorageSync = event => {
+    if (dead || (event.key !== null && event.key !== STORAGE_KEY)) return;
+    resetPromptPaletteStateCacheForTests();
+    if (!active || !loaded) { catalogPrefsDirty = true; return; }
+    applyCatalogPreferencesFromStore();
+  };
+  globalThis.addEventListener?.("storage", onStorageSync);
 
   let inputSyncDirty = false;
   let lastSyncedSource = snapshot.source;
@@ -2800,6 +3025,7 @@ export function createLoraPicker({ host, editor, context, snapshot, guard, close
       triggersBox.remove();
       unsubscribe();
       catalogPreferencesChanged.removeEventListener("change", syncCatalogPreferences);
+      globalThis.removeEventListener?.("storage", onStorageSync);
       resize?.disconnect(); virtual.cleanup(); clearAllMetadataPending(); clearTimeout(metadataFrame);
       previews.destroy();
       ownScope?.cleanup();

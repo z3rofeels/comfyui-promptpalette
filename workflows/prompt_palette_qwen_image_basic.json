@@ -1,17 +1,17 @@
 {
-  "last_node_id": 10,
-  "last_link_id": 10,
+  "last_node_id": 14,
+  "last_link_id": 11,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        20,
-        30
+        0,
+        60
       ],
       "size": [
-        380,
-        100
+        390,
+        110
       ],
       "flags": {},
       "order": 0,
@@ -22,7 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3
+            11
           ]
         }
       ],
@@ -32,18 +32,21 @@
       "widgets_values": [
         "qwen_image_fp8_e4m3fn.safetensors",
         "default"
-      ]
+      ],
+      "title": "Diffusion Model · Qwen-Image FP8",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        20,
-        160
+        0,
+        240
       ],
       "size": [
-        380,
-        120
+        390,
+        130
       ],
       "flags": {},
       "order": 1,
@@ -66,18 +69,21 @@
         "qwen_2.5_vl_7b_fp8_scaled.safetensors",
         "qwen_image",
         "default"
-      ]
+      ],
+      "title": "Text Encoder · Qwen 2.5 VL 7B (qwen_image)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        20,
-        310
+        0,
+        440
       ],
       "size": [
-        380,
-        80
+        390,
+        90
       ],
       "flags": {},
       "order": 2,
@@ -97,18 +103,21 @@
       },
       "widgets_values": [
         "qwen_image_vae.safetensors"
-      ]
+      ],
+      "title": "VAE · Qwen Image VAE",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 4,
       "type": "PromptPaletteEditor",
       "pos": [
-        450,
-        20
+        480,
+        60
       ],
       "size": [
-        430,
-        310
+        520,
+        360
       ],
       "flags": {},
       "order": 3,
@@ -123,7 +132,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 11,
           "shape": 7
         },
         {
@@ -173,7 +182,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -239,25 +250,217 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "A warm editorial poster for a fictional neighborhood café. Cream paper background, dark brown woodcut-style coffee plant illustration, clean centered layout. Large headline reads \"MORNING CLUB\" and the smaller line reads \"Coffee, bread, and a quiet start\". Accurate English text, balanced spacing, subtle print texture."
+        },
+        "wg_text": "A warm editorial poster for a fictional neighborhood café. Cream paper background, dark brown woodcut-style coffee plant illustration, clean centered layout. Large headline reads \"MORNING CLUB\" and the smaller line reads \"Coffee, bread, and a quiet start\". Accurate English text, balanced spacing, subtle print texture.",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "FLUX · Natural language",
+            "presetId": "flux-natural",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "f3e28dd2-9d10-4cfe-841e-b464fe5dea0d",
+                "name": "Subject",
+                "label": "Subject",
+                "value": "A warm editorial poster for a fictional neighborhood café",
+                "default": "A warm editorial poster for a fictional neighborhood café",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "subject",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "2de9e161-a224-4336-91d3-0cc84b97a9f2",
+                "name": "Environment",
+                "label": "Environment",
+                "value": "cream textured paper background with a minimalist ceramic pour-over dripper illustration",
+                "default": "cream textured paper background with a minimalist ceramic pour-over dripper illustration",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "environment",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "18364e1d-c22d-438c-81f3-efb213f80c7c",
+                "name": "Lighting",
+                "label": "Lighting",
+                "value": "soft natural daylight with gentle paper grain",
+                "default": "soft natural daylight with gentle paper grain",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lighting",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [
+                  "2de9e161-a224-4336-91d3-0cc84b97a9f2"
+                ],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "d6f4c221-d78c-435e-8016-267f694811fc",
+                "name": "Camera",
+                "label": "Camera",
+                "value": "centered flat-lay graphic poster composition, balanced margins",
+                "default": "centered flat-lay graphic poster composition, balanced margins",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "camera",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "b841eccc-081a-4916-8e06-fe12bc3ba162",
+                "name": "Visible text",
+                "label": "Visible text",
+                "value": "Centered at the top in clean uppercase serif lettering: \"MORNING ROAST\". Below the illustration in small crisp sans-serif text: \"OPEN DAILY · 7AM – 3PM\"",
+                "default": "Centered at the top in clean uppercase serif lettering: \"MORNING ROAST\". Below the illustration in small crisp sans-serif text: \"OPEN DAILY · 7AM – 3PM\"",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "text",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "a508b644-eb7a-4f55-9817-2c6f50c8ba38",
+                "name": "Style & Polish",
+                "label": "Style & Polish",
+                "value": "warm espresso brown and sage green ink palette, refined editorial print design",
+                "default": "warm espresso brown and sage green ink palette, refined editorial print design",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "f3e28dd2-9d10-4cfe-841e-b464fe5dea0d",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "2de9e161-a224-4336-91d3-0cc84b97a9f2",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "18364e1d-c22d-438c-81f3-efb213f80c7c",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "d6f4c221-d78c-435e-8016-267f694811fc",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "b841eccc-081a-4916-8e06-fe12bc3ba162",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "a508b644-eb7a-4f55-9817-2c6f50c8ba38",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "A warm editorial poster for a fictional neighborhood café. Cream paper background, dark brown woodcut-style coffee plant illustration, clean centered layout. Large headline reads \"MORNING CLUB\" and the smaller line reads \"Coffee, bread, and a quiet start\". Accurate English text, balanced spacing, subtle print texture.",
+        "A warm editorial poster for a fictional neighborhood café, cream textured paper background with a minimalist ceramic pour-over dripper illustration, soft natural daylight with gentle paper grain, centered flat-lay graphic poster composition, balanced margins, Centered at the top in clean uppercase serif lettering: \"MORNING ROAST\". Below the illustration in small crisp sans-serif text: \"OPEN DAILY · 7AM – 3PM\", warm espresso brown and sage green ink palette, refined editorial print design",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Positive"
+      "title": "Prompt Palette — Positive (Poster & Text)",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "A warm editorial poster for a fictional neighborhood café, cream textured paper background with a minimalist ceramic pour-over dripper illustration, soft natural daylight with gentle paper grain, centered flat-lay graphic poster composition, balanced margins, Centered at the top in clean uppercase serif lettering: \"MORNING ROAST\". Below the illustration in small crisp sans-serif text: \"OPEN DAILY · 7AM – 3PM\", warm espresso brown and sage green ink palette, refined editorial print design",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"4\",\"positive\":\"A warm editorial poster for a fictional neighborhood café, cream textured paper background with a minimalist ceramic pour-over dripper illustration, soft natural daylight with gentle paper grain, centered flat-lay graphic poster composition, balanced margins, Centered at the top in clean uppercase serif lettering: \\\"MORNING ROAST\\\". Below the illustration in small crisp sans-serif text: \\\"OPEN DAILY · 7AM – 3PM\\\", warm espresso brown and sage green ink palette, refined editorial print design\",\"negative\":\"\",\"fields\":[{\"id\":\"f3e28dd2-9d10-4cfe-841e-b464fe5dea0d\",\"channel\":\"positive\",\"start\":0,\"end\":57,\"source\":\"A warm editorial poster for a fictional neighborhood café\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"2de9e161-a224-4336-91d3-0cc84b97a9f2\",\"channel\":\"positive\",\"start\":59,\"end\":147,\"source\":\"cream textured paper background with a minimalist ceramic pour-over dripper illustration\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"18364e1d-c22d-438c-81f3-efb213f80c7c\",\"channel\":\"positive\",\"start\":149,\"end\":194,\"source\":\"soft natural daylight with gentle paper grain\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"d6f4c221-d78c-435e-8016-267f694811fc\",\"channel\":\"positive\",\"start\":196,\"end\":258,\"source\":\"centered flat-lay graphic poster composition, balanced margins\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"b841eccc-081a-4916-8e06-fe12bc3ba162\",\"channel\":\"positive\",\"start\":260,\"end\":412,\"source\":\"Centered at the top in clean uppercase serif lettering: \\\"MORNING ROAST\\\". Below the illustration in small crisp sans-serif text: \\\"OPEN DAILY · 7AM – 3PM\\\"\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"a508b644-eb7a-4f55-9817-2c6f50c8ba38\",\"channel\":\"positive\",\"start\":414,\"end\":492,\"source\":\"warm espresso brown and sage green ink palette, refined editorial print design\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"f3e28dd2-9d10-4cfe-841e-b464fe5dea0d\",\"join\":true},{\"type\":\"field\",\"id\":\"2de9e161-a224-4336-91d3-0cc84b97a9f2\",\"join\":true},{\"type\":\"field\",\"id\":\"18364e1d-c22d-438c-81f3-efb213f80c7c\",\"join\":true},{\"type\":\"field\",\"id\":\"d6f4c221-d78c-435e-8016-267f694811fc\",\"join\":true},{\"type\":\"field\",\"id\":\"b841eccc-081a-4916-8e06-fe12bc3ba162\",\"join\":true},{\"type\":\"field\",\"id\":\"a508b644-eb7a-4f55-9817-2c6f50c8ba38\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"f3e28dd2-9d10-4cfe-841e-b464fe5dea0d\":null,\"2de9e161-a224-4336-91d3-0cc84b97a9f2\":null,\"18364e1d-c22d-438c-81f3-efb213f80c7c\":null,\"d6f4c221-d78c-435e-8016-267f694811fc\":null,\"b841eccc-081a-4916-8e06-fe12bc3ba162\":null,\"a508b644-eb7a-4f55-9817-2c6f50c8ba38\":null},\"edges\":{\"positive\":[\"f3e28dd2-9d10-4cfe-841e-b464fe5dea0d\",\"a508b644-eb7a-4f55-9817-2c6f50c8ba38\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 5,
       "type": "PromptPaletteEditor",
       "pos": [
-        450,
-        370
+        480,
+        490
       ],
       "size": [
-        430,
-        310
+        520,
+        270
       ],
       "flags": {},
       "order": 4,
@@ -388,25 +591,190 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": ""
+        },
+        "wg_text": "",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Negative prompt set",
+            "presetId": "negative",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "f89a2bf0-33bf-4a88-b527-420073a86a27",
+                "name": "Prompt",
+                "label": "Prompt",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "prompt",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "57d946a9-abf4-4548-a7d8-8b7713fa6254",
+                "name": "Quality exclusions",
+                "label": "Quality exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "quality",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "060f6dc4-6e36-4654-8277-2f0d385b1e2d",
+                "name": "Anatomy exclusions",
+                "label": "Anatomy exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "anatomy",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "8b30fff6-75bb-486a-bd17-dbf0b63410b1",
+                "name": "Text exclusions",
+                "label": "Text exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "text",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "63d29453-bc19-47a9-87fa-3a220ead62f7",
+                "name": "Style exclusions",
+                "label": "Style exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "f89a2bf0-33bf-4a88-b527-420073a86a27",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "57d946a9-abf4-4548-a7d8-8b7713fa6254",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "060f6dc4-6e36-4654-8277-2f0d385b1e2d",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "8b30fff6-75bb-486a-bd17-dbf0b63410b1",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "63d29453-bc19-47a9-87fa-3a220ead62f7",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
         "",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Negative"
+      "title": "Prompt Palette — Negative (Optional)",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"5\",\"positive\":\"\",\"negative\":\"\",\"fields\":[],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"f89a2bf0-33bf-4a88-b527-420073a86a27\",\"join\":true},{\"type\":\"field\",\"id\":\"57d946a9-abf4-4548-a7d8-8b7713fa6254\",\"join\":true},{\"type\":\"field\",\"id\":\"060f6dc4-6e36-4654-8277-2f0d385b1e2d\",\"join\":true},{\"type\":\"field\",\"id\":\"8b30fff6-75bb-486a-bd17-dbf0b63410b1\",\"join\":true},{\"type\":\"field\",\"id\":\"63d29453-bc19-47a9-87fa-3a220ead62f7\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"f89a2bf0-33bf-4a88-b527-420073a86a27\":null,\"57d946a9-abf4-4548-a7d8-8b7713fa6254\":null,\"060f6dc4-6e36-4654-8277-2f0d385b1e2d\":null,\"8b30fff6-75bb-486a-bd17-dbf0b63410b1\":null,\"63d29453-bc19-47a9-87fa-3a220ead62f7\":null},\"edges\":{\"positive\":[\"f89a2bf0-33bf-4a88-b527-420073a86a27\",\"63d29453-bc19-47a9-87fa-3a220ead62f7\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 6,
-      "type": "EmptySD3LatentImage",
+      "type": "PromptPaletteResolutionSelector",
       "pos": [
-        930,
-        520
+        1090,
+        230
       ],
       "size": [
-        280,
-        160
+        320,
+        290
       ],
       "flags": {},
       "order": 5,
@@ -414,31 +782,63 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
+          "localized_name": "Latent",
           "type": "LATENT",
           "links": [
             7
           ]
+        },
+        {
+          "name": "width",
+          "localized_name": "Width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "localized_name": "Height",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptySD3LatentImage"
+        "Node name for S&R": "PromptPaletteResolutionSelector",
+        "resolution_pal_v1": {
+          "model_profile": "Qwen-Image",
+          "width": 1328,
+          "height": 1328,
+          "batch_size": 1,
+          "snap_to_multiple": true
+        }
       },
       "widgets_values": [
+        "Qwen-Image",
         1328,
         1328,
-        1
-      ]
+        1,
+        true
+      ],
+      "title": "Resolution Selector · 1328 × 1328",
+      "color": "#2a223d",
+      "bgcolor": "#181522",
+      "widgets_values_named": {
+        "model_profile": "Qwen-Image",
+        "width": 1328,
+        "height": 1328,
+        "batch_size": 1,
+        "snap_to_multiple": true
+      }
     },
     {
       "id": 7,
       "type": "ModelSamplingAuraFlow",
       "pos": [
-        930,
-        50
+        1090,
+        60
       ],
       "size": [
-        280,
+        320,
         100
       ],
       "flags": {},
@@ -465,18 +865,21 @@
       },
       "widgets_values": [
         3.1
-      ]
+      ],
+      "title": "AuraFlow Shift · 3.1",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 8,
       "type": "KSampler",
       "pos": [
-        1260,
-        160
+        1500,
+        180
       ],
       "size": [
-        330,
-        300
+        340,
+        310
       ],
       "flags": {},
       "order": 7,
@@ -519,21 +922,24 @@
         0,
         "randomize",
         50,
-        4.0,
+        4,
         "euler",
         "simple",
-        1.0
-      ]
+        1
+      ],
+      "title": "KSampler · 50 Steps · CFG 4",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 9,
       "type": "VAEDecode",
       "pos": [
-        1610,
-        190
+        1930,
+        80
       ],
       "size": [
-        240,
+        400,
         90
       ],
       "flags": {},
@@ -563,18 +969,21 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "VAE Decode",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 10,
       "type": "SaveImage",
       "pos": [
-        1870,
-        190
+        1930,
+        240
       ],
       "size": [
-        300,
-        280
+        400,
+        420
       ],
       "flags": {},
       "order": 9,
@@ -598,7 +1007,191 @@
       },
       "widgets_values": [
         "PromptPalette_QwenImage"
-      ]
+      ],
+      "title": "Save Image",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 11,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "QWEN-IMAGE · Editorial Poster & Typography",
+          "note": "1328 × 1328 native canvas · Shift 3.1 · 50 steps · CFG 4.0 — Crisp multi-line lettering and graphic design.",
+          "color_preset": "cyan",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "QWEN-IMAGE · Editorial Poster & Typography",
+        "1328 × 1328 native canvas · Shift 3.1 · 50 steps · CFG 4.0 — Crisp multi-line lettering and graphic design.",
+        "cyan",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "QWEN-IMAGE · Editorial Poster & Typography",
+        "note": "1328 × 1328 native canvas · Shift 3.1 · 50 steps · CFG 4.0 — Crisp multi-line lettering and graphic design.",
+        "color_preset": "cyan",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 12,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        370
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · Required Model Files",
+          "note": "1. `models/diffusion_models/qwen_image_fp8_e4m3fn.safetensors`\n2. `models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors` (CLIP type `qwen_image`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- Keep **AuraFlow Shift** at `3.1` and resolution near Qwen-Image's native `1328×1328` budget for sharpest lettering.",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · Required Model Files",
+        "1. `models/diffusion_models/qwen_image_fp8_e4m3fn.safetensors`\n2. `models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors` (CLIP type `qwen_image`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- Keep **AuraFlow Shift** at `3.1` and resolution near Qwen-Image's native `1328×1328` budget for sharpest lettering.",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · Required Model Files",
+        "note": "1. `models/diffusion_models/qwen_image_fp8_e4m3fn.safetensors`\n2. `models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors` (CLIP type `qwen_image`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- Keep **AuraFlow Shift** at `3.1` and resolution near Qwen-Image's native `1328×1328` budget for sharpest lettering.",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 13,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        494
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "TYPOGRAPHY TIP · Exact Quoted Copy",
+          "note": "- Wrap exact headlines and taglines in double quotes (like `\"MORNING CLUB\"`).\n- Describe hierarchy (`Large headline`, `smaller line`), font feel, and paper texture separately.\n- Stash favorite poster copy variations in Quick Drafts **A–D**.",
+          "color_preset": "amber",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "TYPOGRAPHY TIP · Exact Quoted Copy",
+        "- Wrap exact headlines and taglines in double quotes (like `\"MORNING CLUB\"`).\n- Describe hierarchy (`Large headline`, `smaller line`), font feel, and paper texture separately.\n- Stash favorite poster copy variations in Quick Drafts **A–D**.",
+        "amber",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "TYPOGRAPHY TIP · Exact Quoted Copy",
+        "note": "- Wrap exact headlines and taglines in double quotes (like `\"MORNING CLUB\"`).\n- Describe hierarchy (`Large headline`, `smaller line`), font feel, and paper texture separately.\n- Stash favorite poster copy variations in Quick Drafts **A–D**.",
+        "color_preset": "amber",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 14,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: Qwen Image",
+          "note": "",
+          "color_preset": "cyan",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: Qwen Image",
+        "",
+        "cyan",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: Qwen Image",
+        "note": "",
+        "color_preset": "cyan",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -620,7 +1213,7 @@
     ],
     [
       3,
-      1,
+      4,
       0,
       7,
       0,
@@ -681,16 +1274,85 @@
       10,
       0,
       "IMAGE"
+    ],
+    [
+      11,
+      1,
+      0,
+      4,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load Models",
+      "bounding": [
+        -24,
+        -18,
+        438,
+        574
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write & Customize Prompt",
+      "bounding": [
+        456,
+        -18,
+        568,
+        804
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Flow Shift & 1328² Canvas",
+      "bounding": [
+        1066,
+        -18,
+        368,
+        424
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · Sample",
+      "bounding": [
+        1476,
+        102,
+        388,
+        414
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode & Output",
+      "bounding": [
+        1906,
+        2,
+        448,
+        684
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.78,
+      "scale": 0.72,
       "offset": [
-        50,
-        50
+        560,
+        220
       ]
     }
   },

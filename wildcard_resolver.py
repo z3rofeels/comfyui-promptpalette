@@ -314,6 +314,7 @@ class WildcardResolver:
             entry = self.index.get_entry(name)
             if not entry:
                 return m.group(0)
+            self.used_names.append(entry.get("path", name))
             template = "\n".join(entry["lines"])
 
             args = {}
@@ -513,15 +514,15 @@ class WildcardResolver:
                 count = random.randint(lo, max(lo, hi)) if always_random else rng.randint(lo, max(lo, hi))
                 count = min(count, len(options))
                 chosen = random.sample(options, count) if always_random else rng.sample(options, count)
-                result_str = joiner.join(c.strip() for c in chosen)
+                chosen_clean = [
+                    (WEIGHT_RE.match(c).group(2) if WEIGHT_RE.match(c) else c).strip()
+                    for c in chosen
+                ]
+                result_str = joiner.join(chosen_clean)
                 if self._record_branches and len(options) > 1:
                     options_clean = [
                         (WEIGHT_RE.match(o).group(2) if WEIGHT_RE.match(o) else o).strip()
                         for o in options
-                    ]
-                    chosen_clean = [
-                        (WEIGHT_RE.match(c).group(2) if WEIGHT_RE.match(c) else c).strip()
-                        for c in chosen
                     ]
                     used_idx = set()
                     chosen_indices = []
@@ -1037,6 +1038,9 @@ class WildcardResolver:
                 neutralized = f"_{_ZW}_{name}({argstr})_{_ZW}_"
                 branches = [(s[:start] + neutralized + s[end:], env)]
             else:
+                if name in self._param_stack:
+                    chain = " -> ".join([*self._param_stack, name])
+                    raise ValueError(f"recursive parameter wildcard: {chain}")
                 template = "\n".join(entry["lines"])
                 args = {}
                 for part in argstr.split(","):
@@ -1051,7 +1055,11 @@ class WildcardResolver:
                     call_env[k] = ("resolved", v)
 
                 sub_counter = [0]
-                self._count_combinatorial(template, call_env, rng, limit, sub_counter, depth + 1)
+                self._param_stack.append(name)
+                try:
+                    self._count_combinatorial(template, call_env, rng, limit, sub_counter, depth + 1)
+                finally:
+                    self._param_stack.pop()
                 n = max(1, sub_counter[0])
                 branches = [(s[:start] + s[end:], env) for _ in range(n)]
 
@@ -1253,6 +1261,10 @@ class WildcardResolver:
                 neutralized = f"_{_ZW}_{name}({argstr})_{_ZW}_"
                 branches = [(s[:start] + neutralized + s[end:], env)]
             else:
+                if name in self._param_stack:
+                    chain = " -> ".join([*self._param_stack, name])
+                    raise ValueError(f"recursive parameter wildcard: {chain}")
+                self.used_names.append(entry.get("path", name))
                 template = "\n".join(entry["lines"])
                 args = {}
                 for part in argstr.split(","):
@@ -1267,7 +1279,11 @@ class WildcardResolver:
                     call_env[k] = ("resolved", v)
 
                 sub_results = []
-                self._expand_combinatorial(template, call_env, rng, limit, sub_results, depth + 1)
+                self._param_stack.append(name)
+                try:
+                    self._expand_combinatorial(template, call_env, rng, limit, sub_results, depth + 1)
+                finally:
+                    self._param_stack.pop()
                 branches = [(s[:start] + value + s[end:], env) for value, _sub_env in sub_results]
                 if not branches:
                     branches = [(s[:start] + s[end:], env)]

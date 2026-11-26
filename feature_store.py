@@ -100,15 +100,37 @@ class FeatureStore:
         if db is None:return None
         try:return self._record(db.execute('SELECT * FROM records WHERE namespace=? AND id=?',(namespace,identifier)).fetchone())
         finally:db.close()
-    def list(self,namespace,cursor='',limit=100):
+    def list(self, namespace, cursor='', limit=100, *, descending=False):
         self._validate(namespace)
-        if cursor:self._validate(namespace,cursor)
-        limit=max(1,min(100,int(limit)));db=self._connect()
-        if db is None:return {'items':[],'next_cursor':None}
+        if cursor:
+            self._validate(namespace, cursor)
+        limit = max(1, min(100, int(limit)))
+        db = self._connect()
+        if db is None:
+            return {'items': [], 'next_cursor': None}
         try:
-            rows=db.execute('SELECT * FROM records WHERE namespace=? AND id>? ORDER BY id LIMIT ?',(namespace,cursor,limit+1)).fetchall()
-            return {'items':[self._record(r) for r in rows[:limit]],'next_cursor':rows[limit-1]['id'] if len(rows)>limit else None}
-        finally:db.close()
+            if descending:
+                if cursor:
+                    rows = db.execute(
+                        'SELECT * FROM records WHERE namespace=? AND id<? ORDER BY id DESC LIMIT ?',
+                        (namespace, cursor, limit + 1),
+                    ).fetchall()
+                else:
+                    rows = db.execute(
+                        'SELECT * FROM records WHERE namespace=? ORDER BY id DESC LIMIT ?',
+                        (namespace, limit + 1),
+                    ).fetchall()
+            else:
+                rows = db.execute(
+                    'SELECT * FROM records WHERE namespace=? AND id>? ORDER BY id LIMIT ?',
+                    (namespace, cursor or '', limit + 1),
+                ).fetchall()
+            return {
+                'items': [self._record(r) for r in rows[:limit]],
+                'next_cursor': rows[limit - 1]['id'] if len(rows) > limit else None,
+            }
+        finally:
+            db.close()
     def put(self,namespace,identifier,data,expected_revision=None):
         self._validate(namespace,identifier)
         if isinstance(expected_revision,bool) or not isinstance(expected_revision,int) or expected_revision<0:raise FeatureConflict('A current revision is required')

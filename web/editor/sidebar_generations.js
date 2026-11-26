@@ -17,6 +17,7 @@ import {
   requestGenerationHistory,
   subscribeGenerationHistory,
   generationImageUrl,
+  mergeUniqueGenerationRows,
 } from "./generation_history.js";
 import {
   extractGenerationMetadata,
@@ -172,6 +173,7 @@ export function createSidebarGenerations(host, {
   const isTabMode = mode === "tab";
   const savedState = readEditorPreference(PREF_SIDEBAR_GEN_STATE, {}) || {};
   let isOpen = isTabMode ? true : savedState.open !== false;
+  let sortOrder = savedState.sort === "oldest" ? "oldest" : "newest";
   let visible = true;
   let active = !isTabMode;
   let disposed = false;
@@ -217,7 +219,12 @@ export function createSidebarGenerations(host, {
   }
 
   function persistState() {
-    writeEditorPreference(PREF_SIDEBAR_GEN_STATE, { open: isOpen });
+    const prev = readEditorPreference(PREF_SIDEBAR_GEN_STATE, {}) || {};
+    writeEditorPreference(PREF_SIDEBAR_GEN_STATE, {
+      ...prev,
+      ...(isTabMode ? {} : { open: isOpen }),
+      sort: sortOrder,
+    });
   }
 
   function flashButtonFeedback(buttonEl, feedbackLabel = "✓ Copied") {
@@ -322,7 +329,7 @@ export function createSidebarGenerations(host, {
     const next = favFilterBtn.getAttribute("aria-pressed") !== "true";
     favFilterBtn.setAttribute("aria-pressed", String(next));
     favFilterBtn.classList.toggle("active", next);
-    refresh();
+    refresh(false, { resetScroll: true });
   }, "pp-sidebar-icon pp-sidebar-gen-fav-filter");
   favFilterBtn.title = "Filter favorite generations";
   favFilterBtn.setAttribute("aria-label", "Filter favorite generations");
@@ -333,6 +340,22 @@ export function createSidebarGenerations(host, {
   for (const [val, text] of [["0", "All time"], ["1", "24h"], ["7", "7d"], ["30", "30d"]]) {
     dateSelect.append(new Option(text, val));
   }
+
+  const sortBtn = btn("", () => {
+    sortOrder = sortOrder === "newest" ? "oldest" : "newest";
+    syncSortButton();
+    persistState();
+    refresh(false, { resetScroll: true });
+  }, "pp-sidebar-gen-sort");
+  function syncSortButton() {
+    const isOldest = sortOrder === "oldest";
+    sortBtn.textContent = isOldest ? "Oldest ↑" : "Newest ↓";
+    sortBtn.dataset.sort = sortOrder;
+    sortBtn.setAttribute("aria-pressed", String(isOldest));
+    sortBtn.title = isOldest ? "Sorted oldest first — click to show newest first" : "Sorted newest first — click to show oldest first";
+    sortBtn.setAttribute("aria-label", isOldest ? "Sort oldest first; click for newest first" : "Sort newest first; click for oldest first");
+  }
+  syncSortButton();
 
   const refreshBtn = btn("", async () => {
     refreshBtn.disabled = true;
@@ -357,7 +380,7 @@ export function createSidebarGenerations(host, {
   settingsSummary.setAttribute("aria-label", "Generation tracking settings");
   settingsDetails.append(settingsSummary);
 
-  toolbar.append(favFilterBtn, dateSelect, refreshBtn, settingsDetails);
+  toolbar.append(favFilterBtn, dateSelect, sortBtn, refreshBtn, settingsDetails);
   controls.append(searchInput, toolbar);
 
   const settingsPanel = make("div", "pp-sidebar-gen-settings-body");
@@ -987,7 +1010,7 @@ export function createSidebarGenerations(host, {
         event.stopPropagation();
         searchInput.value = "";
         clearTimeout(searchDebounce);
-        refresh();
+        refresh(false, { resetScroll: true });
         return;
       }
       if (target instanceof HTMLSelectElement || !selectedId) return;
@@ -1013,10 +1036,12 @@ export function createSidebarGenerations(host, {
     if (nextIndex !== index) buttons[nextIndex].focus();
   });
 
-  function renderList({ itemsChanged = true } = {}) {
+  function renderList({ itemsChanged = true, resetScroll = false } = {}) {
     if (disposed) return;
     const metrics = computeMetrics();
-    countBadge.textContent = rows.length ? String(rows.length) : prefs?.enabled === false ? "Off" : "0";
+    countBadge.textContent = rows.length
+      ? `${rows.length}${cursor ? "+" : ""}`
+      : prefs?.enabled === false ? "Off" : "0";
     section.dataset.inspecting = String(Boolean(selectedRecord));
 
     if (!rows.length) {
@@ -1100,7 +1125,8 @@ export function createSidebarGenerations(host, {
         collection.updateItems(rows, { patchNode: patchCard });
       }
       collection.render();
-      if (anchor) virtual.restoreViewportAnchor(anchor);
+      if (resetScroll) listEl.scrollTop = 0;
+      else if (anchor) virtual.restoreViewportAnchor(anchor);
       else if (!modeChanged) listEl.scrollTop = oldScroll;
       virtual.refresh();
     }
@@ -1957,11 +1983,15 @@ export function createSidebarGenerations(host, {
     }
   }
 
-  async function refresh(append = false) {
+  async function refresh(append = false, { resetScroll = false } = {}) {
     if (disposed) return;
     const version = ++listSequence;
     listController?.abort();
     const controller = (listController = new AbortController());
+    if (append) {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.textContent = "Loading…";
+    }
     try {
       const favOnly = favFilterBtn.getAttribute("aria-pressed") === "true";
       const days = Number(dateSelect.value) || 0;
@@ -1970,12 +2000,13 @@ export function createSidebarGenerations(host, {
         favorite: String(favOnly),
         missing: "false",
         since: days > 0 ? String(Date.now() - days * 86400000) : "0",
+        sort: sortOrder,
       });
       if (append && cursor) params.set("cursor", cursor);
       const page = await requestGenerationHistory(`?${params}`, "GET", undefined, controller.signal);
       if (disposed || controller.signal.aborted || version !== listSequence) return;
       const items = Array.isArray(page?.items) ? page.items : [];
-      rows = append ? [...rows, ...items] : items;
+      rows = mergeUniqueGenerationRows(rows, items, append);
       cursor = page?.next_cursor || null;
       loadMoreBtn.hidden = !cursor;
 
@@ -1983,7 +2014,7 @@ export function createSidebarGenerations(host, {
         const updated = rows.find(r => r.id === selectedId);
         if (updated) selectedRecord = { ...selectedRecord, ...updated };
       }
-      renderList();
+      renderList({ itemsChanged: true, resetScroll });
       if (selectedRecord) renderInspector();
     } catch (error) {
       if (!disposed && error?.name !== "AbortError" && visible && active) {
@@ -1991,6 +2022,10 @@ export function createSidebarGenerations(host, {
       }
     } finally {
       if (listController === controller) listController = null;
+      if (!disposed && listController === null) {
+        loadMoreBtn.disabled = false;
+        loadMoreBtn.textContent = "Load more";
+      }
     }
   }
 
@@ -2010,9 +2045,9 @@ export function createSidebarGenerations(host, {
 
   searchInput.addEventListener("input", () => {
     clearTimeout(searchDebounce);
-    searchDebounce = setTimeout(() => refresh(), 120);
+    searchDebounce = setTimeout(() => refresh(false, { resetScroll: true }), 120);
   });
-  dateSelect.addEventListener("change", () => refresh());
+  dateSelect.addEventListener("change", () => refresh(false, { resetScroll: true }));
 
   const unsubMetadata = API.onMetadataChange?.(detail => {
     if (disposed) return;
@@ -2085,6 +2120,12 @@ export function createSidebarGenerations(host, {
       if (!active) {
         hideFlyout();
       } else if (visible && isOpen) {
+        const latestState = readEditorPreference(PREF_SIDEBAR_GEN_STATE, {}) || {};
+        const latestSort = latestState.sort === "oldest" ? "oldest" : "newest";
+        if (latestSort !== sortOrder) {
+          sortOrder = latestSort;
+          syncSortButton();
+        }
         refreshAppearance({ force: true });
         if (prefs?.enabled) {
           requestGenerationHistory("/sync", "POST", {}).then(() => refresh()).catch(() => refresh());

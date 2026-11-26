@@ -68,7 +68,7 @@ export function ensureSchemaSocket(node, kind, def) {
   }
 
   const matches = list.filter((slot) => slot?.name === def.key);
-  return matches.find((slot) => socketConnected(kind, slot)) || matches[0] || null;
+  return matches.find((slot) => socketConnected(kind, slot, node)) || matches[0] || null;
 }
 
 const presentationFields = ["label", "localized_name", "pos", "color_on", "color_off"];
@@ -172,7 +172,7 @@ export function orderedSockets(list, defs, predicate = () => true) {
   return result;
 }
 
-export function canonicalSchemaSockets(list, defs, kind) {
+export function canonicalSchemaSockets(list, defs, kind, node = null) {
   const sockets = [];
   const used = new Set();
   for (const def of defs || []) {
@@ -187,7 +187,7 @@ export function canonicalSchemaSockets(list, defs, kind) {
     }
     if (!slot) {
       const matches = (list || []).filter((candidate) => candidate?.name === def.key && !used.has(candidate));
-      slot = matches.find((candidate) => socketConnected(kind, candidate)) || matches[0] || null;
+      slot = matches.find((candidate) => socketConnected(kind, candidate, node)) || matches[0] || null;
     }
     if (!slot) continue;
     used.add(slot);
@@ -203,7 +203,7 @@ export function canonicalSchemaSockets(list, defs, kind) {
  */
 export function managedSocketGroups(list, defs, kind, node = null) {
   const all = Array.from(list || []);
-  const canonical = canonicalSchemaSockets(all, defs, kind);
+  const canonical = canonicalSchemaSockets(all, defs, kind, node);
   const canonicalSet = new Set(canonical);
   const extras = all.filter((slot) => !canonicalSet.has(slot));
   const connectedExtras = extras.filter((slot) => socketConnected(kind, slot, node));

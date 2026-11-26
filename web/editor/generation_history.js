@@ -38,6 +38,24 @@ export function generationImageUrl(image) {
   const path = `/view?${new URLSearchParams(image)}`;
   return typeof api.apiURL === "function" ? api.apiURL(path) : path;
 }
+export function mergeUniqueGenerationRows(existing, incoming, append = false) {
+  const list = append && Array.isArray(existing) ? [...existing] : [];
+  const indexById = new Map();
+  for (let i = 0; i < list.length; i++) {
+    const id = list[i]?.id;
+    if (id != null) indexById.set(id, i);
+  }
+  for (const item of Array.isArray(incoming) ? incoming : []) {
+    const id = item?.id;
+    if (id != null && indexById.has(id)) {
+      list[indexById.get(id)] = item;
+    } else {
+      if (id != null) indexById.set(id, list.length);
+      list.push(item);
+    }
+  }
+  return list;
+}
 const imageUrl = generationImageUrl;
 function button(text, action) { const node = el("button", "pp-history-btn", text); node.type = "button"; node.addEventListener("click", action); return node; }
 function label(text, control) { const node = el("label"); node.append(control, document.createTextNode(` ${text}`)); return node; }
@@ -71,6 +89,23 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
   const savedDisplay = readEditorPreference("generationHistoryDisplayV1", {}) || {};
   if (["grid", "masonry", "list", "filmstrip"].includes(savedDisplay.mode)) mode.value = savedDisplay.mode;
   if (Number.isFinite(savedDisplay.size)) size.value = Math.max(64, Math.min(320, savedDisplay.size));
+  let sortOrder = savedDisplay.sort === "oldest" ? "oldest" : "newest";
+  const sortButton = button("", () => {
+    sortOrder = sortOrder === "newest" ? "oldest" : "newest";
+    syncSortButton();
+    writeEditorPreference("generationHistoryDisplayV1", { ...readEditorPreference("generationHistoryDisplayV1", {}), sort: sortOrder });
+    refresh(false, { resetScroll: true });
+  });
+  sortButton.className = "pp-history-btn pp-history-sort-btn";
+  function syncSortButton() {
+    const isOldest = sortOrder === "oldest";
+    sortButton.textContent = isOldest ? "Oldest ↑" : "Newest ↓";
+    sortButton.dataset.sort = sortOrder;
+    sortButton.setAttribute("aria-pressed", String(isOldest));
+    sortButton.title = isOldest ? "Sorted oldest first — click to show newest first" : "Sorted newest first — click to show oldest first";
+    sortButton.setAttribute("aria-label", isOldest ? "Sort oldest first; click for newest first" : "Sort newest first; click for oldest first");
+  }
+  syncSortButton();
   const workflowHelp = el("details", "pp-history-workflow-help"); workflowHelp.open = savedDisplay.workflowHelp === true;
   workflowHelp.append(el("summary", "", "Refine, compare & keep"), el("p", "pp-history-note", "Refine reviews recorded prompt data before opening it in your active draft. Commit keeps edits; Cancel restores them. After generating, add results to Compare and Keep a reference for this node. Promote copies reviewed data into the editor or an A–D draft. Keep does not replace a draft or mark a Library favorite."));
   workflowHelp.addEventListener("toggle", () => { if (workflowHelp.isConnected) writeEditorPreference("generationHistoryDisplayV1", { ...readEditorPreference("generationHistoryDisplayV1", {}), workflowHelp: workflowHelp.open }); });
@@ -84,7 +119,7 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
     try { let offset = 0, total = 0; do { const page = await request("/sync", "POST", { import_existing: true, offset }); total += page.added; status.textContent = `Indexed ${total} images…`; offset = page.next_offset; } while (offset !== null && !importCancelled && !disposed); await refresh(); }
     catch (error) { report(error); } finally { importing = false; importButton.textContent = "Import existing ComfyUI history"; }
   });
-  head.append(query, label("Favorites", favorite), label("Missing files", missing), date, mode, size, refreshButton, importButton); root.append(head);
+  head.append(query, label("Favorites", favorite), label("Missing files", missing), date, sortButton, mode, size, refreshButton, importButton); root.append(head);
   const status = el("p", "pp-history-note"); status.setAttribute("role", "status"); root.append(status);
   const list = el("div", "pp-history-list wg-library-display-scope"); list.tabIndex = 0; list.dataset.cardStretch = "true"; root.append(list);
   const more = button("Load more", () => refresh(true)); more.hidden = true; root.append(more);
@@ -643,8 +678,9 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
     return prefs?.enabled ? "No indexed images yet. Queue a Prompt Palette generation or import existing ComfyUI history."
       : "No indexed images yet. Enable recording in Generation history settings, or import existing ComfyUI history.";
   }
-  function paint(geometryOnly = false) {
+  function paint(geometryOnly = false, { resetScroll = false } = {}) {
     if (disposed || !active) return;
+    const prevScrollTop = list.scrollTop;
     list.dataset.historyView = mode.value;
     scope.set(list, { "--wg-personal-thumb-min": `${Number(size.value)}px` });
     if (!rows.length) { manager.clear(); collection = null; const empty = el("p", "pp-history-note", emptyHistoryMessage()); empty.setAttribute("role", "status"); list.replaceChildren(empty); return; }
@@ -669,6 +705,7 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
         styleDeclaration: scope.declaration,
         releaseStyle: el => scope.release(el),
       });
+      if (resetScroll) list.scrollTop = 0;
     } else {
       const modeChanged = collection.mode !== layout.mode;
       collection.updateLayout(layout);
@@ -676,23 +713,43 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
         if (modeChanged) collection.setItems(rows);
         else collection.updateItems(rows, { patchNode: patchCard });
       }
+      collection.render();
+      if (resetScroll) list.scrollTop = 0;
+      else if (!modeChanged) list.scrollTop = prevScrollTop;
       manager.refresh();
     }
   }
-  async function refresh(append = false) {
+  async function refresh(append = false, { resetScroll = false } = {}) {
     if (disposed || !active) return;
     if (syncHistoryTarget()) refreshCompared();
     const version = ++sequence;
     listPending?.abort();
     const controller = listPending = new AbortController();
+    if (append) {
+      more.disabled = true;
+      more.textContent = "Loading…";
+    }
     try {
-      const params = new URLSearchParams({ q: query.value, favorite: favorite.checked, missing: missing.checked, since: date.value === "0" ? "0" : String(Date.now() - Number(date.value) * 86400000) });
+      const params = new URLSearchParams({
+        q: query.value,
+        favorite: favorite.checked,
+        missing: missing.checked,
+        since: date.value === "0" ? "0" : String(Date.now() - Number(date.value) * 86400000),
+        sort: sortOrder,
+      });
       if (append && cursor) params.set("cursor", cursor);
       const page = await request(`?${params}`, "GET", undefined, controller.signal); if (disposed || !active || controller.signal.aborted || version !== sequence) return;
-      rows = append ? [...rows, ...page.items] : page.items; cursor = page.next_cursor; more.hidden = !cursor; comparisonView.update(page.items);
-      status.textContent = rows.length ? `${rows.length} indexed images shown${cursor ? " · more available" : ""}` : ""; paint(); syncCompareButtons();
+      const incoming = Array.isArray(page?.items) ? page.items : [];
+      rows = mergeUniqueGenerationRows(rows, incoming, append); cursor = page?.next_cursor || null; more.hidden = !cursor; comparisonView.update(incoming);
+      status.textContent = rows.length ? `${rows.length} indexed images shown${cursor ? " · more available" : ""}` : ""; paint(false, { resetScroll }); syncCompareButtons();
     } catch (error) { if (active && version === sequence) report(error); }
-    finally { if (listPending === controller) listPending = null; }
+    finally {
+      if (listPending === controller) listPending = null;
+      if (!disposed && listPending === null) {
+        more.disabled = false;
+        more.textContent = "Load more";
+      }
+    }
   }
   async function saveSettings() {
     if (!prefs) return;
@@ -701,8 +758,8 @@ export function createGenerationHistory(host, { restore, getNode, onBack } = {})
   }
   function syncCapture() { unsubscribe?.(); unsubscribe = null; if (prefs?.enabled && !disposed) unsubscribe = subscribe(() => { refreshCompared(); refresh(); }); }
   for (const control of [enabled, sensitive, maximum]) control.addEventListener("change", saveSettings);
-  query.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => refresh(), 125); });
-  for (const control of [favorite, missing, date]) control.addEventListener("change", () => refresh());
+  query.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => refresh(false, { resetScroll: true }), 125); });
+  for (const control of [favorite, missing, date]) control.addEventListener("change", () => refresh(false, { resetScroll: true }));
   const displayChanged = () => { writeEditorPreference("generationHistoryDisplayV1", { ...readEditorPreference("generationHistoryDisplayV1", {}), mode: mode.value, size: Number(size.value) }); paint(true); };
   mode.addEventListener("change", displayChanged); size.addEventListener("input", displayChanged);
   (async () => { try { prefs = await request("/settings"); if (disposed) return; enabled.checked = prefs.enabled; sensitive.checked = prefs.capture_prompts; maximum.value = prefs.max_entries; enabled.disabled = prefs.capture_available === false; if (enabled.disabled) note.textContent += " Capture is unavailable in multi-user mode because ComfyUI does not expose authenticated run ownership."; syncCapture(); if (prefs.enabled && active) await request("/sync", "POST", {}); if (active) refreshCompared(); await refresh(); } catch (error) { report(error); } })();

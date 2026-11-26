@@ -173,24 +173,28 @@ class PromptPaletteV3Node(io.ComfyNode):
     @classmethod
     def GET_SCHEMA(cls):
         schema = super().GET_SCHEMA()
-        if cls._RETURN_TYPES is not None and not isinstance(cls._RETURN_TYPES, ByPassTypeTuple):
-            cls._RETURN_TYPES = ByPassTypeTuple(cls._RETURN_TYPES)
-        if cls._RETURN_NAMES is not None and not isinstance(cls._RETURN_NAMES, ByPassTypeTuple):
-            cls._RETURN_NAMES = ByPassTypeTuple(cls._RETURN_NAMES)
-        if cls._OUTPUT_IS_LIST is not None:
-            if cls.__name__ == "PromptPaletteCombinatorial":
-                if not isinstance(cls._OUTPUT_IS_LIST, ByPassListTuple):
-                    cls._OUTPUT_IS_LIST = ByPassListTuple(cls._OUTPUT_IS_LIST)
-            else:
-                if not isinstance(cls._OUTPUT_IS_LIST, ByPassFalseTuple):
-                    cls._OUTPUT_IS_LIST = ByPassFalseTuple(cls._OUTPUT_IS_LIST)
-        cls._ACCEPT_ALL_INPUTS = True
+        accept_all = bool(getattr(schema, "accept_all_inputs", False))
+        if accept_all:
+            if cls._RETURN_TYPES is not None and not isinstance(cls._RETURN_TYPES, ByPassTypeTuple):
+                cls._RETURN_TYPES = ByPassTypeTuple(cls._RETURN_TYPES)
+            if cls._RETURN_NAMES is not None and not isinstance(cls._RETURN_NAMES, ByPassTypeTuple):
+                cls._RETURN_NAMES = ByPassTypeTuple(cls._RETURN_NAMES)
+            if cls._OUTPUT_IS_LIST is not None:
+                if cls.__name__ == "PromptPaletteCombinatorial":
+                    if not isinstance(cls._OUTPUT_IS_LIST, ByPassListTuple):
+                        cls._OUTPUT_IS_LIST = ByPassListTuple(cls._OUTPUT_IS_LIST)
+                else:
+                    if not isinstance(cls._OUTPUT_IS_LIST, ByPassFalseTuple):
+                        cls._OUTPUT_IS_LIST = ByPassFalseTuple(cls._OUTPUT_IS_LIST)
+            cls._ACCEPT_ALL_INPUTS = True
+        else:
+            cls._ACCEPT_ALL_INPUTS = False
         return schema
 
     @classmethod
     def INPUT_TYPES(cls):
         res = super().INPUT_TYPES()
-        if isinstance(res, dict) and "optional" in res and not isinstance(res["optional"], FlexibleOptionalInputType):
+        if cls._ACCEPT_ALL_INPUTS and isinstance(res, dict) and "optional" in res and not isinstance(res["optional"], FlexibleOptionalInputType):
             res["optional"] = FlexibleOptionalInputType("STRING", res["optional"])
         return res
 
@@ -412,7 +416,10 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         cls, text="", prompt_prefix="", prompt_suffix="", enhancer_override="",
         negative_text="", negative_prefix="", negative_suffix="", workspace_runtime="", **_kwargs,
     ):
-        if not _kwargs.get("prepared_batch") and _kwargs.get("mode") != "combinatorial" and runtime_changes(workspace_runtime, text):
+        try:
+            if not _kwargs.get("prepared_batch") and _kwargs.get("mode") != "combinatorial" and runtime_changes(workspace_runtime, text):
+                return float("nan")
+        except (ValueError, TypeError):
             return float("nan")
         if _prompt_uses_runtime_sequence(
             text, prompt_prefix, prompt_suffix, enhancer_override,
@@ -475,7 +482,7 @@ class PromptPaletteEditor(PromptPaletteV3Node):
         relationship_meta = None
         if relationship_config:
             reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)))
-            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)), effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
+            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)), effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in, field_inputs=field_inputs)
             selected_indexes, relationship_meta = prepare_relationships(relationship_config, resolver.index, effective_seed, limit=5001, fixed=relationship_fixed)
             resolver.index = selected_indexes[0]
             relationship_meta = {**relationship_meta, "selected": {k: v["id"] for k, v in resolver.index.selected.items()}}
@@ -912,7 +919,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         cls, text="", prompt_prefix="", prompt_suffix="", enhancer_override="",
         negative_text="", negative_prefix="", negative_suffix="", workspace_runtime="", **_kwargs,
     ):
-        if not _kwargs.get("prepared_batch") and _kwargs.get("mode") != "combinatorial" and runtime_changes(workspace_runtime, text):
+        try:
+            if not _kwargs.get("prepared_batch") and _kwargs.get("mode") != "combinatorial" and runtime_changes(workspace_runtime, text):
+                return float("nan")
+        except (ValueError, TypeError):
             return float("nan")
         if _prompt_uses_runtime_sequence(
             text, prompt_prefix, prompt_suffix, enhancer_override,
@@ -956,11 +966,14 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         max_prompts = max(0, min(max_prompts, WildcardResolver.MAX_COMBINATORIAL_PROMPTS))
         resolver = WildcardResolver(get_index(), initial_variables=vars_in)
 
-        field_inputs = {
-            k[len("field_in_"):]: str(v)
-            for k, v in kwargs.items()
-            if k.startswith("field_in_") and v is not None
-        }
+        field_inputs = {}
+        for k, v in kwargs.items():
+            if v is None:
+                continue
+            if k.startswith("field_in_"):
+                field_inputs[k[len("field_in_"):]] = _coerce_text(v)
+            elif k.startswith("field_input_"):
+                field_inputs[k[len("field_input_"):]] = _coerce_text(v)
 
         output_fields = []
         if workspace_runtime:
@@ -971,19 +984,24 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             except Exception:
                 output_fields = []
 
+        prepared = read_prepared_batch(_coerce_text(prepared_batch), text, negative_text)
+        has_field_io = bool(field_inputs or output_fields)
         relationship_config = runtime_config(workspace_runtime)
         relationship_meta = None
         relationship_indexes = []
         relationship_workspace_negatives = []
+        relationship_fixed_all = set()
         if relationship_config:
-            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)), bool(prepared_batch))
-            relationship_fixed = field_constraints(relationship_config, resolver.index, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)) if mode == "random" else None, effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
-            relationship_indexes, relationship_meta = prepare_relationships(relationship_config, resolver.index, effective_seed, limit=5001, fixed=relationship_fixed)
-            resolver.index = relationship_indexes[0]
+            reject_unsafe_runtime(relationship_config, active_runtime(workspace_runtime, text, has_field_io=has_field_io), bool(prepared))
+            if mode == "combinatorial":
+                relationship_fixed = field_constraints(relationship_config, resolver.index, None, effective_seed, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in, field_inputs=field_inputs)
+                relationship_fixed_all.update(relationship_fixed)
+                relationship_indexes, relationship_meta = prepare_relationships(relationship_config, resolver.index, effective_seed, limit=5001, fixed=relationship_fixed)
+                resolver.index = relationship_indexes[0]
 
         runtime = WorkspaceGeneration(
             resolver.index,
-            active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)) if not prepared_batch and (mode == "random" or field_inputs or output_fields) else None,
+            active_runtime(workspace_runtime, text, has_field_io=has_field_io) if not prepared and (mode == "random" or has_field_io) else None,
             getattr(getattr(cls, "hidden", None), "unique_id", ""),
             initial_variables=vars_in,
             field_inputs=field_inputs,
@@ -993,10 +1011,12 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             # iterative Lock/Vary/Follow policies on either prompt channel.
             for field in runtime.fields:
                 field['state'] = None
-        prepared = read_prepared_batch(_coerce_text(prepared_batch), text, negative_text)
         body_branch_selections = []
         first_variables = None
         field_values_per_item = []
+        row_variables = []
+        relationship_truncated = False
+        base_resolver_vars = dict(resolver.variables)
         if prepared:
             cap = max_prompts or WildcardResolver.MAX_COMBINATORIAL_PROMPTS
             if len(prepared["prompts"]) > cap:
@@ -1004,48 +1024,58 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             prompts = list(prepared["prompts"])
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, len(prompts))
             field_values_per_item = [dict(runtime.values) for _ in prompts]
+            row_variables = [dict(base_resolver_vars) for _ in prompts]
         elif mode == "combinatorial":
             expansion_text = runtime.combinatorial_source(text)
             if relationship_config:
                 prompts, aligned_indexes = [], []
                 cap = max_prompts or resolver.MAX_COMBINATORIAL_PROMPTS
-                for selected_index in relationship_indexes:
+                for idx_rel, selected_index in enumerate(relationship_indexes):
                     resolver.index = selected_index
                     generated = resolver.generate_combinatorial(expansion_text, seed=effective_seed, max_prompts=cap - len(prompts))
                     prompts.extend(generated); aligned_indexes.extend([selected_index] * len(generated))
-                    if len(prompts) >= cap: break
+                    if len(prompts) >= cap:
+                        if idx_rel + 1 < len(relationship_indexes):
+                            relationship_truncated = True
+                        break
                 relationship_indexes = aligned_indexes
             else:
                 prompts = resolver.generate_combinatorial(expansion_text, seed=effective_seed, max_prompts=max_prompts or None)
             body_branch_selections = list(resolver.branch_selections)
             first_variables = resolver.export_variables()
-            if resolver.last_generation_truncated:
+            if resolver.last_generation_truncated or relationship_truncated:
                 cap = max_prompts or resolver.MAX_COMBINATORIAL_PROMPTS
                 logger.warning(
                     "Combinatorial generation reached the %s-prompt safety cap; output is truncated",
                     cap,
                 )
-            if not prompts:
+            empty_fallback = not prompts
+            if empty_fallback:
                 prompts = [""]
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, len(prompts))
-            if runtime.payload and text == runtime.original_sources['positive']:
+            if not empty_fallback and runtime.payload and text == runtime.original_sources['positive']:
                 rows = [runtime.read_combinatorial(prompt) for prompt in prompts]
                 prompts = [row[0] for row in rows]
                 field_values_per_item = [row[1] for row in rows]
             else:
                 field_values_per_item = [{} for _ in prompts]
+            row_variables = [dict(resolver.variables) for _ in prompts]
         else:
             seeds_out = cls._derive_seeds(effective_seed, seed_mode, count)
             prompts = []
             for idx_seed, s in enumerate(seeds_out):
                 if relationship_config:
-                    relationship_fixed = field_constraints(relationship_config, resolver.index.original, active_runtime(workspace_runtime, text, has_field_io=bool(field_inputs or output_fields)), s, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in)
-                    selected, _ = prepare_relationships(relationship_config, resolver.index.original, s, limit=5001, fixed=relationship_fixed)
+                    relationship_fixed = field_constraints(relationship_config, resolver.index.original, active_runtime(workspace_runtime, text, has_field_io=has_field_io), s, getattr(getattr(cls, "hidden", None), "unique_id", ""), vars_in, field_inputs=field_inputs)
+                    relationship_fixed_all.update(relationship_fixed)
+                    selected, rel_meta = prepare_relationships(relationship_config, resolver.index.original, s, limit=5001, fixed=relationship_fixed)
                     runtime.index = selected[0]
                     resolver.index = selected[0]
-                    if idx_seed == 0: relationship_indexes = []
+                    if idx_seed == 0:
+                        relationship_indexes = []
+                        relationship_meta = rel_meta
                     relationship_indexes.append(selected[0])
                 if runtime.payload:
+                    runtime.variables = dict(runtime.initial_variables)
                     runtime.branch_selections = []
                     generated, used = runtime.resolve(text, s)
                     resolver.used_names.extend(used); prompts.append(generated)
@@ -1053,9 +1083,12 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     if idx_seed == 0:
                         body_branch_selections = list(runtime.branch_selections)
                         first_variables = dict(runtime.variables)
+                    row_variables.append(dict(runtime.variables))
                 else:
-                    prompts.append(resolver.resolve(text, seed=s))
+                    resolver.variables = dict(base_resolver_vars)
+                    prompts.append(resolver.resolve(text, seed=s, reset_variables=False))
                     field_values_per_item.append({})
+                    row_variables.append(dict(resolver.variables))
                     if idx_seed == 0:
                         body_branch_selections = list(resolver.branch_selections)
                         first_variables = resolver.export_variables()
@@ -1068,6 +1101,7 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     resolver.used_names.extend(used)
                     relationship_workspace_negatives.append(negative)
                     field_values_per_item[-1].update({f['id']: runtime.values.get(f['id'], '') for f in runtime.fields if f['channel'] == 'negative'})
+                    row_variables[-1] = dict(runtime.variables)
 
         # Prefix / suffix / enhancer are applied per generated prompt. With none of them
         # connected this block changes nothing, so existing workflows behave as before.
@@ -1085,7 +1119,9 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         elif prompt_prefix or prompt_suffix:
             composed = []
             for item_index, (prompt_seed, generated) in enumerate(zip(seeds_out, prompts)):
-                if relationship_config: resolver.index = relationship_indexes[item_index]
+                if relationship_config and item_index < len(relationship_indexes):
+                    resolver.index = relationship_indexes[item_index]
+                resolver.variables = dict(row_variables[item_index] if item_index < len(row_variables) else base_resolver_vars)
                 parts = [
                     part for part in (
                         resolve_extra(prompt_prefix, prompt_seed, -1),
@@ -1094,6 +1130,10 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     ) if part
                 ]
                 composed.append(" ".join(parts))
+                if item_index == 0:
+                    first_variables = resolver.export_variables()
+                if item_index < len(row_variables):
+                    row_variables[item_index] = dict(resolver.variables)
             prompts = composed
         positive_antonyms = enabled_flag(positive_antonyms)
         prompts = [apply_positive_antonyms(prompt, positive_antonyms) for prompt in prompts]
@@ -1103,8 +1143,13 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
         if relationship_config:
             negatives = []
             for row, prompt_seed in enumerate(seeds_out):
-                resolver.index = relationship_indexes[row]
-                runtime.index = resolver.index
+                if row < len(relationship_indexes):
+                    resolver.index = relationship_indexes[row]
+                    runtime.index = resolver.index
+                row_vars = dict(row_variables[row] if row < len(row_variables) else base_resolver_vars)
+                resolver.variables = dict(row_vars)
+                if runtime.payload:
+                    runtime.variables = dict(row_vars)
                 negative = relationship_workspace_negatives[row] if relationship_workspace_negatives else resolve_extra(negative_text, prompt_seed, 1000)
                 negatives.append(" ".join(value for value in (
                     resolve_extra(negative_prefix, prompt_seed, 1001),
@@ -1112,8 +1157,16 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
                     resolve_extra(negative_suffix, prompt_seed, 1002),
                 ) if value))
                 field_values_per_item[row].update({f['id']: runtime.values.get(f['id'], '') for f in runtime.fields if f['channel'] == 'negative'} if not relationship_workspace_negatives else {})
-            ensure_participation(relationship_config, set(resolver.used_names) | set(relationship_fixed))
+                if row == 0:
+                    first_variables = {**(first_variables or {}), **resolver.export_variables()}
+                    if runtime.payload:
+                        first_variables.update({k: str(v) for k, v in runtime.variables.items()})
+            ensure_participation(relationship_config, set(resolver.used_names) | relationship_fixed_all)
         else:
+            if row_variables:
+                resolver.variables = dict(row_variables[0])
+                if runtime.payload:
+                    runtime.variables = dict(row_variables[0])
             negative_before = resolve_extra(negative_prefix, effective_seed, 1001)
             if prepared and "negative_prompts" in prepared:
                 negatives = list(prepared["negative_prompts"])
@@ -1123,6 +1176,8 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             negatives = [" ".join(part for part in (negative_before, item, negative_after) if part) for item in negatives]
             for item_vals in field_values_per_item:
                 item_vals.update({f['id']: runtime.values.get(f['id'], '') for f in runtime.fields if f['channel'] == 'negative'})
+            if runtime.payload:
+                first_variables = {**(first_variables or {}), **{k: str(v) for k, v in runtime.variables.items()}}
 
         used_names = sorted(set(resolver.used_names) | set(prepared.get("wildcards", []) if prepared else []))
         wildcards_used = json.dumps(used_names)
@@ -1238,15 +1293,18 @@ class PromptPaletteCombinatorial(PromptPaletteV3Node):
             "seed": effective_seed,
             "requested_count": count,
             "max_prompts": max_prompts,
+            "lora_mode": lora_mode,
+            "clip_token_count": clip_token_count,
             "wildcards_used": used_names,
-            "truncated": bool(resolver.last_generation_truncated),
+            "truncated": bool(resolver.last_generation_truncated or relationship_truncated),
             "output_fields": output_fields,
             "prompts": prompt_metadata,
         }
         if relationship_config:
             batch_metadata["relationships"] = relationship_meta
             for row, item in enumerate(prompt_metadata):
-                item["relationships"] = {**relationship_meta, "selected": {k: v["id"] for k, v in relationship_indexes[row].selected.items()}}
+                if row < len(relationship_indexes):
+                    item["relationships"] = {**relationship_meta, "selected": {k: v["id"] for k, v in relationship_indexes[row].selected.items()}}
         published_batch = publish_prompt_metadata(cls, batch_metadata)
         ui_limit = 20
         ui_metadata = {key: value for key, value in published_batch.items() if key != "prompts"}
@@ -1565,10 +1623,10 @@ class PromptPaletteWeightController(PromptPaletteV3Node):
         parts = []
         dropped = False
         for phrase, weight in segments:
-            w = cls._apply_clamp(weight, weight_clamping)
-            if w < 0.0 and negative_routing == "Zero Inversion Null":
+            if weight < 0.0 and negative_routing == "Zero Inversion Null":
                 dropped = True
                 continue
+            w = cls._apply_clamp(weight, weight_clamping)
             if dropped:
                 # Don't leave a doubled space (or a leading space) where a phrase was removed.
                 if not parts or (parts[-1][-1:].isspace() and phrase[:1].isspace()):

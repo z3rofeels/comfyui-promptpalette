@@ -31,9 +31,11 @@
   display: inline-flex; flex: 0 0 auto; padding-left: 5px;
   border-left: 1px solid var(--wg-border);
 }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-empty="true"] .wg-toolbar-anchor { border-left: 0; padding-left: 0; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar[data-mode="click"] .wg-toolbar-anchor { display: none; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-tool-label, .wg-settings-button-label, .wg-io-button-label) { display: none !important; }
-.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-action-btn, .wg-pill)[hidden] { display: none !important; }
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar [data-toolbar-hidden]:not([data-toolbar-hidden="false"]),
+.wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-action-btn, .wg-pill, .wg-slot-switcher)[hidden] { display: none !important; }
 .wg-root:is(.wg-node, .pp-node) > .wg-toolbar :is(.wg-icon-btn, .wg-action-btn, .wg-pill) {
   box-sizing: border-box; flex: 0 0 auto; display: inline-flex;
   align-items: center; justify-content: center;
@@ -165,8 +167,16 @@
   max-width: 22px;
   padding: 0;
 }
-.wg-root > .wg-toolbar-dock[data-mode="hidden"]:is(:hover, :focus-within) :is(button, .wg-icon-btn) {
+.wg-root > .wg-toolbar-dock[data-mode="hidden"]:is(:hover, :focus-within) :is(button, .wg-icon-btn),
+.wg-root > .wg-toolbar-dock[data-mode="hidden"] :is(button, .wg-icon-btn)[aria-expanded="true"] {
   opacity: 1;
+}
+.pp-node.wg-root > .wg-toolbar-dock[data-mode="hidden"] {
+  top: 5px;
+  right: 6px;
+}
+.wg-node.wg-root:has(> .wg-toolbar-dock[data-mode="hidden"]:not([hidden]), > .wg-toolbar[data-mode="auto"][data-expanded="false"]) > .wg-io-rail.open .wg-io-rail-head {
+  padding-right: 32px;
 }
 .wg-root .wg-toolbar[data-retractable="true"][data-expanded="true"]:not([hidden]) { animation: pp-toolbar-enter 140ms ease-out; }
 @keyframes pp-toolbar-enter { from { opacity: .5; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
@@ -790,7 +800,7 @@
 }
 .wg-root [data-el="seedInput"][aria-invalid="true"] { border-color: var(--wg-danger); }
 
-.wg-node > .wg-main {
+.wg-root:is(.wg-node, .pp-node) > .wg-main {
   flex: 1 1 auto;
   display: flex;
   flex-direction: row;
@@ -799,16 +809,16 @@
   min-height: 0;
   overflow: hidden;
 }
-.wg-node > .wg-main > .wg-body {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-body {
   order: 0;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
 }
 
-.wg-node > .wg-main > .wg-drawer,
-.wg-node > .wg-main > .wg-settings-popup,
-.wg-node > .wg-main > .wg-library-popup {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer,
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-settings-popup,
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup {
   position: relative !important;
   inset: auto !important;
   top: auto !important;
@@ -829,84 +839,84 @@
   background: var(--wg-panel-bg, #1c1f23);
   z-index: 4;
 }
-.wg-node > .wg-main > .wg-drawer[hidden],
-.wg-node > .wg-main > .wg-settings-popup[hidden],
-.wg-node > .wg-main > .wg-library-popup[hidden] { display: flex !important; visibility: hidden; }
-.wg-node > .wg-main > .wg-drawer.open,
-.wg-node > .wg-main > .wg-settings-popup.open,
-.wg-node > .wg-main > .wg-library-popup.open {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer[hidden],
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-settings-popup[hidden],
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup[hidden] { display: flex !important; visibility: hidden; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.open,
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-settings-popup.open,
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup.open {
   pointer-events: auto;
   visibility: visible;
 }
 
-.wg-node > .wg-main > .wg-library-popup {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup {
   order: -1;
   display: flex;
   flex-direction: column;
   border-right: 0;
   border-left: 0;
 }
-.wg-node > .wg-main > .wg-library-popup.open {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup.open {
   width: var(--wg-library-width, 360px) !important;
   flex-basis: var(--wg-library-width, 360px) !important;
   border-right: 1px solid var(--wg-border-strong, #3a4048);
   box-shadow: 10px 0 24px rgba(0,0,0,.2) !important;
 }
-.wg-node > .wg-main > .wg-library-popup > * { min-width: 0; }
-.wg-node > .wg-main > .wg-library-popup .wg-library-head { min-width: 0; }
-.wg-node > .wg-main > .wg-library-popup .wg-library-tabs { min-width: 0; }
-.wg-node > .wg-main > .wg-library-popup .wg-library-panel {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup > * { min-width: 0; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup .wg-library-head { min-width: 0; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup .wg-library-tabs { min-width: 0; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup .wg-library-panel {
   min-width: 0;
   min-height: 0;
 }
-.wg-node > .wg-main > .wg-library-popup .wg-starter-grid {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup .wg-starter-grid {
   grid-template-columns: 1fr;
 }
-.wg-node > .wg-main > .wg-library-popup .wg-starter-card-thumb { height: 76px; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-library-popup .wg-starter-card-thumb { height: 76px; }
 
-.wg-node > .wg-main > .wg-drawer.right,
-.wg-node > .wg-main > .wg-settings-popup {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.right,
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-settings-popup {
   order: 1;
   border-left: 0;
 }
-.wg-node > .wg-main > .wg-drawer.right:not(.wg-settings-popup).open {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.right:not(.wg-settings-popup).open {
   width: min(250px, 48%) !important;
   flex-basis: min(250px, 48%) !important;
   border-left: 1px solid var(--wg-border-strong, #3a4048);
   box-shadow: -10px 0 24px rgba(0,0,0,.18) !important;
 }
-.wg-node > .wg-main > .wg-drawer.right:not(.wg-settings-popup) > .wg-drawer-inner { width: 100%; min-width: 0; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.right:not(.wg-settings-popup) > .wg-drawer-inner { width: 100%; min-width: 0; }
 
-.wg-node > .wg-main > .wg-settings-popup {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-settings-popup {
   display: flex;
   flex-direction: column;
 }
-.wg-node > .wg-main > .wg-settings-popup.open {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-settings-popup.open {
   width: min(400px, 60%) !important;
   flex-basis: min(400px, 60%) !important;
   border-left: 1px solid var(--wg-border-strong, #3a4048);
   box-shadow: -10px 0 24px rgba(0,0,0,.2) !important;
 }
-.wg-node > .wg-main > .wg-stash-popup.open {
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-stash-popup.open {
   width: min(310px, 55%) !important;
   flex-basis: min(310px, 55%) !important;
 }
-.wg-node > .wg-main > .wg-settings-popup > * { min-width: 0; }
-.wg-node > .wg-main > .wg-stash-popup > * { min-width: 0; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-settings-popup > * { min-width: 0; }
+.wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-stash-popup > * { min-width: 0; }
 
 /* Below the useful split-pane width, stack the existing drawer and editor.
    A scrollable main area preserves access in short saved nodes without resizing them. */
 @container (max-width: 560px) {
-  .wg-node.wg-root > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) { flex-direction: column; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
-  .wg-node.wg-root > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) > .wg-body { flex: 1 0 150px; min-height: 150px; width: 100%; box-sizing: border-box; }
-  .wg-node.wg-root > .wg-main > .wg-drawer.open:not(.wg-library-popup) {
+  .wg-root:is(.wg-node, .pp-node) > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) { flex-direction: column; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+  .wg-root:is(.wg-node, .pp-node) > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) > .wg-body { flex: 1 0 150px; min-height: 150px; width: 100%; box-sizing: border-box; }
+  .wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.open:not(.wg-library-popup) {
     order: -1; width: 100% !important; max-width: 100% !important;
     height: min(340px, 65%) !important; min-height: 200px !important;
     flex: 0 0 min(340px, 65%) !important; border-left: 0; border-right: 0;
     border-bottom: 1px solid var(--wg-border); box-shadow: none !important;
   }
-  .wg-node.wg-root > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) > .wg-drawer:not(.open) { height: 0 !important; }
-  .wg-node.wg-root > .wg-main > .wg-drawer.open:not(.wg-library-popup) > .wg-drawer-inner { width: 100%; }
+  .wg-root:is(.wg-node, .pp-node) > .wg-main:has(> .wg-drawer.open:not(.wg-library-popup)) > .wg-drawer:not(.open) { height: 0 !important; }
+  .wg-root:is(.wg-node, .pp-node) > .wg-main > .wg-drawer.open:not(.wg-library-popup) > .wg-drawer-inner { width: 100%; }
 }
 
 /* Group dividers: a hairline at each action-group boundary reinforces the Run / Edit / Library / View / Clear hierarchy. */

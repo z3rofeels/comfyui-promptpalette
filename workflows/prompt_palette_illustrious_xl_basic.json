@@ -1,17 +1,17 @@
 {
-  "last_node_id": 7,
-  "last_link_id": 9,
+  "last_node_id": 11,
+  "last_link_id": 10,
   "nodes": [
     {
       "id": 1,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        20,
-        180
+        0,
+        220
       ],
       "size": [
-        320,
-        100
+        380,
+        120
       ],
       "flags": {},
       "order": 0,
@@ -22,7 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3
+            10
           ]
         },
         {
@@ -46,18 +46,21 @@
       },
       "widgets_values": [
         "Illustrious-XL-v2.0.safetensors"
-      ]
+      ],
+      "title": "Load Checkpoint · Illustrious XL",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "PromptPaletteEditor",
       "pos": [
-        400,
-        20
+        470,
+        60
       ],
       "size": [
-        430,
-        310
+        520,
+        360
       ],
       "flags": {},
       "order": 1,
@@ -72,7 +75,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 10,
           "shape": 7
         },
         {
@@ -122,7 +125,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -188,25 +193,215 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "masterpiece, best quality, absurdres, 1boy, solo, handsome male original character, short silver hair, dark brown eyes, oversized varsity jacket, tailored wide-leg trousers, patterned socks, high-top sneakers, full body, street fashion, neutral studio background, clean silhouette"
+        },
+        "wg_text": "masterpiece, best quality, absurdres, 1boy, solo, handsome male original character, short silver hair, dark brown eyes, oversized varsity jacket, tailored wide-leg trousers, patterned socks, high-top sneakers, full body, street fashion, neutral studio background, clean silhouette",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Anime image",
+            "presetId": "anime",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "b3d25134-2a82-495e-9c7c-822f3ce11d29",
+                "name": "Score & Rating",
+                "label": "Score & Rating",
+                "value": "masterpiece, best quality, absurdres",
+                "default": "masterpiece, best quality, absurdres",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "score",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "5620c042-e232-4e78-b4a8-2a916f086ed8",
+                "name": "Character",
+                "label": "Character",
+                "value": "1boy, solo, handsome man, short dark hair, clean jawline",
+                "default": "1boy, solo, handsome man, short dark hair, clean jawline",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "character",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "3fb681b4-e6ff-45e9-af66-a33d2fdbfe2e",
+                "name": "Outfit",
+                "label": "Outfit",
+                "value": "tailored charcoal blazer over white shirt",
+                "default": "tailored charcoal blazer over white shirt",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "outfit",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "12923d37-d7e3-4799-b1b5-233308101e09",
+                "name": "Pose & Action",
+                "label": "Pose & Action",
+                "value": "standing, natural posture, looking at viewer",
+                "default": "standing, natural posture, looking at viewer",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "pose",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "5ecad25e-6517-4876-a919-9ddc4d0e66a9",
+                "name": "Background",
+                "label": "Background",
+                "value": "soft studio grey background, subtle rim lighting",
+                "default": "soft studio grey background, subtle rim lighting",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "background",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "94feea4b-97a3-4b2e-b028-274d1339e604",
+                "name": "Style & LoRA",
+                "label": "Style & LoRA",
+                "value": "editorial portrait illustration, crisp linework",
+                "default": "editorial portrait illustration, crisp linework",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "b3d25134-2a82-495e-9c7c-822f3ce11d29",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "5620c042-e232-4e78-b4a8-2a916f086ed8",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "3fb681b4-e6ff-45e9-af66-a33d2fdbfe2e",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "12923d37-d7e3-4799-b1b5-233308101e09",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "5ecad25e-6517-4876-a919-9ddc4d0e66a9",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "94feea4b-97a3-4b2e-b028-274d1339e604",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "masterpiece, best quality, absurdres, 1boy, solo, handsome male original character, short silver hair, dark brown eyes, oversized varsity jacket, tailored wide-leg trousers, patterned socks, high-top sneakers, full body, street fashion, neutral studio background, clean silhouette",
+        "masterpiece, best quality, absurdres, 1boy, solo, handsome man, short dark hair, clean jawline, tailored charcoal blazer over white shirt, standing, natural posture, looking at viewer, soft studio grey background, subtle rim lighting, editorial portrait illustration, crisp linework",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Positive"
+      "title": "Prompt Palette — Positive (Booru Tags)",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "masterpiece, best quality, absurdres, 1boy, solo, handsome man, short dark hair, clean jawline, tailored charcoal blazer over white shirt, standing, natural posture, looking at viewer, soft studio grey background, subtle rim lighting, editorial portrait illustration, crisp linework",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"2\",\"positive\":\"masterpiece, best quality, absurdres, 1boy, solo, handsome man, short dark hair, clean jawline, tailored charcoal blazer over white shirt, standing, natural posture, looking at viewer, soft studio grey background, subtle rim lighting, editorial portrait illustration, crisp linework\",\"negative\":\"\",\"fields\":[{\"id\":\"b3d25134-2a82-495e-9c7c-822f3ce11d29\",\"channel\":\"positive\",\"start\":0,\"end\":36,\"source\":\"masterpiece, best quality, absurdres\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"5620c042-e232-4e78-b4a8-2a916f086ed8\",\"channel\":\"positive\",\"start\":38,\"end\":94,\"source\":\"1boy, solo, handsome man, short dark hair, clean jawline\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"3fb681b4-e6ff-45e9-af66-a33d2fdbfe2e\",\"channel\":\"positive\",\"start\":96,\"end\":137,\"source\":\"tailored charcoal blazer over white shirt\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"12923d37-d7e3-4799-b1b5-233308101e09\",\"channel\":\"positive\",\"start\":139,\"end\":183,\"source\":\"standing, natural posture, looking at viewer\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"5ecad25e-6517-4876-a919-9ddc4d0e66a9\",\"channel\":\"positive\",\"start\":185,\"end\":233,\"source\":\"soft studio grey background, subtle rim lighting\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"94feea4b-97a3-4b2e-b028-274d1339e604\",\"channel\":\"positive\",\"start\":235,\"end\":282,\"source\":\"editorial portrait illustration, crisp linework\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"b3d25134-2a82-495e-9c7c-822f3ce11d29\",\"join\":true},{\"type\":\"field\",\"id\":\"5620c042-e232-4e78-b4a8-2a916f086ed8\",\"join\":true},{\"type\":\"field\",\"id\":\"3fb681b4-e6ff-45e9-af66-a33d2fdbfe2e\",\"join\":true},{\"type\":\"field\",\"id\":\"12923d37-d7e3-4799-b1b5-233308101e09\",\"join\":true},{\"type\":\"field\",\"id\":\"5ecad25e-6517-4876-a919-9ddc4d0e66a9\",\"join\":true},{\"type\":\"field\",\"id\":\"94feea4b-97a3-4b2e-b028-274d1339e604\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"b3d25134-2a82-495e-9c7c-822f3ce11d29\":null,\"5620c042-e232-4e78-b4a8-2a916f086ed8\":null,\"3fb681b4-e6ff-45e9-af66-a33d2fdbfe2e\":null,\"12923d37-d7e3-4799-b1b5-233308101e09\":null,\"5ecad25e-6517-4876-a919-9ddc4d0e66a9\":null,\"94feea4b-97a3-4b2e-b028-274d1339e604\":null},\"edges\":{\"positive\":[\"b3d25134-2a82-495e-9c7c-822f3ce11d29\",\"94feea4b-97a3-4b2e-b028-274d1339e604\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 3,
       "type": "PromptPaletteEditor",
       "pos": [
-        400,
-        390
+        470,
+        490
       ],
       "size": [
-        430,
-        310
+        520,
+        270
       ],
       "flags": {},
       "order": 2,
@@ -337,25 +532,190 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": ""
+        },
+        "wg_text": "",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Negative prompt set",
+            "presetId": "negative",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "6b40dd0f-6ec8-4b35-84e6-32252d26bdc6",
+                "name": "Prompt",
+                "label": "Prompt",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "prompt",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "00615dcb-0282-4ff7-9f7d-be1f1a82c935",
+                "name": "Quality exclusions",
+                "label": "Quality exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "quality",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "44beca64-637d-40f8-af04-0e1547379706",
+                "name": "Anatomy exclusions",
+                "label": "Anatomy exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "anatomy",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "c44524c3-a7b3-447f-b098-b2df30f27d99",
+                "name": "Text exclusions",
+                "label": "Text exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "text",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "c2a9e242-a8ec-45ec-ad7f-ec4db1671bcc",
+                "name": "Style exclusions",
+                "label": "Style exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "6b40dd0f-6ec8-4b35-84e6-32252d26bdc6",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "00615dcb-0282-4ff7-9f7d-be1f1a82c935",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "44beca64-637d-40f8-af04-0e1547379706",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "c44524c3-a7b3-447f-b098-b2df30f27d99",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "c2a9e242-a8ec-45ec-ad7f-ec4db1671bcc",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
         "",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Negative"
+      "title": "Prompt Palette — Negative (Optional)",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"3\",\"positive\":\"\",\"negative\":\"\",\"fields\":[],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"6b40dd0f-6ec8-4b35-84e6-32252d26bdc6\",\"join\":true},{\"type\":\"field\",\"id\":\"00615dcb-0282-4ff7-9f7d-be1f1a82c935\",\"join\":true},{\"type\":\"field\",\"id\":\"44beca64-637d-40f8-af04-0e1547379706\",\"join\":true},{\"type\":\"field\",\"id\":\"c44524c3-a7b3-447f-b098-b2df30f27d99\",\"join\":true},{\"type\":\"field\",\"id\":\"c2a9e242-a8ec-45ec-ad7f-ec4db1671bcc\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"6b40dd0f-6ec8-4b35-84e6-32252d26bdc6\":null,\"00615dcb-0282-4ff7-9f7d-be1f1a82c935\":null,\"44beca64-637d-40f8-af04-0e1547379706\":null,\"c44524c3-a7b3-447f-b098-b2df30f27d99\":null,\"c2a9e242-a8ec-45ec-ad7f-ec4db1671bcc\":null},\"edges\":{\"positive\":[\"6b40dd0f-6ec8-4b35-84e6-32252d26bdc6\",\"c2a9e242-a8ec-45ec-ad7f-ec4db1671bcc\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 4,
-      "type": "EmptyLatentImage",
+      "type": "PromptPaletteResolutionSelector",
       "pos": [
-        40,
-        520
+        1080,
+        60
       ],
       "size": [
-        270,
-        130
+        320,
+        290
       ],
       "flags": {},
       "order": 3,
@@ -363,32 +723,64 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
+          "localized_name": "Latent",
           "type": "LATENT",
           "links": [
             6
           ]
+        },
+        {
+          "name": "width",
+          "localized_name": "Width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "localized_name": "Height",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage"
+        "Node name for S&R": "PromptPaletteResolutionSelector",
+        "resolution_pal_v1": {
+          "model_profile": "SDXL / Pony / Illustrious",
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1,
+          "snap_to_multiple": true
+        }
       },
       "widgets_values": [
+        "SDXL / Pony / Illustrious",
         1024,
         1024,
-        1
-      ]
+        1,
+        true
+      ],
+      "title": "Resolution Selector · 1024 × 1024",
+      "color": "#2a223d",
+      "bgcolor": "#181522",
+      "widgets_values_named": {
+        "model_profile": "SDXL / Pony / Illustrious",
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1,
+        "snap_to_multiple": true
+      }
     },
     {
       "id": 5,
       "type": "KSampler",
       "pos": [
-        920,
-        180
+        1080,
+        335
       ],
       "size": [
-        330,
-        300
+        340,
+        315
       ],
       "flags": {},
       "order": 4,
@@ -431,21 +823,24 @@
         0,
         "randomize",
         20,
-        8.0,
+        8,
         "euler",
         "normal",
-        1.0
-      ]
+        1
+      ],
+      "title": "KSampler · 20 Steps · CFG 8",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 6,
       "type": "VAEDecode",
       "pos": [
-        1320,
-        180
+        1510,
+        80
       ],
       "size": [
-        240,
+        400,
         90
       ],
       "flags": {},
@@ -475,18 +870,21 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "VAE Decode",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 7,
       "type": "SaveImage",
       "pos": [
-        1640,
-        160
+        1510,
+        240
       ],
       "size": [
-        300,
-        280
+        400,
+        420
       ],
       "flags": {},
       "order": 6,
@@ -510,7 +908,191 @@
       },
       "widgets_values": [
         "PromptPalette_IllustriousXL"
-      ]
+      ],
+      "title": "Save Image",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 8,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#29213b",
+      "bgcolor": "#171520",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "ILLUSTRIOUS XL · Character & Tag Studio",
+          "note": "1024 × 1024 · 20 steps · CFG 8.0 · Euler — Built for expressive character illustration with offline Booru tag search.",
+          "color_preset": "plum",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "ILLUSTRIOUS XL · Character & Tag Studio",
+        "1024 × 1024 · 20 steps · CFG 8.0 · Euler — Built for expressive character illustration with offline Booru tag search.",
+        "plum",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "ILLUSTRIOUS XL · Character & Tag Studio",
+        "note": "1024 × 1024 · 20 steps · CFG 8.0 · Euler — Built for expressive character illustration with offline Booru tag search.",
+        "color_preset": "plum",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 9,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        370
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · Quick Setup",
+          "note": "1. Place `Illustrious-XL-v2.0.safetensors` (or any Illustrious checkpoint) in `models/checkpoints/`.\n2. Write comma-separated character, outfit, and framing tags in **Positive**.\n3. Add optional quality filters (e.g. `lowres, bad anatomy, blurry`) in **Negative**.\n\n- Standard Illustrious sweet spot: `1024×1024` or `832×1216`, `20–28 steps`, `CFG 5.5–8.0`.",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · Quick Setup",
+        "1. Place `Illustrious-XL-v2.0.safetensors` (or any Illustrious checkpoint) in `models/checkpoints/`.\n2. Write comma-separated character, outfit, and framing tags in **Positive**.\n3. Add optional quality filters (e.g. `lowres, bad anatomy, blurry`) in **Negative**.\n\n- Standard Illustrious sweet spot: `1024×1024` or `832×1216`, `20–28 steps`, `CFG 5.5–8.0`.",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · Quick Setup",
+        "note": "1. Place `Illustrious-XL-v2.0.safetensors` (or any Illustrious checkpoint) in `models/checkpoints/`.\n2. Write comma-separated character, outfit, and framing tags in **Positive**.\n3. Add optional quality filters (e.g. `lowres, bad anatomy, blurry`) in **Negative**.\n\n- Standard Illustrious sweet spot: `1024×1024` or `832×1216`, `20–28 steps`, `CFG 5.5–8.0`.",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 10,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        500
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#29213b",
+      "bgcolor": "#171520",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "PROMPT PALETTE · Offline Booru Autocomplete",
+          "note": "- Start typing any Danbooru/character/wardrobe tag to get instant **offline autocomplete** with category color coding.\n- Open the **Prompt Palette Sidebar** (`Styles` / `Library`) to browse visual references.\n- Select a phrase and scroll or use `(tag:1.15)` to fine-tune emphasis.",
+          "color_preset": "plum",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "PROMPT PALETTE · Offline Booru Autocomplete",
+        "- Start typing any Danbooru/character/wardrobe tag to get instant **offline autocomplete** with category color coding.\n- Open the **Prompt Palette Sidebar** (`Styles` / `Library`) to browse visual references.\n- Select a phrase and scroll or use `(tag:1.15)` to fine-tune emphasis.",
+        "plum",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "PROMPT PALETTE · Offline Booru Autocomplete",
+        "note": "- Start typing any Danbooru/character/wardrobe tag to get instant **offline autocomplete** with category color coding.\n- Open the **Prompt Palette Sidebar** (`Styles` / `Library`) to browse visual references.\n- Select a phrase and scroll or use `(tag:1.15)` to fine-tune emphasis.",
+        "color_preset": "plum",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 11,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: Illustrious XL",
+          "note": "",
+          "color_preset": "plum",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: Illustrious XL",
+        "",
+        "plum",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: Illustrious XL",
+        "note": "",
+        "color_preset": "plum",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -532,7 +1114,7 @@
     ],
     [
       3,
-      1,
+      2,
       0,
       5,
       0,
@@ -585,16 +1167,85 @@
       7,
       0,
       "IMAGE"
+    ],
+    [
+      10,
+      1,
+      0,
+      2,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load Checkpoint",
+      "bounding": [
+        -24,
+        142,
+        428,
+        224
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write & Customize Prompt",
+      "bounding": [
+        446,
+        -18,
+        568,
+        804
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Canvas Size",
+      "bounding": [
+        1056,
+        -18,
+        388,
+        249
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · Sample",
+      "bounding": [
+        1056,
+        257,
+        388,
+        419
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode & Output",
+      "bounding": [
+        1486,
+        2,
+        448,
+        684
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.85,
+      "scale": 0.75,
       "offset": [
-        60,
-        60
+        560,
+        220
       ]
     }
   },

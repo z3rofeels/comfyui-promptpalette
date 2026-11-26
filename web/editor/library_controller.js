@@ -662,7 +662,12 @@ export function createLibraryController(ctx) {
       cancelScheduledCloseInjectMenu();
       cancelNodeTimer(node, delegatedInjectTimer);
       const path = trigger.closest("[data-path]")?.dataset.path;
-      delegatedInjectTimer = scheduleNodeTimer(node, () => { if (path) openInjectMenu(trigger, path, textarea, render); }, 90);
+      delegatedInjectTimer = scheduleNodeTimer(node, () => {
+        if (!path) return;
+        const editor = node._ppActiveRecipeEditor?.isConnected ? node._ppActiveRecipeEditor : textarea;
+        if (editor === textarea) node._ppRecipeWorkspace?.showEditor();
+        openInjectMenu(trigger, path, editor, editor === textarea ? render : () => editor.dispatchEvent(new Event("input", { bubbles: true })));
+      }, 90);
       return;
     }
     const host = event.target.closest(".wg-item[data-path], .wg-thumb-item[data-path]");

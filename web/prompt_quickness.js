@@ -498,8 +498,8 @@ export const PROMPT_PALETTE_HELP = [
   {
     id: "io",
     title: "Show or hide sockets",
-    keywords: "io inputs outputs labels compact rail socket",
-    body: "Open Ports to show socket names and choose what is visible. Close it to reclaim the socket rows and return to the compact top-edge dot rail. Hover a dot for its name, type, and connection status. Drag links and use native socket menus in either mode; used ports remain available after disconnecting.",
+    keywords: "io inputs outputs labels compact rail socket ports minimal",
+    body: "Open Ports to show socket names and choose what is visible. Close it to reclaim the socket rows and return to the compact top-edge dot rail. Once your workflow is wired, you can also hide the Inputs / outputs (Ports) toolbar button in Settings → Toolbar & layout without affecting any active sockets or connected wires, and reopen Ports anytime via Manage ports… in Settings, the Sidebar Tools tab, or Ctrl+K Command Palette.",
   },
   {
     id: "slots-abcd",

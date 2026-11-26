@@ -376,6 +376,8 @@
 .pp-sidebar-generations--tab .pp-sidebar-gen-controls { padding-block-start: 0; }
 .pp-sidebar-gen-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pps-space-1); min-inline-size: 0; }
 .pp-main-sidebar .pp-sidebar-gen-date { flex: 1 1 76px; min-inline-size: 0; min-block-size: var(--pps-icon-control); padding: 2px var(--pps-space-1); font-size: var(--pps-font-small); }
+.pp-main-sidebar .pp-sidebar-gen-sort { flex: 0 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-block-size: var(--pps-icon-control); padding: 2px var(--pps-space-2); font-size: var(--pps-font-small); white-space: nowrap; }
+.pp-main-sidebar .pp-sidebar-gen-sort[aria-pressed="true"] { color: var(--pps-accent); border-color: var(--pps-accent-border); background: var(--pps-selected); }
 .pp-sidebar-gen-settings { flex: none; }
 .pp-sidebar-gen-settings > summary { display: inline-flex; align-items: center; justify-content: center; inline-size: var(--pps-icon-control); block-size: var(--pps-icon-control); border: var(--pps-stroke) solid var(--pps-border); border-radius: var(--pps-radius); background: var(--pps-surface); color: var(--pps-muted); cursor: pointer; list-style: none; }
 .pp-sidebar-gen-settings[open] > summary { border-color: var(--pps-accent-border); background: var(--pps-selected); color: var(--pps-accent); }

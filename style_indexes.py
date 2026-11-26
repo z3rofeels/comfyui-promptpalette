@@ -189,9 +189,15 @@ def _read(path, mtime, size):
 @lru_cache(maxsize=2)
 def _booru_index(path, mtime, artists):
     import sqlite3
-    with sqlite3.connect(path) as connection:
-        rows = connection.execute("SELECT tag, category, post_count, aliases FROM tags WHERE category " +
-                                  ("='artist'" if artists else "!='artist'") + " ORDER BY post_count DESC").fetchall()
+    if not path or not Path(path).is_file():
+        rows = []
+    else:
+        try:
+            with sqlite3.connect(path) as connection:
+                rows = connection.execute("SELECT tag, category, post_count, aliases FROM tags WHERE category " +
+                                          ("='artist'" if artists else "!='artist'") + " ORDER BY post_count DESC").fetchall()
+        except sqlite3.Error:
+            rows = []
     # Enrich the existing directory; tag identities, counts and insertion stay
     # authoritative in the Booru database. No second search/index or network.
     try:
@@ -226,6 +232,8 @@ def get_index(index_id):
     if index_id in ("booru", "tags"):
         from .booru_database import active_db_path
         path = Path(active_db_path())
+        if not path.is_file():
+            return _booru_index("", 0, index_id != "tags")
         return _booru_index(str(path), path.stat().st_mtime_ns, index_id != "tags")
     path = _paths().get(index_id)
     if path is None:
@@ -247,8 +255,14 @@ def list_indexes():
     # just to open the 96-preset landing view.
     from .booru_database import active_db_path
     import sqlite3
-    with sqlite3.connect(active_db_path()) as connection:
-        counts = dict(connection.execute("SELECT category, COUNT(*) FROM tags GROUP BY category"))
+    counts = {}
+    db_path = Path(active_db_path())
+    if db_path.is_file():
+        try:
+            with sqlite3.connect(str(db_path)) as connection:
+                counts = dict(connection.execute("SELECT category, COUNT(*) FROM tags GROUP BY category"))
+        except sqlite3.Error:
+            counts = {}
     result = [{"id": "booru", "name": "Artists · local Booru directory", "count": counts.get("artist", 0)},
               {"id": "tags", "name": "Tags · local Booru directory", "count": sum(v for k, v in counts.items() if k != "artist")}]
     for key in sorted(_paths()):

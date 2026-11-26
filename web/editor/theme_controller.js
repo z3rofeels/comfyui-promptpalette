@@ -191,6 +191,8 @@ export function createThemeController(ctx) {
   const styleAutocompleteModeSelect = el("styleAutocompleteMode");
   const styleModelFilterSelect = el("styleModelFilter");
   const styleMossDialectSelect = el("styleMossDialect");
+  const toggleChunkBoundaryCb = el("toggleChunkBoundary");
+  const toggleEmptyQuickStartCb = el("toggleEmptyQuickStart");
   const booruColorRoot = el("booruColors");
   let categoryFilter = "";
   let categoryPalettes = loadCategoryPalettes();
@@ -595,6 +597,7 @@ export function createThemeController(ctx) {
       // They are intentionally ignored; v2 now uses one consistent surface treatment.
       if (Number.isFinite(Number(pack.effects.cornerRadius))) theme.cornerRadius = Math.max(4, Math.min(18, Number(pack.effects.cornerRadius)));
     }
+    const wasShowingIo = theme.showIoBtn !== false;
     if (pack.layout && typeof pack.layout === "object") {
       const defaults = defaultTheme();
       for (const [key, value] of Object.entries(pack.layout)) {
@@ -618,7 +621,15 @@ export function createThemeController(ctx) {
           theme[key] = value;
         }
       }
+      const legacyKeys = TOOLBAR_BUTTONS
+        .map(([, key]) => key)
+        .filter((key) => !["showImportImageBtn", "showLorasBtn", "showRefineBtn", "showIoBtn", "showZenBtn"].includes(key));
+      const legacyPackAllOff = legacyKeys.every((key) => pack.layout[key] === false);
+      if (!Object.hasOwn(pack.layout, "showRefineBtn") && (pack.layout.layoutPreset === "minimal" || legacyPackAllOff)) theme.showRefineBtn = false;
+      if (!Object.hasOwn(pack.layout, "showZenBtn") && (pack.layout.layoutPreset === "minimal" || legacyPackAllOff)) theme.showZenBtn = false;
+      if (!Object.hasOwn(pack.layout, "showIoBtn") && legacyPackAllOff) theme.showIoBtn = false;
     }
+    if (wasShowingIo && theme.showIoBtn === false) root.dispatchEvent(new Event("pp-io-rail-hide"));
     if (pack.layout && Object.hasOwn(pack.layout, "toolbarSize") && !Object.hasOwn(pack.layout, "toolbarScale")) {
       Object.assign(theme, normalizeToolbarPreferences({ ...theme, toolbarScale: undefined }));
     } else Object.assign(theme, normalizeToolbarPreferences(theme));
@@ -988,21 +999,21 @@ export function createThemeController(ctx) {
   const TOOLBAR_KEYS = TOOLBAR_BTN_TOGGLES.map(([, key]) => key);
   const LAYOUT_PRESETS = {
     minimal: {
-      showGalleryBtn: true, showLorasBtn: false, showEditBtn: false, showImportImageBtn: false, showRecipesBtn: false, showStashBtn: false,
-      showRefreshBtn: false, showUndoBtn: false, showRedoBtn: false, showResolveBtn: true,
-      showCopyBtn: true, showClearBtn: false, showSeedControls: false, seedFortuneEnabled: false, showDayNightBtn: false,
+      showGalleryBtn: true, showLorasBtn: false, showEditBtn: false, showImportImageBtn: false, showRecipesBtn: false, showStashBtn: false, showSlotsBtn: false,
+      showRefreshBtn: false, showUndoBtn: false, showRedoBtn: false, showResolveBtn: true, showRefineBtn: false,
+      showCopyBtn: true, showClearBtn: false, showIoBtn: true, showZenBtn: false, showSeedControls: false, seedFortuneEnabled: false, showDayNightBtn: false,
       syntaxInjectorEnabled: false,
     },
     balanced: {
-      showGalleryBtn: true, showLorasBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
-      showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true,
-      showCopyBtn: true, showClearBtn: true, showSeedControls: false, seedFortuneEnabled: true, showDayNightBtn: true,
+      showGalleryBtn: true, showLorasBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true, showSlotsBtn: true,
+      showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true, showRefineBtn: true,
+      showCopyBtn: true, showClearBtn: true, showIoBtn: true, showZenBtn: true, showSeedControls: false, seedFortuneEnabled: true, showDayNightBtn: true,
       syntaxInjectorEnabled: true,
     },
     studio: {
-      showGalleryBtn: true, showLorasBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true,
-      showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true,
-      showCopyBtn: true, showClearBtn: true, showSeedControls: true, seedFortuneEnabled: true, showDayNightBtn: true,
+      showGalleryBtn: true, showLorasBtn: true, showEditBtn: true, showImportImageBtn: true, showRecipesBtn: true, showStashBtn: true, showSlotsBtn: true,
+      showRefreshBtn: true, showUndoBtn: true, showRedoBtn: true, showResolveBtn: true, showRefineBtn: true,
+      showCopyBtn: true, showClearBtn: true, showIoBtn: true, showZenBtn: true, showSeedControls: true, seedFortuneEnabled: true, showDayNightBtn: true,
       syntaxInjectorEnabled: true,
     },
   };
@@ -1010,10 +1021,13 @@ export function createThemeController(ctx) {
   function applyZenMode() {
     const on = !!theme.zenMode;
     root.classList.toggle("wg-zen", on);
-    zenBtn.classList.toggle("active", on);
-    zenBtn.title = on ? "Exit Zen mode" : "Enter Zen mode";
-    toggleZenModeCb.checked = on;
+    if (zenBtn) {
+      zenBtn.classList.toggle("active", on);
+      zenBtn.title = on ? "Exit Zen mode" : "Enter Zen mode";
+    }
+    if (toggleZenModeCb) toggleZenModeCb.checked = on;
     if (on) {
+      node._wgCloseIoRail?.({ force: true });
       node._ppLoraSidecar?.close();
       node._ppStyleSelector?.close();
       closeAllPowerPopups();
@@ -1034,7 +1048,9 @@ export function createThemeController(ctx) {
   function setLayoutPreset(name) {
     const preset = LAYOUT_PRESETS[name];
     if (!preset) return;
+    const hidingIo = preset.showIoBtn === false && theme.showIoBtn !== false;
     Object.assign(theme, preset, { layoutPreset: name, zenMode: false });
+    if (hidingIo) root.dispatchEvent(new Event("pp-io-rail-hide"));
     saveTheme(theme);
     applyToolbarSettings();
     refreshToolbarSettingsUI();
@@ -1061,8 +1077,8 @@ export function createThemeController(ctx) {
     if (wheelBtn) {
       wheelBtn.hidden = theme.seedFortuneEnabled === false;
     }
-    if (dayNightBtn) dayNightBtn.style.display = theme.showDayNightBtn ? "" : "none";
-    applyToolbarVisibility(root, theme);
+    if (dayNightBtn) dayNightBtn.toggleAttribute("data-toolbar-hidden", !theme.showDayNightBtn);
+    applyToolbarVisibility(root, theme, settingsRoot);
     settingsRoot.querySelectorAll("[data-layout-preset]").forEach(button => {
       button.classList.toggle("active", button.dataset.layoutPreset === theme.layoutPreset);
     });
@@ -1094,9 +1110,11 @@ export function createThemeController(ctx) {
     if (styleAutocompleteModeSelect) styleAutocompleteModeSelect.value = ["auto", "onDemand", "off"].includes(theme.styleAutocompleteMode) ? theme.styleAutocompleteMode : "off";
     if (styleModelFilterSelect) styleModelFilterSelect.value = ["auto", "both", "krea2", "moss"].includes(theme.styleModelFilter) ? theme.styleModelFilter : "auto";
     if (styleMossDialectSelect) styleMossDialectSelect.value = ["caption", "tags", "layout"].includes(theme.styleMossDialect) ? theme.styleMossDialect : "caption";
-    toggleZenModeCb.checked = !!theme.zenMode;
+    if (toggleChunkBoundaryCb) toggleChunkBoundaryCb.checked = theme.chunkBoundaryIndicator === true;
+    if (toggleEmptyQuickStartCb) toggleEmptyQuickStartCb.checked = theme.emptyQuickStartEnabled !== false;
+    if (toggleZenModeCb) toggleZenModeCb.checked = !!theme.zenMode;
     TOOLBAR_BTN_TOGGLES.forEach(([, key, cb]) => {
-      cb.checked = theme[key] !== false;
+      if (cb) cb.checked = theme[key] !== false;
     });
     settingsRoot.querySelectorAll("[data-layout-preset]").forEach(button => {
       button.classList.toggle("active", button.dataset.layoutPreset === theme.layoutPreset);
@@ -1154,8 +1172,10 @@ export function createThemeController(ctx) {
   }
 
   TOOLBAR_BTN_TOGGLES.forEach(([, key, cb]) => {
+    if (!cb) return;
     cb.addEventListener("change", () => {
       theme[key] = cb.checked;
+      if (key === "showIoBtn" && !cb.checked) root.dispatchEvent(new Event("pp-io-rail-hide"));
       markLayoutCustom();
       saveTheme(theme);
       applyToolbarSettings();
@@ -1299,6 +1319,17 @@ export function createThemeController(ctx) {
     saveTheme(theme);
     updateThemeJson();
   });
+  toggleChunkBoundaryCb?.addEventListener("change", () => {
+    theme.chunkBoundaryIndicator = toggleChunkBoundaryCb.checked;
+    saveTheme(theme);
+    render();
+    updateThemeJson();
+  });
+  toggleEmptyQuickStartCb?.addEventListener("change", () => {
+    theme.emptyQuickStartEnabled = toggleEmptyQuickStartCb.checked;
+    saveTheme(theme);
+    updateThemeJson();
+  });
   [booruSourceDatabase, booruSourceCustomWords].forEach((input) => input.addEventListener("change", () => {
     theme[input === booruSourceDatabase ? "booruSourceDatabase" : "booruSourceCustomWords"] = input.checked;
     saveTheme(theme);
@@ -1321,7 +1352,12 @@ export function createThemeController(ctx) {
     theme.seedFortuneEnabled = false;
     theme.showDayNightBtn = false;
     theme.layoutPreset = "custom";
+    root.dispatchEvent(new Event("pp-io-rail-hide"));
     saveTheme(theme); applyToolbarSettings(); refreshToolbarSettingsUI(); updateThemeJson();
+  });
+  settingsRoot.querySelector('[data-act="openPortsFromSettings"]')?.addEventListener("click", () => {
+    ctx.closeSettings?.({ restoreFocus: false, reason: "io-rail" });
+    node._wgOpenIoRail?.({ focusSearch: true });
   });
   function toggleZenMode() {
     theme.zenMode = !theme.zenMode;
@@ -1329,8 +1365,8 @@ export function createThemeController(ctx) {
     applyZenMode();
     updateThemeJson();
   }
-  zenBtn.addEventListener("click", toggleZenMode);
-  toggleZenModeCb.addEventListener("change", () => {
+  zenBtn?.addEventListener("click", toggleZenMode);
+  toggleZenModeCb?.addEventListener("change", () => {
     theme.zenMode = toggleZenModeCb.checked;
     saveTheme(theme);
     applyZenMode();
@@ -1465,11 +1501,12 @@ export function createThemeController(ctx) {
     const activeColors = (BUILTIN_UI_THEMES[activeName] && !customThemes[activeName])
       ? activeName
       : JSON.stringify(customThemes[activeName] || {});
+    const buttonStates = TOOLBAR_BUTTONS.map(([, key]) => `${key}:${t[key] !== false}`).join("|");
     return {
       colors: `${activeName}|${activeColors}`,
       typography: `${t.fontFamily || ""}|${t.editorFontSize}|${t.uiFontScale}|${t.menuScale}|${t.promptTextColorMode}|${t.promptTextColor}`,
       effects: `${t.cornerRadius ?? 10}`,
-      toolbar: `${t.toolbarMode}|${t.toolbarSize}|${t.toolbarScale}|${(t.toolbarOrder || []).join(",")}|${t.showSeedControls}|${t.seedFortuneEnabled}|${t.showDayNightBtn}|${t.showGalleryBtn}|${t.showLorasBtn}|${t.showEditBtn}|${t.showImportImageBtn}|${t.showSaveBtn}|${t.showResolveBtn}|${t.showRandomBtn}|${t.showBranchBtn}|${t.showClearBtn}|${t.showPositiveAntonymsBtn}|${t.layoutPreset}`,
+      toolbar: `${t.toolbarMode}|${t.toolbarSize}|${t.toolbarScale}|${(t.toolbarOrder || []).join(",")}|${t.showSeedControls}|${t.seedFortuneEnabled}|${t.showDayNightBtn}|${t.showPositiveAntonymsBtn}|${t.styleSelectorEnabled}|${buttonStates}|${t.layoutPreset}`,
       render: `${t.booruPromptColors}|${t.hueRotate}|${t.saturation}|${JSON.stringify(t.categoryPins || {})}|${JSON.stringify(t.booruColors || {})}|${!!t.booruColorsCustomized}`,
     };
   }
@@ -1495,6 +1532,7 @@ export function createThemeController(ctx) {
     const toolbarChanged = !prevSig || nextSig.toolbar !== prevSig.toolbar;
     const renderChanged = !prevSig || nextSig.render !== prevSig.render;
     const zenChanged = root.classList.contains("wg-zen") !== !!nextTheme.zenMode;
+    const hidingIo = theme.showIoBtn !== false && nextTheme.showIoBtn === false;
 
     const previousGeometryKey = `${theme.fontFamily || ""}|${theme.editorFontSize}|${theme.uiFontScale}`;
     const nextGeometryKey = `${nextTheme.fontFamily || ""}|${nextTheme.editorFontSize}|${nextTheme.uiFontScale}`;
@@ -1517,6 +1555,7 @@ export function createThemeController(ctx) {
     }
 
     if (previousGeometryKey !== nextGeometryKey) refreshLibraryTypographyGeometry();
+    if (hidingIo) root.dispatchEvent(new Event("pp-io-rail-hide"));
     if (toolbarChanged) applyToolbarSettings();
     if (zenChanged) applyZenMode();
 
@@ -1555,7 +1594,8 @@ export function createThemeController(ctx) {
     applyZenMode,
     renderHelpResults,
     syncSettingsUiIfDirty,
-    toggleDayNight: () => el("dayNightBtn")?.click(),
+    toggleDayNight: () => selectUiTheme(activeUiThemeName === theme.nightTheme ? theme.dayTheme : theme.nightTheme),
+    toggleZenMode,
     cleanup: cleanupAppearanceSync,
   };
 }

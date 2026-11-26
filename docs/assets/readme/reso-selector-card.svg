@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="470" viewBox="0 0 1600 470" role="img" aria-labelledby="title desc">
+  <title id="title">Resolution Selector — Function and Use</title>
+  <desc id="desc">Three-step overview of Prompt Palette Resolution Selector: Pick an architecture profile (4ch, 16ch, or 128ch), choose megapixel tier and aspect ratio with Swap, and emit a snapped native LATENT plus Width and Height.</desc>
+  <defs>
+    <linearGradient id="back" x2="1" y2="1">
+      <stop stop-color="#202321"/>
+      <stop offset=".65" stop-color="#141719"/>
+      <stop offset="1" stop-color="#181c21"/>
+    </linearGradient>
+  </defs>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <rect x="0" y="0" width="1600" height="470" rx="20" fill="url(#back)"/>
+
+    <!-- Header -->
+    <text x="64" y="54" font-size="21" font-weight="600" fill="#dda253" font-family="Source Code Pro, monospace">RESOLUTION SELECTOR / STANDALONE LATENT UTILITY</text>
+    <text x="64" y="108" font-size="44" font-weight="700" fill="#f4f0e8" letter-spacing="-1">Right latent shape. Right aspect. Zero guesswork.</text>
+
+    <!-- Card 1 -->
+    <rect x="64" y="142" width="468" height="232" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="64" y="142" width="468" height="5" rx="2.5" fill="#dda253"/>
+    <circle cx="105" cy="189" r="19" fill="#dda253"/>
+    <text x="105" y="196" font-size="18" font-weight="700" fill="#141719" text-anchor="middle">01</text>
+    <text x="138" y="196" font-size="26" font-weight="700" fill="#f4f0e8">Pick Architecture</text>
+    <text x="86" y="242" font-size="15" font-weight="700" fill="#dda253" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="86" y="268" font-size="20" fill="#b9b9b1">Sets latent channels (4 / 16 / 128ch),</text>
+    <text x="86" y="294" font-size="20" fill="#b9b9b1">downscale (8x / 16x), and step (÷64 / ÷16).</text>
+    <text x="86" y="332" font-size="15" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="132" y="332" font-size="19" fill="#f4f0e8">Avoids channel-mismatch errors.</text>
+
+    <!-- Card 2 -->
+    <rect x="566" y="142" width="468" height="232" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="566" y="142" width="468" height="5" rx="2.5" fill="#58d8ed"/>
+    <circle cx="607" cy="189" r="19" fill="#58d8ed"/>
+    <text x="607" y="196" font-size="18" font-weight="700" fill="#141719" text-anchor="middle">02</text>
+    <text x="640" y="196" font-size="26" font-weight="700" fill="#f4f0e8">Choose MP &amp; Aspect</text>
+    <text x="588" y="242" font-size="15" font-weight="700" fill="#58d8ed" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="588" y="268" font-size="20" fill="#b9b9b1">0.25–4 MP tiers with sweet-spot hints,</text>
+    <text x="588" y="294" font-size="20" fill="#b9b9b1">8 ratio presets, custom W/H, and ⇄ Swap.</text>
+    <text x="588" y="332" font-size="15" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="634" y="332" font-size="19" fill="#f4f0e8">Switch 1:1 ↔ 16:9 or portrait in 1 click.</text>
+
+    <!-- Card 3 -->
+    <rect x="1068" y="142" width="468" height="232" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="1068" y="142" width="468" height="5" rx="2.5" fill="#40c8b7"/>
+    <circle cx="1109" cy="189" r="19" fill="#40c8b7"/>
+    <text x="1109" y="196" font-size="18" font-weight="700" fill="#141719" text-anchor="middle">03</text>
+    <text x="1142" y="196" font-size="26" font-weight="700" fill="#f4f0e8">Snap &amp; Emit Latent</text>
+    <text x="1090" y="242" font-size="15" font-weight="700" fill="#40c8b7" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="1090" y="268" font-size="20" fill="#b9b9b1">Outputs native LATENT plus snapped</text>
+    <text x="1090" y="294" font-size="20" fill="#b9b9b1">Width and Height (INT) with Batch Size.</text>
+    <text x="1090" y="332" font-size="15" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="1136" y="332" font-size="19" fill="#f4f0e8">Drop into any ComfyUI graph standalone.</text>
+
+    <!-- Footer profile bar -->
+    <rect x="64" y="396" width="1472" height="46" rx="10" fill="#181b1e" stroke="#3c4143" stroke-width="1"/>
+    <text x="86" y="425" font-size="17" font-weight="600" fill="#dda253" font-family="Source Code Pro, monospace">5 PROFILES:</text>
+    <text x="215" y="425" font-size="17" fill="#b9b9b1" font-family="Source Code Pro, monospace">SDXL / Pony (4ch · ÷64)  ·  Flux.1 / SD3 / Z-Image / Anima / Krea 2 (16ch · ÷16)  ·  Qwen-Image (16ch · 1328²)  ·  MOSS / Flux.2 (128ch · ÷16)  ·  SD 1.5</text>
+  </g>
+</svg>

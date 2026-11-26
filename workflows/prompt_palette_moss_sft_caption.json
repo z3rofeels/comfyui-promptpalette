@@ -1,16 +1,16 @@
 {
-  "last_node_id": 10,
-  "last_link_id": 10,
+  "last_node_id": 13,
+  "last_link_id": 11,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        20,
-        40
+        0,
+        60
       ],
       "size": [
-        360,
+        390,
         110
       ],
       "flags": {},
@@ -22,7 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3
+            11
           ]
         }
       ],
@@ -32,17 +32,20 @@
       "widgets_values": [
         "moss_image_sft_int8_convrot.safetensors",
         "default"
-      ]
+      ],
+      "title": "Diffusion Model · MOSS SFT INT8",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        20,
-        200
+        0,
+        240
       ],
       "size": [
-        360,
+        390,
         130
       ],
       "flags": {},
@@ -65,17 +68,20 @@
         "qwen3.5_9b_w4a8_gptq.safetensors",
         "moss_image",
         "default"
-      ]
+      ],
+      "title": "Text Encoder · Qwen 3.5 9B GPTQ (moss_image)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        20,
-        380
+        0,
+        440
       ],
       "size": [
-        360,
+        390,
         90
       ],
       "flags": {},
@@ -96,17 +102,20 @@
       },
       "widgets_values": [
         "flux2-vae_small.safetensors"
-      ]
+      ],
+      "title": "VAE · Flux2 VAE Small",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 4,
       "type": "PromptPaletteEditor",
       "pos": [
-        460,
-        40
+        480,
+        60
       ],
       "size": [
-        520,
+        540,
         640
       ],
       "flags": {},
@@ -122,7 +131,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 11,
           "shape": 7
         },
         {
@@ -172,7 +181,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -251,16 +262,204 @@
         "prompt_palette_negative_text_v1": "worst quality, bad anatomy, watermark, jpeg artifact",
         "wg_io": {
           "inputs": {
-            "clip": true
+            "clip": true,
+            "model": true
           },
           "outputs": {
             "conditioning": true,
             "negative_conditioning": true,
             "prompt": true,
             "negative_prompt": true,
-            "seed_out": true
+            "seed_out": true,
+            "model": true
           },
           "labels": true
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "MOSS · caption",
+            "presetId": "moss-caption",
+            "mossFormat": "caption",
+            "separator": "\n",
+            "negative": "",
+            "fields": [
+              {
+                "id": "329c6d4a-cca2-4633-ae2a-17fda58d5047",
+                "name": "Subject",
+                "label": "Subject",
+                "value": "An adult grey Russian Blue cat with green eyes sits on a wooden desk.",
+                "default": "An adult grey Russian Blue cat with green eyes sits on a wooden desk.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "subject",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "eea6432f-14ea-4a84-8d15-066351611ca5",
+                "name": "Scene",
+                "label": "Scene",
+                "value": "The desk is in a quiet design studio with shelves in the background.",
+                "default": "The desk is in a quiet design studio with shelves in the background.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "environment",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "9de201d7-7558-4612-a1e6-d7fd832a9b20",
+                "name": "Composition",
+                "label": "Composition",
+                "value": "{The cat is centered in a medium shot.|A close-up frames the cat’s head and shoulders.}",
+                "default": "{The cat is centered in a medium shot.|A close-up frames the cat’s head and shoulders.}",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "composition",
+                "separator": null,
+                "experimentState": "vary",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "cdbd7fd3-71c5-4ca2-af24-fbac3a34cc8f",
+                "name": "Lighting",
+                "label": "Lighting",
+                "value": "{Soft daylight enters from the left.|Warm studio light falls across the grey fur.}",
+                "default": "{Soft daylight enters from the left.|Warm studio light falls across the grey fur.}",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lighting",
+                "separator": null,
+                "experimentState": "vary",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "29dbc6fc-c26a-4d12-bef0-53515e556c76",
+                "name": "Medium / Style",
+                "label": "Medium / Style",
+                "value": "Editorial photography with realistic fur, natural textures, and a muted charcoal and sage palette.",
+                "default": "Editorial photography with realistic fur, natural textures, and a muted charcoal and sage palette.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "56197963-05e3-41bd-98e4-9c134e3c34e8",
+                "name": "Exact visible text",
+                "label": "Exact visible text",
+                "value": "A small card at the bottom right reads \"PROMPT PALETTE\" on the first line and \"CREATE LOCALLY\" on the second line, in clean uppercase sans-serif letters.",
+                "default": "A small card at the bottom right reads \"PROMPT PALETTE\" on the first line and \"CREATE LOCALLY\" on the second line, in clean uppercase sans-serif letters.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lettering",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "c96baeed-e97f-47bf-8718-be8e7ecfa8c6",
+                "name": "Negative · SFT / CFG",
+                "label": "Negative · SFT / CFG",
+                "value": "worst quality, bad anatomy, watermark, jpeg artifact",
+                "default": "worst quality, bad anatomy, watermark, jpeg artifact",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "negative",
+                "fieldType": "negative",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "329c6d4a-cca2-4633-ae2a-17fda58d5047",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "eea6432f-14ea-4a84-8d15-066351611ca5",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "9de201d7-7558-4612-a1e6-d7fd832a9b20",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "cdbd7fd3-71c5-4ca2-af24-fbac3a34cc8f",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "29dbc6fc-c26a-4d12-bef0-53515e556c76",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "56197963-05e3-41bd-98e4-9c134e3c34e8",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "c96baeed-e97f-47bf-8718-be8e7ecfa8c6",
+                "join": true
+              }
+            ]
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
         }
       },
       "widgets_values": [
@@ -268,25 +467,29 @@
         42,
         "entire text as one"
       ],
-      "title": "MOSS · caption and exact lettering",
+      "title": "Prompt Palette · MOSS Caption & Exact Text",
       "widgets_values_named": {
         "text": "An adult grey Russian Blue cat with green eyes sits on a wooden desk.\nThe desk is in a quiet design studio with shelves in the background.\n{The cat is centered in a medium shot.|A close-up frames the cat’s head and shoulders.}\n{Soft daylight enters from the left.|Warm studio light falls across the grey fur.}\nEditorial photography with realistic fur, natural textures, and a muted charcoal and sage palette.\nA small card at the bottom right reads \"PROMPT PALETTE\" on the first line and \"CREATE LOCALLY\" on the second line, in clean uppercase sans-serif letters.",
         "seed": 42,
         "processing_mode": "entire text as one",
         "positive_antonyms": false,
-        "workspace_runtime": ""
-      }
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"4\",\"positive\":\"An adult grey Russian Blue cat with green eyes sits on a wooden desk.\\nThe desk is in a quiet design studio with shelves in the background.\\n{The cat is centered in a medium shot.|A close-up frames the cat’s head and shoulders.}\\n{Soft daylight enters from the left.|Warm studio light falls across the grey fur.}\\nEditorial photography with realistic fur, natural textures, and a muted charcoal and sage palette.\\nA small card at the bottom right reads \\\"PROMPT PALETTE\\\" on the first line and \\\"CREATE LOCALLY\\\" on the second line, in clean uppercase sans-serif letters.\",\"negative\":\"worst quality, bad anatomy, watermark, jpeg artifact\",\"fields\":[{\"id\":\"329c6d4a-cca2-4633-ae2a-17fda58d5047\",\"channel\":\"positive\",\"start\":0,\"end\":69,\"source\":\"An adult grey Russian Blue cat with green eyes sits on a wooden desk.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\"},{\"id\":\"eea6432f-14ea-4a84-8d15-066351611ca5\",\"channel\":\"positive\",\"start\":70,\"end\":138,\"source\":\"The desk is in a quiet design studio with shelves in the background.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\"},{\"id\":\"9de201d7-7558-4612-a1e6-d7fd832a9b20\",\"channel\":\"positive\",\"start\":139,\"end\":226,\"source\":\"{The cat is centered in a medium shot.|A close-up frames the cat’s head and shoulders.}\",\"state\":\"vary\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\"},{\"id\":\"cdbd7fd3-71c5-4ca2-af24-fbac3a34cc8f\",\"channel\":\"positive\",\"start\":227,\"end\":309,\"source\":\"{Soft daylight enters from the left.|Warm studio light falls across the grey fur.}\",\"state\":\"vary\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\"},{\"id\":\"29dbc6fc-c26a-4d12-bef0-53515e556c76\",\"channel\":\"positive\",\"start\":310,\"end\":408,\"source\":\"Editorial photography with realistic fur, natural textures, and a muted charcoal and sage palette.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\"},{\"id\":\"56197963-05e3-41bd-98e4-9c134e3c34e8\",\"channel\":\"positive\",\"start\":409,\"end\":562,\"source\":\"A small card at the bottom right reads \\\"PROMPT PALETTE\\\" on the first line and \\\"CREATE LOCALLY\\\" on the second line, in clean uppercase sans-serif letters.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\"},{\"id\":\"c96baeed-e97f-47bf-8718-be8e7ecfa8c6\",\"channel\":\"negative\",\"start\":0,\"end\":52,\"source\":\"worst quality, bad anatomy, watermark, jpeg artifact\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"329c6d4a-cca2-4633-ae2a-17fda58d5047\",\"join\":true},{\"type\":\"field\",\"id\":\"eea6432f-14ea-4a84-8d15-066351611ca5\",\"join\":true},{\"type\":\"field\",\"id\":\"9de201d7-7558-4612-a1e6-d7fd832a9b20\",\"join\":true},{\"type\":\"field\",\"id\":\"cdbd7fd3-71c5-4ca2-af24-fbac3a34cc8f\",\"join\":true},{\"type\":\"field\",\"id\":\"29dbc6fc-c26a-4d12-bef0-53515e556c76\",\"join\":true},{\"type\":\"field\",\"id\":\"56197963-05e3-41bd-98e4-9c134e3c34e8\",\"join\":true},{\"type\":\"field\",\"id\":\"c96baeed-e97f-47bf-8718-be8e7ecfa8c6\",\"join\":true}],\"separator\":\"\\n\",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"329c6d4a-cca2-4633-ae2a-17fda58d5047\":null,\"eea6432f-14ea-4a84-8d15-066351611ca5\":null,\"9de201d7-7558-4612-a1e6-d7fd832a9b20\":null,\"cdbd7fd3-71c5-4ca2-af24-fbac3a34cc8f\":null,\"29dbc6fc-c26a-4d12-bef0-53515e556c76\":null,\"56197963-05e3-41bd-98e4-9c134e3c34e8\":null,\"c96baeed-e97f-47bf-8718-be8e7ecfa8c6\":null},\"edges\":{\"positive\":[\"329c6d4a-cca2-4633-ae2a-17fda58d5047\",\"56197963-05e3-41bd-98e4-9c134e3c34e8\"],\"negative\":[\"c96baeed-e97f-47bf-8718-be8e7ecfa8c6\",\"c96baeed-e97f-47bf-8718-be8e7ecfa8c6\"]}}}",
+        "lora_mode": "auto",
+        "negative_text": "worst quality, bad anatomy, watermark, jpeg artifact"
+      },
+      "color": "#332617",
+      "bgcolor": "#191613"
     },
     {
       "id": 6,
-      "type": "EmptyFlux2LatentImage",
+      "type": "PromptPaletteResolutionSelector",
       "pos": [
-        30,
-        545
+        1110,
+        60
       ],
       "size": [
-        270,
-        130
+        320,
+        290
       ],
       "flags": {},
       "order": 4,
@@ -294,32 +497,64 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
+          "localized_name": "Latent",
           "type": "LATENT",
           "links": [
             6
           ]
+        },
+        {
+          "name": "width",
+          "localized_name": "Width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "localized_name": "Height",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyFlux2LatentImage"
+        "Node name for S&R": "PromptPaletteResolutionSelector",
+        "resolution_pal_v1": {
+          "model_profile": "MOSS-Image / Flux.2",
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1,
+          "snap_to_multiple": true
+        }
       },
       "widgets_values": [
+        "MOSS-Image / Flux.2",
         1024,
         1024,
-        1
-      ]
+        1,
+        true
+      ],
+      "title": "Resolution Selector · 1024 × 1024",
+      "color": "#2a223d",
+      "bgcolor": "#181522",
+      "widgets_values_named": {
+        "model_profile": "MOSS-Image / Flux.2",
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1,
+        "snap_to_multiple": true
+      }
     },
     {
       "id": 7,
       "type": "KSampler",
       "pos": [
-        1060,
-        40
+        1110,
+        330
       ],
       "size": [
-        330,
-        300
+        340,
+        320
       ],
       "flags": {},
       "order": 5,
@@ -370,21 +605,24 @@
         42,
         "fixed",
         50,
-        3.0,
+        3,
         "euler",
         "simple",
-        1.0
-      ]
+        1
+      ],
+      "title": "KSampler · 50 Steps · CFG 3.0 · Euler",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 8,
       "type": "VAEDecode",
       "pos": [
-        1440,
-        40
+        1540,
+        80
       ],
       "size": [
-        240,
+        400,
         90
       ],
       "flags": {},
@@ -414,18 +652,21 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "VAE Decode",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 9,
       "type": "SaveImage",
       "pos": [
-        1780,
-        40
+        1540,
+        240
       ],
       "size": [
-        300,
-        280
+        400,
+        420
       ],
       "flags": {},
       "order": 7,
@@ -449,31 +690,191 @@
       },
       "widgets_values": [
         "PromptPalette_MOSS_caption"
-      ]
+      ],
+      "title": "Save Image",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 10,
-      "type": "Note",
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
       "pos": [
-        30,
-        740
+        0,
+        -186
       ],
       "size": [
-        930,
-        360
+        1060,
+        118
       ],
       "flags": {},
       "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [],
+      "color": "#193328",
+      "bgcolor": "#131b17",
       "properties": {
-        "Node name for S&R": "Note"
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "MOSS-IMAGE SFT · Natural Caption, Dynamic Choices & Lettering",
+          "note": "ComfyUI 0.42.1+ · 1024 × 1024 · 50 steps · CFG 3.0 · Euler / Simple — Showcases {choice|variants} and exact quoted typography.",
+          "color_preset": "lime",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
       },
       "widgets_values": [
-        "Use ComfyUI 0.42.1 or newer. Native MOSS support was added in 0.42.0; 0.42.1 fixes crashes affecting the MOSS template. Desktop: update the engine for this instance through Manage > Update, then restart. No nightly engine is required.\n\nMOSS regular SFT · separated components\n\nSelect moss_image_sft_int8_convrot.safetensors, qwen3.5_9b_w4a8_gptq.safetensors (CLIP type moss_image), and flux2-vae_small.safetensors in the three loaders.\n\n50 steps, CFG 3, Euler/simple, native shift 5. SLG is omitted for this regular-SFT baseline. No ModelSamplingSD3 override. Prompt Palette controls the connected sampler seed.\n\nFor editable fields: Settings > Power tools > Adjustable Recipe Workspace > Layouts > MOSS. Layout JSON uses centered pixel boxes; match its canvas dimensions.\n\nTurbo AIO has its own example: prompt_palette_moss_turbo_aio.json. Its publisher specifies Load Checkpoint, 8 steps, CFG 1, Euler/simple. Do not use this regular-SFT sampling recipe for Turbo. Guide: MOSS_PROMPTING.md.\n\nGraph wiring and real checkpoint-header detection checked; GPU loading/inference not run here."
+        "MOSS-IMAGE SFT · Natural Caption, Dynamic Choices & Lettering",
+        "ComfyUI 0.42.1+ · 1024 × 1024 · 50 steps · CFG 3.0 · Euler / Simple — Showcases {choice|variants} and exact quoted typography.",
+        "lime",
+        "banner",
+        "lg"
       ],
-      "title": "MOSS · setup and model variant"
+      "widgets_values_named": {
+        "title": "MOSS-IMAGE SFT · Natural Caption, Dynamic Choices & Lettering",
+        "note": "ComfyUI 0.42.1+ · 1024 × 1024 · 50 steps · CFG 3.0 · Euler / Simple — Showcases {choice|variants} and exact quoted typography.",
+        "color_preset": "lime",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 11,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        410
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · Regular SFT Component Files",
+          "note": "1. **Requires ComfyUI 0.42.1+**.\n2. `models/diffusion_models/moss_image_sft_int8_convrot.safetensors`\n3. `models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors` (CLIP type `moss_image`)\n4. `models/vae/flux2-vae_small.safetensors`\n\n- Regular SFT uses `50 steps`, `CFG 3.0`, `euler` / `simple` (do not mix with 8-step Turbo settings).",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · Regular SFT Component Files",
+        "1. **Requires ComfyUI 0.42.1+**.\n2. `models/diffusion_models/moss_image_sft_int8_convrot.safetensors`\n3. `models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors` (CLIP type `moss_image`)\n4. `models/vae/flux2-vae_small.safetensors`\n\n- Regular SFT uses `50 steps`, `CFG 3.0`, `euler` / `simple` (do not mix with 8-step Turbo settings).",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · Regular SFT Component Files",
+        "note": "1. **Requires ComfyUI 0.42.1+**.\n2. `models/diffusion_models/moss_image_sft_int8_convrot.safetensors`\n3. `models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors` (CLIP type `moss_image`)\n4. `models/vae/flux2-vae_small.safetensors`\n\n- Regular SFT uses `50 steps`, `CFG 3.0`, `euler` / `simple` (do not mix with 8-step Turbo settings).",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 12,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        534
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#193328",
+      "bgcolor": "#131b17",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "TRY THIS NOW · Alt + Click Quick-Swap",
+          "note": "- Look at the `{...|...}` framing and lighting choices inside the prompt!\n- **`Alt + Click`** (or right-click → **Peek / swap token**) on any `{choice}` group to preview, reroll, or pin an option inline.",
+          "color_preset": "lime",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "TRY THIS NOW · Alt + Click Quick-Swap",
+        "- Look at the `{...|...}` framing and lighting choices inside the prompt!\n- **`Alt + Click`** (or right-click → **Peek / swap token**) on any `{choice}` group to preview, reroll, or pin an option inline.",
+        "lime",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "TRY THIS NOW · Alt + Click Quick-Swap",
+        "note": "- Look at the `{...|...}` framing and lighting choices inside the prompt!\n- **`Alt + Click`** (or right-click → **Peek / swap token**) on any `{choice}` group to preview, reroll, or pin an option inline.",
+        "color_preset": "lime",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 13,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: MOSS SFT Caption",
+          "note": "",
+          "color_preset": "lime",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: MOSS SFT Caption",
+        "",
+        "lime",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: MOSS SFT Caption",
+        "note": "",
+        "color_preset": "lime",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -487,7 +888,7 @@
     ],
     [
       3,
-      1,
+      4,
       0,
       7,
       0,
@@ -548,16 +949,85 @@
       7,
       4,
       "INT"
+    ],
+    [
+      11,
+      1,
+      0,
+      4,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load MOSS SFT Components",
+      "bounding": [
+        -24,
+        -18,
+        438,
+        574
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write & Customize Prompt",
+      "bounding": [
+        456,
+        -18,
+        588,
+        744
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Flux2 Canvas",
+      "bounding": [
+        1086,
+        -18,
+        388,
+        249
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · 50-Step SFT Sample",
+      "bounding": [
+        1086,
+        252,
+        388,
+        424
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode & Output",
+      "bounding": [
+        1516,
+        2,
+        448,
+        684
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7,
+      "scale": 0.72,
       "offset": [
-        60,
-        60
+        560,
+        220
       ]
     },
     "prompt_palette": {
@@ -565,8 +1035,7 @@
       "variant": "regular SFT",
       "source": "https://github.com/Comfy-Org/workflow_templates/pull/1358",
       "layout_canvas": null,
-      "required_comfyui_feature": "MOSS-Image model detector and moss_image CLIP type (PR #17095)",
-      "verification": "Graph wiring and real checkpoint-header detection checked; GPU loading/inference not run here."
+      "required_comfyui_feature": "MOSS-Image model detector and moss_image CLIP type (PR #17095)"
     }
   },
   "version": 0.4

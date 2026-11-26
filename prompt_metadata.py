@@ -120,7 +120,7 @@ def prompt_reference_scores(prompt: Any) -> dict[str, int]:
             if node_type == "PromptPaletteEditor":
                 weight = {4: 8, 2: 6, 3: 6, 12: 2}.get(output_index, 1)
             elif node_type == "PromptPaletteCombinatorial":
-                weight = {3: 8, 2: 6, 6: 2}.get(output_index, 1)
+                weight = {3: 8, 2: 6, 6: 2, 9: 6, 10: 6, 11: 8, 19: 2, 22: 6}.get(output_index, 1)
             else:
                 continue
             scores[source_id] = scores.get(source_id, 0) + weight
@@ -197,14 +197,21 @@ def _bounded_batch_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         return copy.deepcopy(metadata)
     bounded = {key: copy.deepcopy(value) for key, value in metadata.items() if key != "prompts"}
     prompts = metadata.get("prompts") if isinstance(metadata.get("prompts"), list) else []
+    bounded["prompts"] = []
+    # Measure the empty shell once and accumulate item sizes in O(N) rather than
+    # re-serializing the growing prompt list on every iteration.
+    total_len = len(compact_json(bounded))
     kept: list[Any] = []
     for item in prompts:
-        candidate = [*kept, item]
-        bounded["prompts"] = candidate
-        if len(compact_json(bounded)) > EMBEDDED_BATCH_CHAR_LIMIT:
+        item_len = len(compact_json(item))
+        added_len = item_len if not kept else item_len + 1
+        if total_len + added_len > EMBEDDED_BATCH_CHAR_LIMIT:
             break
         kept.append(copy.deepcopy(item))
+        total_len += added_len
     bounded["prompts"] = kept
+    while kept and len(compact_json(bounded)) > EMBEDDED_BATCH_CHAR_LIMIT:
+        kept.pop()
     bounded["embedded_prompts_count"] = len(kept)
     bounded["embedded_prompts_truncated"] = len(kept) < len(prompts)
     return bounded

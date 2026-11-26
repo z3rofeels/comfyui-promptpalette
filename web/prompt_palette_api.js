@@ -317,12 +317,26 @@ const API = {
       tokenStats: data.token_stats || null,
       variables: data.variables || {},
       branchSelections: Array.isArray(data.branch_selections) ? data.branch_selections : [],
+      embeddings: Array.isArray(data.embeddings) ? data.embeddings : [],
+      missingLoras: Array.isArray(data.missing_loras) ? data.missing_loras : [],
+      duplicates: Array.isArray(data.duplicates) ? data.duplicates : [],
     };
   },
-  async inspect(text, seed, mode, { signal, resolve = true } = {}) {
+  async diagnostics(text, { negativeText = "", targetProfile = "", signal } = {}) {
+    return await readApiJson(await api.fetchApi("/prompt_palette/diagnostics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, negative_text: negativeText, target_profile: targetProfile }),
+      ...(signal ? { signal } : {}),
+    }));
+  },
+  async inspect(text, seed, mode, { signal, resolve = true, targetProfile = "", fields = null } = {}) {
+    const body = { text, seed, mode, resolve };
+    if (targetProfile) body.target_profile = targetProfile;
+    if (Array.isArray(fields) && fields.length) body.fields = fields;
     return await readApiJson(await api.fetchApi("/prompt_palette/inspect", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, seed, mode, resolve }), ...(signal ? { signal } : {}),
+      body: JSON.stringify(body), ...(signal ? { signal } : {}),
     }));
   },
   async captureSelection(text, start, end, seed, mode, { signal } = {}) {
@@ -396,10 +410,19 @@ const API = {
       body: JSON.stringify({ path }),
     }));
   },
-  async countCombinatorial(text, seed, maxPrompts, { signal } = {}) {
+  async countCombinatorial(text, seed, maxPrompts, { signal, workspaceRuntime = "" } = {}) {
+    let runtimePayload = null;
+    if (workspaceRuntime) {
+      try {
+        const runtime = typeof workspaceRuntime === "string" ? JSON.parse(workspaceRuntime) : workspaceRuntime;
+        if (runtime && runtime.positive === text) runtimePayload = runtime;
+      } catch {}
+    }
+    const body = { text, seed, max_prompts: maxPrompts };
+    if (runtimePayload) body.workspace_runtime = runtimePayload;
     const data = await readApiJson(await api.fetchApi("/prompt_palette/count_combinatorial", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, seed, max_prompts: maxPrompts }),
+      body: JSON.stringify(body),
       ...(signal ? { signal } : {}),
     }));
     return { count: data.count || 0, truncated: !!data.truncated, cap: data.cap || 5000 };

@@ -53,6 +53,11 @@ _METADATA_CACHE = {}
 _METADATA_LOCK = Lock()
 
 
+def clear_metadata_cache():
+    with _METADATA_LOCK:
+        _METADATA_CACHE.clear()
+
+
 def catalog_folders(names=None):
     if names is None:
         names = catalog()

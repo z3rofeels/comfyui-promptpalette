@@ -22,7 +22,8 @@
 .pp-history-controls :is(button,select) { max-width:100%; }
 .pp-generation-history .pp-history-note { color:var(--wg-text-dim,#a8a29a); font-size:11.5px; line-height:1.45; }
 .pp-history-card.pp-history-selected { outline:2px solid var(--wg-accent,#d49a52); outline-offset:-2px; }
-.pp-generation-history :is([data-history-compare],[data-history-keeper])[aria-pressed="true"] { color:var(--wg-accent,#d49a52); border-color:currentColor; }
+.pp-generation-history :is([data-history-compare],[data-history-keeper],.pp-history-sort-btn)[aria-pressed="true"] { color:var(--wg-accent,#d49a52); border-color:currentColor; }
+.pp-generation-history .pp-history-sort-btn { white-space:nowrap; }
 
 /* Comparison is part of history, with presentation preferences stored alongside
    the existing history display settings. Text never enters browser storage. */

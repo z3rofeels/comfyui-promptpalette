@@ -12,6 +12,7 @@ export function statusBarMarkup({ doctor = false } = {}) {
     <div class="wg-status-metrics">
       <span class="wg-hint" data-el="charCount"></span>
       ${doctor ? `<span class="wg-hint" data-el="tokenCount" data-el-token title="CLIP-L token count of the resolved prompt (visible while Preview result is open)"></span>` : ""}
+      ${doctor ? `<button type="button" class="wg-hint wg-hygiene-chip" data-el="hygieneChip" hidden></button>` : ""}
       <${doctor ? "button type=\"button\"" : "span"} class="wg-hint" data-el="hintRight"${doctor ? " disabled" : ""}></${doctor ? "button" : "span"}>
     </div>
   </div>`;
@@ -92,13 +93,16 @@ export function createStatusBar(root, { node } = {}) {
     frame = 0;
     if (disposed || !row.isConnected) return;
     const doctorChip = row.querySelector('[data-el="doctorChip"]');
+    const hygieneChip = row.querySelector('[data-el="hygieneChip"]');
     const hasDoctor = !!(doctorChip && !doctorChip.hidden);
+    const hasHygiene = !!(hygieneChip && !hygieneChip.hidden);
     const hasLegend = items.length > 0;
-    const hasMetrics = Array.from(row.querySelectorAll(".wg-status-metrics .wg-hint")).some(el => el.textContent.trim().length > 0);
+    const hasMetrics = Array.from(row.querySelectorAll(".wg-status-metrics .wg-hint")).some(el => !el.hidden && el.textContent.trim().length > 0);
     const isEmpty = !hasLegend && !hasDoctor && !hasMetrics;
     if (row.dataset.empty !== String(isEmpty)) row.dataset.empty = String(isEmpty);
     const missing = hint.textContent.match(/([\d,]+) missing/);
     const attention = !!(missing && Number(missing[1].replace(/,/g, "")) > 0) ||
+      !!(hasHygiene && ["warning", "error"].includes(hygieneChip.dataset.severity)) ||
       !!row.querySelector(".wg-token-warn:not(:empty), .wg-token-danger:not(:empty)") ||
       !!(hasDoctor && ["warning", "error"].includes(doctorChip.dataset.status)) ||
       doctorChip?.getAttribute("aria-expanded") === "true";
@@ -164,8 +168,8 @@ export function createStatusBar(root, { node } = {}) {
   const unsubscribeAppearance = onPromptPaletteAppearanceChanged(syncPresentation);
   const resize = typeof ResizeObserver === "function" ? new ResizeObserver(refresh) : null;
   resize?.observe(row);
-  const mutations = typeof MutationObserver === "function" ? new MutationObserver(refresh) : null;
-  mutations?.observe(row, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "class", "data-status", "aria-expanded"] });
+    const mutations = typeof MutationObserver === "function" ? new MutationObserver(refresh) : null;
+    mutations?.observe(row, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "class", "data-status", "data-severity", "aria-expanded"] });
   const appearance = typeof MutationObserver === "function" ? new MutationObserver(refresh) : null;
   appearance?.observe(root, { attributes: true, attributeFilter: ["style", "class"] });
   const fonts = document.fonts;

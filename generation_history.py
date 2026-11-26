@@ -28,6 +28,19 @@ def _positive_int(value):
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
 
 
+def normalize_timestamp_ms(value):
+    """Normalize epoch timestamps to integer milliseconds (0 when unknown/invalid)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0
+    if isinstance(value, float) and not math.isfinite(value):
+        return 0
+    if value <= 0:
+        return 0
+    if value < 100_000_000_000:
+        return int(round(value * 1000))
+    return int(round(value))
+
+
 def _image_dimensions(path):
     """Read and cache (width, height) from an image file header, honoring EXIF rotation."""
     if not path:
@@ -71,6 +84,8 @@ def public_record(record, *, roots=None):
     The text fields are read-only projections, not a second source of truth.
     """
     result = dict(record)
+    if 'completed_at' in result:
+        result['completed_at'] = normalize_timestamp_ms(result.get('completed_at'))
     seed = _seed(record.get('effective_seed'))
     result['effective_seed_text'] = str(seed) if seed is not None else None
     result['contexts'] = []
@@ -428,9 +443,7 @@ def build_records(prompt_id, history, *, capture_prompts=False, roots=None):
     completed_at = 0
     for message in status.get('messages', []):
         if isinstance(message, (list, tuple)) and len(message) == 2 and message[0] == 'execution_success' and isinstance(message[1], dict):
-            timestamp = message[1].get('timestamp', 0)
-            if isinstance(timestamp, (int, float)) and not isinstance(timestamp, bool) and (not isinstance(timestamp, float) or math.isfinite(timestamp)):
-                completed_at = max(completed_at, int(timestamp))
+            completed_at = max(completed_at, normalize_timestamp_ms(message[1].get('timestamp', 0)))
     # Missing completion time is explicitly unknown, never inferred from file age.
     # Extract execution metadata and workflow titles from extra_data if available
     extra_data = prompt[3] if len(prompt) > 3 and isinstance(prompt[3], dict) else {}
@@ -568,9 +581,10 @@ def index_history(store, history, *, explicit=False, roots=None):
     if not prefs['enabled'] and not explicit:
         return {'added': 0, 'disabled': True}
     added = 0
+    enabled_since = normalize_timestamp_ms(prefs.get('enabled_since'))
     for prompt_id, item in list(history.items())[:100]:
         for record in build_records(prompt_id, item, capture_prompts=prefs['capture_prompts'], roots=roots):
-            if not explicit and (not record['completed_at'] or record['completed_at'] < prefs['enabled_since']):
+            if not explicit and (not record['completed_at'] or record['completed_at'] < enabled_since):
                 continue
             if store.get('generation_tombstones', record['id']) or store.get('generations', record['id']):
                 continue
@@ -594,3 +608,77 @@ def index_history(store, history, *, explicit=False, roots=None):
             from .feature_store import FeatureConflict
             if not isinstance(exc, FeatureConflict): raise
     return {'added': added}
+
+
+def list_generation_page(
+    store,
+    *,
+    roots=None,
+    cursor='',
+    query='',
+    favorites=False,
+    missing_only=False,
+    provenance='',
+    since=0,
+    sort='newest',
+    limit=100,
+):
+    """Return a filtered, sorted page of public generation records with exact keyset cursor."""
+    if sort not in ('newest', 'oldest'):
+        raise ValueError('Invalid sort')
+    if isinstance(limit, bool):
+        raise ValueError('Invalid limit')
+    page_limit = max(1, min(100, int(limit)))
+    if isinstance(since, bool):
+        raise ValueError('Invalid date filter')
+    since_ms = max(0, int(since))
+    descending = sort == 'newest'
+    query_cf = (query or '').strip().casefold()[:256]
+    provenance_clean = (provenance or '').strip()
+
+    rows = []
+    scan_cursor = cursor or ''
+    while len(rows) < page_limit:
+        # Fetch up to 100 rows per SQLite read so sparse filters scan quickly,
+        # and stop immediately once page_limit is reached using record['id'] as cursor.
+        page = store.list('generations', cursor=scan_cursor, limit=100, descending=descending)
+        items = page['items']
+        page_next = page['next_cursor']
+        if not items:
+            scan_cursor = None
+            break
+        scan_cursor = page_next
+        for idx, record in enumerate(items):
+            record['missing'] = not media_exists(record['image'], roots)
+            text = ' '.join([
+                record.get('notes') or '',
+                record['image']['filename'],
+                record.get('prompt_id') or '',
+                record.get('provenance') or '',
+                record.get('resolved_positive') or '',
+                record.get('resolved_negative') or '',
+                *(record.get('tags') or []),
+                *[
+                    (c.get('authored_positive') or '') + ' ' + (c.get('authored_negative') or '')
+                    for c in (record.get('contexts') or [])
+                    if isinstance(c, dict)
+                ],
+            ])
+            if query_cf and query_cf not in text.casefold():
+                continue
+            if favorites and not record.get('favorite'):
+                continue
+            if missing_only and not record['missing']:
+                continue
+            if provenance_clean and record.get('provenance') != provenance_clean:
+                continue
+            completed_at_ms = normalize_timestamp_ms(record.get('completed_at', 0))
+            if since_ms and completed_at_ms < since_ms:
+                continue
+            rows.append(public_record(record, roots=roots))
+            if len(rows) >= page_limit:
+                scan_cursor = record['id'] if idx < len(items) - 1 else page_next
+                break
+        if not scan_cursor:
+            break
+    return {'items': rows, 'next_cursor': scan_cursor}

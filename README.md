@@ -8,11 +8,10 @@
 </p>
 
 <p align="center">
-  <a href="https://z3rofeels.github.io/comfyui-promptpalette/">
-  <img alt="Version 2.1.0" src="https://img.shields.io/badge/Version-2.1.0-dda253?style=for-the-badge&labelColor=11131a">
-  <img alt="GitHub stars" src="https://img.shields.io/github/stars/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=6ee7b7&labelColor=11131a">
-  <img alt="Last commit" src="https://img.shields.io/github/last-commit/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=60a5fa&labelColor=11131a">
-  <img alt="ComfyUI Nodes 1 and 2" src="https://img.shields.io/badge/ComfyUI-Nodes%201.x%20%2B%202.x-a78bfa?style=for-the-badge&labelColor=11131a">
+  <a href="https://github.com/z3rofeels/comfyui-promptpalette/releases"><img alt="Version 2.1.1" src="https://img.shields.io/badge/Version-2.1.1-dda253?style=for-the-badge&labelColor=11131a"></a>
+  <a href="https://github.com/z3rofeels/comfyui-promptpalette/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=6ee7b7&labelColor=11131a"></a>
+  <a href="https://github.com/z3rofeels/comfyui-promptpalette/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/z3rofeels/comfyui-promptpalette?style=for-the-badge&color=60a5fa&labelColor=11131a"></a>
+  <a href="#troubleshooting"><img alt="ComfyUI Nodes 1 and 2" src="https://img.shields.io/badge/ComfyUI-Nodes%201.x%20%2B%202.x-a78bfa?style=for-the-badge&labelColor=11131a"></a>
 </p>
 
 <p align="center">
@@ -23,7 +22,7 @@
 > **Start with Prompt Palette.** The Combinatorial and Weight Controller nodes are specialized companions—not requirements. Add them only when your workflow needs batch expansion or dedicated prompt-weight routing.
 
 <p align="center">
-  <a href="#whats-new">What's New in 2.1.0</a> ·
+  <a href="#whats-new">What's New in 2.1.1</a> ·
   <a href="#choose-your-node">Suite</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#prompt-palette">Editor</a> ·
@@ -34,6 +33,8 @@
   <a href="#main-sidebar">Sidebar &amp; Styles</a> ·
   <a href="#combinatorial">Combinatorial</a> ·
   <a href="#weight-controller">Weight Controller</a> ·
+  <a href="#resolution-selector">Resolution Selector</a> ·
+  <a href="#labelpal">LabelPal &amp; Workflows</a> ·
   <a href="#wildcard-syntax">Syntax</a> ·
   <a href="#troubleshooting">Reference</a>
 </p>
@@ -41,21 +42,56 @@
 <p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
 <a id="whats-new"></a>
-## What's New in 2.1.0
+## What's New in 2.1.1
 
-Prompt Palette **2.1.0** brings together **Keep & Evolve**, **LoraPal Model Info**, **opt-in Style Studio & Style Autocomplete**, **expanded Starter Packs**, and a cleaner, faster virtualized UI across both ComfyUI Nodes 1.x and 2.x.
+Prompt Palette **2.1.1** focuses on everyday prompting speed, safe 1-click prompt cleanup, and faster ways to navigate tools, LoRA folders, and generation history—shown below across seven built-in Theme Studio palettes (**Deep Space**, **Abyss**, **Graphite Mint**, **Porcelain**, **Pine Ridge**, **Cherry Cola**, and **Cinder**).
 
-| Area | Highlights |
-|---|---|
-| **Style Studio & Autocomplete** *(opt-in)* | Dedicated **Krea 2 & MOSS-Image** sidecar with **94** curated entries across **12** facets and **8** curated mixes, `{%a|b}` Mix Composer, MOSS Caption / Ordered Tags / Spatial JSON dialects, quoted typography helper, conflict/buzzword lint, and live style autocomplete (`style:`, `cam:`, `lens:`, `light:`, `krea2:`, `moss:`). |
-| **Expanded Starter Packs (`v2.2.0`)** | **12** model-ready packs—including expanded **Universal (54)**, **KREA 2 (50)**, and **MOSS-Image (30)** alongside **MiniMax H3, Qwen Image, Z-Image Turbo, LTX-2.3, Anima, Illustrious, Pony, SDXL,** and **Prompt Palette Syntax**—with tag/facet search and an optional Style Studio bridge. |
-| **Keep & Evolve & Inspector** | **Recent Generations** in the sidebar with **Gallery, Masonry, Filmstrip, and List** views, a Civitai-style pop-out **Generation Inspector** (`Raw Input` vs `Final Resolved`, wildcard selections, color-matched LoRAs, parameter tiles, collapsible `Workflow & Nodes`), **Keeper** pinning, **4-way A/B wipe** comparison, and **Promote / Refine** (`Commit / Cancel`). |
-| **LoraPal & LoRAs Sidebar Tab** | Unified local LoRA browsing in both the floating sidecar and the main sidebar **LoRAs** tab, pop-out **Model Info** flyout with multi-preview image/video stepping, `1.0` base-strength init, trailing `# --- LoRAs ---` prompt docking, **Saved LoRA sets**, and **LoRA Audition Lab**. |
-| **Fields, Ports, Drafts & Toolbar** | Per-field `In: <Field>` / `Out: <Field>` sockets with pre-run **Import / Disconnect**, **Jump to field**, **Field & title** accents, **Ports** search with up to **16 Saved port layouts**, named **A–D** quick drafts with overwrite preview, compact toolbar **Seed** pill, and an **Auto hide** bottom status bar. |
+- **Command Palette (`Ctrl/Cmd+K`) & Quick-Start Pills:** Fuzzy-search toolbar actions, cleanup tools, Quick Slots **A–D**, sidebar tabs, and Starter Packs—plus optional, dismissible quick-start pills inside an empty focused editor.
+- **Smart Paste for Civitai & A1111 Prompts:** Paste a multi-line generation block to preview and split Positive/Negative text, strip `Steps:` / sampler metadata, dock `<lora:...>` tags into `# --- LoRAs ---`, apply the seed, or split clauses straight into **Fields**.
+- **1-Click Prompt Hygiene & Model Adaptation:** Deduplicate tags and clean separators with **Tidy & Deduplicate**, or convert phrasing with **Adapt for Model** (**FLUX**, **Krea 2**, **Qwen / Wan / Z-Image**, **SDXL / Illustrious / Pony**, **Booru**, and **Anima**)—always with a diff preview and single `Ctrl/Cmd+Z` undo step.
+- **Pre-Flight Asset & Duplicate Checks:** Spot duplicate clauses and missing local `embedding:...` or `<lora:...>` files in the Status Bar, **Prompt Doctor**, and **Prompt Inspector** before spending GPU time.
+- **Inline Wildcard & Choice Quick-Swap:** `Alt/Option+Click` (or right-click → **Peek / swap token…**) on any `__wildcard__` or `{a|b|c}` choice group to browse options with thumbnails, reroll that slot, or pin a pick in place.
+- **Token & Weight Breakdown + Chunk Marker:** Inspect a color-coded per-Field / per-clause token share bar (`75` CLIP tokens per chunk) in **Prompt Inspector**, scrub clause weights by `±0.05`, or enable the optional **CLIP-L chunk boundary marker**.
+- **LoraPal Fave Folders, History Sorting & Minimal Toolbars:** Star favorite LoRA folders (`Fave Folders` + `All Fave` jump bar), sort **Recent Generations** by **Newest ↓** or **Oldest ↑**, and hide **Refine**, **Ports**, **Zen**, or the entire toolbar (`All toolbar off`) down to the corner **Settings** gear with **Manage ports…**.
+- **Resolution Selector (Standalone Latent Utility):** Pick a model architecture (**SDXL / Pony / Illustrious** `4ch`, **Flux.1 / SD3 / Z-Image / Anima / Krea 2** `16ch`, **Qwen-Image** `16ch @ 1328²`, **MOSS-Image / Flux.2** `128ch`, or **SD 1.5** `4ch`), choose a **0.25–4 MP** tier and aspect ratio (`⇄ Swap` included), and emit a snapped native `LATENT` plus `Width` and `Height` (`INT`) in any ComfyUI graph.
+- **LabelPal & 13 Updated Bundled Workflows:** Organize any ComfyUI graph with the standalone **LabelPal** node (**8** color presets, **5** style variants including frameless **Text** headers, **4** text sizes, inline View/Edit mode, `TAG · Heading` eyebrow badges, and rich note formatting)—featured across **13 updated bundled workflows** in [`workflows/`](workflows/) with **5** color-coded stage groups, pre-configured **Fields** workspaces, `Model (passthrough)` routing, and **Resolution Selector** matched to each of the **11** image workflows.
+
+<p align="center">
+  <img src="docs/assets/readme/v211-features-card.svg" alt="Prompt Palette 2.1.1 function and use info cards covering Command Palette, Smart Paste, Hygiene and Adapt, Pre-Flight and Tokens, Inline Quick-Swap, and Resolution Selector plus LabelPal" width="900" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/v211-01-command-palette.png" alt="01 Command Palette and Empty-Editor Quick-Start Pills in Deep Space theme" width="860" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/v211-02-smart-paste.png" alt="02 Smart Paste Civitai and A1111 block splitter in Abyss theme" width="860" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/v211-03-hygiene-adapt.png" alt="03 1-Click Prompt Hygiene and Adapt for Model diff preview in Graphite Mint theme" width="860" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/v211-04-preflight-doctor.png" alt="04 Pre-flight missing LoRA, embedding, and duplicate clause checks in Porcelain light theme" width="860" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/v211-05-quick-swap.png" alt="05 Inline Wildcard and Choice Quick-Swap popover in Pine Ridge theme" width="860" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/v211-06-token-breakdown.png" alt="06 Prompt Inspector Token and Weight Breakdown with live weight steppers and 75-token chunk boundary marker in Cherry Cola theme" width="860" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/v211-07-lorapal-toolbar.png" alt="07 LoraPal Fave Folders, Recent Generations sorting, and minimal toolbar controls in Cinder dark-black theme" width="860" />
+</p>
 
 <details>
-<summary><strong>Release history (2.0.5 – 2.0.9)</strong> — see <a href="CHANGELOG.md">CHANGELOG.md</a> for full notes</summary>
+<summary><strong>Release history (2.0.5 – 2.1.0)</strong> — see <a href="CHANGELOG.md">CHANGELOG.md</a> for full notes</summary>
 
+- **2.1.0 — Style Studio, Expanded Starter Packs & Visual Polish:** Opt-in **Style Studio** sidecar (`94` Krea 2 & MOSS-Image entries across `12` facets + `8` curated mixes, Mix Composer, MOSS dialects, conflict/buzzword lint) and **Style autocomplete** (`style:`, `cam:`, `lens:`, `light:`, `krea2:`, `moss:`); expanded **Starter Packs (`v2.2.0`)** across `12` model packs (`Universal` 54, `KREA 2` 50, `MOSS-Image` 30, and more); Civitai-style right-hand **Generation Inspector** flyout; and unified virtualized **Gallery, Masonry, Filmstrip, and List** views with `Natural` aspect ratios across **Recent Generations**, **LoraPal**, and **Explore**.
 - **2.0.9 — Keep & Evolve:** Keeper reference pinning, 4-candidate A/B wipe comparison, Promote & Refine (`Commit / Cancel`), pop-out LoRA Model Info flyout, sidebar **LoRAs** tab, per-field IN/OUT sockets, named A–D drafts, Find & Replace previews, compact top-edge **Ports** with 16 saved layouts, toolbar **Seed** pill, and auto-hiding status bar.
 - **2.0.8 — LoraPal & Flexible Workspaces:** Local LoraPal browser and Audition Lab, adjustable multi-column Fields, Tiles and Contact Sheet library views, A–D quick slots, Seed Lab, Anima 1.0 weighting mode, Settings search, and optional library intelligence.
 - **2.0.7 — Visual Browsing & MOSS:** Shared wildcard thumbnails across Library, sidebar, and autocomplete; **MOSS-Image** starters and literal JSON preservation; **One field at a time** comparisons; 193 bundled style/artist references; `Ctrl/Cmd+Enter` run pass-through.
@@ -80,8 +116,10 @@ Prompt Palette **2.1.0** brings together **Keep & Evolve**, **LoraPal Model Info
 | **Prompt Palette** | Everyday prompt writing, wildcard browsing, Fields workspaces, LoRAs, previewing, and optional encoding | Resolved prompt text, optional positive/negative conditioning, model/CLIP passthrough, seed, variables, and wildcard metadata |
 | **Prompt Palette (Combinatorial)** | Producing many deliberate prompt variations from one template | Lists of prompts, seeds, wildcard metadata, per-field outputs, and optional per-prompt conditioning/model/CLIP outputs |
 | **Prompt Palette (Weight Controller)** | Applying and translating explicit `(phrase:weight)` instructions for different text backends | Backend-ready text, raw weight dictionary, compatibility text, optional conditioning, and model/CLIP passthrough |
+| **Resolution Selector** | Architecture-aware aspect-ratio picking and empty `LATENT` generation | Native `LATENT` (`4ch`, `16ch`, or `128ch`) plus snapped `Width` and `Height` (`INT`); works standalone in any workflow |
+| **LabelPal** | Organizing any ComfyUI workflow with color-coded section banners, setup guides, and sticky-note callouts | Purely visual canvas card (zero execution cost; works standalone with or without Prompt Palette) |
 
-All three nodes appear under the **PromptPalette** category and share autocomplete, shortcuts, and theme settings.
+All five nodes appear under the **PromptPalette** category. The three prompt nodes share autocomplete, shortcuts, and theme settings, while **Resolution Selector** and **LabelPal** work independently in any ComfyUI graph.
 
 ### Compact Ports & Saved Port Layouts
 
@@ -518,6 +556,107 @@ a portrait of a (red fox:1.35), dusk lighting, (blurry:-0.8)
 
 <p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
 
+<a id="resolution-selector"></a>
+## Resolution Selector
+
+**Resolution Selector** is a standalone, model-aware aspect-ratio picker and empty `LATENT` generator. Drop it into any ComfyUI workflow (with or without Prompt Palette) to eliminate wrong-channel latent errors and manual dimension math across **Nodes 1.x** and **Nodes 2.x**.
+
+<p align="center">
+  <img src="docs/assets/readme/reso-selector-card.svg" alt="Resolution Selector function and use info card showing architecture profiles, MP and aspect controls, and native LATENT outputs" width="900" />
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <img src="docs/screenshots/v211-reso-flux.jpg" alt="Resolution Selector set to Flux.1 / SD3 / Z-Image / Anima / Krea 2 (16ch, ÷16) at 1024x1024" width="430" /><br>
+      <sub><strong>16ch Profile (Flux.1 / SD3 / Z-Image / Anima / Krea 2)</strong> · 1:1 at 1 MP (<code>1024×1024</code>)</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <img src="docs/screenshots/v211-reso-moss.jpg" alt="Resolution Selector set to MOSS-Image / Flux.2 (128ch, ÷16) at 1936x1088 16:9 2 MP" width="430" /><br>
+      <sub><strong>128ch Profile (MOSS-Image / Flux.2)</strong> · 16:9 at 2 MP (<code>1936×1088</code>)</sub>
+    </td>
+  </tr>
+</table>
+
+| Model Profile | Latent Format | Step Snap | Default | Sweet Spot |
+|---|---|---|---|---|
+| **SDXL / Pony / Illustrious** | `4ch` · `8×` downscale | `÷64` | `1024 × 1024` | `1 – 1.5 MP` |
+| **Flux.1 / SD3 / Z-Image / Anima / Krea 2** | `16ch` · `8×` downscale | `÷16` | `1024 × 1024` | `1 – 2 MP` |
+| **Qwen-Image** | `16ch` · `8×` downscale | `÷16` | `1328 × 1328` | `1.5 – 2 MP` |
+| **MOSS-Image / Flux.2** | `128ch` · `16×` downscale | `÷16` | `1024 × 1024` | `1 – 2 MP` |
+| **SD 1.5** | `4ch` · `8×` downscale | `÷64` | `512 × 512` | `0.25 – 0.5 MP` |
+
+- **Megapixel Tiers & Aspect Grid:** Pick `0.25`, `0.5`, `1`, `1.5`, `2`, `3`, or `4` MP (with model sweet-spot and safe-ceiling hints) and tap any preset ratio (`1:1`, `4:5`, `3:4`, `2:3`, `9:16`, `4:3`, `3:2`, `16:9`, plus `21:9` on SDXL and `1:1 HD` on SD 1.5).
+- **1-Click Orientation `⇄ Swap` & Custom Sizing:** Flip portrait ↔ landscape instantly, or type custom **Width**, **Height**, and **Batch** values with **Snap `÷16` / `÷64`** (the architecture's spatial downscale floor is always enforced even when step-snap is off).
+- **Clean Outputs:** Exposes `Latent` (`LATENT` with the profile's exact channel count and `downscale_ratio_spacial`), `Width` (`INT`), and `Height` (`INT`) for downstream samplers or upscale/crop nodes.
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
+
+<a id="labelpal"></a>
+## LabelPal & Bundled Workflows
+
+**LabelPal** is a standalone visual section label, stage banner, and sticky-note card for organizing any ComfyUI workflow.
+
+> [!TIP]
+> **Use LabelPal on its own in any workflow.** LabelPal has **zero backend execution cost** (`outputs = []`) and works completely independently—drop it into *any* ComfyUI graph (with or without Prompt Palette nodes) across **Nodes 1.x (LiteGraph)** and **Nodes 2.x** to turn messy node spaghetti into clean, readable stages.
+
+<table>
+  <tr>
+    <td colspan="2" align="center" valign="middle">
+      <img src="docs/screenshots/v211-labelpal-banner.png" alt="LabelPal Workflow Overview banner in Cherry Cola style with eyebrow badge and edit button" width="760" /><br>
+      <sub><strong>Stage Banner</strong> · <code>TAG · Heading</code> eyebrow badges and inline Edit toggle</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <img src="docs/screenshots/v211-labelpal-start.jpg" alt="LabelPal Start Here card in Ocean Cyan showing numbered setup steps and inline code chips" width="380" /><br>
+      <sub><strong>Setup &amp; Component Card</strong> · numbered <code>1.</code> steps, bullets, and <code>code</code> chips</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <img src="docs/screenshots/v211-labelpal-tip.jpg" alt="LabelPal Prompting Tip card showing bold highlights, bullets, and inline code formatting" width="380" /><br>
+      <sub><strong>Prompting Tip Card</strong> · <code>- </code> bullets, <strong>bold</strong>, and color-coded accents</sub>
+    </td>
+  </tr>
+</table>
+
+| LabelPal Feature | Details |
+|---|---|
+| **Standalone & Zero Cost** | Purely visual canvas node under **PromptPalette** (`outputs = []`, `is_output_node = False`); works in any ComfyUI graph without Prompt Palette. |
+| **8 Color Presets** | **Cinder Amber**, **Cherry Cola**, **Orange Fizz**, **Lime Mint**, **Ocean Cyan**, **Grape Pop**, **Cream Soda**, and **Graphite**. |
+| **5 Style Variants** | **Card** (glowing left bar), **Banner** (stage header), **Sticky** (warm note), **Minimal** (quiet heading), and **Text** (frameless floating text with no node box). |
+| **4 Text Sizes** | **S**, **M**, **L**, and **XL** typography scales for everything from compact callouts to canvas-wide headers. |
+| **Inline View / Edit Mode** | Click the pencil to edit title, note, color, style, or size on the canvas; compact cards temporarily expand while editing and restore on **Done** or `Esc` (`Ctrl/Cmd+Enter` still queues ComfyUI). |
+| **Rich Note Formatting** | Write `"TAG · Heading"` (or `"TAG // Heading"`) for an eyebrow badge; notes support `- ` bullets, `1. ` steps, `**bold**`, and `` `code` `` chips. |
+
+### 13 Updated Bundled Workflows
+
+Every bundled workflow in [`workflows/`](workflows/) has been refreshed for **2.1.1** with **5 color-coded stage groups**, pre-configured **Prompt Palette** Fields workspaces with `Model (passthrough)` routing, **Resolution Selector** matched to all **11 image workflows**, and **4 LabelPal nodes** (an XL frameless **Text** title header plus overview, setup, and tip cards):
+
+<p align="center">
+  <img src="docs/assets/readme/workflows-overview-card.svg" alt="13 Updated Bundled Workflows 5-stage overview: Load Models, Prompt Palette, Resolution Selector and Guidance, Sample, and Decode and Save" width="900" />
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <img src="docs/screenshots/v211-workflow-krea2.jpg" alt="Updated Krea 2 Turbo bundled workflow organized with 5 color-coded stage groups, Resolution Selector, Fields, and LabelPal cards" width="430" /><br>
+      <sub><strong>Krea 2 Turbo</strong> · 8-step editorial photography with Fields, Resolution Selector &amp; LabelPal</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <img src="docs/screenshots/v211-workflow-moss.jpg" alt="Updated MOSS Base INT8 bundled workflow organized with 5 color-coded stage groups, Resolution Selector, Skip-Layer Guidance, and LabelPal cards" width="430" /><br>
+      <sub><strong>MOSS Base INT8</strong> · separated loaders, Skip-Layer Guidance, Resolution Selector &amp; LabelPal</sub>
+    </td>
+  </tr>
+</table>
+
+| Category | Bundled workflows |
+|---|---|
+| **Image Generation** | [`prompt_palette_sdxl_basic.json`](workflows/prompt_palette_sdxl_basic.json) · [`prompt_palette_illustrious_xl_basic.json`](workflows/prompt_palette_illustrious_xl_basic.json) · [`prompt_palette_pony_v6_xl_basic.json`](workflows/prompt_palette_pony_v6_xl_basic.json) · [`prompt_palette_anima_basic.json`](workflows/prompt_palette_anima_basic.json) · [`prompt_palette_qwen_image_basic.json`](workflows/prompt_palette_qwen_image_basic.json) · [`prompt_palette_krea2_turbo_basic.json`](workflows/prompt_palette_krea2_turbo_basic.json) · [`prompt_palette_z_image_turbo_basic.json`](workflows/prompt_palette_z_image_turbo_basic.json) |
+| **Video Generation** | [`prompt_palette_ltx23_t2v_basic.json`](workflows/prompt_palette_ltx23_t2v_basic.json) · [`prompt_palette_minimax_h3_t2v_basic.json`](workflows/prompt_palette_minimax_h3_t2v_basic.json) |
+| **MOSS-Image** | [`prompt_palette_moss_turbo_aio.json`](workflows/prompt_palette_moss_turbo_aio.json) · [`prompt_palette_moss_base_int8.json`](workflows/prompt_palette_moss_base_int8.json) · [`prompt_palette_moss_sft_caption.json`](workflows/prompt_palette_moss_sft_caption.json) · [`prompt_palette_moss_sft_layout.json`](workflows/prompt_palette_moss_sft_layout.json) |
+
+<p align="center"><img src="docs/assets/readme/section-divider.svg" alt="" width="720"></p>
+
 <a id="wildcard-syntax"></a>
 <p align="center">
   <img width="1600" height="190" alt="Wildcard & Dynamic Syntax" src="https://github.com/user-attachments/assets/0f2fe042-9ea2-4ec2-8236-1493e3b54fc5" />
@@ -567,9 +706,11 @@ Nesting resolves innermost-first. Lines starting with `#` are treated as comment
 
 | Shortcut | Action |
 |---|---|
+| `Ctrl/Cmd + K` | Open **Command Palette** inside Prompt Palette |
 | `Ctrl/Cmd + Z` / `Ctrl/Cmd + Shift + Z` (or `Y`) | Undo / Redo |
 | `Ctrl/Cmd + F` / `Ctrl + H` (`Cmd + Option + F`) | Open Find / Replace with preview in the main prompt |
 | `Alt/Option + 1–4` (`+ Shift` to copy) | Switch to (or copy current draft into) quick draft **A–D** |
+| `Alt/Option + Click` a `__wildcard__` or `{choice}` | Peek options, reroll, or pin via **Quick-Swap** |
 | `Shift + Click` on toolbar **Seed** pill | Open **Wheel of Fortune** directly |
 | `Ctrl + Space` | Open autocomplete in **On demand** mode or inside a library editor |
 | `Ctrl/Cmd + S` / `Ctrl/Cmd + F` in Edit drawer | Save wildcard file / Find within entry |
@@ -623,7 +764,6 @@ Prompt Palette builds on conventions and inspiration from:
 Built by **z3rofeels**.
 
 <p align="center">
-  <a href="https://z3rofeels.github.io/comfyui-promptpalette/">Website &amp; Live Studio</a> ·
   <a href="https://github.com/z3rofeels/comfyui-promptpalette/issues">Report a bug</a> ·
   <a href="https://github.com/z3rofeels/comfyui-promptpalette/discussions">Start a discussion</a> ·
   <a href="https://github.com/z3rofeels/comfyui-promptpalette">Star Prompt Palette</a>

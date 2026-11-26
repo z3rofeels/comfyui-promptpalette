@@ -1,17 +1,17 @@
 {
-  "last_node_id": 7,
-  "last_link_id": 9,
+  "last_node_id": 11,
+  "last_link_id": 10,
   "nodes": [
     {
       "id": 1,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        20,
-        180
+        0,
+        220
       ],
       "size": [
-        320,
-        100
+        380,
+        120
       ],
       "flags": {},
       "order": 0,
@@ -22,7 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3
+            10
           ]
         },
         {
@@ -46,18 +46,21 @@
       },
       "widgets_values": [
         "sd_xl_base_1.0.safetensors"
-      ]
+      ],
+      "title": "Load Checkpoint · SDXL 1.0",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "PromptPaletteEditor",
       "pos": [
-        400,
-        20
+        470,
+        60
       ],
       "size": [
-        430,
-        310
+        520,
+        360
       ],
       "flags": {},
       "order": 1,
@@ -72,7 +75,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 10,
           "shape": 7
         },
         {
@@ -122,7 +125,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -188,25 +193,217 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "Professional studio portrait of a handsome man in a simple black turtleneck, soft large key light from camera left, subtle rim light, warm grey background, realistic skin texture, restrained color grading, 85mm lens."
+        },
+        "wg_text": "Professional studio portrait of a handsome man in a simple black turtleneck, soft large key light from camera left, subtle rim light, warm grey background, realistic skin texture, restrained color grading, 85mm lens.",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Portrait",
+            "presetId": "portrait",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "269540c4-c057-486f-94b9-4f639a97e4ae",
+                "name": "Subject",
+                "label": "Subject",
+                "value": "Professional studio portrait of a handsome man",
+                "default": "Professional studio portrait of a handsome man",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "subject",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "74a160f4-e230-4e1b-9323-5ce610b8dee8",
+                "name": "Expression & Gaze",
+                "label": "Expression & Gaze",
+                "value": "calm confident gaze",
+                "default": "calm confident gaze",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "expression",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "0cadc19d-1758-49aa-bbac-cde02278b004",
+                "name": "Lighting setup",
+                "label": "Lighting setup",
+                "value": "soft large key light from camera left, subtle rim light",
+                "default": "soft large key light from camera left, subtle rim light",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lighting",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "2096d908-2114-4fa2-abdb-1503ff900f2d",
+                "name": "Background",
+                "label": "Background",
+                "value": "warm grey background",
+                "default": "warm grey background",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "background",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [
+                  "0cadc19d-1758-49aa-bbac-cde02278b004"
+                ],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "d41ecfd5-d65f-4e61-817c-96220d9b37b4",
+                "name": "Camera & Lens",
+                "label": "Camera & Lens",
+                "value": "85mm lens, shallow depth of field",
+                "default": "85mm lens, shallow depth of field",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "camera",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "f924be72-1a14-4601-b194-f30de968a46a",
+                "name": "Style & Finish",
+                "label": "Style & Finish",
+                "value": "realistic skin texture, restrained color grading",
+                "default": "realistic skin texture, restrained color grading",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "269540c4-c057-486f-94b9-4f639a97e4ae",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "74a160f4-e230-4e1b-9323-5ce610b8dee8",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "0cadc19d-1758-49aa-bbac-cde02278b004",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "2096d908-2114-4fa2-abdb-1503ff900f2d",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "d41ecfd5-d65f-4e61-817c-96220d9b37b4",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "f924be72-1a14-4601-b194-f30de968a46a",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "Professional studio portrait of a handsome man in a simple black turtleneck, soft large key light from camera left, subtle rim light, warm grey background, realistic skin texture, restrained color grading, 85mm lens.",
+        "Professional studio portrait of a handsome man, calm confident gaze, soft large key light from camera left, subtle rim light, warm grey background, 85mm lens, shallow depth of field, realistic skin texture, restrained color grading",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Positive"
+      "title": "Prompt Palette — Positive",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "Professional studio portrait of a handsome man, calm confident gaze, soft large key light from camera left, subtle rim light, warm grey background, 85mm lens, shallow depth of field, realistic skin texture, restrained color grading",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"2\",\"positive\":\"Professional studio portrait of a handsome man, calm confident gaze, soft large key light from camera left, subtle rim light, warm grey background, 85mm lens, shallow depth of field, realistic skin texture, restrained color grading\",\"negative\":\"\",\"fields\":[{\"id\":\"269540c4-c057-486f-94b9-4f639a97e4ae\",\"channel\":\"positive\",\"start\":0,\"end\":46,\"source\":\"Professional studio portrait of a handsome man\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"74a160f4-e230-4e1b-9323-5ce610b8dee8\",\"channel\":\"positive\",\"start\":48,\"end\":67,\"source\":\"calm confident gaze\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"0cadc19d-1758-49aa-bbac-cde02278b004\",\"channel\":\"positive\",\"start\":69,\"end\":124,\"source\":\"soft large key light from camera left, subtle rim light\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"2096d908-2114-4fa2-abdb-1503ff900f2d\",\"channel\":\"positive\",\"start\":126,\"end\":146,\"source\":\"warm grey background\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"d41ecfd5-d65f-4e61-817c-96220d9b37b4\",\"channel\":\"positive\",\"start\":148,\"end\":181,\"source\":\"85mm lens, shallow depth of field\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"f924be72-1a14-4601-b194-f30de968a46a\",\"channel\":\"positive\",\"start\":183,\"end\":231,\"source\":\"realistic skin texture, restrained color grading\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"269540c4-c057-486f-94b9-4f639a97e4ae\",\"join\":true},{\"type\":\"field\",\"id\":\"74a160f4-e230-4e1b-9323-5ce610b8dee8\",\"join\":true},{\"type\":\"field\",\"id\":\"0cadc19d-1758-49aa-bbac-cde02278b004\",\"join\":true},{\"type\":\"field\",\"id\":\"2096d908-2114-4fa2-abdb-1503ff900f2d\",\"join\":true},{\"type\":\"field\",\"id\":\"d41ecfd5-d65f-4e61-817c-96220d9b37b4\",\"join\":true},{\"type\":\"field\",\"id\":\"f924be72-1a14-4601-b194-f30de968a46a\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"269540c4-c057-486f-94b9-4f639a97e4ae\":null,\"74a160f4-e230-4e1b-9323-5ce610b8dee8\":null,\"0cadc19d-1758-49aa-bbac-cde02278b004\":null,\"2096d908-2114-4fa2-abdb-1503ff900f2d\":null,\"d41ecfd5-d65f-4e61-817c-96220d9b37b4\":null,\"f924be72-1a14-4601-b194-f30de968a46a\":null},\"edges\":{\"positive\":[\"269540c4-c057-486f-94b9-4f639a97e4ae\",\"f924be72-1a14-4601-b194-f30de968a46a\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 3,
       "type": "PromptPaletteEditor",
       "pos": [
-        400,
-        390
+        470,
+        490
       ],
       "size": [
-        430,
-        310
+        520,
+        270
       ],
       "flags": {},
       "order": 2,
@@ -337,25 +534,190 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": ""
+        },
+        "wg_text": "",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Negative prompt set",
+            "presetId": "negative",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "deb4f2c4-6c58-4cbe-91e1-d91fdba3c0f8",
+                "name": "Prompt",
+                "label": "Prompt",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "prompt",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "a832f74f-793e-40bb-b0e8-bb372780e952",
+                "name": "Quality exclusions",
+                "label": "Quality exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "quality",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "a8b12fdb-eb8f-48c6-a126-7cb7db4e7a45",
+                "name": "Anatomy exclusions",
+                "label": "Anatomy exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "anatomy",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "e843ca2f-492c-45a7-94b7-29c205846b4f",
+                "name": "Text exclusions",
+                "label": "Text exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "text",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "0d5a9644-730f-4209-92aa-898ecc9963f9",
+                "name": "Style exclusions",
+                "label": "Style exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "deb4f2c4-6c58-4cbe-91e1-d91fdba3c0f8",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "a832f74f-793e-40bb-b0e8-bb372780e952",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "a8b12fdb-eb8f-48c6-a126-7cb7db4e7a45",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "e843ca2f-492c-45a7-94b7-29c205846b4f",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "0d5a9644-730f-4209-92aa-898ecc9963f9",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
         "",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Negative"
+      "title": "Prompt Palette — Negative (Optional)",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"3\",\"positive\":\"\",\"negative\":\"\",\"fields\":[],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"deb4f2c4-6c58-4cbe-91e1-d91fdba3c0f8\",\"join\":true},{\"type\":\"field\",\"id\":\"a832f74f-793e-40bb-b0e8-bb372780e952\",\"join\":true},{\"type\":\"field\",\"id\":\"a8b12fdb-eb8f-48c6-a126-7cb7db4e7a45\",\"join\":true},{\"type\":\"field\",\"id\":\"e843ca2f-492c-45a7-94b7-29c205846b4f\",\"join\":true},{\"type\":\"field\",\"id\":\"0d5a9644-730f-4209-92aa-898ecc9963f9\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"deb4f2c4-6c58-4cbe-91e1-d91fdba3c0f8\":null,\"a832f74f-793e-40bb-b0e8-bb372780e952\":null,\"a8b12fdb-eb8f-48c6-a126-7cb7db4e7a45\":null,\"e843ca2f-492c-45a7-94b7-29c205846b4f\":null,\"0d5a9644-730f-4209-92aa-898ecc9963f9\":null},\"edges\":{\"positive\":[\"deb4f2c4-6c58-4cbe-91e1-d91fdba3c0f8\",\"0d5a9644-730f-4209-92aa-898ecc9963f9\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 4,
-      "type": "EmptyLatentImage",
+      "type": "PromptPaletteResolutionSelector",
       "pos": [
-        40,
-        520
+        1080,
+        60
       ],
       "size": [
-        270,
-        130
+        320,
+        290
       ],
       "flags": {},
       "order": 3,
@@ -363,32 +725,64 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
+          "localized_name": "Latent",
           "type": "LATENT",
           "links": [
             6
           ]
+        },
+        {
+          "name": "width",
+          "localized_name": "Width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "localized_name": "Height",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage"
+        "Node name for S&R": "PromptPaletteResolutionSelector",
+        "resolution_pal_v1": {
+          "model_profile": "SDXL / Pony / Illustrious",
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1,
+          "snap_to_multiple": true
+        }
       },
       "widgets_values": [
+        "SDXL / Pony / Illustrious",
         1024,
         1024,
-        1
-      ]
+        1,
+        true
+      ],
+      "title": "Resolution Selector · 1024 × 1024",
+      "color": "#2a223d",
+      "bgcolor": "#181522",
+      "widgets_values_named": {
+        "model_profile": "SDXL / Pony / Illustrious",
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1,
+        "snap_to_multiple": true
+      }
     },
     {
       "id": 5,
       "type": "KSampler",
       "pos": [
-        920,
-        180
+        1080,
+        335
       ],
       "size": [
-        330,
-        300
+        340,
+        315
       ],
       "flags": {},
       "order": 4,
@@ -431,21 +825,24 @@
         0,
         "randomize",
         20,
-        8.0,
+        8,
         "euler",
         "normal",
-        1.0
-      ]
+        1
+      ],
+      "title": "KSampler · 20 Steps · CFG 8",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 6,
       "type": "VAEDecode",
       "pos": [
-        1320,
-        180
+        1510,
+        80
       ],
       "size": [
-        240,
+        400,
         90
       ],
       "flags": {},
@@ -475,18 +872,21 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "VAE Decode",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 7,
       "type": "SaveImage",
       "pos": [
-        1640,
-        160
+        1510,
+        240
       ],
       "size": [
-        300,
-        280
+        400,
+        420
       ],
       "flags": {},
       "order": 6,
@@ -510,7 +910,191 @@
       },
       "widgets_values": [
         "PromptPalette_SDXL"
-      ]
+      ],
+      "title": "Save Image",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 8,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "SDXL 1.0 · Studio Portrait Starter",
+          "note": "1024 × 1024 · 20 steps · CFG 8.0 · Euler — A clean baseline for natural-language prompting, wildcards, and LoRAs.",
+          "color_preset": "amber",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "SDXL 1.0 · Studio Portrait Starter",
+        "1024 × 1024 · 20 steps · CFG 8.0 · Euler — A clean baseline for natural-language prompting, wildcards, and LoRAs.",
+        "amber",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "SDXL 1.0 · Studio Portrait Starter",
+        "note": "1024 × 1024 · 20 steps · CFG 8.0 · Euler — A clean baseline for natural-language prompting, wildcards, and LoRAs.",
+        "color_preset": "amber",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 9,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        370
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · Quick Setup",
+          "note": "1. Select `sd_xl_base_1.0.safetensors` (or your favorite SDXL checkpoint) in `models/checkpoints/`.\n2. Edit your scene in **Prompt Palette — Positive** and add optional exclusions in **Negative**.\n3. Press **Run** (`Ctrl/Cmd + Enter`) to generate and save to `output/PromptPalette_SDXL*`.\n\n- Change aspect ratio anytime in **Resolution Selector** (`832×1216` portrait or `1216×832` widescreen).",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · Quick Setup",
+        "1. Select `sd_xl_base_1.0.safetensors` (or your favorite SDXL checkpoint) in `models/checkpoints/`.\n2. Edit your scene in **Prompt Palette — Positive** and add optional exclusions in **Negative**.\n3. Press **Run** (`Ctrl/Cmd + Enter`) to generate and save to `output/PromptPalette_SDXL*`.\n\n- Change aspect ratio anytime in **Resolution Selector** (`832×1216` portrait or `1216×832` widescreen).",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · Quick Setup",
+        "note": "1. Select `sd_xl_base_1.0.safetensors` (or your favorite SDXL checkpoint) in `models/checkpoints/`.\n2. Edit your scene in **Prompt Palette — Positive** and add optional exclusions in **Negative**.\n3. Press **Run** (`Ctrl/Cmd + Enter`) to generate and save to `output/PromptPalette_SDXL*`.\n\n- Change aspect ratio anytime in **Resolution Selector** (`832×1216` portrait or `1216×832` widescreen).",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 10,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        500
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "CREATIVE TIP · Wildcards, Drafts & LoRAs",
+          "note": "- Try inline choices like `{soft key light|warm golden hour}` for instant variations.\n- Use **A B C D** (`Alt + 1–4`) in the toolbar to compare up to 4 prompt drafts on one node.\n- Want `<lora:name:0.8>` tags? **`MODEL` is routed through Prompt Palette** — drop `<lora:name:0.8>` tags directly into your prompt.",
+          "color_preset": "amber",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "CREATIVE TIP · Wildcards, Drafts & LoRAs",
+        "- Try inline choices like `{soft key light|warm golden hour}` for instant variations.\n- Use **A B C D** (`Alt + 1–4`) in the toolbar to compare up to 4 prompt drafts on one node.\n- Want `<lora:name:0.8>` tags? **`MODEL` is routed through Prompt Palette** — drop `<lora:name:0.8>` tags directly into your prompt.",
+        "amber",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "CREATIVE TIP · Wildcards, Drafts & LoRAs",
+        "note": "- Try inline choices like `{soft key light|warm golden hour}` for instant variations.\n- Use **A B C D** (`Alt + 1–4`) in the toolbar to compare up to 4 prompt drafts on one node.\n- Want `<lora:name:0.8>` tags? **`MODEL` is routed through Prompt Palette** — drop `<lora:name:0.8>` tags directly into your prompt.",
+        "color_preset": "amber",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 11,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: SDXL 1.0",
+          "note": "",
+          "color_preset": "amber",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: SDXL 1.0",
+        "",
+        "amber",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: SDXL 1.0",
+        "note": "",
+        "color_preset": "amber",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -532,7 +1116,7 @@
     ],
     [
       3,
-      1,
+      2,
       0,
       5,
       0,
@@ -585,16 +1169,85 @@
       7,
       0,
       "IMAGE"
+    ],
+    [
+      10,
+      1,
+      0,
+      2,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load Checkpoint",
+      "bounding": [
+        -24,
+        142,
+        428,
+        224
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write & Customize Prompt",
+      "bounding": [
+        446,
+        -18,
+        568,
+        804
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Canvas Size",
+      "bounding": [
+        1056,
+        -18,
+        388,
+        249
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · Sample",
+      "bounding": [
+        1056,
+        257,
+        388,
+        419
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode & Output",
+      "bounding": [
+        1486,
+        2,
+        448,
+        684
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.85,
+      "scale": 0.75,
       "offset": [
-        60,
-        60
+        560,
+        220
       ]
     }
   },

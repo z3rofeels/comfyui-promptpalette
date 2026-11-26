@@ -482,7 +482,9 @@ def media_dimensions(path):
         dims = read_video_dimensions(p)
         if dims is not None:
             with _CACHE_LOCK:
-                if len(_DIMENSIONS_CACHE) >= 2048:
+                if key in _DIMENSIONS_CACHE:
+                    _DIMENSIONS_CACHE.pop(key)
+                elif len(_DIMENSIONS_CACHE) >= 2048:
                     _DIMENSIONS_CACHE.pop(next(iter(_DIMENSIONS_CACHE)))
                 _DIMENSIONS_CACHE[key] = dims
         return dims

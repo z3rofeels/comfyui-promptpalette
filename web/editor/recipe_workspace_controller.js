@@ -221,7 +221,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   const workspaceTab = button("Workspace", async () => {
     if (!state) {
       flushHistory(); const recipe = { ...blankWorkspace(textarea.value), negative: String(negativeWidget?.value || "") }; recipe.fields[0].titleHidden = true;
-      state = { recipe, view: "workspace", path: "", baseline: "" }; sync(); rebuild(); render(); flushHistory();
+      state = { recipe, view: "workspace", path: "", baseline: "", settingsTab: "fields" }; sync({ commitPromptState: false }); rebuild(); render(); flushHistory();
     } else view("workspace");
   });
   const convert = button("Unlink fields", async () => {
@@ -250,18 +250,20 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     node.setDirtyCanvas?.(true, true);
   }
   function currentCompilation() { return compileWorkspace(state.recipe); }
-  function sync() {
+  function sync({ commitPromptState = true } = {}) {
     if (!state || syncing) return;
     syncing = true;
     try {
       const result = currentCompilation();
       const changed = textarea.value !== result.positive || node._ppPromptStateGuard?.current?.() !== result.positive;
       textarea.value = result.positive;
-      node._ppPromptStateGuard?.commit?.(result.positive, { notify: false, dirty: false });
+      if (commitPromptState) {
+        node._ppPromptStateGuard?.commit?.(result.positive, { notify: false, dirty: false });
+      }
       negativeState.commit(result.negative);
       negativeWidget = node.widgets?.find(w => w.name === "negative_text");
       persist(); updatePreview({ compilation: result });
-      if (changed) textarea.dispatchEvent(new CustomEvent("pp-workspace-sync"));
+      if (changed && commitPromptState) textarea.dispatchEvent(new CustomEvent("pp-workspace-sync"));
     } finally { syncing = false; }
   }
   function mutate(action, { typing = false, rebuildUI = true } = {}) {
@@ -276,7 +278,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
         const channelState = recipe => JSON.stringify([compileWorkspace(recipe)[channel], recipe.fields.filter(f => f.channel === channel)]);
         if (channelState(state.recipe) !== channelState(previous.recipe)) throw new Error(`The ${channel} prompt is controlled by a connected input.`);
       }
-      sync();
+      sync({ commitPromptState: false });
     }
     catch (error) { state = previous; throw error; }
     if (rebuildUI) rebuild();
@@ -438,7 +440,8 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   }
   function openSettings(tab = state?.settingsTab || "fields", fieldId = null) {
     if (!state) return;
-    state.view = "workspace"; state.settingsOpen = true; state.settingsTab = tab;
+    state.view = "workspace"; state.settingsOpen = true;
+    state.settingsTab = ["fields", "workspace", "preview", "history"].includes(tab) ? tab : "fields";
     if (fieldId) state.optionsOpen = [...new Set([...(state.optionsOpen || []), fieldId])];
     persist(); rebuild();
     if (fieldId) optionsCard(fieldId)?.scrollIntoView?.({ block: "nearest" });
@@ -491,6 +494,19 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   function view(mode, { fromPreview = false } = {}) {
     if (!state) return;
     if (!fromPreview) previewReturnToWorkspace = false;
+    if (mode === "workspace" && state.view !== "workspace") {
+      reconcile({ commitPromptState: true });
+    } else if (mode === "editor" && state.view === "workspace") {
+      for (const [id, { editor }] of editors) {
+        const current = state.recipe.fields.find(x => x.id === id);
+        if (current && editor.value !== current.value) {
+          mutate(r => {
+            const f = r.fields.find(x => x.id === id);
+            if (f && f.value !== editor.value) { delete f.variationTemplate; f.value = editor.value; }
+          }, { typing: true, rebuildUI: false });
+        }
+      }
+    }
     closeAcMenu(); state.view = mode; persist(); rebuild();
     if (mode === "editor") { onShowEditor?.(); if (!fromPreview) textarea.focus({ preventScroll: true }); }
     else if (mode === "workspace") onShowEditor?.();
@@ -1097,8 +1113,8 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
 
     const head = make("div", "pp-split-settings-head"), tabBar = make("div", "pp-split-tabbar"); tabBar.setAttribute("role", "tablist"); tabBar.setAttribute("aria-label", "Settings sections");
     const body = make("div", "pp-split-settings-body"), tabButtons = {};
-    const showTab = key => {
-      state.settingsTab = key;
+    const showTab = (key, { updateState = true } = {}) => {
+      if (updateState) state.settingsTab = key;
       for (const [name, pane] of Object.entries(panes)) { pane.hidden = name !== key; tabButtons[name].setAttribute("aria-selected", String(name === key)); tabButtons[name].tabIndex = name === key ? 0 : -1; }
     };
     for (const [key, text] of [["fields", "Fields"], ["workspace", "Workspace"], ["preview", "Preview"], ["history", "History"]]) {
@@ -1112,7 +1128,7 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     }
     const close = button("×", () => closeSettings(), "Close settings"); close.classList.add("wg-close-btn", "pp-split-close"); close.setAttribute("aria-label", "Close settings");
     head.append(tabBar, close); settingsPane.append(head, body);
-    showTab(["fields", "workspace", "preview", "history"].includes(state.settingsTab) ? state.settingsTab : "fields");
+    showTab(["fields", "workspace", "preview", "history"].includes(state.settingsTab) ? state.settingsTab : "fields", { updateState: false });
     settingsPane.hidden = !state.settingsOpen;
     section.append(fieldsPane, settingsPane);
     fieldsPane.scrollTop = fieldsScroll;
@@ -1135,9 +1151,16 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
   }
   function restore(snapshot, { commit = true } = {}) {
     cancelInsights(); insightKey = ""; insightResult = null;
-    if (snapshot) { const saved = cloneWorkspaceData(snapshot); state = { ...saved, recipe: validateWorkspaceRecipe(saved.recipe) }; }
+    if (snapshot) {
+      const saved = cloneWorkspaceData(snapshot);
+      state = {
+        ...saved,
+        recipe: validateWorkspaceRecipe(saved.recipe),
+        settingsTab: ["fields", "workspace", "preview", "history"].includes(saved.settingsTab) ? saved.settingsTab : "fields",
+      };
+    }
     else state = null;
-    persist(); if (state) sync(); rebuild(); if (commit) render();
+    persist(); if (state) sync({ commitPromptState: !commit }); rebuild(); if (commit) render();
   }
   function open(recipe, path = "", values = {}) {
     const migrated = workspaceFromRecipe(validateRecipe(recipe));
@@ -1145,14 +1168,19 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     migrated.fields.forEach(f => { if (Object.hasOwn(values, f.id)) f.value = values[f.id]; else if (Object.hasOwn(values, f.name)) f.value = values[f.name]; });
     flushHistory(); restore({ recipe: migrated, path, view: "workspace", baseline: JSON.stringify(migrated) }); flushHistory();
   }
-  function reconcile() {
+  function reconcile({ commitPromptState = false } = {}) {
     if (!state || syncing) return;
     const compiled = currentCompilation();
     const currentText = textarea.value;
     if (currentText === compiled.positive) return;
     const selection = { start: textarea.selectionStart, end: textarea.selectionEnd, direction: textarea.selectionDirection };
-    state.recipe = captureBranch(editCompiledPrompt(state.recipe, currentText));
-    sync();
+    try {
+      state.recipe = captureBranch(editCompiledPrompt(state.recipe, currentText));
+    } catch (error) {
+      console.warn("Prompt Palette: could not reconcile edited prompt into workspace fields", error);
+      return;
+    }
+    sync({ commitPromptState });
     let rebuilt = false;
     if (state.view === "workspace" || !section.hidden || editors.size > 0 || fieldsPane.childElementCount > 0) {
       rebuild();
@@ -1174,15 +1202,27 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
     summaryRevision++;
     const saved = fromConfigure ? recoverWorkspaceFromNode(node, info) : (node.properties?.[WORKSPACE_KEY] ?? recoverWorkspaceFromNode(node));
     if (fromConfigure && saved && hasOccupiedWorkspaceFields(saved)) saved.view = "workspace";
-    if (JSON.stringify(saved || null) !== JSON.stringify(state)) restore(saved || null, { commit: false });
-    else if (state) { insightKey = ""; sync(); refreshPresetOptions(); refreshChrome(); editors.forEach(e => e.repaint()); }
+    const comparableSaved = (!fromConfigure && state && previewReturnToWorkspace && saved && saved.view === "workspace" && state.view === "editor")
+      ? { ...saved, view: state.view }
+      : (saved || null);
+    if (JSON.stringify(comparableSaved) !== JSON.stringify(state)) restore(saved || null, { commit: false });
+    else if (state) {
+      insightKey = "";
+      if (state.view !== "workspace" && textarea.value !== currentCompilation().positive) reconcile({ commitPromptState: true });
+      else sync();
+      refreshPresetOptions(); refreshChrome(); editors.forEach(e => e.repaint());
+    }
   }
-  const settings = () => { rebuild(); };
+  const settings = () => { if (state && state.view !== "workspace") reconcile({ commitPromptState: true }); rebuild(); };
   const nativeConfigure = node.configure;
+  const shouldWrapConfigure = !node.__ppWorkspaceConfigureHookInstalled && typeof nativeConfigure === 'function';
   const configure = function(info, ...args) {
     return nativeConfigure.call(this, prepareWorkspaceFieldSockets(this, info), ...args);
   };
-  if (typeof nativeConfigure === 'function') node.configure = configure;
+  if (shouldWrapConfigure) {
+    node.__ppWorkspaceConfigureHookInstalled = true;
+    node.configure = configure;
+  }
   const previousConfigure = node.onConfigure;
   const onConfigure = function(info) {
     // Synchronous restoration also covers hosts calling onConfigure directly.
@@ -1282,7 +1322,23 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
       for (const [id, { editor }] of editors) { const viewport = fieldViewports.get(id); if (viewport) { editor.setSelectionRange(viewport.start, viewport.end, viewport.direction); editor.scrollTop = viewport.top; editor.scrollLeft = viewport.left; } }
       fieldsPane.scrollTop = saved.scroll;
     },
-    isActive: () => !!state, showEditor: () => view("editor"), experimentPlan, assertPlan, contextChanged: () => {
+    isActive: () => !!state, isWorkspaceView: () => state?.view === "workspace", showEditor: () => view("editor"),
+    openWorkspace() {
+      if (!state) {
+        flushHistory();
+        const recipe = { ...blankWorkspace(textarea.value), negative: String(negativeWidget?.value || "") };
+        recipe.fields[0].titleHidden = true;
+        state = { recipe, view: "workspace", path: "", baseline: "", settingsTab: "fields" };
+        sync({ commitPromptState: false });
+        rebuild();
+        render();
+        flushHistory();
+      } else {
+        view("workspace");
+      }
+      focusActiveField();
+    },
+    experimentPlan, assertPlan, contextChanged: () => {
       for (const [id, { editor }] of editors) {
         syncFieldReadOnly(editor, state.recipe.fields.find(f => f.id === id).channel);
       }
@@ -1315,6 +1371,6 @@ export function createRecipeWorkspaceController({ node, root, textarea, render, 
         session: { resolution_seed: seed, wildcards: [...new Set(items.flatMap(item => item.wildcards))], negative_prompts: items.map(item => item.negative),
           ...(plan.strategy === "one-field" ? { comparison: "one-field", labels: items.map(item => item.trial?.label || "Trial") } : {}) } });
     },
-    cleanup() { disposed = true; if (node.configure === configure) node.configure = nativeConfigure; if (node.onConfigure === onConfigure) node.onConfigure = previousConfigure; if (node.onSerialize === onSerialize) node.onSerialize = previousSerialize; cancelInsights(); gridObserver?.disconnect(); if (gridFrame != null) cancelAnimationFrame(gridFrame); window.removeEventListener("resize", scheduleFieldGrid); clearEditors(); unsubscribeAppearance?.(); unsubscribeTagColors(); window.removeEventListener("pp-power-tools-changed", settings); root.removeEventListener("pp-output-transform-changed", updatePreview); root.removeEventListener("click", showCompiledForPreview, true); tabs.remove(); section.remove(); delete node._ppActiveRecipeEditor; } };
+    cleanup() { disposed = true; if (shouldWrapConfigure && node.configure === configure) { node.configure = nativeConfigure; delete node.__ppWorkspaceConfigureHookInstalled; } if (node.onConfigure === onConfigure) node.onConfigure = previousConfigure; if (node.onSerialize === onSerialize) node.onSerialize = previousSerialize; cancelInsights(); gridObserver?.disconnect(); if (gridFrame != null) cancelAnimationFrame(gridFrame); window.removeEventListener("resize", scheduleFieldGrid); clearEditors(); unsubscribeAppearance?.(); unsubscribeTagColors(); window.removeEventListener("pp-power-tools-changed", settings); root.removeEventListener("pp-output-transform-changed", updatePreview); root.removeEventListener("click", showCompiledForPreview, true); tabs.remove(); section.remove(); delete node._ppActiveRecipeEditor; } };
 }
 import { isComfyQueueShortcut } from "../editor_shortcuts.js";

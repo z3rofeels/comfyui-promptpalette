@@ -1,3 +1,4 @@
+import { cancelScheduledCloseInjectMenu } from "./editor/injector.js";
 import { installLoraSidecar } from "./editor/lora_sidecar.js";
 import { installStyleSelector } from "./editor/style_selector.js";
 import { installWorkspaceConfigureHook } from "./editor/workspace_generation.js";
@@ -39,7 +40,7 @@ import { bindSuiteAppearance } from "./editor/suite_appearance.js";
 import { applyToolbarVisibility } from "./editor/toolbar.js";
 import { bindPromptSeedInput, isRecipeCategory, wildcardInsertionText } from "./editor/text_utils.js";
 import { saveTheme } from "./editor/preferences.js";
-import { readCombinatorialPreference, writeCombinatorialPreference } from "./prompt_palette_state.js";
+import { readCombinatorialPreference, writeCombinatorialPreference, getPowerToolPreferences, setPowerToolPreference } from "./prompt_palette_state.js";
 import { upgradeEditorSurface } from "./editor/editor_surface.js";
 import { createRefinementController } from "./editor/refinement_controller.js";
 import { createRecipeWorkspaceController } from "./editor/recipe_workspace_controller.js";
@@ -50,7 +51,7 @@ import { attachImageImport } from "./editor/image_import.js";
 import { editCompiledPrompt } from "./editor/recipe_text_edit.js";
 import { tagSearch } from "./editor/tag_search.js";
 import { EditorUndoManager, TEXT_UNDO_LIMIT } from "./editor/undo_manager.js";
-import { createSyntaxHighlighter } from "./editor/syntax_highlighter.js";
+import { createSyntaxHighlighter, estimateChunkBoundaryOffsets } from "./editor/syntax_highlighter.js";
 import { PromptSyntaxCache, renderPromptSyntax } from "./editor/prompt_parser.js";
 import { createLibraryLookup } from "./engine/library_lookup.js";
 import { libraryAcRows, recentAcRows, mergeUnifiedRows, rankLibraryPaths } from "./editor/autocomplete_sources.js";
@@ -60,6 +61,11 @@ import { createStatusBar, statusBarMarkup, wildcardStatusText } from "./editor/s
 import { installPromptSlots } from "./editor/prompt_slots.js";
 import { attachEditorFindReplace } from "./editor/editor_find_replace.js";
 import { FIELD_EDITOR_DEFAULTS, normalizeFieldEditorPreferences } from "./editor/field_editor_preferences.js";
+import { installPromptPreflightBadge, openPromptHygieneModal } from "./editor/prompt_hygiene.js";
+import { attachSmartPaste } from "./editor/smart_paste.js";
+import { attachCommandPaletteShortcut, attachEmptyQuickStart, openCommandPalette } from "./editor/command_palette.js";
+import { openPromptTools } from "./editor/prompt_tools_panel.js";
+import { openLoraSidecar } from "./editor/lora_sidecar.js";
 import {
   API, loadTheme, escapeHtml, highlightMatch, categoryOf, hashStr,
   editorStylesReady,
@@ -69,7 +75,7 @@ import {
   notify, livePromptPaletteNodes, cleanupSharedPromptPaletteDom,
 
   loadPickerView, savePickerView, openCtxMenu, closeCtxMenu, ctxMenuOpen,
-
+  closeAcMenu, acState,
   openInjectMenu, openInjectMenuAtPoint, closeInjectMenu, scheduleCloseInjectMenu, injectState,
   hideNativeWidget, installResponsiveDomWidgetWidth, getDomWidgetAvailableHeight, scheduleDomWidgetRemeasure,
   ensureNodeLifecycle, nodeIsActive, scheduleNodeTimer, cancelNodeTimer, clearNodeTimers, scheduleNodeFrame,
@@ -119,7 +125,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       <div class="pp-header-actions">
         <button type="button" class="wg-icon-btn" data-act="picker" data-el="btnGallery" title="My Library \u2014 browse and insert reusable entries" aria-label="Open My Library">${svgIcon("gallery")}</button>
         <button type="button" class="wg-icon-btn" data-act="refresh" data-el="btnRefresh" title="Rescan My Library files" aria-label="Rescan My Library">${svgIcon("refresh")}</button>
-        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Open Ports manager" aria-label="Open Ports manager">${svgIcon("io", 13)}<span class="wg-io-button-label">Ports</span><span data-io-count></span></button>
+        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" data-el="btnIoRail" aria-expanded="false" title="Open Ports manager" aria-label="Open Ports manager">${svgIcon("io", 13)}<span class="wg-io-button-label">Ports</span><span data-io-count></span></button>
         <button type="button" class="wg-icon-btn wg-settings-anchor" data-act="settings" title="Combinatorial settings" aria-label="Open Combinatorial settings">${svgIcon("settings")}</button>
       </div>
     </div>
@@ -277,8 +283,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const seedModeWidget = node.widgets.find(w => w.name === "seed_mode");
   const maxPromptsWidget = node.widgets.find(w => w.name === "max_prompts");
   const preparedWidget = node.widgets.find(w => w.name === "prepared_batch");
-  const nativeBackingWidgets = [modeWidget, countWidget, seedWidget, controlWidget, seedModeWidget, maxPromptsWidget];
-  nativeBackingWidgets.forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); });
+  const socketBackingWidgets = [modeWidget, countWidget, seedWidget, seedModeWidget, maxPromptsWidget];
+  const hiddenOnlyBackingWidgets = [controlWidget, preparedWidget, node.widgets.find(w => w.name === "workspace_runtime"), node.widgets.find(w => w.name === "lora_mode")];
+  socketBackingWidgets.forEach((widget) => { if (widget) { widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); } });
+  hiddenOnlyBackingWidgets.forEach((widget) => { if (widget) { widget.__ppOwnerNode = node; hideNativeWidget(widget); } });
 
   const externalControlDefs = [
     { key: "mode", widgets: [modeWidget], elements: [...Array.from(modeButtons || []), settingsModeSelect] },
@@ -314,9 +322,11 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   function reassertHiddenWidgets() {
     node._ppSyncPositiveAntonyms?.();
-    if (preparedWidget) hideNativeWidget(preparedWidget);
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
-    nativeBackingWidgets.forEach((widget) => { if (widget) widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); });
+    socketBackingWidgets.forEach((widget) => { if (widget) { widget.__ppOwnerNode = node; hideNativeWidget(widget, { keepSocketForNodes2: true }); } });
+    [...hiddenOnlyBackingWidgets, node.widgets?.find(w => w.__ppRecipeNegative)].forEach((widget) => {
+      if (widget) { widget.__ppOwnerNode = node; hideNativeWidget(widget); }
+    });
   }
 
   function buildSeedModeOptions() {
@@ -345,6 +355,10 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     if (styleFilter) styleFilter.value = ["auto", "both", "krea2", "moss"].includes(curTheme.styleModelFilter) ? curTheme.styleModelFilter : "auto";
     const styleDialect = el("styleMossDialect");
     if (styleDialect) styleDialect.value = ["caption", "tags", "layout"].includes(curTheme.styleMossDialect) ? curTheme.styleMossDialect : "caption";
+    const chunkToggle = el("toggleChunkBoundary");
+    if (chunkToggle) chunkToggle.checked = curTheme.chunkBoundaryIndicator === true;
+    const quickStartToggle = el("toggleEmptyQuickStart");
+    if (quickStartToggle) quickStartToggle.checked = curTheme.emptyQuickStartEnabled !== false;
     if (countWidget) countInput.value = countWidget.value;
     if (maxPromptsWidget) maxPromptsInput.value = maxPromptsWidget.value;
     if (seedWidget) {
@@ -534,6 +548,12 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const dialect = ["caption", "tags", "layout"].includes(event.target.value) ? event.target.value : "caption";
     saveTheme({ ...loadTheme(), styleMossDialect: dialect });
   });
+  el("toggleChunkBoundary")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), chunkBoundaryIndicator: event.target.checked });
+  });
+  el("toggleEmptyQuickStart")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), emptyQuickStartEnabled: event.target.checked });
+  });
   detachedSettingsPopup = settingsPopup;
   const settingsBtn = action("settings");
   settingsPopup.id = `prompt-palette-combinatorial-${String(node.id ?? "node")}-settings`;
@@ -595,11 +615,19 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   const handleWorkspaceEscape = (event) => {
     if (event.key !== "Escape" || event.defaultPrevented || isDialogOpen() || !root.contains(event.target)) return;
-    if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
+    if (ctxMenuOpen) closeCtxMenu();
+    else if (injectState && injectState.textarea === textarea) closeInjectMenu();
+    else if (smartPasteController?.isOpen?.()) { smartPasteController.dismiss(); textarea.focus({ preventScroll: true }); }
+    else if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
     else if (node._wgIoRailOpen) ioRail.close({ force: true });
+    else if (["doctorPopup", "variationPopup", "libraryManagerPopup", "recipeBuilderPopup"].some((name) => el(name)?.classList.contains("open"))) {
+      powerTools?.closeAllPowerPopups?.();
+    }
     else if (node._ppLoraSidecar?.isOpen()) { node._ppLoraSidecar.close({ restoreFocus: true }); }
     else if (node._ppStyleSelector?.isOpen()) { node._ppStyleSelector.close({ restoreFocus: true }); }
+    else if (root.querySelector('[data-drawer="edit"]')?.classList.contains("open")) { powerTools?.closeEditDrawer?.(); }
     else if (pickerDrawer.classList.contains("open")) { closePickerDrawer(); root.querySelector('[data-act="picker"]')?.focus({ preventScroll: true }); }
+    else if (el("resolvedView")?.classList.contains("on")) { powerTools?.showEditor?.(); }
     else return;
     event.preventDefault(); event.stopPropagation();
   };
@@ -612,18 +640,16 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     node,
     targets: [root, settingsPopup],
     onApplied(snapshot, { initial }) {
+      const hidingIo = !initial && theme.showIoBtn !== false && snapshot.theme.showIoBtn === false;
       Object.assign(theme, snapshot.theme);
-      applyToolbarVisibility(root, theme);
-      el("toggleLorasBtn").checked = theme.showLorasBtn !== false;
-      el("toggleImportImageBtn").checked = theme.showImportImageBtn !== false;
+      if (hidingIo) root.dispatchEvent(new Event("pp-io-rail-hide"));
+      applyToolbarVisibility(root, theme, settingsPopup);
       const fieldPreferences = normalizeFieldEditorPreferences(theme);
       settingsPopup.querySelectorAll("[data-field-preference]").forEach(control => {
         const value = fieldPreferences[control.dataset.fieldPreference];
         if (control.type === "checkbox") control.checked = value;
         else control.value = String(value);
       });
-      if (el("toggleRecipesBtn")) el("toggleRecipesBtn").checked = theme.showRecipesBtn !== false;
-      if (el("toggleSlotsBtn")) el("toggleSlotsBtn").checked = theme.showSlotsBtn !== false;
       syncControlsFromWidgets();
       node._ppRecipeWorkspace?.refreshChrome?.();
       if (!initial) render();
@@ -639,6 +665,17 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   });
   el("toggleSlotsBtn")?.addEventListener("change", event => {
     saveTheme({ ...loadTheme(), showSlotsBtn: event.target.checked, layoutPreset: "custom" });
+  });
+  el("toggleRefineBtn")?.addEventListener("change", event => {
+    saveTheme({ ...loadTheme(), showRefineBtn: event.target.checked, layoutPreset: "custom" });
+  });
+  el("toggleIoBtn")?.addEventListener("change", event => {
+    if (!event.target.checked) root.dispatchEvent(new Event("pp-io-rail-hide"));
+    saveTheme({ ...loadTheme(), showIoBtn: event.target.checked, layoutPreset: "custom" });
+  });
+  action("openPortsFromSettings")?.addEventListener("click", () => {
+    closeSettings({ restoreFocus: false, reason: "io-rail" });
+    node._wgOpenIoRail?.({ focusSearch: true });
   });
   settingsPopup.querySelectorAll("[data-field-preference]").forEach(control => {
     control.addEventListener("change", () => {
@@ -691,8 +728,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const maxPromptsRaw = maxPromptsWidget ? Math.floor(Number(maxPromptsWidget.value)) || 0 : 0;
     const cap = maxPromptsRaw > 0 ? maxPromptsRaw : DEFAULT_MAX_PROMPTS;
     const seed = seedWidget ? seedWidget.value : 0;
+    const workspaceRuntime = node.widgets?.find(w => w.name === "workspace_runtime")?.serializeValue?.() || "";
     try {
-      const { count, truncated } = await API.countCombinatorial(textarea.value, seed, maxPromptsRaw);
+      const { count, truncated } = await API.countCombinatorial(textarea.value, seed, maxPromptsRaw, { workspaceRuntime });
       if (mySeq !== estimateSeq) return;
       renderEstimate(count, truncated, cap);
     } catch (e) {
@@ -769,6 +807,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   let lastPreviewBranchSource = "";
   let findReplaceController = null;
   let promptSlotsController = null;
+  let preflightBadge = null;
+  let smartPasteController = null;
+  let emptyQuickStart = null;
 
   function activeBranchSelections(sourceText = textarea.value) {
     const meta = lastExecutionMetadata;
@@ -786,6 +827,11 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   }
 
   function highlightText(text) {
+    const findDecs = findReplaceController?.getDecorations?.() || [];
+    const chunkDecs = theme.chunkBoundaryIndicator === true
+      ? estimateChunkBoundaryOffsets(text)
+      : [];
+    const combinedExtra = findDecs.length || chunkDecs.length ? [...findDecs, ...chunkDecs] : null;
     return renderPromptSyntax(syntaxCache.parse(text), {
       isKnown,
       categoryOf,
@@ -793,16 +839,16 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       colorForToken,
       tagPainter: createTagPainter(theme),
       branchSelections: activeBranchSelections(text),
-      extraDecorations: findReplaceController?.getDecorations?.() || null,
+      extraDecorations: combinedExtra,
     });
   }
 
-  function syncHiddenWidget() {
-    const changed = promptState.current() !== textarea.value;
-    if (changed || promptState.isEstablished()) {
-      promptState.commit(textarea.value);
+  function syncHiddenWidget(sourceText = textarea.value, { deferNotify = false, dispatchSync = true } = {}) {
+    const changed = promptState.current() !== sourceText;
+    if (changed || !promptState.isEstablished()) {
+      promptState.commit(sourceText, deferNotify ? { deferNotify: true } : undefined);
     }
-    if (changed) {
+    if (changed && dispatchSync) {
       textarea.dispatchEvent(new CustomEvent("pp-workspace-sync"));
     }
   }
@@ -868,12 +914,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     statusBar.refresh();
   }
 
-  function render({ recordHistory = true } = {}) {
+  function render({ recordHistory = true, deferNotify = false, dispatchSync = true } = {}) {
     recipeWorkspace?.reconcile(); recipeWorkspace?.contextChanged();
     refinementController?.sourceChanged();
     findReplaceController?.refreshSource?.();
+    emptyQuickStart?.sync?.();
+    preflightBadge?.schedule?.();
     renderVisuals();
-    syncHiddenWidget();
+    syncHiddenWidget(textarea.value, { deferNotify, dispatchSync });
     if (recordHistory) refinementUndo?.note(historyValue());
     powerTools?.refresh();
     updateEstimate();
@@ -907,17 +955,23 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     getLibrary: () => libraryCache, refreshLibrary,
     atomicEdit,
   });
-  const noteRefinementInput = () => refinementUndo.note(historyValue());
+  const noteRefinementInput = event => {
+    if (event?.isComposing) render();
+    refinementUndo.note(historyValue());
+  };
   const undoRefinementKey = event => {
     const action = historyShortcut(event);
     if (!action) return;
     event.preventDefault(); event.stopImmediatePropagation();
     if (action === "redo") performRedo(); else performUndo();
   };
+  const handleEditorFlush = () => promptState.flush?.();
   textarea.addEventListener("input", noteRefinementInput);
+  textarea.addEventListener("blur", handleEditorFlush);
+  textarea.addEventListener("change", handleEditorFlush);
   textarea.addEventListener("keydown", undoRefinementKey, true);
   const holdRefinementComposition = () => refinementUndo.hold();
-  const releaseRefinementComposition = () => { refinementUndo.release(); noteRefinementInput(); refinementUndo.flush(); };
+  const releaseRefinementComposition = () => { refinementUndo.release(); render({ deferNotify: true, dispatchSync: false }); noteRefinementInput(); refinementUndo.flush(); };
   textarea.addEventListener("compositionstart", holdRefinementComposition);
   textarea.addEventListener("compositionend", releaseRefinementComposition);
   const usageStore = createPromptUsageStore();
@@ -926,14 +980,15 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     const recentEntries = usageStore.recentEntries(16);
     const recentRows = recentAcRows(q, {
       entries: contextKind === "booru" ? recentEntries : recentEntries.filter((entry) => entry?.kind === "library"),
-      pinned, theme, limit: 12,
+      pinned, theme, contextKind, isLibraryPath: (path) => knownSet.has(path), limit: 12,
     });
     const recentLibraryPaths = new Set(recentRows.filter((item) => item.kind !== "booru" && item.kind !== "custom").map((item) => item.value));
+    const recents = recentEntries.filter((entry) => entry?.kind === "library").map((entry) => entry.value);
     const libraryRows = libraryAcRows(q, {
-      rankedPaths: rankLibraryPaths(libraryCache, q, 32), pinned, recents: [],
+      rankedPaths: rankLibraryPaths(libraryCache, q, 32), pinned, recents,
       excludePaths: recentLibraryPaths, theme,
       limit: contextKind === "booru" ? 24 : 28,
-    });
+    }).filter((item) => item?.kind !== "starter");
     if (contextKind !== "booru") return [...recentRows, ...libraryRows];
     const tagRows = await getBooruAutocompleteMatches(query);
     return mergeUnifiedRows(tagRows, [...recentRows, ...libraryRows]);
@@ -943,12 +998,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     onCommit: (item) => {
       if (item?.kind === "booru" || item?.kind === "custom") {
         try { usageStore.recordTag(item.value, item.kind, item.category); } catch { /* recents are a convenience */ }
-      } else if (item && item.kind !== "syntax" && item.kind !== "lora" && item.value) {
+      } else if (item && item.kind !== "syntax" && item.kind !== "lora" && item.kind !== "starter" && item.value) {
         try { usageStore.recordLibrary(item.value); } catch { /* recents are a convenience */ }
+        renderPickerList(searchInput.value);
       }
       render();
     },
-    onInput: () => render(),
+    onRecentsChanged: () => renderPickerList(searchInput.value),
+    onInput: () => render({ deferNotify: true, dispatchSync: false }),
     syntax: true,
     node,
   });
@@ -1028,7 +1085,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     onPreviewResolved: ({ source, branchSelections }) => {
       lastPreviewBranchSelections = Array.isArray(branchSelections) ? branchSelections : [];
       lastPreviewBranchSource = source;
-      if (lastPreviewBranchSelections.length) render();
+      if (lastPreviewBranchSelections.length) renderVisuals();
     },
   });
   node._wgAcceptPromptMetadata = (metadata) => {
@@ -1051,6 +1108,11 @@ function buildCombinatorialWidget(node, hiddenWidget) {
   const syncHighlightScroll = () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; };
   textarea.addEventListener("scroll", syncHighlightScroll);
 
+  el("tokenCount")?.addEventListener("click", () => {
+    if (!el("tokenCount")?.textContent?.trim()) return;
+    openPromptTools(recipeWorkspace?.editingSurface?.() || textarea, { tab: "inspect" });
+  });
+
   findReplaceController = attachEditorFindReplace({
     root,
     textarea,
@@ -1061,6 +1123,113 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     },
   });
   node._ppFindReplace = findReplaceController;
+
+  preflightBadge = installPromptPreflightBadge({
+    root,
+    textarea,
+    getNegative: () => node._ppNegativePromptState?.current?.() || "",
+    applyEdit: atomicEdit,
+    onInspect: () => openPromptTools(recipeWorkspace?.editingSurface?.() || textarea, { tab: "inspect" }),
+    onPreflightResult: () => {
+      statusBar.refresh();
+      powerTools?.updateDoctorStatus?.();
+    },
+  });
+  node._ppPreflightBadge = preflightBadge;
+
+  smartPasteController = attachSmartPaste({
+    root,
+    textarea,
+    getNegative: () => node._ppNegativePromptState?.current?.() || "",
+    canSplitIntoFields: () => Boolean(recipeWorkspace),
+    applyStructuredPaste: ({ positive, negative, hasNegative, seed }) => {
+      refinementUndo.note(historyValue());
+      refinementUndo.flush();
+      preparedState?.commit("");
+      const saved = recipeWorkspace?.snapshot();
+      if (saved) {
+        saved.recipe = editCompiledPrompt(saved.recipe, positive);
+        if (hasNegative && negative != null) saved.recipe = editCompiledPrompt(saved.recipe, negative, { channel: "negative" });
+        recipeWorkspace.restore(saved);
+      } else {
+        textarea.value = positive;
+        if (hasNegative && negative != null) node._ppNegativePromptState?.commit(negative);
+        render();
+      }
+      if (seed != null && seedWidget) {
+        seedWidget.value = seed;
+        seedWidget.callback?.(seed, node.graph?.canvas, node);
+        syncControlsFromWidgets();
+      }
+      textarea.setSelectionRange(positive.length, positive.length);
+      refinementUndo.note(historyValue());
+      refinementUndo.flush();
+    },
+    applyFieldsPaste: ({ recipe, seed }) => {
+      if (!getPowerToolPreferences().adjustableRecipes) {
+        setPowerToolPreference("adjustableRecipes", true);
+        powerTools?.applyPowerToolSettings?.();
+      }
+      refinementUndo.note(historyValue());
+      refinementUndo.flush();
+      preparedState?.commit("");
+      if (recipe.negative) node._ppNegativePromptState?.commit(recipe.negative);
+      recipeWorkspace.open(recipe, "Smart Paste");
+      if (seed != null && seedWidget) {
+        seedWidget.value = seed;
+        seedWidget.callback?.(seed, node.graph?.canvas, node);
+        syncControlsFromWidgets();
+      }
+      refinementUndo.note(historyValue());
+      refinementUndo.flush();
+    },
+  });
+
+  const toggleComboFieldsMode = () => {
+    if (!getPowerToolPreferences().adjustableRecipes) {
+      setPowerToolPreference("adjustableRecipes", true);
+      powerTools?.applyPowerToolSettings?.();
+    }
+    if (recipeWorkspace?.isWorkspaceView?.()) {
+      recipeWorkspace.showEditor();
+      textarea.focus({ preventScroll: true });
+    } else {
+      recipeWorkspace?.openWorkspace?.();
+    }
+    emptyQuickStart?.sync?.();
+  };
+
+  const getComboCommandHost = () => ({
+    node,
+    root,
+    textarea,
+    getActiveEditor: () => recipeWorkspace?.editingSurface?.() || textarea,
+    openFind: (opts) => findReplaceController?.openFind?.(opts),
+    openLibrary: openPickerDrawer,
+    openEditEntry: () => powerTools?.openEditForItem?.(),
+    openSettings,
+    openDoctor: powerTools?.openDoctor,
+    openVariations: powerTools?.openVariations,
+    openLibraryManager: powerTools?.openLibraryManager,
+    toggleFieldsWorkspace: toggleComboFieldsMode,
+    isFieldsActive: () => Boolean(recipeWorkspace?.isWorkspaceView?.()),
+    isCombinatorial: true,
+  });
+
+  const cleanupCommandPaletteShortcut = attachCommandPaletteShortcut(root, getComboCommandHost);
+
+  emptyQuickStart = attachEmptyQuickStart({
+    root,
+    textarea,
+    isWorkspaceActive: () => Boolean(recipeWorkspace?.isWorkspaceView?.()),
+    isPreviewActive: () => Boolean(el("resolvedView")?.classList.contains("on")),
+    onStarter: openPickerDrawer,
+    onFields: toggleComboFieldsMode,
+    onLoras: () => openLoraSidecar(textarea),
+    onImport: () => (node._ppOpenImageImport ? node._ppOpenImageImport() : root.querySelector('[data-act="importImage"]')?.click()),
+    onCommandPalette: () => openCommandPalette(getComboCommandHost()),
+    onThemeSaved: (nextTheme) => Object.assign(theme, nextTheme),
+  });
 
   promptSlotsController = installPromptSlots({
     node,
@@ -1103,14 +1272,14 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       openInjectMenuAtPoint(event.clientX, event.clientY, "", textarea, render, selection.start === selection.end ? null : selection);
     },
   });
-  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); ioRail.close(); node?._ppStyleSelector?.close?.(); } });
+  const loraSidecar = installLoraSidecar({ root, node, editor: textarea, beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); powerTools?.closeEditDrawer?.(); ioRail.close(); node?._ppStyleSelector?.close?.(); } });
   const styleSelector = installStyleSelector({
     root,
     node,
     editor: textarea,
     getNegative: () => node._ppNegativePromptState?.current?.() || "",
     setNegative: (val) => node._ppNegativePromptState?.commit?.(val || ""),
-    beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); ioRail.close(); loraSidecar.close(); },
+    beforeOpen: () => { closeSettings(); closePickerDrawer(); powerTools?.closeAllPowerPopups(); powerTools?.closeEditDrawer?.(); ioRail.close(); loraSidecar.close(); },
   });
 
   let activeQuickFilter = "all";
@@ -2213,6 +2382,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
 
   syncControlsFromWidgets();
   render();
+  promptSlotsController?.syncActiveSlot?.();
   refreshLibrary().catch((error) => {
     console.error("Prompt Palette: initial combinatorial refresh failed", error);
   });
@@ -2231,7 +2401,9 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     openVariations: powerTools.openVariations,
     openLibraryManager: powerTools.openLibraryManager,
     togglePreview: () => el("btnResolve").click(),
-    toggleIo: () => root.querySelector('[data-act="ioRailToggle"]')?.click(),
+    toggleIo: () => (node._wgToggleIoRail ? node._wgToggleIoRail() : root.querySelector('[data-act="ioRailToggle"]')?.click()),
+    openCommandPalette: () => openCommandPalette(getComboCommandHost()),
+    tidyPrompt: () => openPromptHygieneModal(recipeWorkspace?.editingSurface?.() || textarea, { mode: "tidy" }),
   });
   root.addEventListener("pointerdown", commandTarget.activate, true);
   root.addEventListener("focusin", commandTarget.activate, true);
@@ -2259,7 +2431,7 @@ function buildCombinatorialWidget(node, hiddenWidget) {
     refreshFromHidden,
     refreshVisuals: () => {
       if (!frame.isConnected) return false;
-      render();
+      renderVisuals();
       return true;
     },
     reassertHiddenWidgets,
@@ -2270,6 +2442,11 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       libraryDisposed = true;
       findReplaceController?.cleanup();
       delete node._ppFindReplace;
+      preflightBadge?.cleanup();
+      delete node._ppPreflightBadge;
+      smartPasteController?.cleanup();
+      emptyQuickStart?.cleanup();
+      cleanupCommandPaletteShortcut();
       promptSlotsController?.cleanup();
       delete node._ppPromptSlots;
       commandTarget.cleanup();
@@ -2292,7 +2469,11 @@ function buildCombinatorialWidget(node, hiddenWidget) {
       refinementController.cleanup(); refinementUndo.cleanup();
       recipeWorkspace?.cleanup(); powerTools?.cleanup();
       if (node._ppRecipeWorkspace === recipeWorkspace) delete node._ppRecipeWorkspace;
-      textarea.removeEventListener("input", noteRefinementInput); textarea.removeEventListener("keydown", undoRefinementKey, true);
+      textarea.removeEventListener("input", noteRefinementInput); textarea.removeEventListener("blur", handleEditorFlush); textarea.removeEventListener("change", handleEditorFlush); textarea.removeEventListener("keydown", undoRefinementKey, true);
+      promptState.flush?.();
+      if (acState && acState.textarea === textarea) closeAcMenu();
+      if (injectState && injectState.textarea === textarea) closeInjectMenu();
+      if (ctxMenuOpen) closeCtxMenu();
       textarea.removeEventListener("compositionstart", holdRefinementComposition); textarea.removeEventListener("compositionend", releaseRefinementComposition);
       delete node._wgBeforeIoRailOpen;
       delete node._wgRefreshIoToggles;
@@ -2352,6 +2533,7 @@ app.registerExtension({
       console.error("Prompt Palette: Combinatorial UI could not find the V3 text widget.");
       return;
     }
+    Object.defineProperty(node, "__promptPaletteCombinatorialInitializing", { value: true, configurable: true });
 
     hideNativeWidget((Object.assign(hiddenWidget, { __ppOwnerNode: node })));
     installWorkspaceConfigureHook(node);
@@ -2359,7 +2541,6 @@ app.registerExtension({
     installPromptMetadataCapture(node);
     preparePromptBackingWidgets(node);
     node.resizable = true;
-    Object.defineProperty(node, "__promptPaletteCombinatorialInitializing", { value: true, configurable: true });
     let built = null;
     try {
       await Promise.all([editorStylesReady, combinatorialStylesReady]);

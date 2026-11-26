@@ -1,0 +1,785 @@
+/* LabelPal — Standalone ComfyUI Label & Note Utility
+ * Self-contained stylesheet (no dependency on Prompt Palette editor CSS).
+ * Compatible with Classic LiteGraph canvas and Nodes 2.0 Vue DOM widgets.
+ */
+
+.lp-hidden-native-widget {
+  display: none !important;
+}
+
+/* Nodes 2.0 Vue widget size containment so user resizing is never fought */
+[data-testid="node-widget"] .lp-surface {
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  contain: size;
+  contain-intrinsic-size: 0 0;
+}
+
+.lp-surface {
+  --lp-font: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --lp-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --lp-radius: 10px;
+  --lp-bg: #191613;
+  --lp-bg-elev: #231e19;
+  --lp-border: rgba(223, 163, 82, 0.34);
+  --lp-border-soft: rgba(255, 255, 255, 0.09);
+  --lp-accent: #dfa352;
+  --lp-accent-soft: rgba(223, 163, 82, 0.16);
+  --lp-accent-glow: rgba(223, 163, 82, 0.24);
+  --lp-accent-ink: #1a1308;
+  --lp-text: #f4f6f9;
+  --lp-text-dim: #c9d0da;
+  --lp-text-muted: #9aa4b2;
+  --lp-code-bg: rgba(255, 255, 255, 0.08);
+  --lp-title-size: 16px;
+  --lp-note-size: 12.5px;
+  --lp-kicker-size: 10px;
+
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--lp-font);
+  color: var(--lp-text);
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--lp-accent-soft) 0%, transparent 68%),
+    linear-gradient(180deg, var(--lp-bg-elev) 0%, var(--lp-bg) 100%);
+  border: 1px solid var(--lp-border);
+  border-radius: var(--lp-radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 18px rgba(0, 0, 0, 0.26);
+  overflow: hidden;
+  user-select: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.lp-surface *,
+.lp-surface *::before,
+.lp-surface *::after {
+  box-sizing: border-box;
+}
+
+.lp-surface:hover,
+.lp-surface:focus-within {
+  border-color: var(--lp-accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 0 0 1px var(--lp-accent-soft),
+    0 8px 22px rgba(0, 0, 0, 0.32);
+}
+
+.lp-surface:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: -2px;
+}
+
+/* Coordinated Soda Shop / Studio Color Presets */
+.lp-surface[data-tone="amber"] {
+  --lp-bg: #191613;
+  --lp-bg-elev: #231e18;
+  --lp-accent: #dfa352;
+  --lp-border: rgba(223, 163, 82, 0.36);
+  --lp-accent-soft: rgba(223, 163, 82, 0.16);
+  --lp-accent-glow: rgba(223, 163, 82, 0.26);
+  --lp-accent-ink: #1b1307;
+}
+
+.lp-surface[data-tone="cherry"] {
+  --lp-bg: #1c1416;
+  --lp-bg-elev: #271a1d;
+  --lp-accent: #ef6b67;
+  --lp-border: rgba(239, 107, 103, 0.38);
+  --lp-accent-soft: rgba(239, 107, 103, 0.16);
+  --lp-accent-glow: rgba(239, 107, 103, 0.26);
+  --lp-accent-ink: #1f0b0b;
+}
+
+.lp-surface[data-tone="tangerine"] {
+  --lp-bg: #1c1613;
+  --lp-bg-elev: #271e18;
+  --lp-accent: #f28f46;
+  --lp-border: rgba(242, 143, 70, 0.38);
+  --lp-accent-soft: rgba(242, 143, 70, 0.16);
+  --lp-accent-glow: rgba(242, 143, 70, 0.26);
+  --lp-accent-ink: #1e1005;
+}
+
+.lp-surface[data-tone="lime"] {
+  --lp-bg: #131b17;
+  --lp-bg-elev: #192520;
+  --lp-accent: #62c896;
+  --lp-border: rgba(98, 200, 150, 0.36);
+  --lp-accent-soft: rgba(98, 200, 150, 0.15);
+  --lp-accent-glow: rgba(98, 200, 150, 0.24);
+  --lp-accent-ink: #081b12;
+}
+
+.lp-surface[data-tone="cyan"] {
+  --lp-bg: #131a1f;
+  --lp-bg-elev: #19242b;
+  --lp-accent: #55cae0;
+  --lp-border: rgba(85, 202, 224, 0.36);
+  --lp-accent-soft: rgba(85, 202, 224, 0.15);
+  --lp-accent-glow: rgba(85, 202, 224, 0.24);
+  --lp-accent-ink: #07191e;
+}
+
+.lp-surface[data-tone="plum"] {
+  --lp-bg: #171520;
+  --lp-bg-elev: #211d2e;
+  --lp-accent: #b194f2;
+  --lp-border: rgba(177, 148, 242, 0.38);
+  --lp-accent-soft: rgba(177, 148, 242, 0.16);
+  --lp-accent-glow: rgba(177, 148, 242, 0.25);
+  --lp-accent-ink: #140d24;
+}
+
+.lp-surface[data-tone="cream"] {
+  --lp-bg: #1b1916;
+  --lp-bg-elev: #25221c;
+  --lp-accent: #dec9a4;
+  --lp-border: rgba(222, 201, 164, 0.36);
+  --lp-accent-soft: rgba(222, 201, 164, 0.15);
+  --lp-accent-glow: rgba(222, 201, 164, 0.22);
+  --lp-accent-ink: #1c170f;
+}
+
+.lp-surface[data-tone="slate"] {
+  --lp-bg: #15181d;
+  --lp-bg-elev: #1d2229;
+  --lp-accent: #9ab0c7;
+  --lp-border: rgba(154, 176, 199, 0.34);
+  --lp-accent-soft: rgba(154, 176, 199, 0.14);
+  --lp-accent-glow: rgba(154, 176, 199, 0.22);
+  --lp-accent-ink: #0e141b;
+}
+
+/* Typography Sizes */
+.lp-surface[data-size="sm"] {
+  --lp-title-size: 14px;
+  --lp-note-size: 11.5px;
+  --lp-kicker-size: 9.5px;
+}
+
+.lp-surface[data-size="md"] {
+  --lp-title-size: 16.5px;
+  --lp-note-size: 12.5px;
+  --lp-kicker-size: 10px;
+}
+
+.lp-surface[data-size="lg"] {
+  --lp-title-size: 21px;
+  --lp-note-size: 13.5px;
+  --lp-kicker-size: 10.5px;
+}
+
+.lp-surface[data-size="xl"] {
+  --lp-title-size: 28px;
+  --lp-note-size: 15px;
+  --lp-kicker-size: 11.5px;
+}
+
+/* Style Variants */
+/* 1. Card (default): glowing left accent bar + structured body */
+.lp-surface[data-variant="card"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--lp-accent);
+  box-shadow: 0 0 12px var(--lp-accent-glow);
+  pointer-events: none;
+}
+
+/* 2. Banner: bold stage/workflow landmark header */
+.lp-surface[data-variant="banner"] {
+  background:
+    linear-gradient(90deg, var(--lp-accent-soft) 0%, transparent 65%),
+    linear-gradient(180deg, var(--lp-bg-elev) 0%, var(--lp-bg) 100%);
+  border-width: 1px;
+}
+
+.lp-surface[data-variant="banner"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--lp-accent);
+  box-shadow: 0 0 14px var(--lp-accent-glow);
+  pointer-events: none;
+}
+
+.lp-surface[data-variant="banner"] .lp-view {
+  justify-content: center;
+  padding: 12px 40px 12px 18px;
+}
+
+.lp-surface[data-variant="banner"] .lp-note {
+  margin-top: 4px;
+}
+
+/* 3. Sticky: warm top-ribbon note */
+.lp-surface[data-variant="sticky"] {
+  background:
+    linear-gradient(180deg, var(--lp-accent-soft) 0%, transparent 44px),
+    linear-gradient(180deg, var(--lp-bg-elev) 0%, var(--lp-bg) 100%);
+}
+
+.lp-surface[data-variant="sticky"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--lp-accent);
+  pointer-events: none;
+}
+
+/* 4. Minimal: quiet editorial typography */
+.lp-surface[data-variant="minimal"] {
+  background: rgba(18, 20, 24, 0.92);
+  border-color: var(--lp-border-soft);
+  box-shadow: none;
+}
+
+.lp-surface[data-variant="minimal"]:hover,
+.lp-surface[data-variant="minimal"]:focus-within {
+  border-color: var(--lp-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+/* 5. Text: frameless floating typography (no node box) */
+.lp-surface[data-variant="text"][data-editing="false"] {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.lp-surface[data-variant="text"][data-editing="false"]:hover,
+.lp-surface[data-variant="text"][data-editing="false"]:focus-within {
+  background: rgba(15, 17, 21, 0.22);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+
+.lp-surface[data-variant="text"] .lp-view {
+  padding: 6px 36px 6px 8px;
+}
+
+.lp-surface[data-variant="text"] .lp-title {
+  color: var(--lp-accent);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.58), 0 1px 2px rgba(0, 0, 0, 0.72);
+}
+
+.lp-surface[data-variant="text"][data-empty-title="true"] .lp-title {
+  color: var(--lp-text-muted);
+}
+
+.lp-surface[data-variant="text"] .lp-kicker,
+.lp-surface[data-variant="text"] .lp-note {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.65);
+}
+
+.lp-surface[data-variant="text"] .lp-kicker {
+  color: var(--lp-text-dim);
+}
+
+.lp-surface[data-variant="text"] .lp-note {
+  color: var(--lp-text);
+}
+
+/* Nodes 2.0 outer node box suppression when LabelPal is in Text mode */
+.lg-node.lp-vue-frameless,
+.lg-node:has(.lp-surface[data-variant="text"][data-editing="false"]) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.lg-node.lp-vue-frameless:hover,
+.lg-node:has(.lp-surface[data-variant="text"][data-editing="false"]):hover,
+.lg-node.lp-vue-frameless.selected,
+.lg-node:has(.lp-surface[data-variant="text"][data-editing="false"]).selected,
+.lg-node.lp-vue-frameless[data-selected="true"],
+.lg-node:has(.lp-surface[data-variant="text"][data-editing="false"])[data-selected="true"] {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.lg-node.lp-vue-frameless .lg-node-header,
+.lg-node:has(.lp-surface[data-variant="text"][data-editing="false"]) .lg-node-header {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.lg-node.lp-vue-frameless:hover .lg-node-header,
+.lg-node:has(.lp-surface[data-variant="text"][data-editing="false"]):hover .lg-node-header,
+.lg-node.lp-vue-frameless.selected .lg-node-header,
+.lg-node:has(.lp-surface[data-variant="text"][data-editing="false"]).selected .lg-node-header {
+  opacity: 0.85;
+}
+
+/* View Mode Layout */
+.lp-view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 13px 38px 13px 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.lp-surface[data-editing="true"] .lp-view {
+  display: none;
+}
+
+.lp-header-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lp-kicker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lp-kicker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lp-accent);
+  box-shadow: 0 0 8px var(--lp-accent-glow);
+  flex: 0 0 auto;
+}
+
+.lp-kicker {
+  font-size: var(--lp-kicker-size);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--lp-accent);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-title {
+  margin: 0;
+  font-size: var(--lp-title-size);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.26;
+  color: var(--lp-text);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.lp-surface[data-empty-title="true"] .lp-title {
+  color: var(--lp-text-muted);
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* Rich Supporting Note Blocks */
+.lp-note {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--lp-note-size);
+  line-height: 1.48;
+  color: var(--lp-text-dim);
+  user-select: text;
+}
+
+.lp-note[hidden] {
+  display: none;
+}
+
+.lp-note-para {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.lp-note-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lp-note-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lp-note-bullet {
+  width: 5px;
+  height: 5px;
+  margin-top: 0.56em;
+  border-radius: 999px;
+  background: var(--lp-accent);
+  flex: 0 0 auto;
+}
+
+.lp-note-step {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: var(--lp-accent-soft);
+  border: 1px solid var(--lp-border);
+  color: var(--lp-accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.lp-note-item-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lp-note strong {
+  color: var(--lp-text);
+  font-weight: 650;
+}
+
+.lp-code {
+  display: inline;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--lp-mono);
+  font-size: 0.91em;
+  color: var(--lp-text);
+  background: var(--lp-code-bg);
+  border: 1px solid var(--lp-border-soft);
+  overflow-wrap: anywhere;
+}
+
+/* Floating Quick-Edit Trigger */
+.lp-edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--lp-border-soft);
+  background: rgba(15, 17, 21, 0.72);
+  color: var(--lp-text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-1px);
+  transition: opacity 140ms ease, transform 140ms ease, color 140ms ease, border-color 140ms ease, background-color 140ms ease;
+  z-index: 2;
+}
+
+.lp-surface:hover .lp-edit-btn,
+.lp-surface:focus-within .lp-edit-btn,
+.lp-edit-btn:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lp-surface[data-editing="true"] .lp-edit-btn {
+  display: none;
+}
+
+.lp-edit-btn:hover {
+  color: var(--lp-text);
+  border-color: var(--lp-accent);
+  background: var(--lp-accent-soft);
+}
+
+.lp-edit-btn:active {
+  transform: scale(0.96);
+}
+
+.lp-edit-btn:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 1px;
+}
+
+/* Inline Editor Mode */
+.lp-editor {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.lp-surface[data-editing="true"] .lp-editor {
+  display: flex;
+}
+
+.lp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.lp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-swatch {
+  --lp-swatch-fill: #dfa352;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: var(--lp-swatch-fill);
+  color: #141210;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.lp-swatch[data-swatch="amber"] { --lp-swatch-fill: #dfa352; }
+.lp-swatch[data-swatch="cherry"] { --lp-swatch-fill: #ef6b67; }
+.lp-swatch[data-swatch="tangerine"] { --lp-swatch-fill: #f28f46; }
+.lp-swatch[data-swatch="lime"] { --lp-swatch-fill: #62c896; }
+.lp-swatch[data-swatch="cyan"] { --lp-swatch-fill: #55cae0; }
+.lp-swatch[data-swatch="plum"] { --lp-swatch-fill: #b194f2; }
+.lp-swatch[data-swatch="cream"] { --lp-swatch-fill: #dec9a4; }
+.lp-swatch[data-swatch="slate"] { --lp-swatch-fill: #9ab0c7; }
+
+.lp-swatch svg {
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.lp-swatch[aria-checked="true"] {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 0 10px var(--lp-accent-glow);
+  transform: scale(1.06);
+}
+
+.lp-swatch[aria-checked="true"] svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.lp-swatch:hover {
+  transform: scale(1.08);
+  border-color: #ffffff;
+}
+
+.lp-swatch:active {
+  transform: scale(0.96);
+}
+
+.lp-swatch:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.lp-done-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--lp-accent);
+  background: var(--lp-accent);
+  color: var(--lp-accent-ink);
+  font-family: var(--lp-font);
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.lp-done-btn:hover {
+  filter: brightness(1.08);
+}
+
+.lp-done-btn:active {
+  transform: scale(0.97);
+}
+
+.lp-done-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.lp-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lp-seg-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--lp-border-soft);
+}
+
+.lp-seg-btn {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--lp-text-muted);
+  font-family: var(--lp-font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.lp-seg-btn:hover {
+  color: var(--lp-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lp-seg-btn[aria-pressed="true"] {
+  color: var(--lp-text);
+  background: var(--lp-accent-soft);
+  border-color: var(--lp-border);
+}
+
+.lp-seg-btn:active {
+  transform: scale(0.97);
+}
+
+.lp-seg-btn:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 1px;
+}
+
+.lp-input,
+.lp-textarea {
+  width: 100%;
+  border-radius: 7px;
+  border: 1px solid var(--lp-border-soft);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--lp-text);
+  font-family: var(--lp-font);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.lp-input {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.lp-textarea {
+  flex: 1 1 68px;
+  min-height: 58px;
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.45;
+  resize: none;
+}
+
+.lp-input::placeholder,
+.lp-textarea::placeholder {
+  color: var(--lp-text-muted);
+  font-weight: 400;
+}
+
+.lp-input:hover,
+.lp-textarea:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.lp-input:focus-visible,
+.lp-textarea:focus-visible {
+  outline: none;
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 2px var(--lp-accent-soft);
+}
+
+.lp-hint {
+  font-size: 10.5px;
+  color: var(--lp-text-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrow container responsiveness down to <280px */
+@media (prefers-reduced-motion: reduce) {
+  .lp-surface,
+  .lp-edit-btn,
+  .lp-swatch,
+  .lp-swatch svg,
+  .lp-done-btn,
+  .lp-seg-btn,
+  .lp-input,
+  .lp-textarea {
+    transition: none !important;
+  }
+}
+
+.wg-reduce-motion .lp-surface,
+.wg-reduce-motion .lp-edit-btn,
+.wg-reduce-motion .lp-swatch,
+.wg-reduce-motion .lp-swatch svg,
+.wg-reduce-motion .lp-done-btn,
+.wg-reduce-motion .lp-seg-btn,
+.wg-reduce-motion .lp-input,
+.wg-reduce-motion .lp-textarea {
+  transition: none !important;
+}

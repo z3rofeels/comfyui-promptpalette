@@ -473,8 +473,10 @@
 .wg-credit-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
 
 .wg-node.wg-zen .wg-toolbar-group.left,
+.wg-node.wg-zen .wg-toolbar-center,
 .wg-node.wg-zen .wg-pill-resolve,
 .wg-node.wg-zen .wg-toolbar-extra,
+.wg-node.wg-zen [data-el="btnIoRail"],
 .wg-node.wg-zen [data-el="btnSeedPanel"],
 .wg-node.wg-zen [data-el="dayNightBtn"],
 .wg-node.wg-zen [data-el="btnRefresh"],
@@ -484,7 +486,7 @@
 .wg-node.wg-zen [data-el="btnClear"],
 .wg-node.wg-zen .wg-legend,
 .wg-node.wg-zen .wg-footer { display: none !important; }
-.wg-node.wg-zen [data-el="zenBtn"],
+.wg-node.wg-zen [data-el="zenBtn"]:not([data-toolbar-hidden]):not([hidden]),
 .wg-node.wg-zen [data-el="settingsBtn"] { display: flex !important; }
 .wg-node.wg-zen .wg-body { padding: 5px; }
 .wg-node.wg-zen .wg-editor-wrap { border-color: transparent; border-radius: 6px; }

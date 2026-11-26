@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600" viewBox="0 0 1600 600" role="img" aria-labelledby="title desc">
+  <title id="title">Prompt Palette 2.1.1 — Function and Use Info Cards</title>
+  <desc id="desc">Six info cards summarizing the function and practical use of new features in Prompt Palette 2.1.1: Command Palette, Smart Paste, Hygiene and Adapt for Model, Pre-Flight and Token Breakdown, Quick-Swap, and Resolution Selector plus LabelPal.</desc>
+  <defs>
+    <linearGradient id="back" x2="1" y2="1">
+      <stop stop-color="#202321"/>
+      <stop offset=".65" stop-color="#141719"/>
+      <stop offset="1" stop-color="#181c21"/>
+    </linearGradient>
+  </defs>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <rect x="0" y="0" width="1600" height="600" rx="20" fill="url(#back)"/>
+
+    <!-- Header -->
+    <text x="64" y="54" font-size="21" font-weight="600" fill="#58d8ed" font-family="Source Code Pro, monospace">PROMPT PALETTE 2.1.1 / FUNCTION &amp; USE AT A GLANCE</text>
+    <text x="64" y="108" font-size="44" font-weight="700" fill="#f4f0e8" letter-spacing="-1">Faster prompting, 1-click hygiene, and standalone graph tools.</text>
+
+    <!-- Row 1, Card 1: Command Palette -->
+    <rect x="64" y="142" width="468" height="196" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="64" y="142" width="468" height="5" rx="2.5" fill="#dda253"/>
+    <text x="88" y="184" font-size="24" font-weight="700" fill="#f4f0e8">Command Palette</text>
+    <rect x="378" y="162" width="132" height="28" rx="6" fill="#2a2822" stroke="#dda253" stroke-width="1"/>
+    <text x="444" y="181" font-size="14" font-weight="600" fill="#dda253" text-anchor="middle" font-family="Source Code Pro, monospace">Ctrl/Cmd+K</text>
+    <text x="88" y="222" font-size="14" font-weight="700" fill="#dda253" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="88" y="246" font-size="19" fill="#b9b9b1">Fuzzy-search toolbar actions, A–D slots,</text>
+    <text x="88" y="270" font-size="19" fill="#b9b9b1">sidebar tabs, and Starter Packs.</text>
+    <text x="88" y="310" font-size="14" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="132" y="310" font-size="18" fill="#f4f0e8">Jump to any tool without hunting menus.</text>
+
+    <!-- Row 1, Card 2: Smart Paste -->
+    <rect x="566" y="142" width="468" height="196" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="566" y="142" width="468" height="5" rx="2.5" fill="#58d8ed"/>
+    <text x="590" y="184" font-size="24" font-weight="700" fill="#f4f0e8">Smart Paste</text>
+    <rect x="870" y="162" width="142" height="28" rx="6" fill="#1c2a2e" stroke="#58d8ed" stroke-width="1"/>
+    <text x="941" y="181" font-size="14" font-weight="600" fill="#58d8ed" text-anchor="middle" font-family="Source Code Pro, monospace">Civitai / A1111</text>
+    <text x="590" y="222" font-size="14" font-weight="700" fill="#58d8ed" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="590" y="246" font-size="19" fill="#b9b9b1">Splits Pos/Neg blocks, strips Steps:,</text>
+    <text x="590" y="270" font-size="19" fill="#b9b9b1">docks LoRAs, and optionally applies seed.</text>
+    <text x="590" y="310" font-size="14" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="634" y="310" font-size="18" fill="#f4f0e8">Paste shared prompts straight into Fields.</text>
+
+    <!-- Row 1, Card 3: Hygiene & Adapt -->
+    <rect x="1068" y="142" width="468" height="196" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="1068" y="142" width="468" height="5" rx="2.5" fill="#40c8b7"/>
+    <text x="1092" y="184" font-size="24" font-weight="700" fill="#f4f0e8">Hygiene &amp; Adapt</text>
+    <rect x="1398" y="162" width="116" height="28" rx="6" fill="#1c2a27" stroke="#40c8b7" stroke-width="1"/>
+    <text x="1456" y="181" font-size="14" font-weight="600" fill="#40c8b7" text-anchor="middle" font-family="Source Code Pro, monospace">Diff + Undo</text>
+    <text x="1092" y="222" font-size="14" font-weight="700" fill="#40c8b7" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="1092" y="246" font-size="19" fill="#b9b9b1">Deduplicates clauses and translates syntax</text>
+    <text x="1092" y="270" font-size="19" fill="#b9b9b1">for FLUX, Krea 2, Qwen, SDXL, Booru, Anima.</text>
+    <text x="1092" y="310" font-size="14" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="1136" y="310" font-size="18" fill="#f4f0e8">Clean &amp; convert prompts in 1 click.</text>
+
+    <!-- Row 2, Card 4: Pre-Flight & Token Bar -->
+    <rect x="64" y="366" width="468" height="196" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="64" y="366" width="468" height="5" rx="2.5" fill="#ff817c"/>
+    <text x="88" y="408" font-size="24" font-weight="700" fill="#f4f0e8">Pre-Flight &amp; Tokens</text>
+    <rect x="394" y="386" width="116" height="28" rx="6" fill="#2d2020" stroke="#ff817c" stroke-width="1"/>
+    <text x="452" y="405" font-size="14" font-weight="600" fill="#ff817c" text-anchor="middle" font-family="Source Code Pro, monospace">75t Chunks</text>
+    <text x="88" y="446" font-size="14" font-weight="700" fill="#ff817c" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="88" y="470" font-size="19" fill="#b9b9b1">Flags missing LoRAs/embeddings and shows</text>
+    <text x="88" y="494" font-size="19" fill="#b9b9b1">per-clause token share with ±0.05 steppers.</text>
+    <text x="88" y="534" font-size="14" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="132" y="534" font-size="18" fill="#f4f0e8">Catch broken assets before GPU runs.</text>
+
+    <!-- Row 2, Card 5: Quick-Swap -->
+    <rect x="566" y="366" width="468" height="196" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="566" y="366" width="468" height="5" rx="2.5" fill="#b3a0eb"/>
+    <text x="590" y="408" font-size="24" font-weight="700" fill="#f4f0e8">Inline Quick-Swap</text>
+    <rect x="892" y="386" width="120" height="28" rx="6" fill="#252130" stroke="#b3a0eb" stroke-width="1"/>
+    <text x="952" y="405" font-size="14" font-weight="600" fill="#b3a0eb" text-anchor="middle" font-family="Source Code Pro, monospace">Alt+Click</text>
+    <text x="590" y="446" font-size="14" font-weight="700" fill="#b3a0eb" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="590" y="470" font-size="19" fill="#b9b9b1">Peek options + thumbnails, reroll a slot,</text>
+    <text x="590" y="494" font-size="19" fill="#b9b9b1">or pin a choice on __wildcards__ &amp; {a|b}.</text>
+    <text x="590" y="534" font-size="14" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="634" y="534" font-size="18" fill="#f4f0e8">Fine-tune one slot without rerolling all.</text>
+
+    <!-- Row 2, Card 6: Resolution Selector & LabelPal -->
+    <rect x="1068" y="366" width="468" height="196" rx="14" fill="#1e2225" stroke="#3c4143" stroke-width="1.5"/>
+    <rect x="1068" y="366" width="468" height="5" rx="2.5" fill="#dda253"/>
+    <text x="1092" y="408" font-size="24" font-weight="700" fill="#f4f0e8">Reso &amp; LabelPal</text>
+    <rect x="1394" y="386" width="120" height="28" rx="6" fill="#2a2822" stroke="#dda253" stroke-width="1"/>
+    <text x="1454" y="405" font-size="14" font-weight="600" fill="#dda253" text-anchor="middle" font-family="Source Code Pro, monospace">Standalone</text>
+    <text x="1092" y="446" font-size="14" font-weight="700" fill="#dda253" font-family="Source Code Pro, monospace">FUNCTION</text>
+    <text x="1092" y="470" font-size="19" fill="#b9b9b1">Architecture-matched empty LATENTs and</text>
+    <text x="1092" y="494" font-size="19" fill="#b9b9b1">zero-cost stage banners &amp; setup cards.</text>
+    <text x="1092" y="534" font-size="14" font-weight="700" fill="#f4f0e8" font-family="Source Code Pro, monospace">USE</text>
+    <text x="1136" y="534" font-size="18" fill="#f4f0e8">Size latents &amp; organize any workflow.</text>
+  </g>
+</svg>

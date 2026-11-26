@@ -173,7 +173,7 @@ function managedWidgetSocketElements(nodeElement, node, inputDefs) {
 function hideWidgetRowControl(row, remember) {
   if (!row) return;
   for (const child of Array.from(row.children || [])) {
-    if (child.querySelector?.('.lg-slot--input')) continue;
+    if (child.matches?.('.lg-slot--input') || child.querySelector?.('.lg-slot--input')) continue;
     remember(child);
     child.hidden = true;
     child.setAttribute('aria-hidden', 'true');

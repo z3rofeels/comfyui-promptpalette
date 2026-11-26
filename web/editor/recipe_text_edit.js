@@ -1,5 +1,5 @@
 import { cloneWorkspaceData, compileWorkspace, validateWorkspaceRecipe } from "./recipe_workspace_model.js";
-import { LORA_DOCK_HEADER, LORA_DOCK_HEADER_RE, isLoraDockSegment, standaloneLoraTags, stripStandaloneLoraTags } from "../engine/lora_tags.js";
+import { LORA_DOCK_HEADER_RE, isLoraDockSegment, standaloneLoraTags, stripStandaloneLoraTags } from "../engine/lora_tags.js";
 
 // Apply text edits to one compiled channel without losing field identities,
 // the other channel, disabled fields, defaults or iteration history.
@@ -11,8 +11,7 @@ export function editCompiledPrompt(recipe, after, { channel = "positive" } = {})
   if (channel === "positive" && (LORA_DOCK_HEADER_RE.test(before) || LORA_DOCK_HEADER_RE.test(after) || next.segments.some(s => isLoraDockSegment(s, channel)))) {
     const match = LORA_DOCK_HEADER_RE.exec(after);
     const afterBody = match ? after.slice(0, match.index).replace(/(?:\r?\n)+$/, "") : after;
-    const afterTail = match ? after.slice(match.index + match[0].length).replace(/^(?:\r?\n)+/, "").trim() : "";
-    const afterLoraBlock = afterTail ? `${LORA_DOCK_HEADER}\n${afterTail}` : "";
+    const rawDockSuffix = match ? after.slice(afterBody.length) : "";
     next.segments = next.segments.filter(s => !isLoraDockSegment(s, channel));
     if (standaloneLoraTags(afterBody).length === 0) {
       for (const f of next.fields) {
@@ -37,9 +36,8 @@ export function editCompiledPrompt(recipe, after, { channel = "positive" } = {})
     if (compileWorkspace(next)[channel] !== afterBody) {
       next = editCompiledPrompt(next, afterBody, { channel });
     }
-    if (afterLoraBlock) {
-      const finalBody = compileWorkspace(next)[channel];
-      next.segments.push({ type: "static", text: finalBody ? `\n\n${afterLoraBlock}` : afterLoraBlock, channel });
+    if (match) {
+      next.segments.push({ type: "static", text: rawDockSuffix, channel });
     }
     const valid = validateWorkspaceRecipe(next);
     if (compileWorkspace(valid)[channel] !== after) throw new Error("The text edit could not be mapped to workspace fields.");

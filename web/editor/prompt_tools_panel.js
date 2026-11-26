@@ -4,10 +4,24 @@ import { copyPromptPaletteThemeScope, installPromptPaletteKeyboardBoundary, onPr
 import { compilePromptRule, promptRuleAt, choiceLiteral } from "./prompt_rules.js";
 import { syntaxCodeHtml } from "./syntax_presentation.js";
 import { analyzePromptSource } from "../prompt_palette_power_tools.js";
+import { locateWeightTarget, parseWeightGroup, applyWeightDelta } from "./weight_edit.js";
+import { splitTopLevelClauses, openPromptHygieneModal } from "./prompt_hygiene.js";
+import { estimateTokensQuick } from "./style_prompt_engine.js";
+import { loraTags } from "../engine/lora_tags.js";
+import { PresentationScope } from "./sidebar_presentation.js";
+
+const SHARE_PALETTE = [
+  "var(--wg-accent, #e5a653)",
+  "var(--wg-success, #5ec992)",
+  "#5cb8f6",
+  "#c389f5",
+  "#f08c69",
+  "#63cbb8",
+];
 
 let activePanel = null;
 let panelSequence = 0;
-const make = (tag, className = "", text = "") => { const el = document.createElement(tag); el.className = className; el.textContent = text; return el; };
+const make = (tag, className = "", text = "") => { const el = document.createElement(tag); if (className) el.className = className; if (text) el.textContent = text; return el; };
 function button(text, fn, className = "wg-button") { const el = make("button", className, text); el.type = "button"; el.addEventListener("click", fn); return el; }
 function field(label, input, help = "") {
   const el = make("label", "pp-tool-field"); el.append(make("span", "", label), input);
@@ -33,18 +47,35 @@ export function canBuildPromptRules(editor) {
   return editor.__ppPromptTools?.canResolve !== false && !editor.readOnly && !editor.disabled && editor.getAttribute("aria-readonly") !== "true" && !(editor.dataset.ppEditorSurface === "single" && editor.contentEditable === "false");
 }
 
+function readActivePositiveFields(node) {
+  const ws = node?._ppRecipeWorkspace;
+  if (!ws?.isActive?.()) return null;
+  const snap = ws.snapshot?.();
+  const fields = snap?.recipe?.fields;
+  if (!Array.isArray(fields)) return null;
+  return fields
+    .filter(f => f && f.enabled !== false && (f.channel || "positive") === "positive")
+    .map((f, idx) => ({
+      id: f.id,
+      label: f.label || f.name || `Field ${idx + 1}`,
+      text: String(f.value || ""),
+      accent: typeof f.accent === "string" && /^#[0-9a-f]{6}$/i.test(f.accent) ? f.accent : null,
+    }));
+}
+
 export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
   activePanel?.close();
   if (!editor?.isConnected) return;
   if (tab === "loras") { openLoraSidecar(editor, { range }); return; }
   const context = readContext(editor), canResolve = context.canResolve !== false;
   const canBuild = canBuildPromptRules(editor);
+  const canEditWeights = !editor.readOnly && !editor.disabled && editor.getAttribute("aria-readonly") !== "true" && !(editor.dataset.ppEditorSurface === "single" && editor.contentEditable === "false");
   if (!canBuild) tab = "inspect";
   const snapshot = { source: editor.value, start: range?.start ?? editor.selectionStart, end: range?.end ?? editor.selectionEnd, direction: editor.selectionDirection };
   const existing = promptRuleAt(snapshot.source, snapshot.start, snapshot.end);
   const target = existing || snapshot;
   const project = value => context.project?.(value) ?? value;
-  const contextSource = project(snapshot.source);
+  let contextSource = project(snapshot.source);
   const sourceOutside = project(snapshot.source.slice(0, target.start) + snapshot.source.slice(target.end));
   let name = "genre", number = 2;
   while (sourceOutside.includes("${" + name + "=")) name = `genre_${number++}`;
@@ -54,11 +85,12 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
   let draft = existing?.draft || { name, mode: "fixed", selected: first, choices: [first, first === "fantasy" ? "cyberpunk" : "fantasy"],
     outputs: { [first]: selectedText ? "" : "neon lighting", fantasy: "soft pastel lighting" }, emit: true, fallback: "" };
   draft.outputs = Object.assign(Object.create(null), draft.outputs);
-  let code = "", request = null, version = 0, closed = false;
+  let code = "", request = null, version = 0, closed = false, internalEdit = false, scrubInspectTimer = null, lastInspectResult = null;
   const panel = make("dialog", "pp-prompt-tools wg-root"); panel.dataset.promptPaletteGlobal = "true";
   panel.setAttribute("aria-label", "Prompt tools");
+  const presentation = new PresentationScope(panel, { scopeAttr: "data-pp-tools-scope", layoutAttr: "data-pp-tools-layout" });
   const scope = editor.closest(".wg-root, .wg-node, .pp-node, .ppwc-surface");
-  const updateTheme = () => copyPromptPaletteThemeScope(scope, panel);
+  const updateTheme = () => { if (scope) copyPromptPaletteThemeScope(scope, panel, presentation.declaration(panel, { portal: true })); };
   updateTheme();
   const header = make("header", "pp-tool-header");
   const title = make("div", "pp-tool-title"); title.append(make("span", "pp-tool-eyebrow", "PROMPT PALETTE"), make("h2", "", "Choices & rules"));
@@ -101,30 +133,250 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
   const applyButton = button(existing ? "Update rule" : target.end > target.start ? "Replace selection with rule" : "Insert rule", apply, "wg-button pp-tool-primary"); applyButton.dataset.toolApply = "true";
   actions.append(previewButton, applyButton);
   rules.append(intro, controls, editChoices, make("h3", "pp-tool-subtitle", "Matching output"), mappings, fallbackField, emitField, modeNote, syntax, preview, actions);
-  const inspectIntro = make("p", "pp-tool-intro", (context.project ? "Inspect the compiled prompt channel containing this field. " : "Inspect the visible prompt without changing it. ") + "Weights describe your instructions; they do not predict the generated image.");
+  const inspectIntro = make("p", "pp-tool-intro", (context.project ? "Inspect the compiled prompt channel containing this field. " : "Inspect the visible prompt, token budget share, and clause weights. ") + "Weights describe your instructions; they do not predict the generated image.");
   const encoder = make("div", "pp-tool-encoder");
   encoder.append(make("strong", "", context.weightingMode ? `Formatting: ${context.weightingMode}` : context.clipConnected ? "CLIP input connected · encoder identity unverified" : "No CLIP input connected"));
   encoder.append(make("small", "", context.weightingMode ? "Formatting mode is a user setting, not detection of the connected encoder." : "The connected encoder and workflow determine weighting, embedding support and token limits."));
+  const inspectToolbar = make("div", "pp-inspect-toolbar");
+  const refresh = button(canResolve ? "Resolve & inspect" : "Inspect text", () => inspect(false), "wg-button pp-tool-primary"); refresh.dataset.toolInspect = "true";
+  const tidyShortcutBtn = button("Fix / Tidy prompt…", () => { close(); openPromptHygieneModal(editor, { mode: "tidy" }); });
+  tidyShortcutBtn.hidden = !canEditWeights;
+  const adaptShortcutBtn = button("Adapt for model…", () => { close(); openPromptHygieneModal(editor, { mode: "adapt" }); });
+  adaptShortcutBtn.hidden = !canEditWeights;
+  inspectToolbar.append(refresh, tidyShortcutBtn, adaptShortcutBtn);
+  const breakdownHost = make("section", "pp-inspect-section pp-breakdown-section");
   const diagnostics = make("div", "pp-tool-diagnostics");
-  const refresh = button(canResolve ? "Resolve & inspect" : "Inspect text", () => inspect(false)); refresh.dataset.toolInspect = "true";
-  inspector.append(inspectIntro, encoder, refresh, diagnostics);
+  inspector.append(inspectIntro, encoder, inspectToolbar, breakdownHost, diagnostics);
   body.append(rules, inspector); panel.append(header, tabs, body, status);
   document.body.append(panel);
   const cleanupKeys = installPromptPaletteKeyboardBoundary(panel);
   const unsubscribeTheme = onPromptPaletteAppearanceChanged(updateTheme);
   const observer = new MutationObserver(() => { if (!editor.isConnected) close(); }); observer.observe(document.body, { childList: true, subtree: true });
-  const changed = () => { if (editor.value !== snapshot.source) { abort(); preview.hidden = true; applyButton.disabled = true; message("The prompt changed. Close this panel and reopen it at the new selection.", true); } };
+  const changed = () => {
+    if (internalEdit) return;
+    if (editor.value !== snapshot.source) {
+      abort();
+      preview.hidden = true;
+      applyButton.disabled = true;
+      message("The prompt changed externally. Close this panel and reopen it at the new selection.", true);
+    }
+  };
   editor.addEventListener("input", changed);
   function message(text, error = false) { status.textContent = text; status.classList.toggle("is-error", error); }
-  function abort() { version++; request?.abort(); request = null; refresh.disabled = false; }
+  function abort() { version++; request?.abort(); request = null; refresh.disabled = false; if (scrubInspectTimer) { clearTimeout(scrubInspectTimer); scrubInspectTimer = null; } }
   function close() {
     if (closed) return;
-    closed = true; abort(); observer.disconnect(); cleanupKeys(); unsubscribeTheme(); editor.removeEventListener("input", changed);
+    closed = true; abort(); observer.disconnect(); cleanupKeys(); unsubscribeTheme(); presentation.cleanup(); editor.removeEventListener("input", changed);
     panel.close(); panel.remove(); if (activePanel?.panel === panel) activePanel = null;
     if (editor.isConnected && editor.value === snapshot.source) { editor.focus({ preventScroll: true }); editor.setSelectionRange(snapshot.start, snapshot.end, snapshot.direction); }
   }
   function guard() { if (!editor.isConnected || editor.value !== snapshot.source || project(snapshot.source) !== contextSource) throw new Error("The prompt or workspace changed. Reopen prompt tools to keep your edits safe."); }
   function nextSource() { return snapshot.source.slice(0, target.start) + code + snapshot.source.slice(target.end); }
+
+  function applyClauseScrub(nextText, selStart, selEnd) {
+    if (!canEditWeights || !editor.isConnected) return;
+    internalEdit = true;
+    try {
+      if (context.apply) context.apply(nextText, selStart, selEnd);
+      else {
+        editor.value = nextText;
+        editor.setSelectionRange(selStart, selEnd);
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      snapshot.source = editor.value;
+      snapshot.start = selStart;
+      snapshot.end = selEnd;
+      contextSource = project(snapshot.source);
+    } finally {
+      internalEdit = false;
+    }
+    renderBreakdownSection(lastInspectResult);
+    message("Updated clause weight (Ctrl/Cmd+Z to undo). Refreshing token preview…");
+    if (scrubInspectTimer) clearTimeout(scrubInspectTimer);
+    scrubInspectTimer = setTimeout(() => {
+      scrubInspectTimer = null;
+      if (!closed && tab === "inspect") inspect(false);
+    }, 180);
+  }
+
+  function renderBreakdownSection(result = null) {
+    for (const oldStyled of breakdownHost.querySelectorAll("[data-pp-tools-layout]")) {
+      presentation.release(oldStyled);
+    }
+    breakdownHost.replaceChildren();
+    breakdownHost.append(
+      make("h3", "", "Token & weight breakdown"),
+      make("p", "pp-tool-note", "Token share across Fields or clauses (75 CLIP-L tokens per chunk). Step weights in ±0.05 increments without manual parentheses.")
+    );
+
+    const activeFields = !context.project ? readActivePositiveFields(context.node) : null;
+    const serverFieldTokens = new Map((result?.field_tokens || []).map(f => [f.id, f.tokens]));
+    const serverClauseTokens = Array.isArray(result?.clause_tokens) ? result.clause_tokens : [];
+    const lorasInPrompt = loraTags(project(snapshot.source));
+
+    const shareItems = [];
+    if (activeFields?.length) {
+      activeFields.forEach((f, idx) => {
+        const exact = serverFieldTokens.get(f.id);
+        const count = Number.isFinite(exact) ? exact : estimateTokensQuick(f.text);
+        shareItems.push({
+          label: `Field ${idx + 1}: ${f.label}`,
+          tokens: count,
+          estimated: !Number.isFinite(exact),
+          color: f.accent || SHARE_PALETTE[idx % SHARE_PALETTE.length],
+          onClick: () => {
+            close();
+            context.node?._ppRecipeWorkspace?.focusField?.(f.id);
+          },
+        });
+      });
+    } else {
+      const clauses = splitTopLevelClauses(snapshot.source);
+      clauses.slice(0, 16).forEach((clause, idx) => {
+        const matched = serverClauseTokens.find(c => c.start === clause.start && c.end === clause.end) || serverClauseTokens[idx];
+        const count = Number.isFinite(matched?.tokens) ? matched.tokens : estimateTokensQuick(clause.raw);
+        const shortLabel = clause.raw.length > 26 ? `${clause.raw.slice(0, 25)}…` : clause.raw;
+        shareItems.push({
+          label: shortLabel,
+          tokens: count,
+          estimated: !Number.isFinite(matched?.tokens),
+          color: SHARE_PALETTE[idx % SHARE_PALETTE.length],
+          onClick: () => {
+            close();
+            editor.focus({ preventScroll: true });
+            editor.setSelectionRange(clause.start, clause.end);
+          },
+        });
+      });
+    }
+
+    if (lorasInPrompt.length > 0) {
+      shareItems.push({
+        label: `LoRAs (${lorasInPrompt.length})`,
+        tokens: 0,
+        estimated: false,
+        isZeroToken: true,
+        color: "var(--wg-text-faint, #8f887e)",
+      });
+    }
+
+    if (shareItems.length > 0) {
+      const totalSharedTokens = shareItems.reduce((sum, item) => sum + (item.tokens || 0), 0);
+      const barWrap = make("div", "pp-token-share-wrap");
+      if (totalSharedTokens > 0) {
+        const bar = make("div", "pp-token-share-bar");
+        bar.setAttribute("role", "list");
+        bar.setAttribute("aria-label", "Token budget share");
+        for (const item of shareItems) {
+          if (item.tokens <= 0) continue;
+          const seg = make("button", "pp-token-share-seg");
+          seg.type = "button";
+          seg.setAttribute("role", "listitem");
+          const pct = Math.round((item.tokens / Math.max(1, totalSharedTokens)) * 100);
+          seg.title = `${item.label}: ${item.estimated ? "~" : ""}${item.tokens} tokens (${pct}%)`;
+          seg.setAttribute("aria-label", seg.title);
+          presentation.set(seg, {
+            "--pp-share-grow": String(Math.max(1, item.tokens)),
+            "--pp-share-color": item.color,
+          });
+          if (item.onClick) seg.addEventListener("click", item.onClick);
+          bar.append(seg);
+        }
+        barWrap.append(bar);
+      }
+
+      const legend = make("div", "pp-token-share-legend");
+      for (const item of shareItems) {
+        const pill = make(item.onClick ? "button" : "span", "pp-token-share-pill");
+        if (item.onClick) pill.type = "button";
+        const dot = make("span", "pp-token-share-dot");
+        presentation.set(dot, { "--pp-share-color": item.color });
+        const txt = make("span", "pp-token-share-text", `${item.label} ${item.estimated ? "~" : ""}${item.tokens}t`);
+        pill.append(dot, txt);
+        if (item.onClick) pill.addEventListener("click", item.onClick);
+        legend.append(pill);
+      }
+      barWrap.append(legend);
+      breakdownHost.append(barWrap);
+    }
+
+    const clauses = splitTopLevelClauses(snapshot.source);
+    if (!clauses.length) {
+      breakdownHost.append(make("p", "pp-tool-empty", "Type comma-separated clauses or phrases to scrub weights and inspect per-clause tokens."));
+      return;
+    }
+
+    const scrubberList = make("div", "pp-clause-scrubber-list");
+    let runningTokens = 0;
+    clauses.slice(0, 48).forEach((clause, idx) => {
+      const matched = serverClauseTokens.find(c => c.start === clause.start && c.end === clause.end) || serverClauseTokens[idx];
+      const tokCount = Number.isFinite(matched?.tokens) ? matched.tokens : estimateTokensQuick(clause.raw);
+      const isEstimated = !Number.isFinite(matched?.tokens);
+      runningTokens += tokCount;
+      const chunkNum = Math.max(1, Math.ceil(Math.max(1, runningTokens) / 75));
+
+      const rangeTarget = locateWeightTarget(snapshot.source, clause.start, clause.end) || { start: clause.start, end: clause.end };
+      const currentSlice = snapshot.source.slice(rangeTarget.start, rangeTarget.end);
+      const parsedGroup = parseWeightGroup(currentSlice);
+      const currentWeight = parsedGroup?.weight ?? 1;
+      const displayPhrase = parsedGroup ? parsedGroup.inner : clause.raw;
+
+      const row = make("div", "pp-clause-row");
+      row.dataset.weighted = String(Math.abs(currentWeight - 1) > 1e-6);
+
+      const jumpBtn = make("button", "pp-clause-label", displayPhrase);
+      jumpBtn.type = "button";
+      jumpBtn.title = "Select this clause in editor";
+      jumpBtn.addEventListener("click", () => {
+        close();
+        editor.focus({ preventScroll: true });
+        editor.setSelectionRange(rangeTarget.start, rangeTarget.end);
+      });
+
+      const meta = make("div", "pp-clause-meta");
+      const tokBadge = make("span", "pp-clause-tokens", `${isEstimated ? "~" : ""}${tokCount}t`);
+      tokBadge.title = `Chunk ${chunkNum} · ${isEstimated ? "Estimated" : "CLIP-L"} tokens`;
+      const chunkBadge = make("span", `pp-clause-chunk${chunkNum > 1 ? " is-multi" : ""}`, `C${chunkNum}`);
+      meta.append(tokBadge, chunkBadge);
+
+      if (canEditWeights && locateWeightTarget(snapshot.source, clause.start, clause.end)) {
+        const stepper = make("div", "pp-clause-stepper");
+        stepper.setAttribute("role", "group");
+        stepper.setAttribute("aria-label", `Weight controls for ${displayPhrase.slice(0, 32)}`);
+
+        const decBtn = button("−", () => {
+          const edited = applyWeightDelta(snapshot.source, rangeTarget, -0.05);
+          applyClauseScrub(edited.text, edited.start, edited.end);
+        }, "pp-weight-step-btn");
+        decBtn.title = "Decrease weight by 0.05";
+        decBtn.setAttribute("aria-label", "Decrease clause weight by 0.05");
+
+        const resetBtn = button(`${currentWeight.toFixed(2)}×`, () => {
+          if (Math.abs(currentWeight - 1) < 1e-6) return;
+          const edited = applyWeightDelta(snapshot.source, rangeTarget, 1 - currentWeight);
+          applyClauseScrub(edited.text, edited.start, edited.end);
+        }, "pp-weight-reset-btn");
+        resetBtn.title = Math.abs(currentWeight - 1) < 1e-6 ? "Default weight (1.0)" : "Click to reset clause weight to 1.0";
+
+        const incBtn = button("+", () => {
+          const edited = applyWeightDelta(snapshot.source, rangeTarget, 0.05);
+          applyClauseScrub(edited.text, edited.start, edited.end);
+        }, "pp-weight-step-btn");
+        incBtn.title = "Increase weight by 0.05";
+        incBtn.setAttribute("aria-label", "Increase clause weight by 0.05");
+
+        stepper.append(decBtn, resetBtn, incBtn);
+        meta.append(stepper);
+      } else {
+        meta.append(make("strong", "pp-weight-value", `${currentWeight.toFixed(2)}×`));
+      }
+
+      row.append(jumpBtn, meta);
+      scrubberList.append(row);
+    });
+    breakdownHost.append(scrubberList);
+  }
+
   function refreshDraft() {
     abort(); preview.hidden = true; code = "";
     pickerField.hidden = draft.mode !== "fixed"; fallbackField.hidden = draft.mode !== "existing";
@@ -169,8 +421,13 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
       guard();
       const current = readContext(editor), controller = request = new AbortController();
       const source = project(rulePreview ? nextSource() : snapshot.source);
+      const activeFields = !rulePreview && !context.project ? readActivePositiveFields(context.node) : null;
       previewButton.disabled = refresh.disabled = true; message("Inspecting…");
-      const result = await API.inspect(source, current.seed, current.mode, { signal: controller.signal, resolve: canResolve });
+      const result = await API.inspect(source, current.seed, current.mode, {
+        signal: controller.signal,
+        resolve: canResolve,
+        fields: activeFields,
+      });
       if (closed || id !== version) return;
       guard();
       const latest = readContext(editor);
@@ -182,7 +439,11 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
           if (chosen !== undefined) previewLabel.textContent += ` · ${chosen}`;
         }
         previewText.textContent = result.resolved;
-      } else renderDiagnostics(result);
+      } else {
+        lastInspectResult = result;
+        renderBreakdownSection(result);
+        renderDiagnostics(result);
+      }
       message(current.connectedSeed ? "Preview uses the editor seed. A connected seed is supplied during execution." : canResolve ? "Read-only preview complete. Your prompt and wildcard cursors are unchanged." : "Text inspection complete. Weight Controller formatting and clamping may change its output.");
     } catch (error) { if (!closed && id === version && error.name !== "AbortError") message(error.message || "Inspection failed.", true); }
     finally { if (!closed && id === version) { request = null; previewButton.disabled = !code; refresh.disabled = false; } }
@@ -191,14 +452,33 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
     diagnostics.replaceChildren();
     const section = (title, note = "") => { const box = make("section", "pp-inspect-section"); box.append(make("h3", "", title)); if (note) box.append(make("p", "pp-tool-note", note)); diagnostics.append(box); return box; };
     section(canResolve ? "Resolved prompt" : "Visible text").append(make("pre", "pp-tool-preview", result.resolved));
+    if (result.duplicates?.length) {
+      const dupSection = section("Duplicate clauses detected", "Case and underscore-normalized duplicates across clauses.");
+      for (const dup of result.duplicates) {
+        const row = make("div", "pp-inspect-row");
+        row.dataset.embeddingStatus = "missing";
+        row.append(make("code", "", dup.clause), make("span", "pp-embedding-status", dup.reason || "Duplicate"));
+        dupSection.append(row);
+      }
+      if (canEditWeights) {
+        const fixDupBtn = button("Preview Deduplicate & Tidy…", () => { close(); openPromptHygieneModal(editor, { mode: "tidy" }); }, "wg-button");
+        dupSection.append(fixDupBtn);
+      }
+    }
     const weights = section("Explicit numeric weights", result.weight_note || "Authored weights, not measured attention.");
     if (!result.weights?.length) weights.append(make("p", "pp-tool-empty", "No explicit numeric phrase weights."));
     else for (const item of result.weights) { const row = make("div", "pp-inspect-row"); row.append(make("span", "pp-inspect-term", item.text), make("strong", "pp-weight-value", `×${Number(item.weight).toLocaleString(undefined, { maximumFractionDigits: 4 })}`)); weights.append(row); }
     if (result.loras?.length) {
-      const loraSection = section("Resolved LoRA tags", "Availability only. Auto/Bypass applies these to connected inputs during execution. A tag in the negative prompt still patches the shared model/CLIP.");
-      for (const item of result.loras) { const row = make("div", "pp-inspect-row"); row.append(make("code", "", `${item.name} · model ${item.model_strength} / CLIP ${item.clip_strength}`), make("span", "", item.status)); loraSection.append(row); }
+      const loraSection = section("Resolved LoRA tags (pre-flight)", "Availability checked against ComfyUI's loras folder. Auto/Bypass applies these during execution.");
+      for (const item of result.loras) {
+        const row = make("div", "pp-inspect-row");
+        row.dataset.embeddingStatus = item.status === "found" ? "found" : "missing";
+        const statusLabel = item.status === "found" ? "File found" : item.status === "ambiguous" ? "Ambiguous name" : "Missing file";
+        row.append(make("code", "", `${item.name} · model ${item.model_strength} / CLIP ${item.clip_strength}`), make("span", "pp-embedding-status", statusLabel));
+        loraSection.append(row);
+      }
     }
-    const embeddings = section("Textual inversion embeddings", "File availability only. Learned vectors are not hidden sentences; encoder compatibility is unverified here.");
+    const embeddings = section("Textual inversion embeddings (pre-flight)", "File availability checked against ComfyUI's embeddings folder.");
     if (!result.embeddings?.length) embeddings.append(make("p", "pp-tool-empty", "No embedding references."));
     else for (const item of result.embeddings) { const row = make("div", "pp-inspect-row"); row.dataset.embeddingStatus = item.status; row.append(make("code", "", item.name), make("span", "pp-embedding-status", item.status === "found" ? "File found" : item.status === "missing" ? "Missing file" : "Availability unknown")); embeddings.append(row); }
     const tokens = section("CLIP-L reference tokens", result.token_note || "Reference tokenizer only; connected encoder identity is not verified.");
@@ -229,7 +509,12 @@ export function openPromptTools(editor, { tab = "rules", range = null } = {}) {
     rulesTab.setAttribute("aria-selected", String(next === "rules")); inspectTab.setAttribute("aria-selected", String(next === "inspect"));
     rulesTab.tabIndex = next === "rules" ? 0 : -1; inspectTab.tabIndex = next === "inspect" ? 0 : -1;
     title.querySelector("h2").textContent = next === "rules" ? "Choices & rules" : "Prompt inspector";
-    if (next === "rules") refreshDraft(); else message("Ready to inspect the visible prompt.");
+    if (next === "rules") refreshDraft();
+    else {
+      renderBreakdownSection(lastInspectResult);
+      if (!lastInspectResult) inspect(false);
+      else message("Ready to inspect the visible prompt.");
+    }
   }
   tabs.addEventListener("keydown", event => {
     if (!canBuild || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;

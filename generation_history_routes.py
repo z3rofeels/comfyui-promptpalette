@@ -5,7 +5,7 @@ import time
 from aiohttp import web
 from server import PromptServer
 from .feature_store import user_store, read_json, require_same_origin, FeatureConflict
-from .generation_history import settings, index_history, media_exists, validate_image, public_record
+from .generation_history import settings, index_history, media_exists, validate_image, public_record, list_generation_page
 
 PREFIX = '/zf-prompt-palette/api/v1/generations'
 
@@ -87,38 +87,35 @@ def register_generation_history_routes(routes):
     async def list_generations(request):
         store = user_store(request)
         cursor = request.query.get('cursor', '')
-        query = request.query.get('q', '').strip().casefold()[:256]
+        query = request.query.get('q', '')
         favorites = request.query.get('favorite') == 'true'
         missing_only = request.query.get('missing') == 'true'
-        provenance = request.query.get('provenance', '').strip()
+        provenance = request.query.get('provenance', '')
+        sort = request.query.get('sort', 'newest')
+        if sort not in ('newest', 'oldest'):
+            raise ValueError('Invalid sort')
+        try:
+            limit = max(1, min(100, int(request.query.get('limit', '100'))))
+        except ValueError:
+            raise web.HTTPBadRequest(text='Invalid limit')
         try:
             since = max(0, int(request.query.get('since', '0')))
         except ValueError:
             raise web.HTTPBadRequest(text='Invalid date filter')
         roots = _roots()
-        def read():
-            page = store.list('generations', cursor=cursor, limit=100)
-            rows = []
-            for record in page['items']:
-                record['missing'] = not media_exists(record['image'], roots)
-                text = ' '.join([
-                    record.get('notes', ''),
-                    record['image']['filename'],
-                    record.get('prompt_id', ''),
-                    record.get('provenance', ''),
-                    record.get('resolved_positive', '') or '',
-                    record.get('resolved_negative', '') or '',
-                    *record.get('tags', []),
-                    *[c.get('authored_positive', '') + ' ' + c.get('authored_negative', '') for c in record.get('contexts', [])],
-                ])
-                if query and query not in text.casefold(): continue
-                if favorites and not record.get('favorite'): continue
-                if missing_only and not record['missing']: continue
-                if provenance and record.get('provenance') != provenance: continue
-                if since and record.get('completed_at', 0) < since: continue
-                rows.append(public_record(record))
-            return {**page, 'items': rows}
-        return web.json_response(await asyncio.to_thread(read))
+        return web.json_response(await asyncio.to_thread(
+            list_generation_page,
+            store,
+            roots=roots,
+            cursor=cursor,
+            query=query,
+            favorites=favorites,
+            missing_only=missing_only,
+            provenance=provenance,
+            since=since,
+            sort=sort,
+            limit=limit,
+        ))
 
     @routes.get(PREFIX + '/{media_id}')
     async def detail(request):

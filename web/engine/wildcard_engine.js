@@ -187,6 +187,45 @@ export class UnifiedWildcardEngine {
       if (seenLoras.has(key)) add("warning", "duplicate-lora", "Duplicate LoRA tag", `“${match[1].trim()}” appears more than once.`, { index: match.index ?? 0 });
       else seenLoras.set(key, match.index ?? 0);
     }
+
+    const loraMasked = source.replace(LORA_RE, (m) => " ".repeat(m.length));
+    const seenClauses = new Map();
+    let clauseDepth = 0;
+    let clauseStart = 0;
+    for (let idx = 0; idx <= loraMasked.length; idx += 1) {
+      const ch = idx < loraMasked.length ? loraMasked[idx] : ",";
+      if (idx < loraMasked.length && ch === "\\") { idx += 1; continue; }
+      if (idx < loraMasked.length && (ch === "(" || ch === "{" || ch === "[")) clauseDepth += 1;
+      else if (idx < loraMasked.length && (ch === ")" || ch === "}" || ch === "]") && clauseDepth > 0) clauseDepth -= 1;
+      else if (idx === loraMasked.length || (clauseDepth === 0 && (ch === "," || ch === "\n"))) {
+        let s = clauseStart;
+        let e = idx;
+        while (s < e && /\s/.test(loraMasked[s])) s += 1;
+        while (e > s && /\s/.test(loraMasked[e - 1])) e -= 1;
+        if (e > s) {
+          const rawClause = (parsed?.source || source).slice(s, e);
+          const hasDyn = /__[+\-*%~@]?[A-Za-z0-9_\-/*]+|\$\{|[{}]|\[(?:if|elif|else|\/if|switch|case|default|\/switch)\b/i.test(rawClause);
+          if (!hasDyn) {
+            let inner = rawClause.trim();
+            const wm = /^\(([\s\S]+):([+-]?(?:\d+(?:\.\d*)?|\.\d+))\)$/.exec(inner);
+            if (wm) inner = wm[1].trim();
+            const norm = inner.replace(/\\([()])/g, "$1").replace(/[\s_]+/g, " ").replace(/^[.;:]+|[.;:]+$/g, "").trim().toLowerCase();
+            if (norm.length >= 2 && !["break", "and", "the", "a", "an"].includes(norm)) {
+              const first = seenClauses.get(norm);
+              if (first) {
+                add("warning", "duplicate-clause", "Duplicate tag or clause", `“${rawClause}” repeats “${first.raw}” earlier in the prompt.`, {
+                  token: { start: s, end: e, text: rawClause },
+                });
+              } else {
+                seenClauses.set(norm, { start: s, end: e, raw: rawClause });
+              }
+            }
+          }
+        }
+        clauseStart = idx + 1;
+      }
+    }
+
     if (/,{2,}/.test(source) || /,\s*,/.test(source)) add("info", "double-comma", "Repeated comma", "The prompt contains consecutive commas that may be accidental.");
     if (/\s+[,.!?;:]/.test(source)) add("info", "space-before-punctuation", "Spacing before punctuation", "There is whitespace directly before punctuation.");
     if (Number.isFinite(Number(tokenCount)) && Number(tokenCount) > 77) add("info", "clip-token-length", "Long CLIP prompt", `${Number(tokenCount)} CLIP-L tokens are present. Some CLIP workflows chunk long prompts; verify that this is intentional.`);

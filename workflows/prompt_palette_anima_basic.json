@@ -1,17 +1,17 @@
 {
-  "last_node_id": 9,
-  "last_link_id": 9,
+  "last_node_id": 13,
+  "last_link_id": 10,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        20,
-        30
+        0,
+        60
       ],
       "size": [
-        380,
-        100
+        390,
+        110
       ],
       "flags": {},
       "order": 0,
@@ -22,7 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3
+            10
           ]
         }
       ],
@@ -32,18 +32,21 @@
       "widgets_values": [
         "anima-base-v1.0.safetensors",
         "default"
-      ]
+      ],
+      "title": "Diffusion Model · Anima 1.0",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        20,
-        160
+        0,
+        240
       ],
       "size": [
-        380,
-        120
+        390,
+        130
       ],
       "flags": {},
       "order": 1,
@@ -66,18 +69,21 @@
         "qwen_3_06b_base.safetensors",
         "stable_diffusion",
         "default"
-      ]
+      ],
+      "title": "Text Encoder · Qwen 3 0.6B (stable_diffusion)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        20,
-        310
+        0,
+        440
       ],
       "size": [
-        380,
-        80
+        390,
+        90
       ],
       "flags": {},
       "order": 2,
@@ -97,18 +103,21 @@
       },
       "widgets_values": [
         "qwen_image_vae.safetensors"
-      ]
+      ],
+      "title": "VAE · Qwen Image VAE",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 4,
       "type": "PromptPaletteEditor",
       "pos": [
-        450,
-        20
+        480,
+        60
       ],
       "size": [
-        430,
-        310
+        520,
+        360
       ],
       "flags": {},
       "order": 3,
@@ -123,7 +132,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 10,
           "shape": 7
         },
         {
@@ -173,7 +182,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -239,25 +250,143 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, short black hair, amber eyes, cropped utility jacket, layered streetwear, messenger bag, fingerless gloves, full body, standing, clean character design, subtle fabric details, neutral light background"
+        },
+        "wg_text": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, short black hair, amber eyes, cropped utility jacket, layered streetwear, messenger bag, fingerless gloves, full body, standing, clean character design, subtle fabric details, neutral light background",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Anima Structure",
+            "presetId": "anima",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "d01d514c-3747-4291-a701-29997353fbee",
+                "name": "Environment / Scene Prose",
+                "label": "Environment / Scene Prose",
+                "value": "A quiet sunlit architectural studio with warm concrete walls and soft afternoon window light.",
+                "default": "A quiet sunlit architectural studio with warm concrete walls and soft afternoon window light.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "environment",
+                "separator": "",
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "e5dce560-ae7f-4122-a386-e1afcb5c9842",
+                "name": "Character 1 Tags",
+                "label": "Character 1 Tags",
+                "value": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome man, short dark hair, tailored charcoal sweater, calm expression, natural lighting, 85mm portrait",
+                "default": "masterpiece, best quality, score_7, safe, 1boy, solo, handsome man, short dark hair, tailored charcoal sweater, calm expression, natural lighting, 85mm portrait",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "character",
+                "separator": "\n\n",
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "f7a23b48-76b2-4899-b738-cda7a16e1506",
+                "name": "Character 2 Tags",
+                "label": "Character 2 Tags",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "character",
+                "separator": "\n",
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "d01d514c-3747-4291-a701-29997353fbee",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "e5dce560-ae7f-4122-a386-e1afcb5c9842",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "f7a23b48-76b2-4899-b738-cda7a16e1506",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "masterpiece, best quality, score_7, safe, 1boy, solo, handsome male, short black hair, amber eyes, cropped utility jacket, layered streetwear, messenger bag, fingerless gloves, full body, standing, clean character design, subtle fabric details, neutral light background",
+        "A quiet sunlit architectural studio with warm concrete walls and soft afternoon window light.\n\nmasterpiece, best quality, score_7, safe, 1boy, solo, handsome man, short dark hair, tailored charcoal sweater, calm expression, natural lighting, 85mm portrait",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Positive"
+      "title": "Prompt Palette — Positive",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "A quiet sunlit architectural studio with warm concrete walls and soft afternoon window light.\n\nmasterpiece, best quality, score_7, safe, 1boy, solo, handsome man, short dark hair, tailored charcoal sweater, calm expression, natural lighting, 85mm portrait",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"4\",\"positive\":\"A quiet sunlit architectural studio with warm concrete walls and soft afternoon window light.\\n\\nmasterpiece, best quality, score_7, safe, 1boy, solo, handsome man, short dark hair, tailored charcoal sweater, calm expression, natural lighting, 85mm portrait\",\"negative\":\"\",\"fields\":[{\"id\":\"d01d514c-3747-4291-a701-29997353fbee\",\"channel\":\"positive\",\"start\":0,\"end\":93,\"source\":\"A quiet sunlit architectural studio with warm concrete walls and soft afternoon window light.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\"},{\"id\":\"e5dce560-ae7f-4122-a386-e1afcb5c9842\",\"channel\":\"positive\",\"start\":95,\"end\":255,\"source\":\"masterpiece, best quality, score_7, safe, 1boy, solo, handsome man, short dark hair, tailored charcoal sweater, calm expression, natural lighting, 85mm portrait\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\"\\n\\n\"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"d01d514c-3747-4291-a701-29997353fbee\",\"join\":true},{\"type\":\"field\",\"id\":\"e5dce560-ae7f-4122-a386-e1afcb5c9842\",\"join\":true},{\"type\":\"field\",\"id\":\"f7a23b48-76b2-4899-b738-cda7a16e1506\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"d01d514c-3747-4291-a701-29997353fbee\":\"\",\"e5dce560-ae7f-4122-a386-e1afcb5c9842\":\"\\n\\n\",\"f7a23b48-76b2-4899-b738-cda7a16e1506\":\"\\n\"},\"edges\":{\"positive\":[\"d01d514c-3747-4291-a701-29997353fbee\",\"f7a23b48-76b2-4899-b738-cda7a16e1506\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 5,
       "type": "PromptPaletteEditor",
       "pos": [
-        450,
-        370
+        480,
+        490
       ],
       "size": [
-        430,
-        310
+        520,
+        270
       ],
       "flags": {},
       "order": 4,
@@ -388,25 +517,190 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
+        },
+        "wg_text": "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Negative prompt set",
+            "presetId": "negative",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "4ac520a8-27db-4651-88fd-7102a8208cf6",
+                "name": "Prompt",
+                "label": "Prompt",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "prompt",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "ccbbc508-3756-4050-8e72-f9f806acd9e1",
+                "name": "Quality exclusions",
+                "label": "Quality exclusions",
+                "value": "worst quality, low quality, score_1, score_2, score_3, blurry",
+                "default": "worst quality, low quality, score_1, score_2, score_3, blurry",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "quality",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "adc3d7de-9357-4be6-8b8f-b1d06b3e6f6b",
+                "name": "Anatomy exclusions",
+                "label": "Anatomy exclusions",
+                "value": "bad anatomy, bad hands, extra digits",
+                "default": "bad anatomy, bad hands, extra digits",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "anatomy",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "716520d2-610a-4310-9721-7e360be389de",
+                "name": "Text exclusions",
+                "label": "Text exclusions",
+                "value": "watermark, text",
+                "default": "watermark, text",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "text",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "d5f2f31e-f0d7-436d-99d0-0f248dd741ce",
+                "name": "Style exclusions",
+                "label": "Style exclusions",
+                "value": "",
+                "default": "",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": null,
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "4ac520a8-27db-4651-88fd-7102a8208cf6",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "ccbbc508-3756-4050-8e72-f9f806acd9e1",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "adc3d7de-9357-4be6-8b8f-b1d06b3e6f6b",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "716520d2-610a-4310-9721-7e360be389de",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "d5f2f31e-f0d7-436d-99d0-0f248dd741ce",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia",
+        "worst quality, low quality, score_1, score_2, score_3, blurry, bad anatomy, bad hands, extra digits, watermark, text",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette — Negative"
+      "title": "Prompt Palette — Negative",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "worst quality, low quality, score_1, score_2, score_3, blurry, bad anatomy, bad hands, extra digits, watermark, text",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"5\",\"positive\":\"worst quality, low quality, score_1, score_2, score_3, blurry, bad anatomy, bad hands, extra digits, watermark, text\",\"negative\":\"\",\"fields\":[{\"id\":\"ccbbc508-3756-4050-8e72-f9f806acd9e1\",\"channel\":\"positive\",\"start\":0,\"end\":61,\"source\":\"worst quality, low quality, score_1, score_2, score_3, blurry\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"adc3d7de-9357-4be6-8b8f-b1d06b3e6f6b\",\"channel\":\"positive\",\"start\":63,\"end\":99,\"source\":\"bad anatomy, bad hands, extra digits\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"716520d2-610a-4310-9721-7e360be389de\",\"channel\":\"positive\",\"start\":101,\"end\":116,\"source\":\"watermark, text\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"4ac520a8-27db-4651-88fd-7102a8208cf6\",\"join\":true},{\"type\":\"field\",\"id\":\"ccbbc508-3756-4050-8e72-f9f806acd9e1\",\"join\":true},{\"type\":\"field\",\"id\":\"adc3d7de-9357-4be6-8b8f-b1d06b3e6f6b\",\"join\":true},{\"type\":\"field\",\"id\":\"716520d2-610a-4310-9721-7e360be389de\",\"join\":true},{\"type\":\"field\",\"id\":\"d5f2f31e-f0d7-436d-99d0-0f248dd741ce\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"4ac520a8-27db-4651-88fd-7102a8208cf6\":null,\"ccbbc508-3756-4050-8e72-f9f806acd9e1\":null,\"adc3d7de-9357-4be6-8b8f-b1d06b3e6f6b\":null,\"716520d2-610a-4310-9721-7e360be389de\":null,\"d5f2f31e-f0d7-436d-99d0-0f248dd741ce\":null},\"edges\":{\"positive\":[\"4ac520a8-27db-4651-88fd-7102a8208cf6\",\"d5f2f31e-f0d7-436d-99d0-0f248dd741ce\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 6,
-      "type": "EmptyLatentImage",
+      "type": "PromptPaletteResolutionSelector",
       "pos": [
-        930,
-        520
+        1090,
+        80
       ],
       "size": [
-        270,
-        130
+        320,
+        290
       ],
       "flags": {},
       "order": 5,
@@ -414,32 +708,64 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
+          "localized_name": "Latent",
           "type": "LATENT",
           "links": [
             6
           ]
+        },
+        {
+          "name": "width",
+          "localized_name": "Width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "localized_name": "Height",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage"
+        "Node name for S&R": "PromptPaletteResolutionSelector",
+        "resolution_pal_v1": {
+          "model_profile": "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1,
+          "snap_to_multiple": true
+        }
       },
       "widgets_values": [
+        "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
         1024,
         1024,
-        1
-      ]
+        1,
+        true
+      ],
+      "title": "Resolution Selector · 1024 × 1024",
+      "color": "#2a223d",
+      "bgcolor": "#181522",
+      "widgets_values_named": {
+        "model_profile": "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1,
+        "snap_to_multiple": true
+      }
     },
     {
       "id": 7,
       "type": "KSampler",
       "pos": [
-        1260,
-        150
+        1090,
+        340
       ],
       "size": [
-        330,
-        300
+        340,
+        310
       ],
       "flags": {},
       "order": 6,
@@ -482,21 +808,24 @@
         0,
         "randomize",
         30,
-        4.0,
+        4,
         "euler",
         "simple",
-        1.0
-      ]
+        1
+      ],
+      "title": "KSampler · 30 Steps · CFG 4",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 8,
       "type": "VAEDecode",
       "pos": [
-        1610,
-        190
+        1520,
+        80
       ],
       "size": [
-        240,
+        400,
         90
       ],
       "flags": {},
@@ -526,18 +855,21 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "VAE Decode",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 9,
       "type": "SaveImage",
       "pos": [
-        1870,
-        190
+        1520,
+        240
       ],
       "size": [
-        300,
-        280
+        400,
+        420
       ],
       "flags": {},
       "order": 8,
@@ -561,7 +893,191 @@
       },
       "widgets_values": [
         "PromptPalette_Anima"
-      ]
+      ],
+      "title": "Save Image",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 10,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#29213b",
+      "bgcolor": "#171520",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "ANIMA 1.0 · Split-Loader Character & @Artist Studio",
+          "note": "1024 × 1024 · 30 steps · CFG 4.0 · Euler / Simple — Paired Positive & Negative editors with native 59k+ @artist tag search.",
+          "color_preset": "plum",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "ANIMA 1.0 · Split-Loader Character & @Artist Studio",
+        "1024 × 1024 · 30 steps · CFG 4.0 · Euler / Simple — Paired Positive & Negative editors with native 59k+ @artist tag search.",
+        "plum",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "ANIMA 1.0 · Split-Loader Character & @Artist Studio",
+        "note": "1024 × 1024 · 30 steps · CFG 4.0 · Euler / Simple — Paired Positive & Negative editors with native 59k+ @artist tag search.",
+        "color_preset": "plum",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 11,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        370
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · Required Model Files",
+          "note": "1. `models/diffusion_models/anima-base-v1.0.safetensors`\n2. `models/text_encoders/qwen_3_06b_base.safetensors` (keep CLIP type `stable_diffusion`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- **Positive** holds quality + subject tags; **Negative** filters `score_1..3` and compression artifacts at `CFG 4.0`.",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · Required Model Files",
+        "1. `models/diffusion_models/anima-base-v1.0.safetensors`\n2. `models/text_encoders/qwen_3_06b_base.safetensors` (keep CLIP type `stable_diffusion`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- **Positive** holds quality + subject tags; **Negative** filters `score_1..3` and compression artifacts at `CFG 4.0`.",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · Required Model Files",
+        "note": "1. `models/diffusion_models/anima-base-v1.0.safetensors`\n2. `models/text_encoders/qwen_3_06b_base.safetensors` (keep CLIP type `stable_diffusion`)\n3. `models/vae/qwen_image_vae.safetensors`\n\n- **Positive** holds quality + subject tags; **Negative** filters `score_1..3` and compression artifacts at `CFG 4.0`.",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 12,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        494
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#29213b",
+      "bgcolor": "#171520",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "ANIMA SUPERPOWER · Type @ for Artists",
+          "note": "- Type `@` anywhere in Prompt Palette to search **59,000+ offline Anima artist tags** with post counts.\n- Prefer structured sections? Switch to **Fields Workspace** and load the built-in **Anima Structure** layout.",
+          "color_preset": "plum",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "ANIMA SUPERPOWER · Type @ for Artists",
+        "- Type `@` anywhere in Prompt Palette to search **59,000+ offline Anima artist tags** with post counts.\n- Prefer structured sections? Switch to **Fields Workspace** and load the built-in **Anima Structure** layout.",
+        "plum",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "ANIMA SUPERPOWER · Type @ for Artists",
+        "note": "- Type `@` anywhere in Prompt Palette to search **59,000+ offline Anima artist tags** with post counts.\n- Prefer structured sections? Switch to **Fields Workspace** and load the built-in **Anima Structure** layout.",
+        "color_preset": "plum",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 13,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: Anima",
+          "note": "",
+          "color_preset": "plum",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: Anima",
+        "",
+        "plum",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: Anima",
+        "note": "",
+        "color_preset": "plum",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -583,7 +1099,7 @@
     ],
     [
       3,
-      1,
+      4,
       0,
       7,
       0,
@@ -636,16 +1152,85 @@
       9,
       0,
       "IMAGE"
+    ],
+    [
+      10,
+      1,
+      0,
+      4,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load Models",
+      "bounding": [
+        -24,
+        -18,
+        438,
+        574
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write & Customize Prompt",
+      "bounding": [
+        456,
+        -18,
+        568,
+        804
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Canvas Size",
+      "bounding": [
+        1066,
+        2,
+        388,
+        244
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · Sample",
+      "bounding": [
+        1066,
+        262,
+        388,
+        414
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode & Output",
+      "bounding": [
+        1496,
+        2,
+        448,
+        684
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.78,
+      "scale": 0.72,
       "offset": [
-        50,
-        50
+        560,
+        220
       ]
     }
   },

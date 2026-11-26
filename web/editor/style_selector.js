@@ -430,12 +430,12 @@ export function installStyleSelector({
     let targetLabel = "Prompt";
     const fieldWrap = target?.closest?.("[data-field-id]");
     if (fieldWrap) {
-      const labelEl = fieldWrap.querySelector(".pp-rw-field-title, .pp-rw-field-label, input.pp-rw-field-name");
+      const labelEl = fieldWrap.querySelector(".pp-field-title");
       const name = labelEl?.value || labelEl?.textContent || "Field";
       targetLabel = `Field: ${String(name).trim()}`;
-    } else if (target?.classList?.contains("ppwc-text-input")) {
+    } else if (target?.classList?.contains("ppwc-textarea")) {
       targetLabel = "Weight Controller";
-    } else if (node?._ppCombinatorialActive) {
+    } else if (node?._ppCombinatorialActive || (node?.comfyClass || node?.type) === "PromptPaletteCombinatorial") {
       targetLabel = "Combinatorial Prompt";
     }
     return { target, text, start, end, readOnly, targetLabel };
@@ -1209,7 +1209,7 @@ export function installStyleSelector({
 
     beforeOpen();
     node?._ppCommandTarget?.activate?.();
-    observer.observe(document.body, { childList: true, subtree: true });
+    observeDisconnectTargets();
 
     sidecar.hidden = false;
     sidecar.removeAttribute("inert");
@@ -1459,7 +1459,7 @@ export function installStyleSelector({
   };
   const closeForOtherTool = (e) => {
     const action = e.target.closest?.("[data-act]")?.dataset.act;
-    if (!sidecar.hidden && ["picker", "loras", "edit", "settings", "stash", "recipesShortcut", "variations", "ioRailToggle", "zenToggle"].includes(action)) {
+    if (!sidecar.hidden && ["picker", "loras", "edit", "importImage", "settings", "stash", "recipesShortcut", "variations", "ioRailToggle", "zenToggle"].includes(action)) {
       close();
     }
   };
@@ -1485,6 +1485,20 @@ export function installStyleSelector({
   const observer = new MutationObserver(() => {
     if (!root.isConnected) manager.cleanup();
   });
+
+  function observeDisconnectTargets() {
+    observer.disconnect();
+    const seen = new Set();
+    for (let el = root?.parentElement; el; el = el.parentElement) {
+      if (!seen.has(el)) {
+        seen.add(el);
+        observer.observe(el, { childList: true, subtree: false });
+      }
+    }
+    if (!seen.size && document.body) {
+      observer.observe(document.body, { childList: true, subtree: false });
+    }
+  }
 
   const manager = {
     open,

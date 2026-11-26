@@ -164,8 +164,8 @@ function setupSettingsUI(node) {
   let settingsClampSelect = null;
   let settingsRoutingSelect = null;
 
-  function syncControls() {
-    if (textWidget && document.activeElement !== textInput) textInput.value = String(textWidget.value ?? "");
+  function syncControls({ forceText = false } = {}) {
+    if (textWidget && (forceText || document.activeElement !== textInput)) textInput.value = String(textWidget.value ?? "");
     if (modeWidget) modeSelect.value = String(modeWidget.value ?? ""); else modeSelect.disabled = true;
     if (advancedWidget) advancedToggle.checked = !!advancedWidget.value; else advancedToggle.disabled = true;
     if (clampWidget) clampSelect.value = String(clampWidget.value ?? ""); else clampSelect.disabled = true;
@@ -324,9 +324,10 @@ function setupSettingsUI(node) {
 
 
   const commandTarget = registerPromptPaletteCommandTarget(node, {
-    ...sidebarEditingHandlers({ getEditor: () => textInput }),
+    ...sidebarEditingHandlers({ node, getEditor: () => textInput }),
     sidebarRequiresResolvedText: true,
     focusEditor: () => textInput.focus({ preventScroll: true }),
+    toggleIo: () => (node._wgToggleIoRail ? node._wgToggleIoRail() : surface.querySelector('[data-act="ioRailToggle"]')?.click()),
   });
   surface.addEventListener("pointerdown", commandTarget.activate, true);
   surface.addEventListener("focusin", commandTarget.activate, true);
@@ -334,6 +335,11 @@ function setupSettingsUI(node) {
   return {
     surface,
     reapplyTheme: appearanceBinding.apply,
+    getTextValue: () => String(textWidget?.value ?? textInput.value ?? ""),
+    setTextValue: (value) => {
+      if (textWidget) textWidget.value = String(value ?? "");
+      syncControls({ forceText: true });
+    },
     cleanup() {
       commandTarget.cleanup();
       surface.removeEventListener("pointerdown", commandTarget.activate, true);
@@ -390,8 +396,7 @@ app.registerExtension({
       IO_OUTPUT_DEFS.forEach((def) => syncIoSocket(node, "output", def, ioEnabled(node, "output", def)));
 
       built = setupSettingsUI(node);
-      const { surface, reapplyTheme, cleanup } = built;
-      installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, surface);
+      const { surface, reapplyTheme, getTextValue, setTextValue, cleanup } = built;
       node._wgRefreshIoToggles = function () {
         canonicalizeOutputs(this, IO_OUTPUT_DEFS);
         IO_INPUT_DEFS.forEach((def) => syncIoSocket(this, "input", def, ioEnabled(this, "input", def)));
@@ -402,6 +407,8 @@ app.registerExtension({
       node.resizable = true;
       let domWidget;
       domWidget = node.addDOMWidget("ppwc_settings_row", "div", surface, {
+        getValue: getTextValue,
+        setValue: setTextValue,
         serialize: false,
         hideOnZoom: false,
         getMinHeight: () => 0,
@@ -415,6 +422,16 @@ app.registerExtension({
       livePromptPaletteNodes.add(node);
       node._wgIoRailVisibilityChanged = () => scheduleDomWidgetRemeasure(node);
       node._ppwcReapplyTheme = reapplyTheme;
+      const prevOnConfigure = node.onConfigure;
+      const wrappedOnConfigure = function () {
+        const result = prevOnConfigure?.apply(this, arguments);
+        if (nodeIsActive(this)) {
+          applyVisibility(this);
+          this._ppwcSyncControls?.({ forceText: true });
+        }
+        return result;
+      };
+      node.onConfigure = wrappedOnConfigure;
       const reassertSurface = () => {
         if (!nodeIsActive(node)) return;
         applyVisibility(node);
@@ -429,7 +446,13 @@ app.registerExtension({
       };
       queueMicrotask(reassertSurface);
       const raf = globalThis.requestAnimationFrame || ((callback) => setTimeout(callback, 0));
-      raf(reassertSurface);
+      raf(() => {
+        if (!nodeIsActive(node)) return;
+        installSocketRailLayout(node, IO_INPUT_DEFS, IO_OUTPUT_DEFS, surface);
+        node._wgRefreshIoToggles?.();
+        queueSocketRailLayout(node);
+        reassertSurface();
+      });
 
       scheduleDomWidgetRemeasure(node);
 
@@ -440,6 +463,10 @@ app.registerExtension({
         delete node._wgRefreshIoToggles;
         delete node._ppwcReapplyTheme;
         delete node._ppwcSyncControls;
+        if (node.onConfigure === wrappedOnConfigure) {
+          if (prevOnConfigure) node.onConfigure = prevOnConfigure;
+          else delete node.onConfigure;
+        }
         if (advancedWidget.callback === callback) advancedWidget.callback = origCallback;
         if (node._wgRendererModeChanged === rendererModeChanged) {
           if (priorRendererModeChanged) node._wgRendererModeChanged = priorRendererModeChanged;

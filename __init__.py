@@ -5,6 +5,8 @@ import logging
 from .comfy_compat import ComfyExtension, io
 
 from .nodes import PromptPaletteEditor, PromptPaletteCombinatorial, PromptPaletteWeightController
+from .label_node import LabelPal
+from .resolution_node import PromptPaletteResolutionSelector
 
 try:
     # Imported for its side effect: registering the HTTP routes (including /prompt_palette/build_id).
@@ -19,12 +21,18 @@ except Exception:
     logging.getLogger(__name__).exception("Prompt Palette could not register metadata restoration")
 
 WEB_DIRECTORY = "web"
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 class PromptPaletteExtension(ComfyExtension):
     @override
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [PromptPaletteEditor, PromptPaletteCombinatorial, PromptPaletteWeightController]
+        return [
+            PromptPaletteEditor,
+            PromptPaletteCombinatorial,
+            PromptPaletteWeightController,
+            LabelPal,
+            PromptPaletteResolutionSelector,
+        ]
 
 async def comfy_entrypoint() -> PromptPaletteExtension:
     return PromptPaletteExtension()

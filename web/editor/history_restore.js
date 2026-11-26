@@ -92,7 +92,7 @@ export function installHistoryRefinement({ node, root, textarea, getState, begin
   preview.title = "Preview the resolved prompt with the current settings";
   bar.append(note, fields, vary, loras, preview, commit, cancel);
   const start = action("Refine", () => adapter.start(), root.querySelector('[data-act="refine"]'));
-  start.className = "wg-pill"; start.dataset.act = "refine";
+  start.classList.add("wg-pill"); start.dataset.act = "refine"; start.dataset.el ||= "btnRefine";
   start.innerHTML = `${svgIcon("edit")}<span class="wg-toolbar-label">Refine</span>`;
   start.title = "Refine the active draft using existing editors; Commit keeps edits and Cancel restores them";
   if (!start.parentElement) (root.querySelector(".wg-toolbar-center") || root.querySelector(".wg-toolbar"))?.append(start);

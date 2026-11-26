@@ -189,7 +189,7 @@ def ensure_participation(config, used):
 def reject_unsafe_runtime(config, runtime, prepared=False):
     if prepared: raise RelationshipError('prepared', 'Clear prepared variations before enabling a relationship rule set; literal prepared outputs cannot be reselected.')
 
-def field_constraints(config, index, payload, seed, namespace='', initial_variables=None):
+def field_constraints(config, index, payload, seed, namespace='', initial_variables=None, field_inputs=None):
     """Resolve existing policies on isolated counters/held state, then constrain picks.
 
     Policy decisions take priority: relationships can select compatible neighbors,
@@ -198,7 +198,7 @@ def field_constraints(config, index, payload, seed, namespace='', initial_variab
     if not payload: return {}
     import re
     from .workspace_generation import WorkspaceGeneration
-    preview = WorkspaceGeneration(index.preview_view(), payload, namespace, preview=True, initial_variables=initial_variables)
+    preview = WorkspaceGeneration(index.preview_view(), payload, namespace, preview=True, initial_variables=initial_variables, field_inputs=field_inputs)
     for channel in ('positive', 'negative'):
         preview.resolve(payload[channel], seed + (1000 if channel == 'negative' else 0), channel=channel)
     fixed = {}

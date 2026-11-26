@@ -17,6 +17,8 @@ import { WORKSPACE_SCOPES, resolveExperiment } from "./recipe_experiment.js";
 import { resolveFieldComparisons } from "./recipe_comparison.js";
 import { fieldVariationSource, hasVariationSyntax } from "./recipe_variation_source.js";
 import { positiveAntonymsEnabled, projectPositiveOutput, installPositiveAntonymsControl } from "./positive_antonyms.js";
+import { openPromptHygieneModal } from "./prompt_hygiene.js";
+import { openPromptTools } from "./prompt_tools_panel.js";
 
 export function createPowerToolsController(ctx) {
   const {
@@ -237,8 +239,38 @@ export function createPowerToolsController(ctx) {
       <span class="wg-power-summary-pill"><strong>${counts.warning}</strong> warnings</span>
       <span class="wg-power-summary-pill"><strong>${counts.info}</strong> notes</span>`;
     doctorList.innerHTML = "";
+    const hygieneBar = document.createElement("div");
+    hygieneBar.className = "wg-power-actions pp-doctor-hygiene-bar";
+    const tidyBtn = document.createElement("button");
+    tidyBtn.type = "button";
+    tidyBtn.textContent = "Fix / Tidy prompt…";
+    tidyBtn.addEventListener("click", () => {
+      closePowerPopup(doctorPopup);
+      const targetEditor = node._ppRecipeWorkspace?.editingSurface?.() || textarea;
+      openPromptHygieneModal(targetEditor, { mode: "tidy" });
+    });
+    const adaptBtn = document.createElement("button");
+    adaptBtn.type = "button";
+    adaptBtn.textContent = "Adapt for model…";
+    adaptBtn.addEventListener("click", () => {
+      closePowerPopup(doctorPopup);
+      const targetEditor = node._ppRecipeWorkspace?.editingSurface?.() || textarea;
+      openPromptHygieneModal(targetEditor, { mode: "adapt" });
+    });
+    const inspectBtn = document.createElement("button");
+    inspectBtn.type = "button";
+    inspectBtn.textContent = "Prompt Inspector…";
+    inspectBtn.addEventListener("click", () => {
+      closePowerPopup(doctorPopup);
+      openPromptTools(textarea, { tab: "inspect" });
+    });
+    hygieneBar.append(tidyBtn, adaptBtn, inspectBtn);
+    doctorList.appendChild(hygieneBar);
     if (!result.issues.length) {
-      doctorList.innerHTML = '<div class="wg-empty-power">No obvious syntax or library problems found in this prompt.</div>';
+      const empty = document.createElement("div");
+      empty.className = "wg-empty-power";
+      empty.textContent = "No obvious syntax, pre-flight, or library problems found in this prompt.";
+      doctorList.appendChild(empty);
       return;
     }
     result.issues.forEach((issue) => {
@@ -246,18 +278,16 @@ export function createPowerToolsController(ctx) {
       row.className = "wg-power-item";
       row.dataset.severity = issue.severity;
       row.innerHTML = `<div class="wg-power-item-head"><div class="wg-power-item-title"><span class="wg-severity-dot ${escapeHtml(issue.severity)}"></span>${escapeHtml(issue.title)}</div><span class="wg-badge">${escapeHtml(issue.severity)}</span></div><p>${escapeHtml(issue.detail)}</p>`;
+      const actions = document.createElement("div");
+      actions.className = "wg-power-actions";
       if (issue.fieldIds?.length) {
-        const actions = document.createElement("div"); actions.className = "wg-power-actions";
         for (const id of issue.fieldIds) {
           const jump = document.createElement("button"); jump.type = "button";
           const workspace = node._ppRecipeWorkspace?.snapshot()?.recipe;
           jump.textContent = `Show ${workspace?.fields.find(f => f.id === id)?.label || "field"}`;
           jump.addEventListener("click", () => { closePowerPopup(doctorPopup); node._ppRecipeWorkspace?.focusField(id, issue.fieldToken); }); actions.appendChild(jump);
         }
-        row.appendChild(actions);
       } else if (issue.token && Number.isFinite(issue.token.start)) {
-        const actions = document.createElement("div");
-        actions.className = "wg-power-actions";
         const jump = document.createElement("button");
         jump.type = "button";
         jump.textContent = "Show in editor";
@@ -271,8 +301,21 @@ export function createPowerToolsController(ctx) {
           textarea.setSelectionRange(issue.token.start, issue.token.end);
         });
         actions.appendChild(jump);
-        row.appendChild(actions);
       }
+      if (["duplicate-clause", "double-comma", "space-before-punctuation", "cross-field-repeat"].includes(issue.code)) {
+        const fixBtn = document.createElement("button");
+        fixBtn.type = "button";
+        fixBtn.textContent = "Preview Tidy fix…";
+        fixBtn.addEventListener("click", () => {
+          closePowerPopup(doctorPopup);
+          const targetEditor = issue.fieldIds?.length === 1
+            ? (node._ppRecipeWorkspace?.focusField(issue.fieldIds[0]), node._ppRecipeWorkspace?.editingSurface?.() || textarea)
+            : textarea;
+          openPromptHygieneModal(targetEditor, { mode: "tidy" });
+        });
+        actions.appendChild(fixBtn);
+      }
+      if (actions.childElementCount > 0) row.appendChild(actions);
       doctorList.appendChild(row);
     });
   }
@@ -292,6 +335,33 @@ export function createPowerToolsController(ctx) {
       try { analysis = await worker.validate(text, tokenCount); } catch { analysis = null; }
     }
     if (!analysis) analysis = analyzePromptSource({ text, parsed: ctx.state.parsedPrompt, libraryEntries: ctx.state.libraryCache, tokenCount, externalVariables: hasExternalVars });
+    const preflight = node._ppPreflightBadge?.getLastResult?.();
+    if (preflight && analysis) {
+      const mergedIssues = [...analysis.issues];
+      for (const emb of preflight.missingEmbeddings || []) {
+        mergedIssues.unshift({
+          severity: "error",
+          code: "missing-embedding",
+          title: `Missing embedding: ${emb.name}`,
+          detail: `“embedding:${emb.name}” was not found in ComfyUI's embeddings folder.`,
+        });
+      }
+      for (const lr of preflight.missingLoras || []) {
+        mergedIssues.unshift({
+          severity: "error",
+          code: "missing-lora",
+          title: `Missing LoRA: ${lr.name}`,
+          detail: `“<lora:${lr.name}>” (${lr.status || "missing"}) could not be resolved in ComfyUI's loras folder.`,
+        });
+      }
+      const counts = { error: 0, warning: 0, info: 0 };
+      for (const item of mergedIssues) counts[item.severity] = (counts[item.severity] || 0) + 1;
+      analysis = {
+        issues: mergedIssues,
+        counts,
+        status: counts.error ? "error" : counts.warning ? "warning" : counts.info ? "info" : "clean",
+      };
+    }
     if (requestId !== doctorAnalysisRequestId || textarea.value !== text || !ctx.state.powerTools.promptDoctor || workspace && (!workspace.isActive() || workspaceKey !== JSON.stringify(workspace.snapshot().recipe))) return;
     currentDoctorAnalysis = analysis;
     const count = currentDoctorAnalysis.issues.length;

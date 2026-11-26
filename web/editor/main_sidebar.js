@@ -532,8 +532,13 @@ export function createPromptPaletteSidebar(container) {
     paintLibraryCollection();
   }
   const restoreHistoryPrompt = ({ text, channel = "positive" }) => {
-    const snap = selection();
-    const fieldChannel = snap.editor?.closest?.(".pp-recipe-field")?.querySelector("[data-channel]")?.dataset.channel;
+    let snap = null;
+    if (channel === "positive") {
+      snap = selection();
+    } else {
+      try { snap = selection(); } catch { snap = null; }
+    }
+    const fieldChannel = snap?.editor?.closest?.(".pp-recipe-field")?.querySelector("[data-channel]")?.dataset.channel;
     const editor = fieldChannel === channel
       ? snap.editor
       : historyTargetEditor(currentNode, channel === "positive" ? target()?.handlers.sidebarEditor?.() : null, channel);
@@ -707,6 +712,7 @@ export function createPromptPaletteSidebar(container) {
     ["Variation Lab", "openVariations", "Compare different choices while keeping the parts you already like.", "branch", "variationLab"],
     ["Prompt Stash", "openStash", "Keep a draft you can return to, or restore a previous prompt.", "stash", null],
     ["Library Manager", "openLibraryManager", "Organize library files and check for broken or unused references.", "gallery", "libraryManager"],
+    ["Ports & sockets", "toggleIo", "Configure visible node inputs, outputs, and saved port layouts.", "io", null],
     ["Node library", "openLibrary", "Browse starter packs and work with your structured recipes.", "recipe", null],
     ["Focus editor", "focusEditor", "Return to the main editor and keep writing your prompt.", "edit", null],
   ]) {
@@ -787,7 +793,7 @@ export function createPromptPaletteSidebar(container) {
   };
   cleanups.push(onPromptPaletteAppearanceChanged(themeApply), API.onLibraryChanged(refreshLibrary), onLibraryPinsChanged(renderLibrary), onPromptPaletteCommandTargetsChanged(refreshTargets));
   applySidebarChrome(); themeApply(); refreshTargets(); activate(session.tab); refreshLibrary();
-  return { refreshTargets, cleanup() {
+  return { refreshTargets, activateTab: activate, cleanup() {
     if (disposed) return;
     session.entry = entryEditor.snapshot(); session.entryOpen = !entryHost.hidden;
     disposed = true; libraryVersion++; previewVersion++; previewAbort?.abort();
@@ -797,6 +803,33 @@ export function createPromptPaletteSidebar(container) {
 createPromptPaletteSidebar.sequence = 0;
 
 let mounted = null, registered = false;
+
+export function openPromptPaletteSidebarTab(tabKey = "library") {
+  const validTabs = ["library", "generations", "loras", "styles", "syntax", "tools"];
+  const nextTab = validTabs.includes(tabKey) ? tabKey : "library";
+  const display = loadSidebarDisplay();
+  if (nextTab === "generations" && !display.chrome.generationsTab) {
+    saveSidebarDisplay({ chrome: { generationsTab: true } });
+  } else if (["loras", "styles", "syntax", "tools"].includes(nextTab) && !display.chrome[nextTab]) {
+    saveSidebarDisplay({ chrome: { [nextTab]: true } });
+  }
+  session.tab = nextTab;
+  try {
+    const manager = app.extensionManager;
+    if (typeof manager?.activateSidebarTab === "function") {
+      manager.activateSidebarTab(TAB_ID);
+    } else {
+      const btn = document.querySelector(
+        `[data-tab-id="${TAB_ID}"], button[aria-label*="Prompt Palette"]:not(.wg-root button)`
+      );
+      if (btn && btn.getAttribute("aria-selected") !== "true" && !btn.classList.contains("p-highlight")) {
+        btn.click();
+      }
+    }
+  } catch { /* host sidebar API varies across ComfyUI builds */ }
+  mounted?.activateTab?.(nextTab);
+  return true;
+}
 function registerSidebar(enabled) {
   const manager = app.extensionManager;
   if (!manager?.registerSidebarTab) return;

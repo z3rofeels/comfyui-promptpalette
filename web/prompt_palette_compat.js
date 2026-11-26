@@ -447,7 +447,7 @@ function preparePromptBackingWidgets(node) {
   const seed = node.widgets?.find(w => w.name === "seed");
   for (const widget of seed?.linkedWidgets || []) {
     widget.__ppOwnerNode = node;
-    hideNativeWidget(widget, { keepSocketForNodes2: combinatorial });
+    hideNativeWidget(widget, { keepSocketForNodes2: combinatorial && socketWidgets.has(widget.name) });
   }
   installNodeGeometryGuard(node);
 }
@@ -666,6 +666,10 @@ function installPromptStateGuard(node, hiddenWidget) {
       hiddenWidget.value = current;
       return current;
     }
+    if (pendingNotify && value !== current) {
+      hiddenWidget.value = current;
+      return current;
+    }
     return write(value, { notify: false, dirty: false, establish: established || value !== "" });
   };
 
@@ -874,7 +878,7 @@ function migrateIoState(node, kind, defs) {
 function setupIoRail(node, root, inputDefs, outputDefs) {
   const toggle = root.querySelector('[data-act="ioRailToggle"]');
   const header = root.querySelector(".wg-toolbar, .pp-header, .ppwc-settings-row");
-  if (!toggle || !header) return { render() {}, close() {}, cleanup() {} };
+  if (!toggle || !header) return { render() {}, open() {}, close() {}, toggle() {}, isOpen: () => false, cleanup() {} };
 
   node._wgIoRailOpen = ioState(node).managerOpen;
   const rail = document.createElement("div");
@@ -1070,10 +1074,29 @@ function setupIoRail(node, root, inputDefs, outputDefs) {
     scheduleDomWidgetRemeasure(node);
   }
 
+  function focusAfterClose() {
+    const toggleVisible = !toggle.hidden && !toggle.hasAttribute("data-toolbar-hidden") && !toggle.closest("[inert], [hidden]") && toggle.getClientRects().length > 0;
+    if (toggleVisible) {
+      toggle.focus({ preventScroll: true });
+      return;
+    }
+    const fallback = root.querySelector('.wg-textarea, .ppwc-textarea, [data-act="settings"], [data-act="openSettings"]');
+    fallback?.focus?.({ preventScroll: true });
+  }
+
+  const openManager = ({ focusSearch = false } = {}) => {
+    setOpen(true);
+    if (focusSearch) search?.focus({ preventScroll: true });
+  };
+  const closeManager = ({ force = false } = {}) => {
+    if (force || !ioState(node).pinned) setOpen(false);
+  };
   const toggleManager = () => setOpen(!node._wgIoRailOpen);
+  const handleHideEvent = () => setOpen(false);
   toggle.addEventListener("click", toggleManager);
+  root.addEventListener("pp-io-rail-hide", handleHideEvent);
   const handleClick = (event) => {
-    if (event.target.closest?.("[data-io-close]")) { setOpen(false); toggle.focus({ preventScroll: true }); return; }
+    if (event.target.closest?.("[data-io-close]")) { setOpen(false); focusAfterClose(); return; }
     const layoutAction = ["save", "apply", "delete", "undo"].find(action => event.target.closest?.(`[data-io-layout-${action}]`));
     if (layoutAction) { handleLayout(layoutAction); return; }
     const pin = event.target.closest?.("[data-io-pin]");
@@ -1102,24 +1125,34 @@ function setupIoRail(node, root, inputDefs, outputDefs) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
     event.preventDefault(); event.stopPropagation();
     if (event.target === search && search.value) { search.value = ""; render(); return; }
-    setOpen(false); toggle.focus({ preventScroll: true });
+    setOpen(false); focusAfterClose();
   };
   rail.addEventListener("keydown", handleEscape);
 
   node._wgRenderIoRail = render;
+  node._wgOpenIoRail = openManager;
+  node._wgCloseIoRail = closeManager;
+  node._wgToggleIoRail = toggleManager;
   render();
   return {
     render,
+    open: openManager,
+    toggle: toggleManager,
+    isOpen: () => Boolean(node._wgIoRailOpen),
     // Automatic panel changes respect pinning. Explicit toggle/Escape can close.
-    close({ force = false } = {}) { if (force || !ioState(node).pinned) setOpen(false); },
+    close: closeManager,
     cleanup() {
       node._wgIoRailOpen = false;
       toggle.removeEventListener("click", toggleManager);
+      root.removeEventListener("pp-io-rail-hide", handleHideEvent);
       rail.removeEventListener("click", handleClick);
       rail.removeEventListener("keydown", handleEscape);
       search.removeEventListener("input", searchChanged); layoutSelect.removeEventListener("change", layoutChanged);
       layoutName.removeEventListener("keydown", layoutNameKeydown);
       if (node._wgRenderIoRail === render) delete node._wgRenderIoRail;
+      if (node._wgOpenIoRail === openManager) delete node._wgOpenIoRail;
+      if (node._wgCloseIoRail === closeManager) delete node._wgCloseIoRail;
+      if (node._wgToggleIoRail === toggleManager) delete node._wgToggleIoRail;
       rail.remove();
       queueSocketRailLayout(node);
     },

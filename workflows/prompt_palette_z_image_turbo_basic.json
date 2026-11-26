@@ -1,16 +1,16 @@
 {
-  "last_node_id": 10,
-  "last_link_id": 10,
+  "last_node_id": 14,
+  "last_link_id": 11,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        20,
-        40
+        0,
+        60
       ],
       "size": [
-        360,
+        390,
         110
       ],
       "flags": {},
@@ -22,7 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3
+            11
           ]
         }
       ],
@@ -32,17 +32,20 @@
       "widgets_values": [
         "z_image_turbo_bf16.safetensors",
         "default"
-      ]
+      ],
+      "title": "Diffusion Model · Z-Image Turbo BF16",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        20,
-        200
+        0,
+        240
       ],
       "size": [
-        360,
+        390,
         130
       ],
       "flags": {},
@@ -65,17 +68,20 @@
         "qwen_3_4b.safetensors",
         "lumina2",
         "default"
-      ]
+      ],
+      "title": "Text Encoder · Qwen 3 4B (lumina2)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        20,
-        380
+        0,
+        440
       ],
       "size": [
-        360,
+        390,
         90
       ],
       "flags": {},
@@ -96,18 +102,21 @@
       },
       "widgets_values": [
         "ae.safetensors"
-      ]
+      ],
+      "title": "VAE · FLUX AE (ae.safetensors)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 4,
       "type": "PromptPaletteEditor",
       "pos": [
-        460,
-        70
+        480,
+        60
       ],
       "size": [
-        430,
-        310
+        540,
+        520
       ],
       "flags": {},
       "order": 3,
@@ -122,7 +131,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 11,
           "shape": 7
         },
         {
@@ -172,7 +181,9 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            3
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -239,25 +250,217 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "Natural portrait of a handsome man in a charcoal knit sweater standing beside a large apartment window on an overcast morning, soft side light, realistic skin texture, relaxed hair, neutral expression, 85mm lens."
+        },
+        "wg_text": "Natural portrait of a handsome man in a charcoal knit sweater standing beside a large apartment window on an overcast morning, soft side light, realistic skin texture, relaxed hair, neutral expression, 85mm lens.",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "clip": true,
+            "model": true
+          },
+          "outputs": {
+            "conditioning": true,
+            "prompt": true,
+            "clip_token_count": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Realistic photo",
+            "presetId": "photo",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "85621b79-e808-45d0-bd2d-225efd2b958c",
+                "name": "Subject",
+                "label": "Subject",
+                "value": "Natural portrait of a handsome man",
+                "default": "Natural portrait of a handsome man",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "subject",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "eda1bef6-bf3e-4b58-b729-6c5f448c058d",
+                "name": "Wardrobe",
+                "label": "Wardrobe",
+                "value": "in a charcoal knit sweater",
+                "default": "in a charcoal knit sweater",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "outfit",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "54fd32f9-c403-46b5-9bc1-a95044ce4ca6",
+                "name": "Environment",
+                "label": "Environment",
+                "value": "warm studio backdrop with subtle architectural depth",
+                "default": "warm studio backdrop with subtle architectural depth",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "environment",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "ade91ef5-54f8-4fcc-89f6-470f88b0d92d",
+                "name": "Lighting",
+                "label": "Lighting",
+                "value": "soft directional window light from the left, gentle natural catchlights",
+                "default": "soft directional window light from the left, gentle natural catchlights",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lighting",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [
+                  "54fd32f9-c403-46b5-9bc1-a95044ce4ca6"
+                ],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "9adc7c47-02b7-4125-89af-9285b09699c3",
+                "name": "Camera & Optics",
+                "label": "Camera & Optics",
+                "value": "85mm portrait lens, f/2.0, natural shallow depth of field",
+                "default": "85mm portrait lens, f/2.0, natural shallow depth of field",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "camera",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "dead46f0-baff-4b5d-ac45-7f89d7c1e702",
+                "name": "Film & Grading",
+                "label": "Film & Grading",
+                "value": "authentic skin texture, clean modern editorial photography",
+                "default": "authentic skin texture, clean modern editorial photography",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "85621b79-e808-45d0-bd2d-225efd2b958c",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "eda1bef6-bf3e-4b58-b729-6c5f448c058d",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "54fd32f9-c403-46b5-9bc1-a95044ce4ca6",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "ade91ef5-54f8-4fcc-89f6-470f88b0d92d",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "9adc7c47-02b7-4125-89af-9285b09699c3",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "dead46f0-baff-4b5d-ac45-7f89d7c1e702",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "Natural portrait of a handsome man in a charcoal knit sweater standing beside a large apartment window on an overcast morning, soft side light, realistic skin texture, relaxed hair, neutral expression, 85mm lens.",
+        "Natural portrait of a handsome man, in a charcoal knit sweater, warm studio backdrop with subtle architectural depth, soft directional window light from the left, gentle natural catchlights, 85mm portrait lens, f/2.0, natural shallow depth of field, authentic skin texture, clean modern editorial photography",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette"
+      "title": "Prompt Palette · Z-Image Natural Prose",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "Natural portrait of a handsome man, in a charcoal knit sweater, warm studio backdrop with subtle architectural depth, soft directional window light from the left, gentle natural catchlights, 85mm portrait lens, f/2.0, natural shallow depth of field, authentic skin texture, clean modern editorial photography",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"4\",\"positive\":\"Natural portrait of a handsome man, in a charcoal knit sweater, warm studio backdrop with subtle architectural depth, soft directional window light from the left, gentle natural catchlights, 85mm portrait lens, f/2.0, natural shallow depth of field, authentic skin texture, clean modern editorial photography\",\"negative\":\"\",\"fields\":[{\"id\":\"85621b79-e808-45d0-bd2d-225efd2b958c\",\"channel\":\"positive\",\"start\":0,\"end\":34,\"source\":\"Natural portrait of a handsome man\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"eda1bef6-bf3e-4b58-b729-6c5f448c058d\",\"channel\":\"positive\",\"start\":36,\"end\":62,\"source\":\"in a charcoal knit sweater\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"54fd32f9-c403-46b5-9bc1-a95044ce4ca6\",\"channel\":\"positive\",\"start\":64,\"end\":116,\"source\":\"warm studio backdrop with subtle architectural depth\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"ade91ef5-54f8-4fcc-89f6-470f88b0d92d\",\"channel\":\"positive\",\"start\":118,\"end\":189,\"source\":\"soft directional window light from the left, gentle natural catchlights\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"9adc7c47-02b7-4125-89af-9285b09699c3\",\"channel\":\"positive\",\"start\":191,\"end\":248,\"source\":\"85mm portrait lens, f/2.0, natural shallow depth of field\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"dead46f0-baff-4b5d-ac45-7f89d7c1e702\",\"channel\":\"positive\",\"start\":250,\"end\":308,\"source\":\"authentic skin texture, clean modern editorial photography\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"85621b79-e808-45d0-bd2d-225efd2b958c\",\"join\":true},{\"type\":\"field\",\"id\":\"eda1bef6-bf3e-4b58-b729-6c5f448c058d\",\"join\":true},{\"type\":\"field\",\"id\":\"54fd32f9-c403-46b5-9bc1-a95044ce4ca6\",\"join\":true},{\"type\":\"field\",\"id\":\"ade91ef5-54f8-4fcc-89f6-470f88b0d92d\",\"join\":true},{\"type\":\"field\",\"id\":\"9adc7c47-02b7-4125-89af-9285b09699c3\",\"join\":true},{\"type\":\"field\",\"id\":\"dead46f0-baff-4b5d-ac45-7f89d7c1e702\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"85621b79-e808-45d0-bd2d-225efd2b958c\":null,\"eda1bef6-bf3e-4b58-b729-6c5f448c058d\":null,\"54fd32f9-c403-46b5-9bc1-a95044ce4ca6\":null,\"ade91ef5-54f8-4fcc-89f6-470f88b0d92d\":null,\"9adc7c47-02b7-4125-89af-9285b09699c3\":null,\"dead46f0-baff-4b5d-ac45-7f89d7c1e702\":null},\"edges\":{\"positive\":[\"85621b79-e808-45d0-bd2d-225efd2b958c\",\"dead46f0-baff-4b5d-ac45-7f89d7c1e702\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 5,
       "type": "ConditioningZeroOut",
       "pos": [
-        920,
-        390
+        1110,
+        230
       ],
       "size": [
-        240,
-        80
+        310,
+        90
       ],
       "flags": {},
       "order": 4,
@@ -281,18 +484,21 @@
       "properties": {
         "Node name for S&R": "ConditioningZeroOut"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Zero-Out Negative (CFG 1.0)",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 6,
-      "type": "EmptySD3LatentImage",
+      "type": "PromptPaletteResolutionSelector",
       "pos": [
-        500,
-        500
+        1110,
+        390
       ],
       "size": [
-        270,
-        130
+        320,
+        290
       ],
       "flags": {},
       "order": 5,
@@ -300,32 +506,64 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
+          "name": "latent",
+          "localized_name": "Latent",
           "type": "LATENT",
           "links": [
             7
           ]
+        },
+        {
+          "name": "width",
+          "localized_name": "Width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "localized_name": "Height",
+          "type": "INT",
+          "links": null
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptySD3LatentImage"
+        "Node name for S&R": "PromptPaletteResolutionSelector",
+        "resolution_pal_v1": {
+          "model_profile": "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1,
+          "snap_to_multiple": true
+        }
       },
       "widgets_values": [
+        "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
         1024,
         1024,
-        1
-      ]
+        1,
+        true
+      ],
+      "title": "Resolution Selector · 1024 × 1024",
+      "color": "#2a223d",
+      "bgcolor": "#181522",
+      "widgets_values_named": {
+        "model_profile": "Flux.1 / SD3 / Z-Image / Anima / Krea 2",
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1,
+        "snap_to_multiple": true
+      }
     },
     {
       "id": 7,
       "type": "ModelSamplingAuraFlow",
       "pos": [
-        930,
-        70
+        1110,
+        60
       ],
       "size": [
-        290,
-        90
+        310,
+        100
       ],
       "flags": {},
       "order": 6,
@@ -351,18 +589,21 @@
       },
       "widgets_values": [
         3
-      ]
+      ],
+      "title": "AuraFlow Shift · 3.0",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 8,
       "type": "KSampler",
       "pos": [
-        1280,
-        160
+        1510,
+        150
       ],
       "size": [
-        330,
-        300
+        340,
+        310
       ],
       "flags": {},
       "order": 7,
@@ -405,21 +646,24 @@
         0,
         "randomize",
         8,
-        1.0,
+        1,
         "res_multistep",
         "simple",
-        1.0
-      ]
+        1
+      ],
+      "title": "KSampler · 8 Steps · res_multistep",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 9,
       "type": "VAEDecode",
       "pos": [
-        1670,
-        170
+        1940,
+        60
       ],
       "size": [
-        240,
+        400,
         90
       ],
       "flags": {},
@@ -449,18 +693,21 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "VAE Decode",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 10,
       "type": "SaveImage",
       "pos": [
-        1980,
-        150
+        1940,
+        220
       ],
       "size": [
-        300,
-        280
+        400,
+        420
       ],
       "flags": {},
       "order": 9,
@@ -484,7 +731,191 @@
       },
       "widgets_values": [
         "PromptPalette_ZImageTurbo"
-      ]
+      ],
+      "title": "Save Image",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 11,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#382316",
+      "bgcolor": "#1c1613",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Z-IMAGE TURBO · 8-Step Natural Light & Realism",
+          "note": "1024 × 1024 · Shift 3.0 · 8 steps · CFG 1.0 · res_multistep / simple — Crisp fast portraits from conversational prose.",
+          "color_preset": "tangerine",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "Z-IMAGE TURBO · 8-Step Natural Light & Realism",
+        "1024 × 1024 · Shift 3.0 · 8 steps · CFG 1.0 · res_multistep / simple — Crisp fast portraits from conversational prose.",
+        "tangerine",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "Z-IMAGE TURBO · 8-Step Natural Light & Realism",
+        "note": "1024 × 1024 · Shift 3.0 · 8 steps · CFG 1.0 · res_multistep / simple — Crisp fast portraits from conversational prose.",
+        "color_preset": "tangerine",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 12,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        370
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · Required Model Files",
+          "note": "1. `models/diffusion_models/z_image_turbo_bf16.safetensors`\n2. `models/text_encoders/qwen_3_4b.safetensors` (set CLIP type to `lumina2`)\n3. `models/vae/ae.safetensors` (standard 16-channel FLUX AE VAE)\n\n- Keep **AuraFlow Shift** at `3` and sampler on `res_multistep` (`8 steps`, `CFG 1.0`).",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · Required Model Files",
+        "1. `models/diffusion_models/z_image_turbo_bf16.safetensors`\n2. `models/text_encoders/qwen_3_4b.safetensors` (set CLIP type to `lumina2`)\n3. `models/vae/ae.safetensors` (standard 16-channel FLUX AE VAE)\n\n- Keep **AuraFlow Shift** at `3` and sampler on `res_multistep` (`8 steps`, `CFG 1.0`).",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · Required Model Files",
+        "note": "1. `models/diffusion_models/z_image_turbo_bf16.safetensors`\n2. `models/text_encoders/qwen_3_4b.safetensors` (set CLIP type to `lumina2`)\n3. `models/vae/ae.safetensors` (standard 16-channel FLUX AE VAE)\n\n- Keep **AuraFlow Shift** at `3` and sampler on `res_multistep` (`8 steps`, `CFG 1.0`).",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 13,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        494
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "ITERATION TIP · Seed Wheel & Keep/Evolve",
+          "note": "- Because 8-step runs finish in seconds, try `{overcast morning|golden afternoon|rainy dusk}` choices in your prompt.\n- Open **History / Compare** on the toolbar to pin a Keeper and diff prompt tweaks side by side.",
+          "color_preset": "amber",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "ITERATION TIP · Seed Wheel & Keep/Evolve",
+        "- Because 8-step runs finish in seconds, try `{overcast morning|golden afternoon|rainy dusk}` choices in your prompt.\n- Open **History / Compare** on the toolbar to pin a Keeper and diff prompt tweaks side by side.",
+        "amber",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "ITERATION TIP · Seed Wheel & Keep/Evolve",
+        "note": "- Because 8-step runs finish in seconds, try `{overcast morning|golden afternoon|rainy dusk}` choices in your prompt.\n- Open **History / Compare** on the toolbar to pin a Keeper and diff prompt tweaks side by side.",
+        "color_preset": "amber",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 14,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: Z-Image Turbo",
+          "note": "",
+          "color_preset": "tangerine",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: Z-Image Turbo",
+        "",
+        "tangerine",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: Z-Image Turbo",
+        "note": "",
+        "color_preset": "tangerine",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -506,7 +937,7 @@
     ],
     [
       3,
-      1,
+      4,
       0,
       7,
       0,
@@ -567,16 +998,85 @@
       10,
       0,
       "IMAGE"
+    ],
+    [
+      11,
+      1,
+      0,
+      4,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load Models",
+      "bounding": [
+        -24,
+        -18,
+        438,
+        574
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Write & Customize Prompt",
+      "bounding": [
+        456,
+        -18,
+        588,
+        624
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Shift, Null Neg & Canvas",
+      "bounding": [
+        1086,
+        -18,
+        358,
+        584
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · 8-Step Turbo Sample",
+      "bounding": [
+        1486,
+        72,
+        388,
+        414
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode & Output",
+      "bounding": [
+        1916,
+        -18,
+        448,
+        684
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.85,
+      "scale": 0.74,
       "offset": [
-        60,
-        60
+        560,
+        220
       ]
     }
   },

@@ -25,7 +25,7 @@ export function attachRecipeFieldEditor({ node, root, input, overlay, paintSynta
   const acCleanup = attachAutocomplete(editor, { getMatches, onCommit, syntax: true, node });
   const focus = () => { if (injectState?.textarea !== editor) closeInjectMenu(); onFocus?.(editor); paint(); };
   const scroll = () => { overlay.scrollTop = editor.scrollTop; overlay.scrollLeft = editor.scrollLeft; };
-  const blur = () => { if (injectState?.textarea === editor) closeInjectMenu(); };
+  const blur = () => { if (injectState?.textarea === editor) closeInjectMenu(); paint(); };
   editor.addEventListener("input", change);
   editor.addEventListener("focus", focus);
   editor.addEventListener("blur", blur);

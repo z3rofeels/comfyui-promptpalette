@@ -8,7 +8,7 @@ import { attachImageImport } from "./image_import.js";
 import { installHistoryRefinement } from "./history_restore.js";
 import { editCompiledPrompt } from "./recipe_text_edit.js";
 import { WORKSPACE_KEY } from "./recipe_workspace_model.js";
-import { readEditorPreference, getPowerToolPreferences, getWorkspacePreferences, setWorkspacePreference, replacePowerToolPreferences } from "../prompt_palette_state.js";
+import { readEditorPreference, getPowerToolPreferences, getWorkspacePreferences, setWorkspacePreference, setPowerToolPreference, replacePowerToolPreferences } from "../prompt_palette_state.js";
 import { buildResolvedDiff } from "../prompt_palette_power_tools.js";
 import { registerPromptPaletteCommandTarget } from "../prompt_palette_command_bus.js";
 import { API } from "../prompt_palette_api.js";
@@ -42,13 +42,18 @@ import { EditorUndoManager, TEXT_UNDO_LIMIT } from "./undo_manager.js";
 import { PromptLibraryModel } from "../library/library_model.js";
 import { createLibraryLookup } from "../engine/library_lookup.js";
 import { upgradeEditorSurface } from "./editor_surface.js";
-import { createSyntaxHighlighter } from "./syntax_highlighter.js";
+import { createSyntaxHighlighter, estimateChunkBoundaryOffsets } from "./syntax_highlighter.js";
 import { createTagPainter, onTagColorsChanged } from "./booru_tag_colors.js";
 import { historyShortcut } from "./history_keys.js";
 import { createStatusBar, wildcardStatusText } from "./status_bar.js";
 import { installPromptSlots } from "./prompt_slots.js";
 import { attachEditorFindReplace } from "./editor_find_replace.js";
 import { installSeedController } from "./seed_controller.js";
+import { installPromptPreflightBadge, openPromptHygieneModal } from "./prompt_hygiene.js";
+import { attachSmartPaste } from "./smart_paste.js";
+import { attachCommandPaletteShortcut, attachEmptyQuickStart, openCommandPalette, closeCommandPalette } from "./command_palette.js";
+import { openPromptTools } from "./prompt_tools_panel.js";
+import { openLoraSidecar } from "./lora_sidecar.js";
 
 function buildWildcardWidget(node, hiddenWidget) {
   const promptState = installPromptStateGuard(node, hiddenWidget);
@@ -406,6 +411,11 @@ function buildWildcardWidget(node, hiddenWidget) {
   function highlightText(text, parsedOverride = null) {
     const parsed = parsedOverride?.source === text ? parsedOverride : profiler.measure("editor.parse", () => syntaxCache.parse(text));
     lastParsedPrompt = parsed;
+    const findDecs = findReplaceController?.getDecorations?.() || [];
+    const chunkDecs = theme.chunkBoundaryIndicator === true
+      ? estimateChunkBoundaryOffsets(text, { exactTotalTokens: lastTokenStatsSource === text ? lastTokenStats?.tokens : null })
+      : [];
+    const combinedExtra = findDecs.length || chunkDecs.length ? [...findDecs, ...chunkDecs] : null;
     const result = profiler.measure("editor.highlight", () => renderPromptSyntax(parsed, {
       isKnown,
       categoryOf,
@@ -413,7 +423,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       colorForToken,
       tagPainter: createTagPainter(theme),
       branchSelections: activeBranchSelections(text),
-      extraDecorations: findReplaceController?.getDecorations?.() || null,
+      extraDecorations: combinedExtra,
     }));
     tokenRanges = result.ranges;
     profiler.gauge("parserCacheLines", syntaxCache.stats().cachedLines);
@@ -681,16 +691,23 @@ function buildWildcardWidget(node, hiddenWidget) {
   node._ppInvalidateRuntime = (channel, payload = null) => reactiveRuntime.invalidate(channel, payload);
 
   let refinementController = null;
+  let preflightBadge = null;
+  let smartPasteController = null;
+  let emptyQuickStart = null;
   function render({ asyncVisual = true, refreshPreview = true, refreshDoctor = true, recordHistory = true, deferNotify = false, dispatchSync = true } = {}) {
     recipeWorkspace?.reconcile();
     recipeWorkspace?.contextChanged();
     const sourceText = textarea.value;
     refinementController?.sourceChanged();
     findReplaceController?.refreshSource?.();
+    emptyQuickStart?.sync?.();
     if (recordHistory) noteValueChange(sourceText);
     syncHiddenWidget(sourceText, { deferNotify, dispatchSync });
     reactiveRuntime.invalidate("prompt", { source: sourceText, asyncVisual });
-    if (refreshDoctor) reactiveRuntime.invalidate("doctor", { source: sourceText });
+    if (refreshDoctor) {
+      preflightBadge?.schedule?.();
+      reactiveRuntime.invalidate("doctor", { source: sourceText });
+    }
     if (refreshPreview && resolvedView.classList.contains("on")) reactiveRuntime.invalidate("preview", { source: sourceText });
   }
 
@@ -818,7 +835,12 @@ function buildWildcardWidget(node, hiddenWidget) {
       renderResolvedText(result.resolved);
       setPreviewStatus();
       updateTokenBadge(result.tokenStats);
-      if (lastPreviewBranchSelections.length) renderVisualsFromParsed(lastParsedPrompt, textarea.value);
+      preflightBadge?.applyResolvedPreflight?.({
+        embeddings: result.embeddings,
+        missingLoras: result.missingLoras,
+        duplicates: result.duplicates,
+      });
+      if (lastPreviewBranchSelections.length || theme.chunkBoundaryIndicator === true) renderVisualsFromParsed(lastParsedPrompt, textarea.value);
       if (powerTools.promptDoctor) scheduleDoctorCheck();
     } catch (e) {
       performanceRuntime.endRequest("preview", requestController);
@@ -863,7 +885,8 @@ function buildWildcardWidget(node, hiddenWidget) {
   textarea.addEventListener("blur", repaintEditorHighlights);
   // Tag categories arrive asynchronously (offline database lookup), so repaint when they do.
   const unsubscribeTagColors = onTagColorsChanged(repaintEditorHighlights);
-  textarea.addEventListener("scroll", () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; });
+  const syncHighlightScroll = () => { highlight.scrollTop = textarea.scrollTop; highlight.scrollLeft = textarea.scrollLeft; };
+  textarea.addEventListener("scroll", syncHighlightScroll);
 
   const historyKey = (e) => {
     const action = historyShortcut(e);
@@ -874,7 +897,14 @@ function buildWildcardWidget(node, hiddenWidget) {
   textarea.addEventListener("keydown", historyKey, true);
   // An IME composition fires many input events but is one edit.
   const holdUndoComposition = () => undoManager.hold();
-  const releaseUndoComposition = () => { undoManager.release(); noteValueChange(); undoManager.flush(); };
+  const releaseUndoComposition = () => {
+    undoManager.release();
+    if (recipeWorkspace?.isActive?.() || textarea.value !== promptState.current()) {
+      render({ asyncVisual: true, refreshPreview: true, refreshDoctor: true, deferNotify: true, dispatchSync: false });
+    }
+    noteValueChange();
+    undoManager.flush();
+  };
   textarea.addEventListener("compositionstart", holdUndoComposition);
   textarea.addEventListener("compositionend", releaseUndoComposition);
 
@@ -1116,6 +1146,11 @@ function buildWildcardWidget(node, hiddenWidget) {
     }
   });
 
+  tokenCountEl?.addEventListener("click", () => {
+    if (!tokenCountEl.textContent.trim()) return;
+    openPromptTools(recipeWorkspace?.editingSurface?.() || textarea, { tab: "inspect" });
+  });
+
   findReplaceController = attachEditorFindReplace({
     root,
     textarea,
@@ -1131,6 +1166,146 @@ function buildWildcardWidget(node, hiddenWidget) {
     onStateChange: () => renderVisualsFromParsed(lastParsedPrompt, textarea.value),
   });
   node._ppFindReplace = findReplaceController;
+
+  preflightBadge = installPromptPreflightBadge({
+    root,
+    textarea,
+    getNegative: () => node.widgets?.find((w) => w.name === "negative_text")?.value || "",
+    applyEdit: (nextValue, start, end) => {
+      undoManager.note(historyValue());
+      undoManager.flush();
+      textarea.value = nextValue;
+      textarea.setSelectionRange(start, end);
+      render();
+      undoManager.note(historyValue());
+      undoManager.flush();
+    },
+    onInspect: () => openPromptTools(recipeWorkspace?.editingSurface?.() || textarea, { tab: "inspect" }),
+    onPreflightResult: () => {
+      statusBar.refresh();
+      if (powerTools.promptDoctor) scheduleDoctorCheck();
+    },
+  });
+  node._ppPreflightBadge = preflightBadge;
+
+  smartPasteController = attachSmartPaste({
+    root,
+    textarea,
+    getNegative: () => node.widgets?.find((w) => w.name === "negative_text")?.value || "",
+    canSplitIntoFields: () => Boolean(recipeWorkspace),
+    applyStructuredPaste: ({ positive, negative, hasNegative, seed }) => {
+      undoManager.note(historyValue());
+      undoManager.flush();
+      const saved = recipeWorkspace?.snapshot();
+      if (saved) {
+        saved.recipe = editCompiledPrompt(saved.recipe, positive);
+        if (hasNegative && negative != null) saved.recipe = editCompiledPrompt(saved.recipe, negative, { channel: "negative" });
+        recipeWorkspace.restore(saved);
+      } else {
+        textarea.value = positive;
+        if (hasNegative && negative != null) node._ppNegativePromptState?.commit(negative);
+        render();
+      }
+      if (seed != null && seedWidget) {
+        seedWidget.value = seed;
+        seedWidget.callback?.(seed, node.graph?.canvas, node);
+        syncSeedControlsFromWidgets();
+      }
+      textarea.setSelectionRange(positive.length, positive.length);
+      noteValueChange();
+      undoManager.flush();
+    },
+    applyFieldsPaste: ({ recipe, seed }) => {
+      if (!powerTools.adjustableRecipes) {
+        setPowerToolPreference("adjustableRecipes", true);
+        powerTools = getPowerToolPreferences();
+        applyPowerToolSettings();
+      }
+      undoManager.note(historyValue());
+      undoManager.flush();
+      if (recipe.negative) node._ppNegativePromptState?.commit(recipe.negative);
+      recipeWorkspace.open(recipe, "Smart Paste");
+      if (seed != null && seedWidget) {
+        seedWidget.value = seed;
+        seedWidget.callback?.(seed, node.graph?.canvas, node);
+        syncSeedControlsFromWidgets();
+      }
+      noteValueChange();
+      undoManager.flush();
+    },
+  });
+
+  const toggleFieldsWorkspaceMode = () => {
+    if (!powerTools.adjustableRecipes) {
+      setPowerToolPreference("adjustableRecipes", true);
+      powerTools = getPowerToolPreferences();
+      applyPowerToolSettings();
+    }
+    if (recipeWorkspace?.isWorkspaceView?.()) {
+      recipeWorkspace.showEditor();
+      textarea.focus({ preventScroll: true });
+    } else {
+      recipeWorkspace?.openWorkspace?.();
+    }
+    emptyQuickStart?.sync?.();
+  };
+
+  const openStarterPacksQuick = (packId = "") => {
+    if (theme.starterPacksEnabled === false) {
+      theme.starterPacksEnabled = true;
+      saveTheme(theme);
+      themeController?.applyUiTheme?.();
+    }
+    openPickerDrawer("starter");
+    activateLibraryTab("starter");
+    prepareStarterPacks();
+    if (packId) {
+      const modelSel = el("starterModelSelect");
+      if (modelSel && [...modelSel.options].some((o) => o.value === packId)) {
+        modelSel.value = packId;
+        modelSel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+  };
+
+  const getCommandPaletteHost = () => ({
+    node,
+    root,
+    textarea,
+    getActiveEditor: () => recipeWorkspace?.editingSurface?.() || textarea,
+    openFind: (opts) => findReplaceController?.openFind?.(opts),
+    openStarterPacks: openStarterPacksQuick,
+    openLibrary: () => openPickerDrawer("personal"),
+    openEditEntry: () => openEditForItem(),
+    openSettings: () => utilityController?.openSettings?.(),
+    openStash,
+    openDoctor,
+    openVariations,
+    openLibraryManager,
+    toggleFieldsWorkspace: toggleFieldsWorkspaceMode,
+    toggleDayNight: () => themeController?.toggleDayNight?.(),
+    toggleZenMode: () => themeController?.toggleZenMode?.(),
+    isFieldsActive: () => Boolean(recipeWorkspace?.isWorkspaceView?.()),
+    isCombinatorial: false,
+  });
+
+  const cleanupCommandPaletteShortcut = attachCommandPaletteShortcut(root, getCommandPaletteHost);
+
+  emptyQuickStart = attachEmptyQuickStart({
+    root,
+    textarea,
+    isWorkspaceActive: () => Boolean(recipeWorkspace?.isWorkspaceView?.()),
+    isPreviewActive: () => resolvedView.classList.contains("on"),
+    onStarter: () => openStarterPacksQuick(""),
+    onFields: toggleFieldsWorkspaceMode,
+    onLoras: () => openLoraSidecar(textarea),
+    onImport: () => (node._ppOpenImageImport ? node._ppOpenImageImport() : root.querySelector('[data-act="importImage"]')?.click()),
+    onCommandPalette: () => openCommandPalette(getCommandPaletteHost()),
+    onThemeSaved: (nextTheme) => {
+      Object.assign(theme, nextTheme);
+      updateThemeJson();
+    },
+  });
 
   promptSlotsController = installPromptSlots({
     node,
@@ -1253,6 +1428,7 @@ function buildWildcardWidget(node, hiddenWidget) {
     let trigger = null;
     if (ctxMenuOpen) closeCtxMenu();
     else if (injectState && injectState.textarea === textarea) closeInjectMenu();
+    else if (smartPasteController?.isOpen?.()) { smartPasteController.dismiss(); trigger = textarea; }
     else if (findReplaceController?.isOpen?.()) { findReplaceController.closeFind({ restoreFocus: true }); }
     else if (node._wgIoRailOpen) ioRail.close({ force: true });
     else if (powerPopupEntries.some((popup) => popup.classList.contains("open"))) {
@@ -1286,7 +1462,7 @@ function buildWildcardWidget(node, hiddenWidget) {
   themeController = createThemeController({
     node, root, settingsPopup, theme, state: themeState, el, textarea, highlight, resolvedView, editorReal, btnResolve,
     starterPackController, libraryButton, searchInput, render: renderThemeOnly, applyPowerToolSettings, closeAllPowerPopups,
-    closeStash, closePickerDrawer, closeEditDrawer, activateLibraryTab, prepareStarterPacks, renderPickerList,
+    closeSettings, closeStash, closePickerDrawer, closeEditDrawer, activateLibraryTab, prepareStarterPacks, renderPickerList,
   });
 
   if (recipeWorkspace?.snapshot()) recipeWorkspace.refresh();
@@ -1313,12 +1489,14 @@ function buildWildcardWidget(node, hiddenWidget) {
       setToolbarLabel(btnResolve, "Preview result"); recipeWorkspace?.showEditor(); textarea.focus({ preventScroll: true });
     },
     togglePreview: () => btnResolve.click(),
-    toggleIo: () => root.querySelector('[data-act="ioRailToggle"]')?.click(),
+    toggleIo: () => (node._wgToggleIoRail ? node._wgToggleIoRail() : root.querySelector('[data-act="ioRailToggle"]')?.click()),
     openStash,
     toggleDayNight: () => themeController?.toggleDayNight?.(),
     openDoctor,
     openVariations,
     openLibraryManager,
+    openCommandPalette: () => openCommandPalette(getCommandPaletteHost()),
+    tidyPrompt: () => openPromptHygieneModal(recipeWorkspace?.editingSurface?.() || textarea, { mode: "tidy" }),
   });
   root.addEventListener("pointerdown", commandTarget.activate, true);
   root.addEventListener("focusin", commandTarget.activate, true);
@@ -1359,6 +1537,11 @@ function buildWildcardWidget(node, hiddenWidget) {
       disposed = true; workerParseVersion++;
       findReplaceController?.cleanup();
       delete node._ppFindReplace;
+      preflightBadge?.cleanup();
+      delete node._ppPreflightBadge;
+      smartPasteController?.cleanup();
+      emptyQuickStart?.cleanup();
+      cleanupCommandPaletteShortcut();
       promptSlotsController?.cleanup();
       delete node._ppPromptSlots;
       cleanupQueueSync();
@@ -1385,6 +1568,8 @@ function buildWildcardWidget(node, hiddenWidget) {
       powerToolsController?.cleanup();
       themeController?.cleanup?.();
       commandTarget.cleanup();
+      root.removeEventListener("pointerdown", commandTarget.activate, true);
+      root.removeEventListener("focusin", commandTarget.activate, true);
       cleanupKeyboardBoundary();
       undoManager.cleanup();
       textarea.removeEventListener("keydown", historyKey, true);
@@ -1393,6 +1578,7 @@ function buildWildcardWidget(node, hiddenWidget) {
       syntaxHighlighter.clear();
       textarea.removeEventListener("focus", repaintEditorHighlights);
       textarea.removeEventListener("blur", repaintEditorHighlights);
+      textarea.removeEventListener("scroll", syncHighlightScroll);
       unsubscribeTagColors();
       editorSurface.cleanup();
       statusBar.cleanup();
@@ -1424,6 +1610,7 @@ const livePromptPaletteNodes = new Set();
 
 function cleanupSharedPromptPaletteDom() {
   cleanupDialogOverlays();
+  closeCommandPalette();
   cleanupAutocomplete();
   cleanupInjector();
   cleanupContextMenu();

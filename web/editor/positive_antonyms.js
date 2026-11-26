@@ -30,7 +30,7 @@ export function installPositiveAntonymsControl({ node, root, settingsRoot = root
     if (enabled) { enabled.checked = active; enabled.disabled = !widget; }
     if (button) {
       button.hidden = loadTheme().showPositiveAntonymsBtn !== true;
-      button.style.display = button.hidden ? "none" : "";
+      button.toggleAttribute("data-toolbar-hidden", button.hidden);
       button.disabled = !widget;
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));

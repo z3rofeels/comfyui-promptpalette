@@ -5,6 +5,8 @@ import { statusBarMarkup, statusBarSettingsMarkup } from "./status_bar.js";
 import { toolbarDesignerMarkup } from "./toolbar.js";
 import { promptSlotsMarkup } from "./prompt_slots.js";
 import { editorFindReplaceMarkup } from "./editor_find_replace.js";
+import { smartPasteMarkup } from "./smart_paste.js";
+import { emptyQuickStartMarkup } from "./command_palette.js";
 import { fieldEditorSettingsMarkup } from "./field_editor_preferences.js";
 
 export function createEditorShell() {
@@ -25,7 +27,7 @@ export function createEditorShell() {
       <div class="wg-toolbar-center">
         <button class="wg-pill wg-pill-resolve" data-act="resolve" data-el="btnResolve" title="Preview the wildcard-resolved result" aria-label="Preview resolved prompt" aria-pressed="false">${svgIcon("bolt")}<span class="wg-toolbar-label">Preview result</span></button>
         <button class="wg-pill wg-power-pill" data-act="variations" data-el="btnVariations" title="Variation Lab — preview choices, compare versions and apply a result" aria-label="Open Variation Lab" hidden>${svgIcon("branch")}<span class="wg-toolbar-label">Variation Lab</span></button>
-        <button type="button" class="wg-pill" data-act="refine" title="Refine the active draft, then Commit or Cancel" aria-label="Refine active draft">${svgIcon("edit")}<span class="wg-toolbar-label">Refine</span></button>
+        <button type="button" class="wg-pill" data-act="refine" data-el="btnRefine" title="Refine the active draft, then Commit or Cancel" aria-label="Refine active draft">${svgIcon("edit")}<span class="wg-toolbar-label">Refine</span></button>
         <button type="button" class="wg-icon-btn" data-act="positiveAntonyms" data-el="btnPositiveAntonyms" title="Positive Antonyms · generated positive output only" aria-label="Toggle Positive Antonyms for this node" aria-pressed="false" hidden>${svgIcon("doctor")}</button>
       </div>
       <div class="wg-toolbar-group right" aria-label="Prompt Palette utilities">
@@ -34,7 +36,7 @@ export function createEditorShell() {
         <button class="wg-icon-btn" data-act="redo" data-el="btnRedo" title="Redo prompt edit (Ctrl+Shift+Z)" aria-label="Redo prompt edit">${svgIcon("redo")}</button>
         <button class="wg-icon-btn" data-act="copy" data-el="btnCopy" title="Copy current prompt" aria-label="Copy prompt">${svgIcon("copy")}</button>
         <button class="wg-icon-btn" data-act="clear" data-el="btnClear" title="Clear prompt after confirmation" aria-label="Clear prompt">${svgIcon("trash")}</button>
-        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" aria-expanded="false" title="Open Ports manager" aria-label="Open Ports manager">${svgIcon("io", 13)}<span data-io-count></span></button>
+        <button type="button" class="wg-icon-btn wg-io-toggle-btn" data-act="ioRailToggle" data-el="btnIoRail" aria-expanded="false" title="Open Ports manager" aria-label="Open Ports manager">${svgIcon("io", 13)}<span data-io-count></span></button>
         <button class="wg-icon-btn" data-el="dayNightBtn" data-act="dayNightToggle" title="Switch day/night theme" aria-label="Switch day or night theme">${svgIcon("moon")}</button>
         <button class="wg-icon-btn" data-el="zenBtn" data-act="zenToggle" title="Toggle Zen mode" aria-label="Toggle Zen mode">${svgIcon("zen")}</button>
         <button type="button" class="wg-pill wg-seed-toolbar-btn" data-act="seedPanel" data-el="btnSeedPanel" title="Seed — value, run behavior, Seed Lab &amp; Wheel of Fortune (Shift+Click: Wheel)" aria-label="Open seed controls" aria-haspopup="dialog" aria-expanded="false" hidden>${svgIcon("wheel")}<span class="wg-toolbar-label wg-seed-toolbar-label"><span class="wg-seed-toolbar-value" data-el="seedToolbarValue">0</span><small class="wg-seed-toolbar-mode" data-el="seedToolbarMode"></small></span></button>
@@ -140,9 +142,11 @@ export function createEditorShell() {
       <div class="wg-body">
         <div class="wg-editor-wrap">
           ${editorFindReplaceMarkup()}
+          ${smartPasteMarkup()}
           <div class="wg-editor-real" data-el="editorReal">
             <div class="wg-editor-layer wg-highlight" data-el="highlight"></div>
             <textarea class="wg-editor-layer wg-textarea" data-el="textarea" spellcheck="true"></textarea>
+            ${emptyQuickStartMarkup()}
           </div>
           <div class="wg-resolved" data-el="resolvedView"></div><div class="wg-preview-status" data-el="previewStatus" hidden aria-live="polite"></div>
         </div>
@@ -329,8 +333,9 @@ export function createEditorShell() {
               <label class="wg-zen-card"><div><strong>Zen mode</strong><small>Hide drawers, secondary chrome, legend, and utility controls. Settings always remains available.</small></div><input type="checkbox" data-el="toggleZenMode"></label>
               <label class="wg-toggle-card"><div><strong>Starter Packs</strong><small>Show the optional built-in prompt and syntax library. My Library remains available when this is off.</small></div><input type="checkbox" data-el="toggleStarterPacks"></label>
               <div class="wg-button-row">
-                <button class="wg-button" data-act="toolbarAllOn">All toolbar on</button>
-                <button class="wg-button" data-act="toolbarAllOff">All toolbar off</button>
+                <button type="button" class="wg-button" data-act="toolbarAllOn">All toolbar on</button>
+                <button type="button" class="wg-button" data-act="toolbarAllOff">All toolbar off</button>
+                <button type="button" class="wg-button" data-act="openPortsFromSettings" title="Open this node's Ports manager even when the Inputs / outputs toolbar button is hidden">Manage ports…</button>
               </div>
               <div class="wg-section-divider"></div>
               <div class="wg-panel-title"><div><h3>Toolbar modules</h3><p>Settings is permanently available and cannot be hidden.</p></div></div>
@@ -347,8 +352,11 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Redo</strong><small>Prompt history.</small></div><input type="checkbox" data-el="toggleRedoBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Resolved preview</strong><small>Inspect final text.</small></div><input type="checkbox" data-el="toggleResolveBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Preview update mode</strong><small>Manual never resolves while typing. After pause matches the familiar behavior. Live updates quickly.</small></div><select data-el="previewModeSelect" aria-label="Preview update mode"><option value="manual">Manual</option><option value="afterPause">After pause</option><option value="live">Live</option></select></label>
+                <label class="wg-toggle-card"><div><strong>Refine</strong><small>Show the Commit / Cancel draft refinement button. Refine stays available in Command Palette.</small></div><input type="checkbox" data-el="toggleRefineBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Copy</strong><small>Copy prompt text.</small></div><input type="checkbox" data-el="toggleCopyBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Clear</strong><small>Clear the editor.</small></div><input type="checkbox" data-el="toggleClearBtn"></label>
+                <label class="wg-toggle-card"><div><strong>Inputs / outputs (Ports)</strong><small>Show the Ports manager button. Hiding it never affects active sockets or connected wires; Manage ports above and Command Palette stay available.</small></div><input type="checkbox" data-el="toggleIoBtn"></label>
+                <label class="wg-toggle-card"><div><strong>Zen shortcut</strong><small>Show the Zen mode toggle button in the toolbar. Zen mode itself stays available above and in Command Palette.</small></div><input type="checkbox" data-el="toggleZenBtn"></label>
                 <label class="wg-toggle-card"><div><strong>Seed controls</strong><small>Toolbar Seed button: seed, mode, line handling.</small></div><input type="checkbox" data-el="toggleSeedControls"></label>
                 <label class="wg-toggle-card"><div><strong>Seed Fortunes &amp; Wheel</strong><small>Archetype omens and seed hunting game in the Seed panel.</small></div><input type="checkbox" data-el="toggleSeedFortune"></label>
               </div>
@@ -373,6 +381,8 @@ export function createEditorShell() {
                 <label class="wg-toggle-card"><div><strong>Style autocomplete trigger</strong><small>Choose whether Style autocomplete opens automatically as you type or only on demand (Ctrl+Space).</small></div><select data-el="styleAutocompleteMode" aria-label="Style autocomplete trigger"><option value="off">Off</option><option value="auto">Auto</option><option value="onDemand">On demand (Ctrl+Space)</option></select></label>
                 <label class="wg-toggle-card"><div><strong>Style model filter</strong><small>Auto matches connected Krea 2 or MOSS nodes, or filter manually across curated model packs.</small></div><select data-el="styleModelFilter" aria-label="Style model filter"><option value="auto">Auto (detect node)</option><option value="both">Both (Krea 2 &amp; MOSS)</option><option value="krea2">Krea 2 only</option><option value="moss">MOSS-Image only</option></select></label>
                 <label class="wg-toggle-card"><div><strong>Default MOSS dialect</strong><small>Default insertion syntax when targeting MOSS-Image: Natural Caption prose, Ordered Booru SFW Tags, or Spatial JSON Layout.</small></div><select data-el="styleMossDialect" aria-label="Default MOSS dialect"><option value="caption">Natural Caption</option><option value="tags">Ordered Booru Tags (SFW)</option><option value="layout">Spatial JSON Layout</option></select></label>
+                <label class="wg-toggle-card"><div><strong>CLIP-L chunk boundary marker</strong><small>Subtle inline highlight where 75-token CLIP chunks split. Off by default.</small></div><input type="checkbox" data-el="toggleChunkBoundary"></label>
+                <label class="wg-toggle-card"><div><strong>Empty-editor quick-start pills</strong><small>Show unobtrusive Starter Packs, Fields, LoRAs, Import, and Command Palette shortcuts when an empty editor is focused.</small></div><input type="checkbox" data-el="toggleEmptyQuickStart"></label>
               </div>
             </section>
 

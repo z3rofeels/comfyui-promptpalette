@@ -242,7 +242,7 @@ function wrapTextWithInspectionAndFind(text, absStart, inspectionSpans, extraDec
     if (s.end > absStart && s.start < absEnd) activeSpans.push(s);
   }
   for (const d of extraDecorations) {
-    if ((d.kind === "find-match" || d.kind === "find-current") && d.end > absStart && d.start < absEnd) {
+    if ((d.kind === "find-match" || d.kind === "find-current" || d.kind === "chunk-boundary") && d.end > absStart && d.start < absEnd) {
       activeSpans.push(d);
     }
   }
@@ -273,6 +273,8 @@ function wrapTextWithInspectionAndFind(text, absStart, inspectionSpans, extraDec
           classes.push("wg-tok-find-current");
         } else if (s.kind === "find-match") {
           classes.push("wg-tok-find-match");
+        } else if (s.kind === "chunk-boundary") {
+          classes.push("wg-tok-chunk-boundary");
         }
       }
     }

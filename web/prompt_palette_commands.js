@@ -15,6 +15,8 @@ if (prefs.nativeCommands) {
     ["prompt-palette.doctor", "Prompt Palette: Open Prompt Doctor", "openDoctor"],
     ["prompt-palette.variations", "Prompt Palette: Open Variation Lab", "openVariations"],
     ["prompt-palette.library-health", "Prompt Palette: Open Library Manager", "openLibraryManager"],
+    ["prompt-palette.command-palette", "Prompt Palette: Open Command Palette", "openCommandPalette"],
+    ["prompt-palette.tidy-prompt", "Prompt Palette: Tidy & Deduplicate Prompt", "tidyPrompt"],
   ];
 
   app.registerExtension({

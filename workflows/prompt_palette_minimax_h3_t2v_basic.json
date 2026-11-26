@@ -1,13 +1,13 @@
 {
-  "last_node_id": 15,
-  "last_link_id": 18,
+  "last_node_id": 19,
+  "last_link_id": 19,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        20,
-        30
+        0,
+        60
       ],
       "size": [
         420,
@@ -22,8 +22,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            4,
-            5
+            19
           ]
         }
       ],
@@ -33,14 +32,17 @@
       "widgets_values": [
         "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
         "default"
-      ]
+      ],
+      "title": "Diffusion Model · MiniMax H3 INT8",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        20,
-        180
+        0,
+        240
       ],
       "size": [
         420,
@@ -66,14 +68,17 @@
         "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
         "minimax",
         "default"
-      ]
+      ],
+      "title": "Text Encoder · Qwen 3 VL 32B (minimax)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        20,
-        350
+        0,
+        440
       ],
       "size": [
         420,
@@ -98,14 +103,17 @@
       },
       "widgets_values": [
         "minimax_h3_video_vae_fp16.safetensors"
-      ]
+      ],
+      "title": "Video VAE (FP16)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 4,
       "type": "VAELoader",
       "pos": [
-        20,
-        480
+        0,
+        600
       ],
       "size": [
         420,
@@ -129,18 +137,21 @@
       },
       "widgets_values": [
         "minimax_h3_audio_vae_fp32.safetensors"
-      ]
+      ],
+      "title": "Audio VAE (FP32)",
+      "color": "#1c303e",
+      "bgcolor": "#131d25"
     },
     {
       "id": 5,
       "type": "PromptPaletteEditor",
       "pos": [
-        500,
-        20
+        510,
+        60
       ],
       "size": [
-        470,
-        360
+        540,
+        580
       ],
       "flags": {},
       "order": 4,
@@ -155,7 +166,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null,
+          "link": 19,
           "shape": 7
         },
         {
@@ -205,7 +216,10 @@
         {
           "name": "Model (passthrough)",
           "type": "MODEL",
-          "links": null
+          "links": [
+            4,
+            5
+          ]
         },
         {
           "name": "CLIP (passthrough)",
@@ -271,21 +285,189 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "PromptPaletteEditor"
+        "Node name for S&R": "PromptPaletteEditor",
+        "prompt_palette_prompt_state": {
+          "version": 1,
+          "source_text": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a medium-wide shot frames a small neighborhood corner store at night during heavy rain. a handsome man in a dark green coat waits beneath the awning, notices an old friend across the street, and freezes with one hand still wrapped around a paper cup. The camera trucks left with small amplitude at slow speed as passing headlights sweep across his face. [Shot 2] At 00:04.000, the camera cuts to a street-level tracking shot as he steps into the rain and the friend moves toward him; they meet beside the center line and share a relieved embrace while traffic remains stopped in the background.\n\noverall_soundscape: Heavy rain strikes the awning and pavement while distant engines idle. Wet footsteps approach from opposite sides, fabric rustles during the embrace, and both people release quiet, unsteady breaths.\n\nnon_diegetic_music: Sparse piano notes at a slow tempo, joined by a low sustained cello tone that grows slightly during the embrace and then fades."
+        },
+        "wg_text": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a medium-wide shot frames a small neighborhood corner store at night during heavy rain. a handsome man in a dark green coat waits beneath the awning, notices an old friend across the street, and freezes with one hand still wrapped around a paper cup. The camera trucks left with small amplitude at slow speed as passing headlights sweep across his face. [Shot 2] At 00:04.000, the camera cuts to a street-level tracking shot as he steps into the rain and the friend moves toward him; they meet beside the center line and share a relieved embrace while traffic remains stopped in the background.\n\noverall_soundscape: Heavy rain strikes the awning and pavement while distant engines idle. Wet footsteps approach from opposite sides, fabric rustles during the embrace, and both people release quiet, unsteady breaths.\n\nnon_diegetic_music: Sparse piano notes at a slow tempo, joined by a low sustained cello tone that grows slightly during the embrace and then fades.",
+        "prompt_palette_negative_text_v1": "",
+        "wg_io": {
+          "inputs": {
+            "prompt_prefix": true,
+            "prompt_suffix": true,
+            "model": true
+          },
+          "outputs": {
+            "prompt": true,
+            "seed_out": true,
+            "model": true
+          },
+          "labels": false
+        },
+        "prompt_palette_recipe_workspace_v2": {
+          "recipe": {
+            "schema": "prompt-palette.adjustable-recipe.v2",
+            "name": "Video & Motion (Wan / Hunyuan)",
+            "presetId": "cinematic-video",
+            "separator": ", ",
+            "fields": [
+              {
+                "id": "f49c4ce0-8362-4d07-b186-6b2a6a89e318",
+                "name": "Subject & Action",
+                "label": "Subject & Action",
+                "value": "[Shot 1] A lone traveler in a weathered coat walks steadily along a rain-slicked cobblestone alley, pausing to look up at a glowing lantern sign.",
+                "default": "[Shot 1] A lone traveler in a weathered coat walks steadily along a rain-slicked cobblestone alley, pausing to look up at a glowing lantern sign.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "action",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d49a52",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "136ab4af-b94e-42c5-991f-02d317b5992a",
+                "name": "Camera movement",
+                "label": "Camera movement",
+                "value": "Smooth tracking shot from behind, slowly arcing around to a medium three-quarter profile.",
+                "default": "Smooth tracking shot from behind, slowly arcing around to a medium three-quarter profile.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "camera",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#bb8ee8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "a64fa98b-0bdc-44bf-a6fe-06dac0a59238",
+                "name": "Atmosphere & Motion",
+                "label": "Atmosphere & Motion",
+                "value": "Light drizzle falls through warm lantern haze; puddles reflect amber and slate highlights.",
+                "default": "Light drizzle falls through warm lantern haze; puddles reflect amber and slate highlights.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "environment",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [
+                  "f49c4ce0-8362-4d07-b186-6b2a6a89e318"
+                ],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#82c6a2",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "07aa1a3f-afac-48b0-8dfe-2eaa320b127b",
+                "name": "Lighting & Mood",
+                "label": "Lighting & Mood",
+                "value": "Moody dusk blue ambient light contrasted with warm tungsten practicals.",
+                "default": "Moody dusk blue ambient light contrasted with warm tungsten practicals.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "lighting",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#75b7e8",
+                "variationMode": "cycle"
+              },
+              {
+                "id": "e449749e-8319-4375-ad89-44b4fc50bd7f",
+                "name": "Pacing & Style",
+                "label": "Pacing & Style",
+                "value": "Live-action cinema, 35mm anamorphic texture, restrained natural motion and atmospheric depth.",
+                "default": "Live-action cinema, 35mm anamorphic texture, restrained natural motion and atmospheric depth.",
+                "enabled": true,
+                "collapsed": false,
+                "channel": "positive",
+                "fieldType": "style",
+                "separator": null,
+                "experimentState": "lock",
+                "dependsOn": [],
+                "hasInput": false,
+                "inputPlacement": "before",
+                "hasOutput": false,
+                "accent": "#d86f70",
+                "variationMode": "cycle"
+              }
+            ],
+            "segments": [
+              {
+                "type": "field",
+                "id": "f49c4ce0-8362-4d07-b186-6b2a6a89e318",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "136ab4af-b94e-42c5-991f-02d317b5992a",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "a64fa98b-0bdc-44bf-a6fe-06dac0a59238",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "07aa1a3f-afac-48b0-8dfe-2eaa320b127b",
+                "join": true
+              },
+              {
+                "type": "field",
+                "id": "e449749e-8319-4375-ad89-44b4fc50bd7f",
+                "join": true
+              }
+            ],
+            "negative": ""
+          },
+          "view": "workspace",
+          "path": "",
+          "baseline": "",
+          "settingsTab": "fields"
+        }
       },
       "widgets_values": [
-        "integrated_multimodal_description: [Shot 1] Live-action, cinematic, a medium-wide shot frames a small neighborhood corner store at night during heavy rain. a handsome man in a dark green coat waits beneath the awning, notices an old friend across the street, and freezes with one hand still wrapped around a paper cup. The camera trucks left with small amplitude at slow speed as passing headlights sweep across her face. [Shot 2] At 00:04.000, the camera cuts to a street-level tracking shot as she steps into the rain and the friend moves toward her; they meet beside the center line and share a relieved embrace while traffic remains stopped in the background.\n\noverall_soundscape: Heavy rain strikes the awning and pavement while distant engines idle. Wet footsteps approach from opposite sides, fabric rustles during the embrace, and both people release quiet, unsteady breaths.\n\nnon_diegetic_music: Sparse piano notes at a slow tempo, joined by a low sustained cello tone that grows slightly during the embrace and then fades.",
+        "[Shot 1] A lone traveler in a weathered coat walks steadily along a rain-slicked cobblestone alley, pausing to look up at a glowing lantern sign., Smooth tracking shot from behind, slowly arcing around to a medium three-quarter profile., Light drizzle falls through warm lantern haze; puddles reflect amber and slate highlights., Moody dusk blue ambient light contrasted with warm tungsten practicals., Live-action cinema, 35mm anamorphic texture, restrained natural motion and atmospheric depth.",
         0,
         "entire text as one"
       ],
-      "title": "Prompt Palette"
+      "title": "Prompt Palette · Multimodal Shot Script (STRING)",
+      "color": "#332617",
+      "bgcolor": "#191613",
+      "widgets_values_named": {
+        "text": "[Shot 1] A lone traveler in a weathered coat walks steadily along a rain-slicked cobblestone alley, pausing to look up at a glowing lantern sign., Smooth tracking shot from behind, slowly arcing around to a medium three-quarter profile., Light drizzle falls through warm lantern haze; puddles reflect amber and slate highlights., Moody dusk blue ambient light contrasted with warm tungsten practicals., Live-action cinema, 35mm anamorphic texture, restrained natural motion and atmospheric depth.",
+        "seed": 0,
+        "processing_mode": "entire text as one",
+        "positive_antonyms": false,
+        "workspace_runtime": "{\"schema\":\"prompt-palette.workspace-generation.v1\",\"namespace\":\"5\",\"positive\":\"[Shot 1] A lone traveler in a weathered coat walks steadily along a rain-slicked cobblestone alley, pausing to look up at a glowing lantern sign., Smooth tracking shot from behind, slowly arcing around to a medium three-quarter profile., Light drizzle falls through warm lantern haze; puddles reflect amber and slate highlights., Moody dusk blue ambient light contrasted with warm tungsten practicals., Live-action cinema, 35mm anamorphic texture, restrained natural motion and atmospheric depth.\",\"negative\":\"\",\"fields\":[{\"id\":\"f49c4ce0-8362-4d07-b186-6b2a6a89e318\",\"channel\":\"positive\",\"start\":0,\"end\":145,\"source\":\"[Shot 1] A lone traveler in a weathered coat walks steadily along a rain-slicked cobblestone alley, pausing to look up at a glowing lantern sign.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"136ab4af-b94e-42c5-991f-02d317b5992a\",\"channel\":\"positive\",\"start\":147,\"end\":236,\"source\":\"Smooth tracking shot from behind, slowly arcing around to a medium three-quarter profile.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"a64fa98b-0bdc-44bf-a6fe-06dac0a59238\",\"channel\":\"positive\",\"start\":238,\"end\":328,\"source\":\"Light drizzle falls through warm lantern haze; puddles reflect amber and slate highlights.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"07aa1a3f-afac-48b0-8dfe-2eaa320b127b\",\"channel\":\"positive\",\"start\":330,\"end\":401,\"source\":\"Moody dusk blue ambient light contrasted with warm tungsten practicals.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"},{\"id\":\"e449749e-8319-4375-ad89-44b4fc50bd7f\",\"channel\":\"positive\",\"start\":403,\"end\":496,\"source\":\"Live-action cinema, 35mm anamorphic texture, restrained natural motion and atmospheric depth.\",\"state\":\"lock\",\"variation\":\"cycle\",\"dependsOn\":[],\"hasInput\":false,\"inputPlacement\":\"before\",\"hasOutput\":false,\"separator\":\", \"}],\"output_fields\":[],\"layout\":{\"segments\":[{\"type\":\"field\",\"id\":\"f49c4ce0-8362-4d07-b186-6b2a6a89e318\",\"join\":true},{\"type\":\"field\",\"id\":\"136ab4af-b94e-42c5-991f-02d317b5992a\",\"join\":true},{\"type\":\"field\",\"id\":\"a64fa98b-0bdc-44bf-a6fe-06dac0a59238\",\"join\":true},{\"type\":\"field\",\"id\":\"07aa1a3f-afac-48b0-8dfe-2eaa320b127b\",\"join\":true},{\"type\":\"field\",\"id\":\"e449749e-8319-4375-ad89-44b4fc50bd7f\",\"join\":true}],\"separator\":\", \",\"negative\":\"\",\"overrideBoundaries\":false,\"separators\":{\"f49c4ce0-8362-4d07-b186-6b2a6a89e318\":null,\"136ab4af-b94e-42c5-991f-02d317b5992a\":null,\"a64fa98b-0bdc-44bf-a6fe-06dac0a59238\":null,\"07aa1a3f-afac-48b0-8dfe-2eaa320b127b\":null,\"e449749e-8319-4375-ad89-44b4fc50bd7f\":null},\"edges\":{\"positive\":[\"f49c4ce0-8362-4d07-b186-6b2a6a89e318\",\"e449749e-8319-4375-ad89-44b4fc50bd7f\"],\"negative\":[null,null]}}}",
+        "lora_mode": "auto"
+      }
     },
     {
       "id": 6,
       "type": "MiniMaxH3ImageToVideo",
       "pos": [
-        1050,
-        30
+        1140,
+        100
       ],
       "size": [
         410,
@@ -374,18 +556,21 @@
         1344,
         768,
         124
-      ]
+      ],
+      "title": "MiniMax H3 Encode & Latent · 1344×768 · 124f",
+      "color": "#2a223d",
+      "bgcolor": "#181522"
     },
     {
       "id": 7,
       "type": "RandomNoise",
       "pos": [
-        1040,
-        500
+        1640,
+        60
       ],
       "size": [
-        300,
-        90
+        320,
+        100
       ],
       "flags": {},
       "order": 6,
@@ -406,18 +591,21 @@
       "widgets_values": [
         1,
         "randomize"
-      ]
+      ],
+      "title": "Random Noise (Seed)",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 8,
       "type": "KSamplerSelect",
       "pos": [
-        1040,
-        630
+        1640,
+        230
       ],
       "size": [
-        300,
-        70
+        320,
+        80
       ],
       "flags": {},
       "order": 7,
@@ -437,18 +625,21 @@
       },
       "widgets_values": [
         "res_multistep"
-      ]
+      ],
+      "title": "Sampler Select · res_multistep",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 9,
       "type": "BasicScheduler",
       "pos": [
-        1040,
-        740
+        1640,
+        380
       ],
       "size": [
-        300,
-        120
+        320,
+        125
       ],
       "flags": {},
       "order": 8,
@@ -476,18 +667,21 @@
         "simple",
         20,
         1
-      ]
+      ],
+      "title": "Basic Scheduler · 20 Steps · Simple",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 10,
       "type": "BasicGuider",
       "pos": [
-        1500,
-        70
+        2020,
+        100
       ],
       "size": [
-        290,
-        90
+        320,
+        95
       ],
       "flags": {},
       "order": 9,
@@ -516,18 +710,21 @@
       "properties": {
         "Node name for S&R": "BasicGuider"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Basic Guider",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 11,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        1500,
-        220
+        2020,
+        265
       ],
       "size": [
-        310,
-        180
+        320,
+        195
       ],
       "flags": {},
       "order": 10,
@@ -577,17 +774,20 @@
       "properties": {
         "Node name for S&R": "SamplerCustomAdvanced"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Custom Advanced Sampler",
+      "color": "#1b362e",
+      "bgcolor": "#13211d"
     },
     {
       "id": 12,
       "type": "VAEDecode",
       "pos": [
-        1880,
-        130
+        2430,
+        80
       ],
       "size": [
-        240,
+        290,
         90
       ],
       "flags": {},
@@ -617,17 +817,20 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Decode Video Frames",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 13,
       "type": "VAEDecodeAudio",
       "pos": [
-        1880,
-        300
+        2430,
+        240
       ],
       "size": [
-        240,
+        290,
         90
       ],
       "flags": {},
@@ -657,18 +860,21 @@
       "properties": {
         "Node name for S&R": "VAEDecodeAudio"
       },
-      "widgets_values": []
+      "widgets_values": [],
+      "title": "Decode Audio Track",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 14,
       "type": "CreateVideo",
       "pos": [
-        2200,
-        180
+        2430,
+        400
       ],
       "size": [
-        270,
-        110
+        290,
+        120
       ],
       "flags": {},
       "order": 13,
@@ -701,18 +907,21 @@
       "widgets_values": [
         24,
         8
-      ]
+      ],
+      "title": "Mux 24 fps Video + Audio",
+      "color": "#252930",
+      "bgcolor": "#16191e"
     },
     {
       "id": 15,
       "type": "SaveVideo",
       "pos": [
-        2540,
-        180
+        2780,
+        80
       ],
       "size": [
-        430,
-        120
+        480,
+        440
       ],
       "flags": {},
       "order": 14,
@@ -738,7 +947,191 @@
         "video/PromptPalette_MiniMax_H3",
         "auto",
         "auto"
-      ]
+      ],
+      "title": "Save Video",
+      "color": "#252930",
+      "bgcolor": "#16191e"
+    },
+    {
+      "id": 16,
+      "type": "LabelPal",
+      "title": "LabelPal · Workflow Overview",
+      "pos": [
+        0,
+        -186
+      ],
+      "size": [
+        1060,
+        118
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#193328",
+      "bgcolor": "#131b17",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "MINIMAX H3 · Multi-Shot Cinema Video + Soundscape",
+          "note": "1344 × 768 · 124 frames (~5.2s @ 24 fps) · 20 steps · res_multistep — Text-only Prompt Palette output driving native multimodal shots.",
+          "color_preset": "lime",
+          "style_variant": "banner",
+          "text_size": "lg"
+        }
+      },
+      "widgets_values": [
+        "MINIMAX H3 · Multi-Shot Cinema Video + Soundscape",
+        "1344 × 768 · 124 frames (~5.2s @ 24 fps) · 20 steps · res_multistep — Text-only Prompt Palette output driving native multimodal shots.",
+        "lime",
+        "banner",
+        "lg"
+      ],
+      "widgets_values_named": {
+        "title": "MINIMAX H3 · Multi-Shot Cinema Video + Soundscape",
+        "note": "1344 × 768 · 124 frames (~5.2s @ 24 fps) · 20 steps · res_multistep — Text-only Prompt Palette output driving native multimodal shots.",
+        "color_preset": "lime",
+        "style_variant": "banner",
+        "text_size": "lg"
+      }
+    },
+    {
+      "id": 17,
+      "type": "LabelPal",
+      "title": "LabelPal · Start Here",
+      "pos": [
+        -490,
+        60
+      ],
+      "size": [
+        420,
+        410
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#183038",
+      "bgcolor": "#131a1f",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "START HERE · MiniMax H3 Component Files",
+          "note": "1. `models/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors`\n2. `models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` (`minimax` type)\n3. `models/vae/minimax_h3_video_vae_fp16.safetensors` (**Video VAE**)\n4. `models/vae/minimax_h3_audio_vae_fp32.safetensors` (**Audio VAE**)\n\n- Here Prompt Palette runs in **STRING mode**, wiring resolved `Prompt` text straight into `MiniMaxH3ImageToVideo`.",
+          "color_preset": "cyan",
+          "style_variant": "card",
+          "text_size": "md"
+        }
+      },
+      "widgets_values": [
+        "START HERE · MiniMax H3 Component Files",
+        "1. `models/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors`\n2. `models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` (`minimax` type)\n3. `models/vae/minimax_h3_video_vae_fp16.safetensors` (**Video VAE**)\n4. `models/vae/minimax_h3_audio_vae_fp32.safetensors` (**Audio VAE**)\n\n- Here Prompt Palette runs in **STRING mode**, wiring resolved `Prompt` text straight into `MiniMaxH3ImageToVideo`.",
+        "cyan",
+        "card",
+        "md"
+      ],
+      "widgets_values_named": {
+        "title": "START HERE · MiniMax H3 Component Files",
+        "note": "1. `models/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors`\n2. `models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` (`minimax` type)\n3. `models/vae/minimax_h3_video_vae_fp16.safetensors` (**Video VAE**)\n4. `models/vae/minimax_h3_audio_vae_fp32.safetensors` (**Audio VAE**)\n\n- Here Prompt Palette runs in **STRING mode**, wiring resolved `Prompt` text straight into `MiniMaxH3ImageToVideo`.",
+        "color_preset": "cyan",
+        "style_variant": "card",
+        "text_size": "md"
+      }
+    },
+    {
+      "id": 18,
+      "type": "LabelPal",
+      "title": "LabelPal · Prompting Tip",
+      "pos": [
+        -490,
+        534
+      ],
+      "size": [
+        420,
+        255
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "color": "#193328",
+      "bgcolor": "#131b17",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "SCRIPTING TIP · Multi-Shot & Audio Blocks",
+          "note": "- Structure prompts into `integrated_multimodal_description:` (`[Shot 1]`, `[Shot 2]` with timestamps), `overall_soundscape:`, and `non_diegetic_music:`.\n- Use `{heavy rain|light mist}` or `__wildcards__` anywhere — Prompt Palette resolves them before MiniMax encodes.",
+          "color_preset": "lime",
+          "style_variant": "sticky",
+          "text_size": "sm"
+        }
+      },
+      "widgets_values": [
+        "SCRIPTING TIP · Multi-Shot & Audio Blocks",
+        "- Structure prompts into `integrated_multimodal_description:` (`[Shot 1]`, `[Shot 2]` with timestamps), `overall_soundscape:`, and `non_diegetic_music:`.\n- Use `{heavy rain|light mist}` or `__wildcards__` anywhere — Prompt Palette resolves them before MiniMax encodes.",
+        "lime",
+        "sticky",
+        "sm"
+      ],
+      "widgets_values_named": {
+        "title": "SCRIPTING TIP · Multi-Shot & Audio Blocks",
+        "note": "- Structure prompts into `integrated_multimodal_description:` (`[Shot 1]`, `[Shot 2]` with timestamps), `overall_soundscape:`, and `non_diegetic_music:`.\n- Use `{heavy rain|light mist}` or `__wildcards__` anywhere — Prompt Palette resolves them before MiniMax encodes.",
+        "color_preset": "lime",
+        "style_variant": "sticky",
+        "text_size": "sm"
+      }
+    },
+    {
+      "id": 19,
+      "type": "LabelPal",
+      "pos": [
+        -490,
+        -264
+      ],
+      "size": [
+        1550,
+        58
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "LabelPal · Header",
+      "color": "transparent",
+      "bgcolor": "transparent",
+      "boxcolor": "transparent",
+      "properties": {
+        "Node name for S&R": "LabelPal",
+        "label_pal_v1": {
+          "version": 1,
+          "title": "Prompt Palette: MiniMax T2V",
+          "note": "",
+          "color_preset": "lime",
+          "style_variant": "text",
+          "text_size": "xl"
+        }
+      },
+      "widgets_values": [
+        "Prompt Palette: MiniMax T2V",
+        "",
+        "lime",
+        "text",
+        "xl"
+      ],
+      "widgets_values_named": {
+        "title": "Prompt Palette: MiniMax T2V",
+        "note": "",
+        "color_preset": "lime",
+        "style_variant": "text",
+        "text_size": "xl"
+      }
     }
   ],
   "links": [
@@ -768,7 +1161,7 @@
     ],
     [
       4,
-      1,
+      5,
       0,
       9,
       0,
@@ -776,7 +1169,7 @@
     ],
     [
       5,
-      1,
+      5,
       0,
       10,
       0,
@@ -885,16 +1278,85 @@
       15,
       0,
       "VIDEO"
+    ],
+    [
+      19,
+      1,
+      0,
+      5,
+      1,
+      "MODEL"
     ]
   ],
-  "groups": [],
+  "groups": [
+    {
+      "title": "1 · Load MiniMax H3 Models & VAEs",
+      "bounding": [
+        -24,
+        -18,
+        468,
+        734
+      ],
+      "color": "#263f52",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2 · Multimodal Shot Script (STRING)",
+      "bounding": [
+        486,
+        -18,
+        588,
+        684
+      ],
+      "color": "#5c4324",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3 · Encode & Video/Audio Latent",
+      "bounding": [
+        1116,
+        22,
+        458,
+        524
+      ],
+      "color": "#3e3359",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "4 · 20-Step Sampling",
+      "bounding": [
+        1616,
+        -18,
+        748,
+        549
+      ],
+      "color": "#24473d",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "5 · Decode Video + Audio & Save",
+      "bounding": [
+        2406,
+        2,
+        878,
+        544
+      ],
+      "color": "#383d47",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7,
+      "scale": 0.62,
       "offset": [
-        40,
-        40
+        560,
+        220
       ]
     }
   },
